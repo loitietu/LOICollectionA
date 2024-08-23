@@ -26,11 +26,7 @@ target("LOICollectionA")
     after_build(function (target)
         local plugin_packer = import("scripts.after_build")
 
-        local tag = os.iorun("git describe --tags --abbrev=0 --always")
-        local major, minor, patch, suffix = tag:match("v(%d+)%.(%d+)%.(%d+)(.*)")
-        if not major then
-            major, minor, patch = 1, 4, 0
-        end
+        local major, minor, patch = 1, 4, 0
         local plugin_define = {
             pluginName = target:name(),
             pluginFile = path.filename(target:targetfile()),

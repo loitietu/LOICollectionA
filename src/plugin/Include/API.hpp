@@ -5,13 +5,11 @@
 
 #include <mc/world/actor/player/Player.h>
 
-#include "../API/language.h"
 #include "../Utils/toolUtils.h"
+#include "../Include/language.h"
 
 namespace LOICollectionAPI {
-    inline std::string translateString(void* contentPtr, void* playerPtr, bool enable) {
-        std::string contentString = *static_cast<std::string*>(contentPtr);
-        Player* player = static_cast<Player*>(playerPtr);
+    inline std::string translateString(std::string contentString, Player* player, bool enable) {
         contentString = toolUtils::replaceString(contentString, "{language}", languagePlugin::getLanguage(player));
         contentString = toolUtils::replaceString(contentString, "{player}", player->getName());
         contentString = toolUtils::replaceString(contentString, "{pos}", player->getPosition().toString());

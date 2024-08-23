@@ -12,16 +12,15 @@
 #include "Utils/JsonUtils.h"
 #include "Utils/I18nUtils.h"
 
-#include "API/language.h"
+#include "Include/language.h"
+#include "Include/blacklist.h"
 
 #include "LOICollectionA.h"
 
 namespace LOICollection {
     static std::unique_ptr<A> instance;
 
-    A& A::getInstance() {
-        return *instance;
-    }
+    A& A::getInstance() { return *instance; }
 
     bool A::load() {
         auto& logger = mSelf.getLogger();
@@ -67,12 +66,14 @@ namespace LOICollection {
 
     bool A::enable() {
         languagePlugin::registery(&this->LanguageDB);
+        if (this->config.Blacklist) blacklistPlugin::registery(&this->BlacklistDB);
         this->mSelf.getLogger().info("Register Event completed.");
         return true;
     }
 
     bool A::disable() {
         languagePlugin::unregistery();
+        if (this->config.Blacklist) blacklistPlugin::unregistery();
         this->mSelf.getLogger().info("Unregister Event completed.");
         return true;
     }

@@ -4,7 +4,6 @@
 #include <stdexcept>
 
 #include <ll/api/Logger.h>
-#include <ll/api/i18n/I18n.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/data/KeyValueDB.h>
 #include <ll/api/service/Bedrock.h>
@@ -21,10 +20,10 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "../API/API.hpp"
+#include "../Include/API.hpp"
 #include "../Utils/I18nUtils.h"
 
-#include "../API/language.h"
+#include "../Include/language.h"
 
 namespace languagePlugin {
     namespace {
@@ -39,8 +38,9 @@ namespace languagePlugin {
             if (!commandRegistery) {
                 throw std::runtime_error("Failed to get command registry.");
             }
-            auto& command = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("language", "§e§lLOICollection -> §a语言设置", CommandPermissionLevel::Any);
-            command.overload().execute<[&](CommandOrigin const& origin, CommandOutput& output) {
+            auto& command = ll::command::CommandRegistrar::getInstance()
+                .getOrCreateCommand("language", "§e§lLOICollection -> §a语言设置", CommandPermissionLevel::Any);
+            command.overload().text("setting").execute([&](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isType(ActorType::Player)) {
                     output.error("LOICollection >> No player selected.");
@@ -49,6 +49,7 @@ namespace languagePlugin {
                 auto* player = static_cast<Player*>(entity);
                 ll::form::CustomForm form(tr(getLanguage(player), "language.gui.title"));
                 form.appendLabel(tr(getLanguage(player), "language.gui.label"));
+                form.appendLabel(tr(getLanguage(player), "language.gui.lang"));
                 form.appendDropdown("dropdown", tr(getLanguage(player), "language.gui.dropdown"), keys());
                 form.sendTo((*player), [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                     if (!dt) {
@@ -57,11 +58,12 @@ namespace languagePlugin {
                     }
                     auto playerUuid = pl.getUuid().asString();
                     auto dropdownValue = std::get<std::string>(dt->at("dropdown"));
-                    std::string logString = tr(getLanguage(&pl), "language.log");
                     db->set(playerUuid, dropdownValue);
-                    logger.info(LOICollectionAPI::translateString(&logString, &pl, true));
+                    
+                    std::string logString = tr(getLanguage(&pl), "language.log");
+                    logger.info(LOICollectionAPI::translateString(logString, &pl, true));
                 });
-            }>();
+            });
         }
 
         void listenEvent() {
@@ -69,7 +71,7 @@ namespace languagePlugin {
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
                 [&](ll::event::PlayerJoinEvent& event) {
                     auto playerUuid = event.self().getUuid().asString();
-                    if (!db->get(playerUuid)) {
+                    if (!db->has(playerUuid)) {
                         db->set(playerUuid, "zh_CN");
                     }
                 }
