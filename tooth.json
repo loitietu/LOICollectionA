@@ -1,0 +1,30 @@
+{
+    "format_version": 2,
+    "tooth": "LOICollectionA",
+    "version": "1.4.0",
+    "info": {
+        "name": "LOICollectionA",
+        "description": "Multifunctional plug-in set",
+        "author": "tietu",
+        "tags": [
+            "levilamina",
+            "plugin",
+            "collection",
+            "loistudio",
+            "loi",
+            "tietu"
+        ]
+    },
+    "asset_url": "None",
+    "prerequisites": {
+        "github.com/LiteLDev/LeviLamina": "0.13.x"
+    },
+    "files": {
+        "place": [
+            {
+                "src": "LOICollectionA/*",
+                "dest": "plugins/LOICollectionA/"
+            }
+        ]
+    }
+}

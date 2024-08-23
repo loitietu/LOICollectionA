@@ -1,0 +1,95 @@
+{
+    "MainBuy": {
+        "title": "Buy Shop Example",
+        "content": "This is a shop example",
+        "exit": "Exit Shop",
+        "NoScore": "You do not have enough score to buy this item",
+        "classiflcation": [
+            {
+                "title": "Apple",
+                "image": "textures/items/apple",
+                "introduce": "A red apple\nllmoney: ${llmoney}\nscores: ${scores}",
+                "number": "Buy number",
+                "id": "minecraft:apple",
+                "name": "Shop Apple",
+                "llmoney": 10,
+                "scores": {},
+                "type": "commodity"
+            },
+            {
+                "title": "Buy Title Shop",
+                "image": "",
+                "menu": "titleBuy",
+                "type": "from"
+            }
+        ],
+        "type": "buy"
+    },
+    "titleBuy": {
+        "title": "Buy Title Shop",
+        "content": "This is a title shop",
+        "exit": "Exit Title Shop",
+        "NoScore": "You do not have enough score to buy this item",
+        "classiflcation": [
+            {
+                "title": "Test Title",
+                "image": "",
+                "introduce": "This is a test title\nllmoney: ${llmoney}\nscores: ${scores}",
+                "confirmButton": "Confirm",
+                "cancelButton": "Cancel",
+                "id": "Test Title",
+                "llmoney": 10,
+                "scores": {},
+                "type": "title"
+            }
+        ],
+        "type": "buy"
+    },
+    "MainSell": {
+        "title": "Sell Shop Example",
+        "content": "This is a shop example",
+        "exit": "Exit Shop",
+        "NoTitle": "You do not have enough title to sell",
+        "NoItem": "You do not have enough item to sell",
+        "classiflcation": [
+            {
+                "title": "Apple",
+                "image": "textures/items/apple",
+                "introduce": "A red apple\nllmoney: ${llmoney}\nscores: ${scores}",
+                "number": "Sell number",
+                "id": "minecraft:apple",
+                "llmoney": 10,
+                "scores": {},
+                "type": "commodity"
+            },
+            {
+                "title": "Sell Title Shop",
+                "image": "",
+                "menu": "titleSell",
+                "type": "from"
+            }
+        ],
+        "type": "sell"
+    },
+    "titleSell": {
+        "title": "Sell Title Shop",
+        "content": "This is a title shop",
+        "exit": "Exit Title Shop",
+        "NoTitle": "You do not have enough title to sell",
+        "NoItem": "You do not have enough item to sell",
+        "classiflcation": [
+            {
+                "title": "Test Title",
+                "image": "",
+                "introduce": "This is a test title\nllmoney: ${llmoney}\nscores: ${scores}",
+                "confirmButton": "Confirm",
+                "cancelButton": "Cancel",
+                "id": "Test Title",
+                "llmoney": 10,
+                "scores": {},
+                "type": "title"
+            }
+        ],
+        "type": "sell"
+    }
+}

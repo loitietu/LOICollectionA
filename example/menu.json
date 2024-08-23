@@ -1,0 +1,63 @@
+{
+    "main": {
+        "title": "Menu Example",
+        "content": "This is a menu example",
+        "exit": "Exit Menu",
+        "NoPermission": "You do not have permission to use this button",
+        "NoScore": "You do not have enough score to use this button",
+        "type": "Simple",
+        "button": [
+            {
+                "title": "Button 1",
+                "image": "",
+                "scores": {
+                    "a": 100
+                },
+                "llmoney": 100,
+                "command": "say Button1",
+                "type": "button"
+            },
+            {
+                "title": "From 1",
+                "image": "",
+                "scores": {},
+                "llmoney": 0,
+                "menu": "Menu1",
+                "type": "from"
+            },
+            {
+                "title": "OP Button 1",
+                "image": "",
+                "command": "say OPButton1",
+                "type": "opbutton"
+            },
+            {
+                "title": "OP From 1",
+                "image": "",
+                "menu": "Menu1",
+                "type": "opfrom"
+            }
+        ]
+    },
+    "Menu1": {
+        "title": "Menu 1",
+        "content": "This is a menu 1",
+        "NoPermission": "You do not have permission to use this button",
+        "NoScore": "You do not have enough score to use this button",
+        "type": "Modal",
+        "confirmButton": {
+            "title": "Confirm",
+            "scores": {},
+            "llmoney": 0,
+            "command": "say Confirm",
+            "type": "button"
+        },
+        "cancelButton": {
+            "title": "Cancel",
+            "scores": {},
+            "llmoney": 0,
+            "command": "say Cancel",
+            "type": "button"
+        }
+    }
+}
