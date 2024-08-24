@@ -3,14 +3,14 @@
 
 #include <ll/api/Config.h>
 #include <ll/api/io/FileUtils.h>
-#include <ll/api/data/KeyValueDB.h>
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/Mod/RegisterHelper.h>
 
 #include "LangPlugin.h"
 #include "Utils/toolUtils.h"
-#include "Utils/JsonUtils.h"
 #include "Utils/I18nUtils.h"
+#include "Utils/JsonUtils.h"
+#include "Utils/SQLiteStorage.h"
 
 #include "Include/language.h"
 #include "Include/blacklist.h"
@@ -43,13 +43,14 @@ namespace LOICollection {
         }
 
         logger.info("Initialization of configurations completed.");
-        this->LanguageDB = std::make_unique<ll::data::KeyValueDB>(dataFilePath / "language");
-        this->BlacklistDB = std::make_unique<ll::data::KeyValueDB>(dataFilePath / "blacklist");
-        this->MuteDB = std::make_unique<ll::data::KeyValueDB>(dataFilePath / "mute");
-        this->TpaDB = std::make_unique<ll::data::KeyValueDB>(dataFilePath / "tpa");
-        this->PvpDB = std::make_unique<ll::data::KeyValueDB>(dataFilePath / "pvp");
-        this->ChatDB = std::make_unique<ll::data::KeyValueDB>(dataFilePath / "chat");
-        this->MarketDB = std::make_unique<ll::data::KeyValueDB>(dataFilePath / "market");
+        std::filesystem::create_directory(dataFilePath);
+        this->LanguageDB = std::make_unique<SQLiteStorage>(dataFilePath / "language.db");
+        this->BlacklistDB = std::make_unique<SQLiteStorage>(dataFilePath / "blacklist.db");
+        this->MuteDB = std::make_unique<SQLiteStorage>(dataFilePath / "mute.db");
+        this->TpaDB = std::make_unique<SQLiteStorage>(dataFilePath / "tpa.db");
+        this->PvpDB = std::make_unique<SQLiteStorage>(dataFilePath / "pvp.db");
+        this->ChatDB = std::make_unique<SQLiteStorage>(dataFilePath / "chat.db");
+        this->MarketDB = std::make_unique<SQLiteStorage>(dataFilePath / "market.db");
         this->CdkDB = std::make_unique<JsonUtils>(dataFilePath / "cdk.json");
         this->MenuDB = std::make_unique<JsonUtils>(dataFilePath / "menu.json");
         this->ShopDB = std::make_unique<JsonUtils>(dataFilePath / "shop.json");

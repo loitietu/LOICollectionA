@@ -3,9 +3,9 @@
 #include <memory>
 
 #include <ll/api/Mod/NativeMod.h>
-#include <ll/api/data/KeyValueDB.h>
 
 #include "Utils/JsonUtils.h"
+#include "Utils/SQLiteStorage.h"
 #include "ConfigPlugin.h"
 
 namespace LOICollection {
@@ -22,13 +22,13 @@ namespace LOICollection {
         ll::mod::NativeMod& mSelf;
 
         C_Config config;
-        std::unique_ptr<ll::data::KeyValueDB> LanguageDB;
-        std::unique_ptr<ll::data::KeyValueDB> BlacklistDB;
-        std::unique_ptr<ll::data::KeyValueDB> MuteDB;
-        std::unique_ptr<ll::data::KeyValueDB> TpaDB;
-        std::unique_ptr<ll::data::KeyValueDB> PvpDB;
-        std::unique_ptr<ll::data::KeyValueDB> ChatDB;
-        std::unique_ptr<ll::data::KeyValueDB> MarketDB;
+        std::unique_ptr<SQLiteStorage> LanguageDB;
+        std::unique_ptr<SQLiteStorage> BlacklistDB;
+        std::unique_ptr<SQLiteStorage> MuteDB;
+        std::unique_ptr<SQLiteStorage> TpaDB;
+        std::unique_ptr<SQLiteStorage> PvpDB;
+        std::unique_ptr<SQLiteStorage> ChatDB;
+        std::unique_ptr<SQLiteStorage> MarketDB;
         std::unique_ptr<JsonUtils> CdkDB;
         std::unique_ptr<JsonUtils> MenuDB;
         std::unique_ptr<JsonUtils> ShopDB;

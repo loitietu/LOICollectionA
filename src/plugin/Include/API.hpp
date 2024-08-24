@@ -10,6 +10,7 @@
 
 namespace LOICollectionAPI {
     inline std::string translateString(std::string contentString, Player* player, bool enable) {
+        if (player->isSimulatedPlayer()) return "";
         contentString = toolUtils::replaceString(contentString, "{language}", languagePlugin::getLanguage(player));
         contentString = toolUtils::replaceString(contentString, "{player}", player->getName());
         contentString = toolUtils::replaceString(contentString, "{pos}", player->getPosition().toString());

@@ -95,15 +95,28 @@ namespace toolUtils {
     std::string timeCalculate(int hours) {
         if (hours > 0) {
             std::time_t currentTime = std::time(nullptr);
-            std::tm* timeInfo = std::localtime(&currentTime);
-            timeInfo->tm_hour += hours;
-            std::time_t laterTime = std::mktime(timeInfo);
+            std::tm timeInfo;
+            localtime_s(&timeInfo, &currentTime);
+            timeInfo.tm_hour += hours;
+            std::time_t laterTime = std::mktime(&timeInfo);
             char formattedTime[15];
-            std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", std::localtime(&laterTime));
+            std::tm laterTimeInfo;
+            localtime_s(&laterTimeInfo, &laterTime);
+            std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", &laterTimeInfo);
             std::string formattedTimeString(formattedTime);
             return formattedTimeString;
         }
         return "0";
+    }
+
+    int toInt(const std::string& intString, int defaultValue) {
+        int result = defaultValue;
+        try {
+            result = std::stoi(intString);
+        } catch (const std::exception& /*unused*/) {
+            result = defaultValue;
+        }
+        return result;
     }
 
     std::vector<std::string> split(const std::string& s, char delimiter) {
@@ -116,16 +129,45 @@ namespace toolUtils {
         return tokens;
     }
 
+    std::vector<std::string> getAllPlayerName() {
+        std::vector<std::string> mObjectLists = {};
+        std::vector<Player*> mObjectPlayerLists = getAllPlayers();
+        for (auto& player : mObjectPlayerLists) {
+            mObjectLists.push_back(player->getRealName());
+        }
+        return mObjectLists;
+    }
+
+    std::vector<Player*> getAllPlayers() {
+        std::vector<Player*> mObjectLists = {};
+        ll::service::getLevel()->forEachPlayer([&](Player& player) -> bool {
+            mObjectLists.push_back(&player);
+            return true;
+        });
+        return mObjectLists;
+    }
+
+    Player* getPlayerFromName(const std::string& name) {
+        std::vector<Player*> mObjectPlayerLists = getAllPlayers();
+        for (auto& player : mObjectPlayerLists) {
+            if (player->getRealName() == name) {
+                return player;
+            }
+        }
+        return nullptr;
+    }
+
     bool isReach(const std::string& timeString) {
         if (timeString != "0") {
             std::time_t currentTime = std::time(nullptr);
             char formattedTime[15];
-            std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", std::localtime(&currentTime));
+            std::tm currentTimeInfo;
+            localtime_s(&currentTimeInfo, &currentTime);
+            std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", &currentTimeInfo);
             std::string formattedTimeString(formattedTime);
             int64_t formattedTimeInt = std::stoll(formattedTimeString);
             int64_t timeInt = std::stoll(timeString);
-            if (formattedTimeInt > timeInt) return true;
-            else return false;
+            return formattedTimeInt > timeInt;
         }
         return false;
     }

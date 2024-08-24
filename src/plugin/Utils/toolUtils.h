@@ -4,14 +4,20 @@
 #include <string>
 #include <vector>
 
+#include <mc/world/actor/player/Player.h>
+
 namespace toolUtils {
     void init(void* mSelfPtr);
     void SynchronousPluginConfigVersion(void* config_ptr);
     std::string getVersion();
     std::string getDevice(void* player_ptr);
     std::string replaceString(std::string str, const std::string& from, const std::string& to);
-    std::string timeCalculate(int hours);
+    std::string timeCalculate(int hours); 
+    int toInt(const std::string& intString, int defaultValue);
     std::vector<std::string> split(const std::string& s, char delimiter);
+    std::vector<std::string> getAllPlayerName();
+    std::vector<Player*> getAllPlayers();
+    Player* getPlayerFromName(const std::string& name);
     bool isReach(const std::string& timeString);
 
     namespace scoreboard {
