@@ -73,13 +73,13 @@ Market | $\color{#00FF00}{√}$
 4. 您可以自由地进行更改并保存。
 
 ### 如何在本地编译？
-1. 打开本地命令提示符(cmd)并执行以下命令：
+打开本地命令提示符(cmd)并执行以下命令：
 ```cmd
 git clone https://github.com/loitietu/LOICollectionA.git
+cd LOICollectionA
+xmake repo -u
+xmake
 ```
-2. 打开 IDE（建议使用 Visual Studio Code）。
-3. 打开克隆的项目。
-4. 等待自动配置完成，然后进行编译。
 
 ### LICENSE
 - 本插件根据 [GPL-3.0](LICENSE) 许可证进行许可。

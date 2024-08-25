@@ -98,17 +98,15 @@ namespace blacklistPlugin {
 
         void open(Player* player) {
             std::string mObjectLanguage = getLanguage(player);
-            std::string title(tr(mObjectLanguage, "blacklist.gui.title"));
-            std::string label(tr(mObjectLanguage, "blacklist.gui.label"));
-            ll::form::SimpleForm form(title, label);
+            ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.title"), tr(mObjectLanguage, "blacklist.gui.label"));
             form.appendButton(tr(mObjectLanguage, "blacklist.gui.addBlacklist"), "textures/ui/backup_replace", "path", [](Player& pl) {
                 MainGui::add(&pl);
             });
             form.appendButton(tr(mObjectLanguage, "blacklist.gui.removeBlacklist"), "textures/ui/free_download_symbol", "path", [](Player& pl) {
                 MainGui::remove(&pl);
             });
-            form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
+            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) pl.sendMessage(tr(mObjectLanguage, "exit"));
             });
         }
     }
@@ -116,13 +114,15 @@ namespace blacklistPlugin {
     namespace {
         const auto BlacklistCommandADD = [](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param) {
             for (auto& pl : param.target.results(origin)) {
-                output.addMessage(fmt::format("Add player {}({}) to blacklist.", 
-                    pl->getRealName(), pl->getUuid().asString()), 
-                    {}, CommandOutputMessageType::Success);
-                if (param.selectorType == BlacklistOP::ip) {
-                    addBlacklist(pl, param.cause, param.time, 0);
-                } else if (param.selectorType == BlacklistOP::uuid) {
-                    addBlacklist(pl, param.cause, param.time, 1);
+                if (isBlacklist(pl)) {
+                    output.addMessage(fmt::format("Add player {}({}) to blacklist.", 
+                        pl->getRealName(), pl->getUuid().asString()), 
+                        {}, CommandOutputMessageType::Success);
+                    if (param.selectorType == BlacklistOP::ip) {
+                        addBlacklist(pl, param.cause, param.time, 0);
+                    } else if (param.selectorType == BlacklistOP::uuid) {
+                        addBlacklist(pl, param.cause, param.time, 1);
+                    }
                 }
             }
         };
@@ -150,7 +150,7 @@ namespace blacklistPlugin {
                 if (param.subCommand == BlacklistOP::list) {
                     std::string content("Blacklist: Add list");
                     for (auto& key : db->list()) {
-                        content += " - " + toolUtils::replaceString(key, "OBJECT$", "");
+                        content += toolUtils::replaceString(key, "OBJECT$", "!- ");
                     }
                     output.success(content);
                     return;
@@ -247,5 +247,15 @@ namespace blacklistPlugin {
         if (db->has("OBJECT$" + target) && target != "None") {
             db->remove("OBJECT$" + target);
         }
+    }
+
+    bool isBlacklist(void* player_ptr) {
+        Player* player = static_cast<Player*>(player_ptr);
+        std::string mObjectUuid = player->getUuid().asString();
+        std::string mObjectIP = toolUtils::split(player->getIPAndPort(), ':')[0];
+        std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
+        std::replace(mObjectIP.begin(), mObjectIP.end(), '.', '_');
+        if (db->has("OBJECT$" + mObjectUuid)) return true;
+        return db->has("OBJECT$" + mObjectIP);
     }
 }

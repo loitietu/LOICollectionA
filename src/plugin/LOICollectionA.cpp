@@ -14,6 +14,7 @@
 
 #include "Include/language.h"
 #include "Include/blacklist.h"
+#include "Include/mute.h"
 
 #include "LOICollectionA.h"
 
@@ -68,6 +69,7 @@ namespace LOICollection {
     bool A::enable() {
         languagePlugin::registery(&this->LanguageDB);
         if (this->config.Blacklist) blacklistPlugin::registery(&this->BlacklistDB);
+        if (this->config.Mute) mutePlugin::registery(&this->MuteDB);
         this->mSelf.getLogger().info("Register Event completed.");
         return true;
     }
@@ -75,6 +77,7 @@ namespace LOICollection {
     bool A::disable() {
         languagePlugin::unregistery();
         if (this->config.Blacklist) blacklistPlugin::unregistery();
+        if (this->config.Mute) mutePlugin::unregistery();
         this->mSelf.getLogger().info("Unregister Event completed.");
         return true;
     }

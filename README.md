@@ -73,14 +73,13 @@ Market | $\color{#00FF00}{√}$
 4. You can change it freely and save it.
 
 ### How to compile locally?
-1. Open the local cmd and execute the command:
+Open the local cmd and execute the command:
 ```cmd
 git clone https://github.com/loitietu/LOICollectionA.git
+cd LOICollectionA
+xmake repo -u
+xmake
 ```
-2. Open ide (It is recommended to use Visual Studio Code).
-3. Open the cloned project.
-4. Wait for the automatic configuration to complete and then compile.
-
 
 ### LICENSE
 - This plugin is licensed under the [GPL-3.0](LICENSE) license.
