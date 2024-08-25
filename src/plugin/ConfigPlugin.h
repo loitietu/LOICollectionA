@@ -1,3 +1,6 @@
+#ifndef CONFIG_PLUGIN_H
+#define CONFIG_PLUGIN_H
+
 #include <string>
 #include <vector>
 
@@ -38,3 +41,5 @@ struct C_Config {
     bool AnnounCement = false;
     bool Market = false;
 };
+
+#endif

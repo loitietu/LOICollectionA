@@ -12,6 +12,7 @@
 #include "Utils/JsonUtils.h"
 #include "Utils/SQLiteStorage.h"
 
+#include "Include/HookPlugin.h"
 #include "Include/language.h"
 #include "Include/blacklist.h"
 #include "Include/mute.h"
@@ -63,10 +64,14 @@ namespace LOICollection {
         }
         I18nUtils::load(mSelf.getConfigDir() / "language.json");
         logger.info("Initialization of language file completed.");
+
+        HookPlugin::setFakeSeed(this->config.FakeSeed);
+        logger.info("Initialization of HookPlugin completed.");
         return true;
     }
 
     bool A::enable() {
+        HookPlugin::registery();
         languagePlugin::registery(&this->LanguageDB);
         if (this->config.Blacklist) blacklistPlugin::registery(&this->BlacklistDB);
         if (this->config.Mute) mutePlugin::registery(&this->MuteDB);

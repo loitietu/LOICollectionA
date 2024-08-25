@@ -106,7 +106,7 @@ namespace blacklistPlugin {
                 MainGui::remove(&pl);
             });
             form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(mObjectLanguage, "exit"));
+                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
             });
         }
     }

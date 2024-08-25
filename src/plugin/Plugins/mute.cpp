@@ -86,8 +86,8 @@ namespace mutePlugin {
             form.appendButton(tr(mObjectLanguage, "mute.gui.removeMute"), "textures/ui/free_download_symbol", "path", [](Player& pl) {
                 MainGui::remove(&pl);
             });
-            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(mObjectLanguage, "exit"));
+            form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
             });
         }
     }

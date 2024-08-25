@@ -1,5 +1,5 @@
-#ifndef LANGPLUGIN_H
-#define LANGPLUGIN_H
+#ifndef LANG_PLUGIN_H
+#define LANG_PLUGIN_H
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
