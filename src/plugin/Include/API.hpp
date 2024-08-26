@@ -6,7 +6,7 @@
 #include <mc/world/actor/player/Player.h>
 
 #include "../Utils/toolUtils.h"
-#include "../Include/language.h"
+#include "plugin/languagePlugin.h"
 
 namespace LOICollectionAPI {
     inline std::string translateString(std::string contentString, Player* player, bool enable) {

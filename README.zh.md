@@ -50,14 +50,13 @@ Market | $\color{#00FF00}{√}$
         "Enable": false,
         "join": "{player}加入了服务器",
         "left": "{player}退出了服务器",
-        "llmoney": "§e§l检测到LLMoney发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}",
+        "score": "§e§l检测到Score发生变化 §b原值: §f${OriScore} §a更改: §f${SetScore} §e现值: §f${GetScore}",
         "command": [],
         "tips": "该指令已被禁用" 
     },
     "Pvp": false,
     "Wallet": {
         "Enable": false,
-        "llmoney": true,
         "score": "money",
         "tax": 0.1 
     },

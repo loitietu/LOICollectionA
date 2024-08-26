@@ -4,6 +4,10 @@
 #include <string>
 
 namespace languagePlugin {
+    namespace MainGui {
+        void open(void* player_ptr);
+    }
+
     void registery(void* database);
     void unregistery();
 

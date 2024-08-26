@@ -21,12 +21,13 @@
 #include <mc/server/commands/CommandOutputMessageType.h>
 
 #include "../Include/API.hpp"
-#include "../Include/language.h"
+#include "../Include/plugin/languagePlugin.h"
+
 #include "../Utils/I18nUtils.h"
 #include "../Utils/toolUtils.h"
 #include "../Utils/SQLiteStorage.h"
 
-#include "../Include/mute.h"
+#include "../Include/plugin/mutePlugin.h"
 
 using I18nUtils::tr;
 using languagePlugin::getLanguage;
@@ -43,7 +44,8 @@ namespace mutePlugin {
     ll::Logger logger("LOICollectionA - Mute");
 
     namespace MainGui {
-        void add(Player* player) {
+        void add(void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             ll::form::CustomForm form(tr(mObjectLanguage, "mute.gui.add.title"));
             form.appendLabel(tr(mObjectLanguage, "mute.gui.label"));
@@ -62,7 +64,8 @@ namespace mutePlugin {
             });
         }
 
-        void remove(Player* player) {
+        void remove(void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             ll::form::CustomForm form(tr(mObjectLanguage, "mute.gui.remove.title"));
             form.appendLabel(tr(mObjectLanguage, "mute.gui.label"));
@@ -77,7 +80,8 @@ namespace mutePlugin {
             });
         }
 
-        void open(Player* player) {
+        void open(void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.title"), tr(mObjectLanguage, "mute.gui.label"));
             form.appendButton(tr(mObjectLanguage, "mute.gui.addMute"), "textures/ui/backup_replace", "path", [](Player& pl) {
@@ -132,7 +136,7 @@ namespace mutePlugin {
                     return;
                 }
                 auto* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player " + player->getRealName());
+                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
             });
         }
@@ -163,6 +167,7 @@ namespace mutePlugin {
 
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        logger.setFile("./logs/LOICollectionA.log");
         registerCommand();
         listenEvent();
     }

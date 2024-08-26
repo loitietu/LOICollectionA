@@ -5,7 +5,7 @@
 #include <mc/deps/core/utility/BinaryStream.h>
 #include <mc/network/packet/StartGamePacket.h>
 
-#include "../Include/HookPlugin.h"
+#include "../Include/plugin/HookPlugin.h"
 
 namespace HookPlugin {
     int64_t mFakeSeed = 0;

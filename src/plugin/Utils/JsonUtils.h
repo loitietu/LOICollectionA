@@ -24,9 +24,12 @@ public:
     T get(std::string_view key);
 
     bool has(std::string_view key);
-    bool set(std::string_view key, const std::string& value);
     bool empty();
     bool reset();
+
+    void set(std::string_view key, const std::string& value);
+    void set(std::string_view key, nlohmann::ordered_json& value);
+    void save();
     
     std::vector<std::string> keys();
 
@@ -35,8 +38,6 @@ public:
     std::string toString(int indent = 0);
     nlohmann::ordered_json toJson(std::string key);
     nlohmann::ordered_json toJson();
-
-    void save();
 private:
     std::filesystem::path d_path;
     nlohmann::ordered_json d_json = nlohmann::ordered_json::object();

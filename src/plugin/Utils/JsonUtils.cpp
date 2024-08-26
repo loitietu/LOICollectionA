@@ -11,6 +11,7 @@
 #include "JsonUtils.h"
 
 JsonUtils::JsonUtils(const std::filesystem::path& path) {
+    this->d_path = path;
     if (!std::filesystem::exists(path)) {
         std::ofstream newfile(path);
         newfile << this->d_json.dump();
@@ -20,8 +21,6 @@ JsonUtils::JsonUtils(const std::filesystem::path& path) {
     if (file.is_open()) {
         file >> this->d_json;
         file.close();
-    } else {
-        throw new std::runtime_error("Failed to open JSON file");
     }
 }
 
@@ -31,15 +30,11 @@ bool JsonUtils::del(std::string_view key) {
 
 template<typename T>
 T JsonUtils::get(std::string_view key) {
-    return this->d_json[key];
+    return this->d_json.at(key).get<T>();
 }
 
 bool JsonUtils::has(std::string_view key) {
     return this->d_json.contains(key);
-}
-
-bool JsonUtils::set(std::string_view key, const std::string& value) {
-    return this->d_json[key] = value;
 }
 
 bool JsonUtils::empty() {
@@ -51,8 +46,24 @@ bool JsonUtils::reset() {
     return true;
 }
 
+void JsonUtils::set(std::string_view key, const std::string& value) {
+    this->d_json[key] = value;
+}
+
+void JsonUtils::set(std::string_view key, nlohmann::ordered_json& value) {
+    this->d_json[key] = value;
+}
+
+void JsonUtils::save() {
+    std::ofstream file(this->d_path);
+    if (file.is_open()) {
+        file << this->d_json.dump(4);
+        file.close();
+    }
+}
+
 std::vector<std::string> JsonUtils::keys() {
-    std::vector<std::string> keyl;
+    std::vector<std::string> keyl = { "None" };
     for (auto& [key, _] : this->d_json.items()) {
         keyl.push_back(key);
     }
@@ -73,14 +84,4 @@ nlohmann::ordered_json JsonUtils::toJson(std::string key) {
 
 nlohmann::ordered_json JsonUtils::toJson() {
     return this->d_json;
-}
-
-void JsonUtils::save() {
-    std::ofstream file(this->d_path);
-    if (file.is_open()) {
-        file << this->d_json.dump(4);
-        file.close();
-    } else {
-        throw new std::runtime_error("Failed to open JSON file");
-    }
 }

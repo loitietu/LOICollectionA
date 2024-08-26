@@ -12,10 +12,11 @@
 #include "Utils/JsonUtils.h"
 #include "Utils/SQLiteStorage.h"
 
-#include "Include/HookPlugin.h"
-#include "Include/language.h"
-#include "Include/blacklist.h"
-#include "Include/mute.h"
+#include "Include/plugin/HookPlugin.h"
+#include "Include/plugin/languagePlugin.h"
+#include "Include/plugin/blacklistPlugin.h"
+#include "Include/plugin/mutePlugin.h"
+#include "Include/plugin/cdkPlugin.h"
 
 #include "LOICollectionA.h"
 
@@ -28,6 +29,8 @@ namespace LOICollection {
         auto& logger = mSelf.getLogger();
         const auto& dataFilePath = this->mSelf.getDataDir();
         const auto& configFilePath = this->mSelf.getConfigDir() / "config.json";
+
+        logger.setFile("./logs/LOICollectionA.log", false);
 
         toolUtils::init(&mSelf);
         toolUtils::SynchronousPluginConfigVersion(&this->config);
@@ -75,6 +78,7 @@ namespace LOICollection {
         languagePlugin::registery(&this->LanguageDB);
         if (this->config.Blacklist) blacklistPlugin::registery(&this->BlacklistDB);
         if (this->config.Mute) mutePlugin::registery(&this->MuteDB);
+        if (this->config.Cdk) cdkPlugin::registery(&this->CdkDB);
         this->mSelf.getLogger().info("Register Event completed.");
         return true;
     }

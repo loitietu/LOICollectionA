@@ -19,9 +19,11 @@ namespace toolUtils {
     std::vector<Player*> getAllPlayers();
     Player* getPlayerFromName(const std::string& name);
     bool isReach(const std::string& timeString);
+    bool isJsonArrayFind(void* mObject_ptr, const std::string& find);
 
     namespace scoreboard {
         int getScore(void* player_ptr, const std::string& name);
+        void addScore(void* player_ptr, const std::string& name, int score);
     }
 }
 

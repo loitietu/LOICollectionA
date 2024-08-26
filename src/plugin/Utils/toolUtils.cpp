@@ -13,10 +13,15 @@
 #include <mc/world/scores/Scoreboard.h>
 #include <mc/world/scores/ScoreboardId.h>
 #include <mc/world/actor/player/Player.h>
+#include <mc/world/actor/player/PlayerScoreSetFunction.h>
 #include <mc/network/ConnectionRequest.h>
 #include <mc/enums/BuildPlatform.h>
 
+#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
+
 #include "../ConfigPlugin.h"
+#include "nlohmann/json_fwd.hpp"
 
 #include "toolUtils.h"
 
@@ -172,20 +177,36 @@ namespace toolUtils {
         return false;
     }
 
+    bool isJsonArrayFind(void* mObject_ptr, const std::string& find) {
+        nlohmann::ordered_json mObject = *static_cast<nlohmann::ordered_json*>(mObject_ptr);
+        auto it = std::find(mObject.begin(), mObject.end(), find);
+        return it != mObject.end();
+    }
+
     namespace scoreboard {
         int getScore(void* player_ptr, const std::string& name) {
             Player* player = static_cast<Player*>(player_ptr);
             auto mScoreboardId(ll::service::getLevel()->getScoreboard().getScoreboardId(*player));
-            if (mScoreboardId.isValid()) {
-                auto obj(ll::service::getLevel()->getScoreboard().getObjective(name));
-                auto scores(ll::service::getLevel()->getScoreboard().getIdScores(mScoreboardId));
-                for (auto& score : scores) {
-                    if (score.mObjective == obj) {
-                        return score.mScore;
-                    }
+            if (!mScoreboardId.isValid()) ll::service::getLevel()->getScoreboard().createScoreboardId(*player);
+
+            auto obj(ll::service::getLevel()->getScoreboard().getObjective(name));
+            auto scores(ll::service::getLevel()->getScoreboard().getIdScores(mScoreboardId));
+            for (auto& score : scores) {
+                if (score.mObjective == obj) {
+                    return score.mScore;
                 }
             }
             return 0;
+        }
+
+        void addScore(void* player_ptr, const std::string& name, int score) {
+            Player* player = static_cast<Player*>(player_ptr);
+            auto mScoreboardId(ll::service::getLevel()->getScoreboard().getScoreboardId(*player));
+            if (!mScoreboardId.isValid()) ll::service::getLevel()->getScoreboard().createScoreboardId(*player);
+
+            bool succes;
+            auto obj(ll::service::getLevel()->getScoreboard().getObjective(name));
+            ll::service::getLevel()->getScoreboard().modifyPlayerScore(succes, mScoreboardId, *obj, score, PlayerScoreSetFunction::Add);
         }
     }
 }

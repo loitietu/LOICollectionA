@@ -25,12 +25,13 @@
 #include <mc/network/ServerNetworkHandler.h>
 
 #include "../Include/API.hpp"
-#include "../Include/language.h"
+#include "../Include/plugin/languagePlugin.h"
+
 #include "../Utils/I18nUtils.h"
 #include "../Utils/toolUtils.h"
 #include "../Utils/SQLiteStorage.h"
 
-#include "../Include/blacklist.h"
+#include "../Include/plugin/blacklistPlugin.h"
 
 using I18nUtils::tr;
 using languagePlugin::getLanguage;
@@ -54,7 +55,8 @@ namespace blacklistPlugin {
     ll::Logger logger("LOICollectionA - Blacklist");
 
     namespace MainGui {
-        void add(Player* player) {
+        void add(void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             ll::form::CustomForm form(tr(mObjectLanguage, "blacklist.gui.add.title"));
             form.appendLabel(tr(mObjectLanguage, "blacklist.gui.label"));
@@ -80,7 +82,8 @@ namespace blacklistPlugin {
             });
         }
 
-        void remove(Player* player) {
+        void remove(void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             std::vector<std::string> list = db->list2("OBJECT$");
             ll::form::CustomForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"));
@@ -96,7 +99,8 @@ namespace blacklistPlugin {
             });
         }
 
-        void open(Player* player) {
+        void open(void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.title"), tr(mObjectLanguage, "blacklist.gui.label"));
             form.appendButton(tr(mObjectLanguage, "blacklist.gui.addBlacklist"), "textures/ui/backup_replace", "path", [](Player& pl) {
@@ -162,7 +166,7 @@ namespace blacklistPlugin {
                 }
                 auto* player = static_cast<Player*>(entity);
                 if (param.subCommand == BlacklistOP::gui) {
-                    output.success("The UI has been opened to player " + player->getRealName());
+                    output.success("The UI has been opened to player {}", player->getRealName());
                     MainGui::open(player);
                 }
             });
@@ -212,6 +216,7 @@ namespace blacklistPlugin {
 
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        logger.setFile("./logs/LOICollectionA.log");
         registerCommand();
         listenEvent();
     }

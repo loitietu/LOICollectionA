@@ -23,14 +23,13 @@ struct C_Config {
         bool Enable = false;
         std::string join = "{player}加入了服务器";
         std::string left = "{player}退出了服务器";
-        std::string llmoney = "§e§l检测到LLMoney发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}";
+        std::string score = "§e§l检测到Score发生变化 §b原值: §f${OriScore} §a更改: §f${SetScore} §e现值: §f${GetScore}";
         std::vector<std::string> command = {};
         std::string tips = "该指令已被禁用";
     } Monitor;
     bool Pvp = false;
     struct C_Wallet {
         bool Enable = false;
-        bool llmoney = true;
         std::string score = "money";
         double tax = 0.1;
     } Wallet;
