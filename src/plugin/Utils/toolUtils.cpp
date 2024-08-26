@@ -21,7 +21,6 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include "../ConfigPlugin.h"
-#include "nlohmann/json_fwd.hpp"
 
 #include "toolUtils.h"
 
@@ -201,12 +200,18 @@ namespace toolUtils {
 
         void addScore(void* player_ptr, const std::string& name, int score) {
             Player* player = static_cast<Player*>(player_ptr);
-            auto mScoreboardId(ll::service::getLevel()->getScoreboard().getScoreboardId(*player));
-            if (!mScoreboardId.isValid()) ll::service::getLevel()->getScoreboard().createScoreboardId(*player);
+            auto obj(ll::service::getLevel()->getScoreboard().getObjective(name));
+            if (!obj) {
+                return;
+            }
+            auto& identity = const_cast<ScoreboardId&>(ll::service::getLevel()->getScoreboard().getScoreboardId(*player));
+            if (!identity.isValid()) {
+                ll::service::getLevel()->getScoreboard().createScoreboardId(*player);
+                return;
+            }
 
             bool succes;
-            auto obj(ll::service::getLevel()->getScoreboard().getObjective(name));
-            ll::service::getLevel()->getScoreboard().modifyPlayerScore(succes, mScoreboardId, *obj, score, PlayerScoreSetFunction::Add);
+            ll::service::getLevel()->getScoreboard().modifyPlayerScore(succes, identity, *obj, score, PlayerScoreSetFunction::Add);
         }
     }
 }
