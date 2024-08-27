@@ -118,7 +118,7 @@ namespace blacklistPlugin {
     namespace {
         const auto BlacklistCommandADD = [](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param) {
             for (auto& pl : param.target.results(origin)) {
-                if (isBlacklist(pl)) {
+                if (!isBlacklist(pl)) {
                     output.addMessage(fmt::format("Add player {}({}) to blacklist.", 
                         pl->getRealName(), pl->getUuid().asString()), 
                         {}, CommandOutputMessageType::Success);

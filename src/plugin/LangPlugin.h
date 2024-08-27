@@ -5,6 +5,7 @@
 #include <nlohmann/json_fwd.hpp>
 
 static const nlohmann::ordered_json CNLangData = {
+    {"name", "简体中文"},
     {"exit", "§e[LOICollection] §c已退出"},
     {"language.log", "玩家 {player}({uuid}) 将语言更改为 {language}"},
     {"language.gui.title", "§e§lLOICollection -> §a语言设置"},
@@ -127,10 +128,6 @@ static const nlohmann::ordered_json CNLangData = {
     {"market.gui.sell.sellItemContent.button1", "§c下架物品\n§4下架该物品"},
     {"market.gui.sell.buy.button1", "§e购买物品\n§4购买当前物品"},
     {"market.gui.sell.buy.button2", "§a预览物品\n§4预览当前物品"}
-};
-
-static const nlohmann::ordered_json defaultLangData = {
-    {"zh_CN", CNLangData}
 };
 
 #endif

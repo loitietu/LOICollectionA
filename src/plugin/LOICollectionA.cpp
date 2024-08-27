@@ -2,7 +2,6 @@
 #include <filesystem>
 
 #include <ll/api/Config.h>
-#include <ll/api/io/FileUtils.h>
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/Mod/RegisterHelper.h>
 
@@ -63,7 +62,9 @@ namespace LOICollection {
         logger.info("Initialization of database file completed.");
 
         if (this->config.language.update) {
-            ll::file_utils::writeFile(this->mSelf.getConfigDir() / "language.json", defaultLangData.dump(4));
+            JsonUtils mObjectLanguage(this->mSelf.getConfigDir() / "language.json");
+            mObjectLanguage.set("zh_CN", CNLangData);
+            mObjectLanguage.save();
         }
         I18nUtils::load(mSelf.getConfigDir() / "language.json");
         logger.info("Initialization of language file completed.");

@@ -1,10 +1,12 @@
 #include <memory>
+#include <string>
 #include <vector>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
 #include "JsonUtils.h"
+
 #include "I18nUtils.h"
 
 namespace I18nUtils {
@@ -27,7 +29,28 @@ namespace I18nUtils {
         return key;
     }
 
+    std::string getName(const std::string& local) {
+        ordered_json localJson = json->toJson(local);
+        if (localJson.contains("name")) {
+            return localJson["name"];
+        }
+        return local;
+    }
+
+    std::string getLocalFromName(const std::string& name) {
+        for (auto& local : json->keys()) {
+            if (getName(local) == name) {
+                return local;
+            }
+        }
+        return "";
+    }
+
     std::vector<std::string> keys() {
-        return json->keys();
+        std::vector<std::string> keyl;
+        for (auto& local : json->keys()) {
+            keyl.push_back(getName(local));
+        }
+        return keyl;
     }
 }

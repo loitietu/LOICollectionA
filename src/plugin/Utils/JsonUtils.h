@@ -29,6 +29,7 @@ public:
 
     void set(std::string_view key, const std::string& value);
     void set(std::string_view key, nlohmann::ordered_json& value);
+    void set(std::string_view key, const nlohmann::ordered_json& value);
     void save();
     
     std::vector<std::string> keys();

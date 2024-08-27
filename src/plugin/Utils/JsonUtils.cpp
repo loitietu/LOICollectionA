@@ -54,6 +54,10 @@ void JsonUtils::set(std::string_view key, nlohmann::ordered_json& value) {
     this->d_json[key] = value;
 }
 
+void JsonUtils::set(std::string_view key, const nlohmann::ordered_json& value) {
+    this->d_json[key] = value;
+}
+
 void JsonUtils::save() {
     std::ofstream file(this->d_path);
     if (file.is_open()) {

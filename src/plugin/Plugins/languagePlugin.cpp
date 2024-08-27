@@ -27,6 +27,8 @@
 
 using I18nUtils::tr;
 using I18nUtils::keys;
+using I18nUtils::getName;
+using I18nUtils::getLocalFromName;
 
 namespace languagePlugin {
     std::unique_ptr<SQLiteStorage> db;
@@ -39,7 +41,7 @@ namespace languagePlugin {
             std::string mObjectLanguage = getLanguage(player);
             ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
-            form.appendLabel(toolUtils::replaceString(tr(mObjectLanguage, "language.gui.lang"), "${language}", mObjectLanguage));
+            form.appendLabel(toolUtils::replaceString(tr(mObjectLanguage, "language.gui.lang"), "${language}", getName(mObjectLanguage)));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys());
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
@@ -47,7 +49,7 @@ namespace languagePlugin {
                     return;
                 }
                 std::string mObjectUuid = pl.getUuid().asString();
-                std::string dropdownValue = std::get<std::string>(dt->at("dropdown"));
+                std::string dropdownValue = getLocalFromName(std::get<std::string>(dt->at("dropdown")));
                 std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
                 db->set("OBJECT$" + mObjectUuid, "language", dropdownValue);
                 std::string logString = tr(getLanguage(&pl), "language.log");
