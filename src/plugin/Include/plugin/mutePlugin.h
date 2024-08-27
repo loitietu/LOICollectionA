@@ -11,7 +11,6 @@ namespace mutePlugin {
     }
 
     void registery(void* database);
-    void unregistery();
     
     void addMute(void* player_ptr, std::string cause, int time);
     void delMute(void* player_ptr);

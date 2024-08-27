@@ -12,10 +12,6 @@ if not has_config("vs_runtime") then
     set_runtimes("MD")
 end
 
-if is_mode("release") then 
-    set_optimize("fastest")
-end 
-
 target("LOICollectionA")
     add_cxflags(
         "/EHa",

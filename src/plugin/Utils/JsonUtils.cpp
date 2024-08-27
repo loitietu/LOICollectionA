@@ -63,7 +63,7 @@ void JsonUtils::save() {
 }
 
 std::vector<std::string> JsonUtils::keys() {
-    std::vector<std::string> keyl = { "None" };
+    std::vector<std::string> keyl;
     for (auto& [key, _] : this->d_json.items()) {
         keyl.push_back(key);
     }

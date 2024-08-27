@@ -24,6 +24,7 @@ namespace toolUtils {
     namespace scoreboard {
         int getScore(void* player_ptr, const std::string& name);
         void addScore(void* player_ptr, const std::string& name, int score);
+        void* addObjective(const std::string& name, const std::string& displayName);
     }
 }
 

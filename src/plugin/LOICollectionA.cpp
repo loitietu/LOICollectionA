@@ -86,7 +86,6 @@ namespace LOICollection {
     bool A::disable() {
         languagePlugin::unregistery();
         if (this->config.Blacklist) blacklistPlugin::unregistery();
-        if (this->config.Mute) mutePlugin::unregistery();
         this->mSelf.getLogger().info("Unregister Event completed.");
         return true;
     }

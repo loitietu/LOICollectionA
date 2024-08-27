@@ -11,7 +11,7 @@ namespace languagePlugin {
     void registery(void* database);
     void unregistery();
 
-    std::string getLanguage(void* player);
+    std::string getLanguage(void* player_ptr);
 }
 
 #endif

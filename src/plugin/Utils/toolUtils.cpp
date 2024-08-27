@@ -185,11 +185,17 @@ namespace toolUtils {
     namespace scoreboard {
         int getScore(void* player_ptr, const std::string& name) {
             Player* player = static_cast<Player*>(player_ptr);
-            auto mScoreboardId(ll::service::getLevel()->getScoreboard().getScoreboardId(*player));
-            if (!mScoreboardId.isValid()) ll::service::getLevel()->getScoreboard().createScoreboardId(*player);
+            auto level = ll::service::getLevel();
+            auto identity(level->getScoreboard().getScoreboardId(*player));
+            if (!identity.isValid()) {
+                return 0;
+            }
+            auto obj(level->getScoreboard().getObjective(name));
+            if (!obj) {
+                return 0;
+            }
 
-            auto obj(ll::service::getLevel()->getScoreboard().getObjective(name));
-            auto scores(ll::service::getLevel()->getScoreboard().getIdScores(mScoreboardId));
+            auto scores(level->getScoreboard().getIdScores(identity));
             for (auto& score : scores) {
                 if (score.mObjective == obj) {
                     return score.mScore;
@@ -200,18 +206,22 @@ namespace toolUtils {
 
         void addScore(void* player_ptr, const std::string& name, int score) {
             Player* player = static_cast<Player*>(player_ptr);
-            auto obj(ll::service::getLevel()->getScoreboard().getObjective(name));
-            if (!obj) {
-                return;
-            }
-            auto& identity = const_cast<ScoreboardId&>(ll::service::getLevel()->getScoreboard().getScoreboardId(*player));
+            auto level = ll::service::getLevel();
+            auto identity(level->getScoreboard().getScoreboardId(*player));
             if (!identity.isValid()) {
-                ll::service::getLevel()->getScoreboard().createScoreboardId(*player);
-                return;
+                identity = level->getScoreboard().createScoreboardId(*player);
+            }
+            auto obj(level->getScoreboard().getObjective(name));
+            if (!obj) {
+                obj = static_cast<Objective*>(addObjective(name, name));
             }
 
             bool succes;
-            ll::service::getLevel()->getScoreboard().modifyPlayerScore(succes, identity, *obj, score, PlayerScoreSetFunction::Add);
+            level->getScoreboard().modifyPlayerScore(succes, identity, *obj, score, PlayerScoreSetFunction::Add);
+        }
+
+        void* addObjective(const std::string& name, const std::string& displayName) {
+            return ll::service::getLevel()->getScoreboard().addObjective(name, displayName, *ll::service::getLevel()->getScoreboard().getCriteria("dummy"));
         }
     }
 }

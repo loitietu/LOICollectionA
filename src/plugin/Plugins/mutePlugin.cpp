@@ -9,9 +9,6 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
-#include <ll/api/event/EventBus.h>
-#include <ll/api/event/ListenerBase.h>
-#include <ll/api/event/player/PlayerChatEvent.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/server/commands/CommandOrigin.h>
@@ -22,6 +19,7 @@
 
 #include "../Include/API.hpp"
 #include "../Include/plugin/languagePlugin.h"
+#include "../Include/plugin/HookPlugin.h"
 
 #include "../Utils/I18nUtils.h"
 #include "../Utils/toolUtils.h"
@@ -40,7 +38,6 @@ namespace mutePlugin {
     };
 
     std::unique_ptr<SQLiteStorage> db;
-    ll::event::ListenerPtr PlayerChatEventListener;
     ll::Logger logger("LOICollectionA - Mute");
 
     namespace MainGui {
@@ -142,26 +139,25 @@ namespace mutePlugin {
         }
 
         void listenEvent() {
-            auto& eventBus = ll::event::EventBus::getInstance();
-            PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>(
-                [&](ll::event::PlayerChatEvent& event) {
-                    std::string mObject = event.self().getUuid().asString();
-                    std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (db->has("OBJECT$" + mObject)) {
-                        if (toolUtils::isReach(db->get("OBJECT$" + mObject, "time"))) {
-                            delMute(&event.self());
-                            return;
-                        }
-                        event.cancel();
-                        std::string cause = db->get("OBJECT$" + mObject, "cause");
-                        std::string logString = tr(getLanguage(&event.self()), "mute.log3");
-                        logString = toolUtils::replaceString(logString, "${message}", event.message());
-                        logger.info(LOICollectionAPI::translateString(logString, &event.self(), true));
-                        return event.self().sendMessage(cause);
+            HookPlugin::Event::onTextPacketSendEvent([&](void* player_ptr, std::string message) {
+                Player* player = static_cast<Player*>(player_ptr);
+                if (player->isSimulatedPlayer()) return false;
+                std::string mObject = player->getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+                if (db->has("OBJECT$" + mObject)) {
+                    if (toolUtils::isReach(db->get("OBJECT$" + mObject, "time"))) {
+                        delMute(player);
+                        return false;
                     }
-                    return;
+                    std::string cause = db->get("OBJECT$" + mObject, "cause");
+                    std::string logString = tr(getLanguage(player), "mute.log3");
+                    logString = toolUtils::replaceString(logString, "${message}", message);
+                    logger.info(LOICollectionAPI::translateString(logString, player, true));
+                    player->sendMessage(cause);
+                    return true;
                 }
-            );
+                return false;
+            });
         }
     }
 
@@ -170,11 +166,6 @@ namespace mutePlugin {
         logger.setFile("./logs/LOICollectionA.log");
         registerCommand();
         listenEvent();
-    }
-
-    void unregistery() {
-        auto& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerChatEventListener);
     }
 
     void addMute(void* player_ptr, std::string cause, int time) {
