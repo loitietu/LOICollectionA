@@ -69,7 +69,7 @@ namespace languagePlugin {
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("LOICollection >> No player selected.");
+                    output.error("No player selected.");
                     return;
                 }
                 auto* player = static_cast<Player*>(entity);
@@ -80,7 +80,7 @@ namespace languagePlugin {
         void listenEvent() {
             auto& eventBus = ll::event::EventBus::getInstance();
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [&](ll::event::PlayerJoinEvent& event) {
+                [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer()) return;
                     std::string mObjectUuid = event.self().getUuid().asString();
                     std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');

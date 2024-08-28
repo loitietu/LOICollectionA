@@ -1,3 +1,4 @@
+#include <memory>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -7,6 +8,8 @@
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/service/Bedrock.h>
 
+#include <mc/world/Minecraft.h>
+#include <mc/world/Container.h>
 #include <mc/world/level/Level.h>
 #include <mc/world/scores/Objective.h>
 #include <mc/world/scores/ScoreInfo.h>
@@ -14,6 +17,10 @@
 #include <mc/world/scores/ScoreboardId.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/world/actor/player/PlayerScoreSetFunction.h>
+#include <mc/world/item/registry/ItemStack.h>
+#include <mc/server/commands/CommandContext.h>
+#include <mc/server/commands/PlayerCommandOrigin.h>
+#include <mc/server/commands/MinecraftCommands.h>
 #include <mc/network/ConnectionRequest.h>
 #include <mc/enums/BuildPlatform.h>
 
@@ -41,6 +48,12 @@ namespace toolUtils {
         }
         config->version = std::stoi(ss.str());
         ss.clear();
+    }
+
+    void executeCommand(void* player_ptr, const std::string& command) {
+        Player* player = static_cast<Player*>(player_ptr);
+        CommandContext context = CommandContext(command, std::make_unique<PlayerCommandOrigin>(PlayerCommandOrigin(*player)));
+        ll::service::getMinecraft()->getCommands().executeCommand(context);
     }
 
     std::string getVersion() {
@@ -182,6 +195,25 @@ namespace toolUtils {
         return it != mObject.end();
     }
 
+    bool isItemPlayerInventory(void* player_ptr, void* itemStack_ptr) {
+        Player* player = static_cast<Player*>(player_ptr);
+        ItemStack* itemStack = static_cast<ItemStack*>(itemStack_ptr);
+        if (!itemStack || !player)
+            return false;
+        Container& mItemInventory = player->getInventory();
+        for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
+            auto& mItemObject = mItemInventory.getItem(i);
+            if (mItemObject.isValid()) {
+                if (itemStack->getTypeName() == mItemObject.getTypeName()) {
+                    if (itemStack->mCount <= mItemObject.mCount) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     namespace scoreboard {
         int getScore(void* player_ptr, const std::string& name) {
             Player* player = static_cast<Player*>(player_ptr);
@@ -204,7 +236,7 @@ namespace toolUtils {
             return 0;
         }
 
-        void addScore(void* player_ptr, const std::string& name, int score) {
+        void modifyScore(void* player_ptr, const std::string& name, int score, PlayerScoreSetFunction action) {
             Player* player = static_cast<Player*>(player_ptr);
             auto level = ll::service::getLevel();
             auto identity(level->getScoreboard().getScoreboardId(*player));
@@ -217,7 +249,16 @@ namespace toolUtils {
             }
 
             bool succes;
-            level->getScoreboard().modifyPlayerScore(succes, identity, *obj, score, PlayerScoreSetFunction::Add);
+            level->getScoreboard().modifyPlayerScore(succes, identity, *obj, score, action);
+        }
+
+        void addScore(void *player_ptr, const std::string &name, int score) {
+            modifyScore(player_ptr, name, score, PlayerScoreSetFunction::Add);
+        }
+
+        void reduceScore(void *player_ptr, const std::string &name, int score) {
+            int mObjectScore = getScore(player_ptr, name);
+            modifyScore(player_ptr, name, (mObjectScore - score), PlayerScoreSetFunction::Set);
         }
 
         void* addObjective(const std::string& name, const std::string& displayName) {

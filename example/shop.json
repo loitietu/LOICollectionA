@@ -12,7 +12,6 @@
                 "number": "Buy number",
                 "id": "minecraft:apple",
                 "name": "Shop Apple",
-                "llmoney": 10,
                 "scores": {},
                 "type": "commodity"
             },
@@ -38,7 +37,6 @@
                 "confirmButton": "Confirm",
                 "cancelButton": "Cancel",
                 "id": "Test Title",
-                "llmoney": 10,
                 "scores": {},
                 "type": "title"
             }
@@ -58,7 +56,6 @@
                 "introduce": "A red apple\nllmoney: ${llmoney}\nscores: ${scores}",
                 "number": "Sell number",
                 "id": "minecraft:apple",
-                "llmoney": 10,
                 "scores": {},
                 "type": "commodity"
             },
@@ -85,7 +82,6 @@
                 "confirmButton": "Confirm",
                 "cancelButton": "Cancel",
                 "id": "Test Title",
-                "llmoney": 10,
                 "scores": {},
                 "type": "title"
             }

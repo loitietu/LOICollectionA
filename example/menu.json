@@ -13,7 +13,6 @@
                 "scores": {
                     "a": 100
                 },
-                "llmoney": 100,
                 "command": "say Button1",
                 "type": "button"
             },
@@ -21,7 +20,6 @@
                 "title": "From 1",
                 "image": "",
                 "scores": {},
-                "llmoney": 0,
                 "menu": "Menu1",
                 "type": "from"
             },
@@ -48,14 +46,12 @@
         "confirmButton": {
             "title": "Confirm",
             "scores": {},
-            "llmoney": 0,
             "command": "say Confirm",
             "type": "button"
         },
         "cancelButton": {
             "title": "Cancel",
             "scores": {},
-            "llmoney": 0,
             "command": "say Cancel",
             "type": "button"
         }

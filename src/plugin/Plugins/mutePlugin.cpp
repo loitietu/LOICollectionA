@@ -129,7 +129,7 @@ namespace mutePlugin {
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("LOICollection >> No player selected.");
+                    output.error("No player selected.");
                     return;
                 }
                 auto* player = static_cast<Player*>(entity);
@@ -139,7 +139,7 @@ namespace mutePlugin {
         }
 
         void listenEvent() {
-            HookPlugin::Event::onTextPacketSendEvent([&](void* player_ptr, std::string message) {
+            HookPlugin::Event::onTextPacketSendEvent([](void* player_ptr, std::string message) {
                 Player* player = static_cast<Player*>(player_ptr);
                 if (player->isSimulatedPlayer()) return false;
                 std::string mObject = player->getUuid().asString();

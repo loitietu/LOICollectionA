@@ -216,17 +216,17 @@ namespace cdkPlugin {
             command.overload<CDKOP>().text("convert").required("convertString").execute([](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("LOICollection >> No player selected.");
+                    output.error("No player selected.");
                     return;
                 }
                 auto* player = static_cast<Player*>(entity);
                 cdkConvert(player, param.convertString);
-                output.success("The player {} has been converted to cdk: {}", player->getName(), param.convertString);
+                output.success("The player {} has been converted to cdk: {}", player->getRealName(), param.convertString);
             });
             command.overload<CDKOP>().text("gui").optional("setting").execute([](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("LOICollection >> No player selected.");
+                    output.error("No player selected.");
                     return;
                 }
                 auto* player = static_cast<Player*>(entity);

@@ -82,6 +82,17 @@ function string_formatter(str, variables)
     end)
 end
 
+function cpPackage(name, target, outputdir)
+    local sqlite3 = target:pkg("sqlite3")
+    if sqlite3 then
+        local sqlite3_installdir = sqlite3:installdir()
+        if sqlite3_installdir then
+            local sqlite3_bindir = path.join(sqlite3_installdir, "bin")
+            os.cp(path.join(sqlite3_bindir, "*.dll"), outputdir)
+        end
+    end
+end
+
 function pack_plugin(target,plugin_define)
     import("lib.detect.find_file")
 
@@ -102,14 +113,7 @@ function pack_plugin(target,plugin_define)
             os.cp(oripdbfile, pdbfile)
         end
 
-        local sqlite3 = target:pkg("sqlite3")
-        if sqlite3 then
-            local sqlite3_installdir = sqlite3:installdir()
-            if sqlite3_installdir then
-                local sqlite3_bindir = path.join(sqlite3_installdir, "bin")
-                os.cp(path.join(sqlite3_bindir, "*.dll"), outputdir)
-            end
-        end
+        cpPackage("sqlite3", target, outputdir)
 
         formattedmanifest = string_formatter(manifest, plugin_define)
         io.writefile(manifestfile,formattedmanifest)
