@@ -102,6 +102,15 @@ function pack_plugin(target,plugin_define)
             os.cp(oripdbfile, pdbfile)
         end
 
+        local sqlite3 = target:pkg("sqlite3")
+        if sqlite3 then
+            local sqlite3_installdir = sqlite3:installdir()
+            if sqlite3_installdir then
+                local sqlite3_bindir = path.join(sqlite3_installdir, "bin")
+                os.cp(path.join(sqlite3_bindir, "*.dll"), outputdir)
+            end
+        end
+
         formattedmanifest = string_formatter(manifest, plugin_define)
         io.writefile(manifestfile,formattedmanifest)
         cprint("${bright green}[Plugin Packer]: ${reset}plugin already generated to " .. outputdir)

@@ -2,10 +2,15 @@ add_rules("mode.debug", "mode.release")
 
 add_repositories("liteldev-repo https://github.com/LiteLDev/xmake-repo.git")
 
+add_requires("sqlite3 3.46.0+100", {configs = {shared = true}})
+add_requires("sqlitecpp 3.2.1", {
+    configs = {
+        shared = true
+    }
+})
 add_requires(
     "levilamina",
-    "nlohmann_json 3.11.3",
-    "sqlitecpp 3.2.1"
+    "nlohmann_json 3.11.3"
 )
 
 if not has_config("vs_runtime") then
@@ -27,7 +32,7 @@ target("LOICollectionA")
     add_defines("NOMINMAX", "UNICODE")
     add_files("src/**.cpp")
     add_includedirs("src")
-    add_packages("levilamina", "nlohmann_json", "sqlitecpp")
+    add_packages("levilamina", "nlohmann_json", "sqlite3", "sqlitecpp")
     add_shflags("/DELAYLOAD:bedrock_server.dll")
     set_exceptions("none")
     set_kind("shared")

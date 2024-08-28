@@ -77,6 +77,7 @@ Market | $\color{#00FF00}{√}$
 git clone https://github.com/loitietu/LOICollectionA.git
 cd LOICollectionA
 xmake repo -u
+xmake lua scripts/project.lua
 xmake
 ```
 
