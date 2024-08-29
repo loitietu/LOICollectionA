@@ -29,6 +29,7 @@ namespace LOICollectionAPI {
         contentString = toolUtils::replaceString(contentString, "{health}", std::to_string(player->getHealth()));
         contentString = toolUtils::replaceString(contentString, "{speed}", std::to_string(player->getSpeed()));
         contentString = toolUtils::replaceString(contentString, "{direction}", std::to_string(player->getDirection()));
+        contentString = toolUtils::replaceString(contentString, "{dimension}", std::to_string(player->getDimensionId()));
         contentString = toolUtils::replaceString(contentString, "{os}", toolUtils::getDevice(player));
         contentString = toolUtils::replaceString(contentString, "{ip}", player->getIPAndPort());
         contentString = toolUtils::replaceString(contentString, "{xp}", std::to_string(player->getXpEarnedAtCurrentLevel()));

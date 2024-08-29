@@ -17,6 +17,7 @@
 #include "Include/plugin/mutePlugin.h"
 #include "Include/plugin/cdkPlugin.h"
 #include "Include/plugin/menuPlugin.h"
+#include "Include/plugin/tpaPlugin.h"
 
 #include "LOICollectionA.h"
 
@@ -82,6 +83,7 @@ namespace LOICollection {
         if (this->config.Mute) mutePlugin::registery(&this->MuteDB);
         if (this->config.Cdk) cdkPlugin::registery(&this->CdkDB);
         if (this->config.Menu.Enable) menuPlugin::registery(&this->MenuDB, this->config.Menu.ItemId);
+        if (this->config.Tpa) tpaPlugin::registery(&this->TpaDB);
         this->mSelf.getLogger().info("Register Event completed.");
         return true;
     }
@@ -90,6 +92,7 @@ namespace LOICollection {
         languagePlugin::unregistery();
         if (this->config.Blacklist) blacklistPlugin::unregistery();
         if (this->config.Menu.Enable) menuPlugin::unregistery();
+        if (this->config.Tpa) tpaPlugin::unregistery();
         this->mSelf.getLogger().info("Unregister Event completed.");
         return true;
     }

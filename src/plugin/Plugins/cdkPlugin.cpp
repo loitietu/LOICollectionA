@@ -15,8 +15,6 @@
 #include <mc/world/item/registry/ItemStack.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
-#include <mc/server/commands/CommandPermissionLevel.h>
-#include <mc/server/commands/CommandOutputMessageType.h>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>

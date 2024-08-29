@@ -10,9 +10,9 @@
 namespace toolUtils {
     void init(void* mSelfPtr);
     void SynchronousPluginConfigVersion(void* config_ptr);
-    void executeCommand(void* player_ptr, const std::string& command);
+    void executeCommand(Player* player, const std::string& command);
     std::string getVersion();
-    std::string getDevice(void* player_ptr);
+    std::string getDevice(Player* player);
     std::string replaceString(std::string str, const std::string& from, const std::string& to);
     std::string timeCalculate(int hours); 
     int toInt(const std::string& intString, int defaultValue);
@@ -22,13 +22,13 @@ namespace toolUtils {
     Player* getPlayerFromName(const std::string& name);
     bool isReach(const std::string& timeString);
     bool isJsonArrayFind(void* mObject_ptr, const std::string& find);
-    bool isItemPlayerInventory(void* player_ptr, void* itemStack_ptr);
+    bool isItemPlayerInventory(Player* player, void* itemStack_ptr);
 
     namespace scoreboard {
-        int getScore(void* player_ptr, const std::string& name);
-        void modifyScore(void* player_ptr, const std::string& name, int score, PlayerScoreSetFunction action);
-        void addScore(void *player_ptr, const std::string &name, int score);
-        void reduceScore(void *player_ptr, const std::string &name, int score);
+        int getScore(Player* player, const std::string& name);
+        void modifyScore(Player* player, const std::string& name, int score, PlayerScoreSetFunction action);
+        void addScore(Player* player, const std::string &name, int score);
+        void reduceScore(Player* player, const std::string &name, int score);
         void* addObjective(const std::string& name, const std::string& displayName);
     }
 }

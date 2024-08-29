@@ -177,37 +177,39 @@ namespace blacklistPlugin {
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer()) return;
-                    std::string mObjectUuid = event.self().getUuid().asString();
-                    std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
-                    if (db->has("OBJECT$" + mObjectUuid)) {
-                        if (toolUtils::isReach(db->get("OBJECT$" + mObjectUuid, "time"))) {
-                            delBlacklist(mObjectUuid);
+                    if (isBlacklist(&event.self())) {
+                        std::string mObjectUuid = event.self().getUuid().asString();
+                        std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
+                        if (db->has("OBJECT$" + mObjectUuid)) {
+                            if (toolUtils::isReach(db->get("OBJECT$" + mObjectUuid, "time"))) {
+                                delBlacklist(mObjectUuid);
+                                return;
+                            }
+                            ll::service::getServerNetworkHandler()->disconnectClient(
+                                event.self().getNetworkIdentifier(),
+                                Connection::DisconnectFailReason::Kicked,
+                                db->get("OBJECT$" + mObjectUuid, "cause"), false
+                            );
+                            std::string logString = tr(getLanguage(&event.self()), "blacklist.log2");
+                            logger.info(LOICollectionAPI::translateString(logString, &event.self(), true));
                             return;
                         }
-                        ll::service::getServerNetworkHandler()->disconnectClient(
-                            event.self().getNetworkIdentifier(),
-                            Connection::DisconnectFailReason::Kicked,
-                            db->get("OBJECT$" + mObjectUuid, "cause"), false
-                        );
-                        std::string logString = tr(getLanguage(&event.self()), "blacklist.log2");
-                        logger.info(LOICollectionAPI::translateString(logString, &event.self(), true));
-                        return;
-                    }
-                    std::string mObjectIP = toolUtils::split(event.self().getIPAndPort(), ':')[0];
-                    std::replace(mObjectIP.begin(), mObjectIP.end(), '.', '_');
-                    if (db->has("OBJECT$" + mObjectIP)) {
-                        if (toolUtils::isReach(db->get("OBJECT$" + mObjectIP, "time"))) {
-                            delBlacklist(mObjectIP);
+                        std::string mObjectIP = toolUtils::split(event.self().getIPAndPort(), ':')[0];
+                        std::replace(mObjectIP.begin(), mObjectIP.end(), '.', '_');
+                        if (db->has("OBJECT$" + mObjectIP)) {
+                            if (toolUtils::isReach(db->get("OBJECT$" + mObjectIP, "time"))) {
+                                delBlacklist(mObjectIP);
+                                return;
+                            }
+                            ll::service::getServerNetworkHandler()->disconnectClient(
+                                event.self().getNetworkIdentifier(),
+                                Connection::DisconnectFailReason::Kicked,
+                                db->get("OBJECT$" + mObjectIP, "cause"), false
+                            );
+                            std::string logString = tr(getLanguage(&event.self()), "blacklist.log2");
+                            logger.info(LOICollectionAPI::translateString(logString, &event.self(), true));
                             return;
                         }
-                        ll::service::getServerNetworkHandler()->disconnectClient(
-                            event.self().getNetworkIdentifier(),
-                            Connection::DisconnectFailReason::Kicked,
-                            db->get("OBJECT$" + mObjectIP, "cause"), false
-                        );
-                        std::string logString = tr(getLanguage(&event.self()), "blacklist.log2");
-                        logger.info(LOICollectionAPI::translateString(logString, &event.self(), true));
-                        return;
                     }
                 }
             );

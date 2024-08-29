@@ -50,8 +50,7 @@ namespace toolUtils {
         ss.clear();
     }
 
-    void executeCommand(void* player_ptr, const std::string& command) {
-        Player* player = static_cast<Player*>(player_ptr);
+    void executeCommand(Player* player, const std::string& command) {
         CommandContext context = CommandContext(command, std::make_unique<PlayerCommandOrigin>(PlayerCommandOrigin(*player)));
         ll::service::getMinecraft()->getCommands().executeCommand(context);
     }
@@ -60,8 +59,7 @@ namespace toolUtils {
         return manifestPlugin.version->to_string();
     }
 
-    std::string getDevice(void* player_ptr) {
-        Player* player = static_cast<Player*>(player_ptr);
+    std::string getDevice(Player* player) {
         if (!player->isSimulated()) {
             auto request = player->getConnectionRequest();
             if (request) {
@@ -195,8 +193,7 @@ namespace toolUtils {
         return it != mObject.end();
     }
 
-    bool isItemPlayerInventory(void* player_ptr, void* itemStack_ptr) {
-        Player* player = static_cast<Player*>(player_ptr);
+    bool isItemPlayerInventory(Player* player, void* itemStack_ptr) {
         ItemStack* itemStack = static_cast<ItemStack*>(itemStack_ptr);
         if (!itemStack || !player)
             return false;
@@ -215,8 +212,7 @@ namespace toolUtils {
     }
 
     namespace scoreboard {
-        int getScore(void* player_ptr, const std::string& name) {
-            Player* player = static_cast<Player*>(player_ptr);
+        int getScore(Player* player, const std::string& name) {
             auto level = ll::service::getLevel();
             auto identity(level->getScoreboard().getScoreboardId(*player));
             if (!identity.isValid()) {
@@ -236,8 +232,7 @@ namespace toolUtils {
             return 0;
         }
 
-        void modifyScore(void* player_ptr, const std::string& name, int score, PlayerScoreSetFunction action) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void modifyScore(Player* player, const std::string& name, int score, PlayerScoreSetFunction action) {
             auto level = ll::service::getLevel();
             auto identity(level->getScoreboard().getScoreboardId(*player));
             if (!identity.isValid()) {
@@ -252,13 +247,13 @@ namespace toolUtils {
             level->getScoreboard().modifyPlayerScore(succes, identity, *obj, score, action);
         }
 
-        void addScore(void *player_ptr, const std::string &name, int score) {
-            modifyScore(player_ptr, name, score, PlayerScoreSetFunction::Add);
+        void addScore(Player* player, const std::string &name, int score) {
+            modifyScore(player, name, score, PlayerScoreSetFunction::Add);
         }
 
-        void reduceScore(void *player_ptr, const std::string &name, int score) {
-            int mObjectScore = getScore(player_ptr, name);
-            modifyScore(player_ptr, name, (mObjectScore - score), PlayerScoreSetFunction::Set);
+        void reduceScore(Player* player, const std::string &name, int score) {
+            int mObjectScore = getScore(player, name);
+            modifyScore(player, name, (mObjectScore - score), PlayerScoreSetFunction::Set);
         }
 
         void* addObjective(const std::string& name, const std::string& displayName) {
