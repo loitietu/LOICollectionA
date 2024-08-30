@@ -8,11 +8,12 @@
             {
                 "title": "Apple",
                 "image": "textures/items/apple",
-                "introduce": "A red apple\nllmoney: ${llmoney}\nscores: ${scores}",
+                "introduce": "A red apple\nscores: ${scores}",
                 "number": "Buy number",
                 "id": "minecraft:apple",
-                "name": "Shop Apple",
-                "scores": {},
+                "scores": {
+                    "money": 100
+                },
                 "type": "commodity"
             },
             {
@@ -33,11 +34,13 @@
             {
                 "title": "Test Title",
                 "image": "",
-                "introduce": "This is a test title\nllmoney: ${llmoney}\nscores: ${scores}",
+                "introduce": "This is a test title\nscores: ${scores}",
                 "confirmButton": "Confirm",
                 "cancelButton": "Cancel",
                 "id": "Test Title",
-                "scores": {},
+                "scores": {
+                    "money": 100
+                },
                 "type": "title"
             }
         ],
@@ -53,10 +56,12 @@
             {
                 "title": "Apple",
                 "image": "textures/items/apple",
-                "introduce": "A red apple\nllmoney: ${llmoney}\nscores: ${scores}",
+                "introduce": "A red apple\nscores: ${scores}",
                 "number": "Sell number",
                 "id": "minecraft:apple",
-                "scores": {},
+                "scores": {
+                    "money": 100
+                },
                 "type": "commodity"
             },
             {
@@ -78,11 +83,13 @@
             {
                 "title": "Test Title",
                 "image": "",
-                "introduce": "This is a test title\nllmoney: ${llmoney}\nscores: ${scores}",
+                "introduce": "This is a test title\nscores: ${scores}",
                 "confirmButton": "Confirm",
                 "cancelButton": "Cancel",
                 "id": "Test Title",
-                "scores": {},
+                "scores": {
+                    "money": 100
+                },
                 "type": "title"
             }
         ],

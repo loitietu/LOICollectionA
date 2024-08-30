@@ -26,7 +26,6 @@
 
 #include "../Utils/toolUtils.h"
 #include "../Utils/JsonUtils.h"
-#include "plugin/Utils/toolUtils.h"
 
 #include "../Include/plugin/menuPlugin.h"
 
@@ -128,16 +127,15 @@ namespace menuPlugin {
         }
 
         void open(void* player_ptr, std::string uiName) {
-            Player* player = static_cast<Player*>(player_ptr);
             if (db->has(uiName)) {
                 nlohmann::ordered_json data = db->toJson(uiName);
                 if (data["type"].get<std::string>() == "Simple")
-                    simple(player, data);
+                    simple(player_ptr, data);
                 else if (data["type"].get<std::string>() == "Modal")
-                    modal(player, data);
+                    modal(player_ptr, data);
                 return;
             }
-            logger.error("UI {} reading failed.", uiName);
+            logger.error("MenuUI {} reading failed.", uiName);
         }
     }
 

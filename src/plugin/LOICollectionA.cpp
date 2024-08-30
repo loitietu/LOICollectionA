@@ -18,6 +18,7 @@
 #include "Include/plugin/cdkPlugin.h"
 #include "Include/plugin/menuPlugin.h"
 #include "Include/plugin/tpaPlugin.h"
+#include "Include/plugin/shopPlugin.h"
 
 #include "LOICollectionA.h"
 
@@ -84,6 +85,7 @@ namespace LOICollection {
         if (this->config.Cdk) cdkPlugin::registery(&this->CdkDB);
         if (this->config.Menu.Enable) menuPlugin::registery(&this->MenuDB, this->config.Menu.ItemId);
         if (this->config.Tpa) tpaPlugin::registery(&this->TpaDB);
+        if (this->config.Shop) shopPlugin::registery(&this->ShopDB);
         this->mSelf.getLogger().info("Register Event completed.");
         return true;
     }

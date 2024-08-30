@@ -55,6 +55,22 @@ namespace toolUtils {
         ll::service::getMinecraft()->getCommands().executeCommand(context);
     }
 
+    void clearItem(Player* player, void* itemStack_ptr) {
+        ItemStack* itemStack = static_cast<ItemStack*>(itemStack_ptr);
+        Container& mItemInventory = player->getInventory();
+        for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
+            auto& mItemObject = mItemInventory.getItem(i);
+            if (mItemObject.isValid()) {
+                if (itemStack->getTypeName() == mItemObject.getTypeName()) {
+                    if (mItemObject.mCount > itemStack->mCount) {
+                        mItemInventory.removeItem(i, itemStack->mCount);
+                        return;
+                    } else mItemInventory.removeItem(i, mItemObject.mCount);
+                }
+            }
+        }
+    }
+
     std::string getVersion() {
         return manifestPlugin.version->to_string();
     }

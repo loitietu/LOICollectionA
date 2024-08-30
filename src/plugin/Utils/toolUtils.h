@@ -11,6 +11,7 @@ namespace toolUtils {
     void init(void* mSelfPtr);
     void SynchronousPluginConfigVersion(void* config_ptr);
     void executeCommand(Player* player, const std::string& command);
+    void clearItem(Player* player, void* itemStack_ptr);
     std::string getVersion();
     std::string getDevice(Player* player);
     std::string replaceString(std::string str, const std::string& from, const std::string& to);
