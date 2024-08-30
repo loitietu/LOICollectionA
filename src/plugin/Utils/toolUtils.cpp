@@ -57,15 +57,21 @@ namespace toolUtils {
 
     void clearItem(Player* player, void* itemStack_ptr) {
         ItemStack* itemStack = static_cast<ItemStack*>(itemStack_ptr);
+        if (!itemStack || !player)
+            return;
+        int mItemStackCount = itemStack->mCount;
         Container& mItemInventory = player->getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             auto& mItemObject = mItemInventory.getItem(i);
             if (mItemObject.isValid()) {
                 if (itemStack->getTypeName() == mItemObject.getTypeName()) {
-                    if (mItemObject.mCount > itemStack->mCount) {
-                        mItemInventory.removeItem(i, itemStack->mCount);
+                    if (mItemObject.mCount >= mItemStackCount) {
+                        mItemInventory.removeItem(i, mItemStackCount);
                         return;
-                    } else mItemInventory.removeItem(i, mItemObject.mCount);
+                    } else {
+                        mItemStackCount -= mItemObject.mCount;
+                        mItemInventory.removeItem(i, mItemObject.mCount);
+                    }
                 }
             }
         }
@@ -213,14 +219,15 @@ namespace toolUtils {
         ItemStack* itemStack = static_cast<ItemStack*>(itemStack_ptr);
         if (!itemStack || !player)
             return false;
+        int mItemStackCount = itemStack->mCount;
         Container& mItemInventory = player->getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             auto& mItemObject = mItemInventory.getItem(i);
             if (mItemObject.isValid()) {
                 if (itemStack->getTypeName() == mItemObject.getTypeName()) {
-                    if (itemStack->mCount <= mItemObject.mCount) {
+                    if (mItemStackCount <= mItemObject.mCount) {
                         return true;
-                    }
+                    } else mItemStackCount -= mItemObject.mCount;
                 }
             }
         }

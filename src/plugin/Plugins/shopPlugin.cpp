@@ -96,7 +96,8 @@ namespace shopPlugin {
                 }
                 ItemStack itemStack(data.at("id").get<std::string>(), mNumber);
                 if (toolUtils::isItemPlayerInventory(&pl, &itemStack)) {
-                    for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
+                    nlohmann::ordered_json mScoreboardBase = data.at("scores");
+                    for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
                         toolUtils::scoreboard::addScore(&pl, it.key(), (it.value().get<int>() * mNumber));
                     toolUtils::clearItem(&pl, &itemStack);
                     pl.refreshInventory();
