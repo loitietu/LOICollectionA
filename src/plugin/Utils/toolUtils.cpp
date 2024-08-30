@@ -77,6 +77,13 @@ namespace toolUtils {
         }
     }
 
+    void broadcastText(const std::string& text) {
+        ll::service::getLevel()->forEachPlayer([&](Player& player) -> bool {
+            player.sendMessage(text);
+            return true;
+        });
+    }
+
     std::string getVersion() {
         return manifestPlugin.version->to_string();
     }
@@ -147,13 +154,19 @@ namespace toolUtils {
     }
 
     int toInt(const std::string& intString, int defaultValue) {
-        int result = defaultValue;
         try {
-            result = std::stoi(intString);
+            return std::stoi(intString);
         } catch (const std::exception& /*unused*/) {
-            result = defaultValue;
+            return defaultValue;
         }
-        return result;
+    }
+
+    long long toInt64(const std::string& intString, long long defaultValue) {
+        try {
+            return std::stoll(intString);
+        } catch (const std::exception& /*unused*/) {
+            return defaultValue;
+        }
     }
 
     std::vector<std::string> split(const std::string& s, char delimiter) {

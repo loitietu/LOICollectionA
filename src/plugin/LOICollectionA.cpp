@@ -5,20 +5,22 @@
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/Mod/RegisterHelper.h>
 
-#include "LangPlugin.h"
 #include "Utils/toolUtils.h"
 #include "Utils/I18nUtils.h"
 #include "Utils/JsonUtils.h"
 #include "Utils/SQLiteStorage.h"
 
-#include "Include/plugin/HookPlugin.h"
-#include "Include/plugin/languagePlugin.h"
-#include "Include/plugin/blacklistPlugin.h"
-#include "Include/plugin/mutePlugin.h"
-#include "Include/plugin/cdkPlugin.h"
-#include "Include/plugin/menuPlugin.h"
-#include "Include/plugin/tpaPlugin.h"
-#include "Include/plugin/shopPlugin.h"
+#include "Include/HookPlugin.h"
+#include "Include/languagePlugin.h"
+#include "Include/blacklistPlugin.h"
+#include "Include/mutePlugin.h"
+#include "Include/cdkPlugin.h"
+#include "Include/menuPlugin.h"
+#include "Include/tpaPlugin.h"
+#include "Include/shopPlugin.h"
+#include "Include/chatPlugin.h"
+
+#include "LangPlugin.h"
 
 #include "LOICollectionA.h"
 
@@ -86,6 +88,7 @@ namespace LOICollection {
         if (this->config.Menu.Enable) menuPlugin::registery(&this->MenuDB, this->config.Menu.ItemId);
         if (this->config.Tpa) tpaPlugin::registery(&this->TpaDB);
         if (this->config.Shop) shopPlugin::registery(&this->ShopDB);
+        if (this->config.Chat.Enable) chatPlugin::registery(&this->ChatDB, this->config.Chat.chat);
         this->mSelf.getLogger().info("Register Event completed.");
         return true;
     }
@@ -95,6 +98,7 @@ namespace LOICollection {
         if (this->config.Blacklist) blacklistPlugin::unregistery();
         if (this->config.Menu.Enable) menuPlugin::unregistery();
         if (this->config.Tpa) tpaPlugin::unregistery();
+        if (this->config.Chat.Enable) chatPlugin::unregistery();
         this->mSelf.getLogger().info("Unregister Event completed.");
         return true;
     }

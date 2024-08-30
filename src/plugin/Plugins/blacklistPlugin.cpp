@@ -1,6 +1,6 @@
 #include <memory>
-#include <string>
 #include <vector>
+#include <string>
 #include <stdexcept>
 
 #include <ll/api/Logger.h>
@@ -25,13 +25,13 @@
 #include <mc/network/ServerNetworkHandler.h>
 
 #include "../Include/API.hpp"
-#include "../Include/plugin/languagePlugin.h"
+#include "../Include/languagePlugin.h"
 
 #include "../Utils/I18nUtils.h"
 #include "../Utils/toolUtils.h"
 #include "../Utils/SQLiteStorage.h"
 
-#include "../Include/plugin/blacklistPlugin.h"
+#include "../Include/blacklistPlugin.h"
 
 using I18nUtils::tr;
 using languagePlugin::getLanguage;

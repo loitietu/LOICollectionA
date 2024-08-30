@@ -1,6 +1,6 @@
 #include <memory>
-#include <string>
 #include <vector>
+#include <string>
 #include <stdexcept>
 
 #include <ll/api/Logger.h>
@@ -20,6 +20,7 @@
 #include <mc/world/item/registry/ItemStack.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
+#include <mc/server/commands/CommandPermissionLevel.h>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -27,7 +28,7 @@
 #include "../Utils/toolUtils.h"
 #include "../Utils/JsonUtils.h"
 
-#include "../Include/plugin/menuPlugin.h"
+#include "../Include/menuPlugin.h"
 
 namespace menuPlugin {
     struct MenuOP {
@@ -43,6 +44,7 @@ namespace menuPlugin {
     namespace MainGui {
         void simple(void* player_ptr, nlohmann::ordered_json& data) {
             Player* player = static_cast<Player*>(player_ptr);
+            if (player->isSimulatedPlayer()) return;
 
             std::vector<nlohmann::ordered_json> mButtonLists;
             ll::form::SimpleForm form(data.at("title").get<std::string>());
@@ -89,6 +91,7 @@ namespace menuPlugin {
 
         void modal(void* player_ptr, nlohmann::ordered_json& data) {
             Player* player = static_cast<Player*>(player_ptr);
+            if (player->isSimulatedPlayer()) return;
 
             ll::form::ModalForm form;
             form.setTitle(data.at("title").get<std::string>());

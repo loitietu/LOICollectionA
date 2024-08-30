@@ -1,6 +1,6 @@
 #include <memory>
-#include <string>
 #include <vector>
+#include <string>
 #include <stdexcept>
 
 #include <ll/api/Logger.h>
@@ -18,16 +18,17 @@
 #include <mc/entity/utilities/ActorType.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
+#include <mc/server/commands/CommandPermissionLevel.h>
 
 #include "../Include/API.hpp"
-#include "../Include/plugin/languagePlugin.h"
-#include "../Include/plugin/blacklistPlugin.h"
+#include "../Include/languagePlugin.h"
+#include "../Include/blacklistPlugin.h"
 
 #include "../Utils/I18nUtils.h"
 #include "../Utils/toolUtils.h"
 #include "../Utils/SQLiteStorage.h"
 
-#include "../Include/plugin/tpaPlugin.h"
+#include "../Include/tpaPlugin.h"
 
 using I18nUtils::tr;
 using languagePlugin::getLanguage;
@@ -176,6 +177,7 @@ namespace tpaPlugin {
 
     bool isInvite(void* player_ptr) {
         auto* player = static_cast<Player*>(player_ptr);
+        if (player->isSimulatedPlayer()) return false;
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject)) {

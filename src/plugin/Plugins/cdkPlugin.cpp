@@ -15,18 +15,19 @@
 #include <mc/world/item/registry/ItemStack.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
+#include <mc/server/commands/CommandPermissionLevel.h>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
 #include "../Include/API.hpp"
-#include "../Include/plugin/languagePlugin.h"
+#include "../Include/languagePlugin.h"
 
 #include "../Utils/I18nUtils.h"
 #include "../Utils/toolUtils.h"
 #include "../Utils/JsonUtils.h"
 
-#include "../Include/plugin/cdkPlugin.h"
+#include "../Include/cdkPlugin.h"
 
 using I18nUtils::tr;
 using languagePlugin::getLanguage;

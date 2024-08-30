@@ -12,11 +12,13 @@ namespace toolUtils {
     void SynchronousPluginConfigVersion(void* config_ptr);
     void executeCommand(Player* player, const std::string& command);
     void clearItem(Player* player, void* itemStack_ptr);
+    void broadcastText(const std::string& text);
     std::string getVersion();
     std::string getDevice(Player* player);
     std::string replaceString(std::string str, const std::string& from, const std::string& to);
     std::string timeCalculate(int hours); 
     int toInt(const std::string& intString, int defaultValue);
+    long long toInt64(const std::string& intString, long long defaultValue);
     std::vector<std::string> split(const std::string& s, char delimiter);
     std::vector<std::string> getAllPlayerName();
     std::vector<Player*> getAllPlayers();

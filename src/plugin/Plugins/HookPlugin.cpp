@@ -13,7 +13,7 @@
 
 #include "../Utils/toolUtils.h"
 
-#include "../Include/plugin/HookPlugin.h"
+#include "../Include/HookPlugin.h"
 
 int64_t mFakeSeed = 0;
 std::vector<std::function<bool(void*, std::string)>> mTextPacketSendEventCallbacks;

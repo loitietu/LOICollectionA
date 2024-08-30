@@ -102,7 +102,7 @@ static const nlohmann::ordered_json CNLangData = {
     {"chat.gui.manager.remove", "§c删除称号\n§4从玩家上删除指定称号"},
     {"chat.gui.manager.add.dropdown", "§a请选择要添加的玩家"},
     {"chat.gui.manager.add.input1", "§e请输入要添加的称号"},
-    {"chat.gui.manager.add.input2", "§d请输入称号存在的时间(0为永久存在)"},
+    {"chat.gui.manager.add.input2", "§d请输入称号存在的时间[/hour](0为永久存在)"},
     {"chat.gui.manager.remove.dropdown1", "§a请选择要删除的玩家"},
     {"chat.gui.manager.remove.dropdown2", "§e请选择要删除的称号"},
     {"announcement.gui.title", "§eLOIAnnounCement §b-> §a公告系统"},

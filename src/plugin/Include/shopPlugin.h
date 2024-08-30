@@ -11,6 +11,7 @@ namespace shopPlugin {
     namespace MainGui {
         void menu(void* player_ptr, nlohmann::ordered_json& data, bool type);
         void commodity(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type);
+        void title(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type);
         void open(void* player_ptr, std::string uiName);
     }
 

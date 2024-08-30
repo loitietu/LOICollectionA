@@ -23,7 +23,7 @@
 #include "../Utils/toolUtils.h"
 #include "../Utils/SQLiteStorage.h"
 
-#include "../Include/plugin/languagePlugin.h"
+#include "../Include/languagePlugin.h"
 
 using I18nUtils::tr;
 using I18nUtils::keys;

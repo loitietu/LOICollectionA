@@ -1,10 +1,11 @@
 #include <map>
 #include <memory>
-#include <string>
 #include <vector>
+#include <string>
 #include <stdexcept>
 
 #include <ll/api/Logger.h>
+#include <ll/api/form/ModalForm.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
@@ -17,14 +18,17 @@
 #include <mc/world/item/registry/ItemStack.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
+#include <mc/server/commands/CommandPermissionLevel.h>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include "../Include/chatPlugin.h"
+
 #include "../Utils/toolUtils.h"
 #include "../Utils/JsonUtils.h"
 
-#include "../Include/plugin/shopPlugin.h"
+#include "../Include/shopPlugin.h"
 
 namespace shopPlugin {
     std::unique_ptr<JsonUtils> db;
@@ -57,11 +61,12 @@ namespace shopPlugin {
                 }
 
                 nlohmann::ordered_json mItem = mItemLists.at(id);
-                if (mItem["type"] == "commodity") {
+                if (mItem["type"] == "commodity")
                     MainGui::commodity(&pl, mItem, options, type);
-                } else if (mItem["type"] == "form") {
+                else if (mItem["type"] == "title")
+                    MainGui::title(&pl, mItem, options, type);
+                else if (mItem["type"] == "from")
                     MainGui::open(&pl, mItem.at("menu").get<std::string>());
-                }
             });
         }
 
@@ -107,13 +112,45 @@ namespace shopPlugin {
             });
         }
 
+        void title(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type) {
+            Player* player = static_cast<Player*>(player_ptr);
+
+            std::string mScoreboardListsString;
+            if (!data["scores"].empty()) {
+                for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
+                    mScoreboardListsString += it.key() + ":" + std::to_string(it.value().get<int>()) + ";";
+                mScoreboardListsString.pop_back();
+            } else mScoreboardListsString = "None";
+
+            ll::form::ModalForm form;
+            form.setTitle(data.at("title").get<std::string>());
+            form.setContent(toolUtils::replaceString(data.at("introduce").get<std::string>(), "${scores}", mScoreboardListsString));
+            form.setUpperButton(data.at("confirmButton").get<std::string>());
+            form.setLowerButton(data.at("cancelButton").get<std::string>());
+            form.sendTo(*player, [&](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
+                if (result == ll::form::ModalFormSelectedButton::Upper) {
+                    std::string id = data.at("id").get<std::string>();
+                    if (type) {
+                        if (checkModifiedData(&pl, data, 1))
+                            chatPlugin::addChat(&pl, id);
+                        return;
+                    }
+                    if (chatPlugin::isChat(&pl, id)) {
+                        chatPlugin::delChat(&pl, id);
+                        return;
+                    }
+                    pl.sendMessage(options.at("title"));
+                }
+            });
+        }
+
         void open(void* player_ptr, std::string uiName) {
             if (db->has(uiName)) {
                 nlohmann::ordered_json data = db->toJson(uiName);
                 if (data.at("type").get<std::string>() == "buy")
-                    menu(player_ptr, data, true);
+                    MainGui::menu(player_ptr, data, true);
                 else if (data.at("type").get<std::string>() == "sell")
-                    menu(player_ptr, data, false);
+                    MainGui::menu(player_ptr, data, false);
                 return;
             }
             logger.error("ShopUI {} reading failed.", uiName);

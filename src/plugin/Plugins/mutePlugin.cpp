@@ -18,14 +18,14 @@
 #include <mc/server/commands/CommandOutputMessageType.h>
 
 #include "../Include/API.hpp"
-#include "../Include/plugin/languagePlugin.h"
-#include "../Include/plugin/HookPlugin.h"
+#include "../Include/languagePlugin.h"
+#include "../Include/HookPlugin.h"
 
 #include "../Utils/I18nUtils.h"
 #include "../Utils/toolUtils.h"
 #include "../Utils/SQLiteStorage.h"
 
-#include "../Include/plugin/mutePlugin.h"
+#include "../Include/mutePlugin.h"
 
 using I18nUtils::tr;
 using languagePlugin::getLanguage;
