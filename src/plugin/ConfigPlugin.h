@@ -22,7 +22,6 @@ struct C_Config {
     struct C_Monitor {
         bool Enable = false;
         std::string join = "{player}加入了服务器";
-        std::string left = "{player}退出了服务器";
         std::vector<std::string> command = {};
         std::string tips = "该指令已被禁用";
     } Monitor;

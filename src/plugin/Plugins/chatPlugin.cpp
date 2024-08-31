@@ -166,7 +166,7 @@ namespace chatPlugin {
                     output.error("No player selected.");
                     return;
                 }
-                auto* player = static_cast<Player*>(entity);
+                Player* player = static_cast<Player*>(entity);
                 if ((int)player->getPlayerPermissionLevel() >= 2) {
                     output.success("The UI has been opened to player {}", player->getRealName());
                     MainGui::open(player);
@@ -180,7 +180,7 @@ namespace chatPlugin {
                     output.error("No player selected.");
                     return;
                 }
-                auto* player = static_cast<Player*>(entity);
+                Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::setting(player);
             });
@@ -276,26 +276,22 @@ namespace chatPlugin {
         return false;
     }
 
-    std::string translate(void* player_ptr, std::string text) {
+    std::string getTitle(void* player_ptr) {
         Player* player = static_cast<Player*>(player_ptr);
-        if (player->isSimulatedPlayer()) return text;
-
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject)) {
-            std::string mTitle = db->get("OBJECT$" + mObject, "title");
-            text = toolUtils::replaceString(text, "{title}", mTitle);
-            if (db->has("OBJECT$" + mObject + "$TITLE")) {
-                std::string mTimeString = db->get("OBJECT$" + mObject + "$TITLE", mTitle);
-                if (toolUtils::toInt64(mTimeString, 0)) {
-                    text = toolUtils::replaceString(text, "{title.time}", mTimeString);
-                    return text;
-                }
-            }
-        }
-        text = toolUtils::replaceString(text, "{title}", "None");
-        text = toolUtils::replaceString(text, "{title.time}", "None");
-        return text;
+        if (db->has("OBJECT$" + mObject))
+            return db->get("OBJECT$" + mObject, "title");
+        return "None";
+    }
+
+    std::string getTitleTime(void* player_ptr, std::string text) {
+        Player* player = static_cast<Player*>(player_ptr);
+        std::string mObject = player->getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        if (db->has("OBJECT$" + mObject + "$TITLE"))
+            return db->get("OBJECT$" + mObject + "$TITLE", text);
+        return "None";
     }
 
     void registery(void* database, std::string chat) {

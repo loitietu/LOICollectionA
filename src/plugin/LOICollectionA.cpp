@@ -21,6 +21,7 @@
 #include "Include/tpaPlugin.h"
 #include "Include/shopPlugin.h"
 #include "Include/monitorPlugin.h"
+#include "Include/pvpPlugin.h"
 #include "Include/chatPlugin.h"
 
 #include "LangPlugin.h"
@@ -94,10 +95,10 @@ namespace LOICollection {
         if (this->config.Monitor.Enable) {
             std::map<std::string, std::string> options;
             options["join"] = this->config.Monitor.join;
-            options["left"] = this->config.Monitor.left;
             options["tips"] = this->config.Monitor.tips;
             monitorPlugin::registery(options, this->config.Monitor.command);
         }
+        if (this->config.Pvp) pvpPlugin::registery(&this->PvpDB);
         if (this->config.Chat.Enable) chatPlugin::registery(&this->ChatDB, this->config.Chat.chat);
         this->mSelf.getLogger().info("Register Event completed.");
         return true;
@@ -109,6 +110,7 @@ namespace LOICollection {
         if (this->config.Menu.Enable) menuPlugin::unregistery();
         if (this->config.Tpa) tpaPlugin::unregistery();
         if (this->config.Monitor.Enable) monitorPlugin::unregistery();
+        if (this->config.Pvp) pvpPlugin::unregistery();
         if (this->config.Chat.Enable) chatPlugin::unregistery();
         this->mSelf.getLogger().info("Unregister Event completed.");
         return true;

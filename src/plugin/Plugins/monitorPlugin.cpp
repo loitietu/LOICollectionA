@@ -5,7 +5,6 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
-#include <ll/api/event/player/PlayerLeaveEvent.h>
 #include <ll/api/event/command/ExecuteCommandEvent.h>
 
 #include <mc/world/actor/player/Player.h>
@@ -16,7 +15,6 @@
 #include "../Include/API.hpp"
 
 #include "../Utils/toolUtils.h"
-#include "plugin/Utils/toolUtils.h"
 
 #include "../Include/monitorPlugin.h"
 
@@ -24,7 +22,6 @@ namespace monitorPlugin {
     std::vector<std::string> mObjectCommands;
     std::map<std::string, std::string> mObjectOptions;
     ll::event::ListenerPtr PlayerJoinEventListener;
-    ll::event::ListenerPtr PlayerLeaveEventListener;
     ll::event::ListenerPtr ExecuteCommandEvent;
 
     namespace {
@@ -37,13 +34,6 @@ namespace monitorPlugin {
                     toolUtils::broadcastText(mMonitorString);
                 }
             );
-            PlayerLeaveEventListener = eventBus.emplaceListener<ll::event::PlayerLeaveEvent>(
-                [](ll::event::PlayerLeaveEvent& event) {
-                    if (event.self().isSimulatedPlayer()) return;
-                    std::string mMonitorString = LOICollectionAPI::translateString(mObjectOptions.at("left"), &event.self(), false);
-                    toolUtils::broadcastText(mMonitorString);
-                }
-            );
             ExecuteCommandEvent = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>(
                 [](ll::event::ExecutingCommandEvent& event) {
                     std::string mCommand = toolUtils::replaceString(toolUtils::split(event.commandContext().mCommand, ' ')[0], "/", "");
@@ -53,7 +43,7 @@ namespace monitorPlugin {
                         auto* entity = event.commandContext().getCommandOrigin().getEntity();
                         if (entity == nullptr || !entity->isType(ActorType::Player))
                             return;
-                        auto* player = static_cast<Player*>(entity);
+                        Player* player = static_cast<Player*>(entity);
                         player->sendMessage(mObjectOptions.at("tips"));
                     }
                 }
@@ -70,7 +60,6 @@ namespace monitorPlugin {
     void unregistery() {
         auto& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
-        eventBus.removeListener(PlayerLeaveEventListener);
         eventBus.removeListener(ExecuteCommandEvent);
     }
 }

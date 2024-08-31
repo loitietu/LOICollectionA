@@ -5,17 +5,23 @@
 
 #include <mc/world/actor/player/Player.h>
 
-#include "languagePlugin.h"
+#include "plugin/Include/chatPlugin.h"
+#include "pvpPlugin.h"
+#include "mutePlugin.h"
 #include "chatPlugin.h"
+#include "languagePlugin.h"
 
 #include "../Utils/toolUtils.h"
 
 namespace LOICollectionAPI {
     inline std::string translateString(std::string contentString, Player* player, bool enable) {
-        if (player->isSimulatedPlayer()) return "";
+        std::string mChatTitle = chatPlugin::getTitle(player);
 
         chatPlugin::update(player);
-        contentString = chatPlugin::translate(player, contentString);
+        contentString = toolUtils::replaceString(contentString, "{title}", mChatTitle);
+        contentString = toolUtils::replaceString(contentString, "{title.time}", chatPlugin::getTitleTime(player, mChatTitle));
+        contentString = toolUtils::replaceString(contentString, "{pvp}", pvpPlugin::isEnable(player) ? "true" : "false");
+        contentString = toolUtils::replaceString(contentString, "{mute}", mutePlugin::isMute(player) ? "true" : "false");
         contentString = toolUtils::replaceString(contentString, "{language}", languagePlugin::getLanguage(player));
         contentString = toolUtils::replaceString(contentString, "{player}", player->getName());
         contentString = toolUtils::replaceString(contentString, "{pos}", player->getPosition().toString());

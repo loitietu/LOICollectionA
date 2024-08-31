@@ -218,7 +218,7 @@ namespace cdkPlugin {
                     output.error("No player selected.");
                     return;
                 }
-                auto* player = static_cast<Player*>(entity);
+                Player* player = static_cast<Player*>(entity);
                 cdkConvert(player, param.convertString);
                 output.success("The player {} has been converted to cdk: {}", player->getRealName(), param.convertString);
             });
@@ -228,7 +228,7 @@ namespace cdkPlugin {
                     output.error("No player selected.");
                     return;
                 }
-                auto* player = static_cast<Player*>(entity);
+                Player* player = static_cast<Player*>(entity);
                 if (param.setting) {
                     if ((int)player->getPlayerPermissionLevel() >= 2) {
                         output.success("The UI has been opened to player {}", player->getRealName());

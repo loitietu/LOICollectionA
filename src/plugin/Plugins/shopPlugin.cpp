@@ -179,7 +179,7 @@ namespace shopPlugin {
                     output.error("No player selected.");
                     return;
                 }
-                auto* player = static_cast<Player*>(entity);
+                Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player, "MainBuy");
             });
@@ -189,7 +189,7 @@ namespace shopPlugin {
                     output.error("No player selected.");
                     return;
                 }
-                auto* player = static_cast<Player*>(entity);
+                Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player, "MainSell");
             });

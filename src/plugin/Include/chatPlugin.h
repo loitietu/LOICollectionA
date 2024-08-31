@@ -18,7 +18,8 @@ namespace chatPlugin {
 
     bool isChat(void* player_ptr, std::string text);
 
-    std::string translate(void* player_ptr, std::string text);
+    std::string getTitle(void* player_ptr);
+    std::string getTitleTime(void* player_ptr, std::string text);
 
     void registery(void* database, std::string chat);
     void unregistery();

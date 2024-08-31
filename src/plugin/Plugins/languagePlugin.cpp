@@ -19,6 +19,7 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 
 #include "../Include/API.hpp"
+
 #include "../Utils/I18nUtils.h"
 #include "../Utils/toolUtils.h"
 #include "../Utils/SQLiteStorage.h"
@@ -72,7 +73,7 @@ namespace languagePlugin {
                     output.error("No player selected.");
                     return;
                 }
-                auto* player = static_cast<Player*>(entity);
+                Player* player = static_cast<Player*>(entity);
                 MainGui::open(player);
             });
         }

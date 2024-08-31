@@ -44,9 +44,8 @@ namespace menuPlugin {
     namespace MainGui {
         void simple(void* player_ptr, nlohmann::ordered_json& data) {
             Player* player = static_cast<Player*>(player_ptr);
-            if (player->isSimulatedPlayer()) return;
-
             std::vector<nlohmann::ordered_json> mButtonLists;
+            
             ll::form::SimpleForm form(data.at("title").get<std::string>());
             form.setContent(data.at("content").get<std::string>());
             for (auto& button : data.at("button")) {
@@ -91,7 +90,6 @@ namespace menuPlugin {
 
         void modal(void* player_ptr, nlohmann::ordered_json& data) {
             Player* player = static_cast<Player*>(player_ptr);
-            if (player->isSimulatedPlayer()) return;
 
             ll::form::ModalForm form;
             form.setTitle(data.at("title").get<std::string>());
@@ -156,7 +154,7 @@ namespace menuPlugin {
                     output.error("No player selected.");
                     return;
                 }
-                auto* player = static_cast<Player*>(entity);
+                Player* player = static_cast<Player*>(entity);
                 if (param.uiName.empty()) {
                     output.success("The UI has been opened to player {}", player->getRealName());
                     MainGui::open(player, "main");
@@ -175,7 +173,7 @@ namespace menuPlugin {
                     output.error("No player selected.");
                     return;
                 }
-                auto* player = static_cast<Player*>(entity);
+                Player* player = static_cast<Player*>(entity);
                 ItemStack itemStack(mItemId, 1);
                 if (!itemStack) {
                     output.error("Failed to give the MenuItem to player {}", player->getRealName());

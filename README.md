@@ -49,7 +49,6 @@ Market | $\color{#00FF00}{√}$
     "Monitor": {
         "Enable": false,
         "join": "{player}加入了服务器",
-        "left": "{player}退出了服务器",
         "command": [],
         "tips": "该指令已被禁用" 
     },

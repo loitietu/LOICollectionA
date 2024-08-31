@@ -129,7 +129,7 @@ namespace tpaPlugin {
                     output.error("No player selected.");
                     return;
                 }
-                auto* player = static_cast<Player*>(entity);
+                Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
             });
@@ -139,7 +139,7 @@ namespace tpaPlugin {
                     output.error("No player selected.");
                     return;
                 }
-                auto* player = static_cast<Player*>(entity);
+                Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::setting(player);
             });
@@ -176,7 +176,7 @@ namespace tpaPlugin {
     }
 
     bool isInvite(void* player_ptr) {
-        auto* player = static_cast<Player*>(player_ptr);
+        Player* player = static_cast<Player*>(player_ptr);
         if (player->isSimulatedPlayer()) return false;
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
