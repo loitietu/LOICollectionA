@@ -27,7 +27,7 @@ Market | $\color{#00FF00}{√}$
 4. 完成安装。
 
 ### 如何配置文件？
-1. 打开插件目录 `LOICollection`。
+1. 打开插件目录 `LOICollectionA`。
 2. 打开文件 `config.json`。
 3. 打开后，您会看到类似以下内容的内容：
 ```json

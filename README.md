@@ -27,7 +27,7 @@ Market | $\color{#00FF00}{√}$
 4. Complete the installation
 
 ### How to configure the file?
-1. Open the plugin directory `LOICollection`
+1. Open the plugin directory `LOICollectionA`
 2. Open file `config.json`
 3. When you open it, you'll see something like this:
 ```json

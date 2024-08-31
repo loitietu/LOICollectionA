@@ -13,7 +13,7 @@ namespace chatPlugin {
     }
 
     void update(void* player_ptr);
-    void addChat(void* player_ptr, std::string text);
+    void addChat(void* player_ptr, std::string text, int time);
     void delChat(void* player_ptr, std::string text);
 
     bool isChat(void* player_ptr, std::string text);

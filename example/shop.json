@@ -38,6 +38,7 @@
                 "confirmButton": "Confirm",
                 "cancelButton": "Cancel",
                 "id": "Test Title",
+                "time": 24,
                 "scores": {
                     "money": 100
                 },

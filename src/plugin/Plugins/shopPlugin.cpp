@@ -127,15 +127,23 @@ namespace shopPlugin {
             form.setContent(toolUtils::replaceString(data.at("introduce").get<std::string>(), "${scores}", mScoreboardListsString));
             form.setUpperButton(data.at("confirmButton").get<std::string>());
             form.setLowerButton(data.at("cancelButton").get<std::string>());
-            form.sendTo(*player, [&](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
+            form.sendTo(*player, [data, options, type](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
                     std::string id = data.at("id").get<std::string>();
                     if (type) {
-                        if (checkModifiedData(&pl, data, 1))
-                            chatPlugin::addChat(&pl, id);
+                        if (checkModifiedData(&pl, data, 1)) {
+                            if (data.contains("time")) {
+                                chatPlugin::addChat(&pl, id, data.at("time").get<int>());
+                                return;
+                            }
+                            chatPlugin::addChat(&pl, id, 0);
+                        }
                         return;
                     }
                     if (chatPlugin::isChat(&pl, id)) {
+                        nlohmann::ordered_json mScoreboardBase = data.at("scores");
+                        for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
+                            toolUtils::scoreboard::addScore(&pl, it.key(), it.value().get<int>());
                         chatPlugin::delChat(&pl, id);
                         return;
                     }

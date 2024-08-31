@@ -241,16 +241,15 @@ namespace chatPlugin {
         }
     }
 
-    void addChat(void* player_ptr, std::string text) {
+    void addChat(void* player_ptr, std::string text, int time) {
         Player* player = static_cast<Player*>(player_ptr);
         if (player->isSimulatedPlayer()) return;
 
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (!db->has("OBJECT$" + mObject)) {
-            db->create("OBJECT$" + mObject);
-            db->set("OBJECT$" + mObject, "title", text);
-        }
+        if (!db->has("OBJECT$" + mObject + "$TITLE"))
+            db->create("OBJECT$" + mObject + "$TITLE");
+        db->set("OBJECT$" + mObject + "$TITLE", text, toolUtils::timeCalculate(time));
     }
 
     void delChat(void* player_ptr, std::string text) {
