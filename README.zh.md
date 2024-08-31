@@ -50,7 +50,6 @@ Market | $\color{#00FF00}{√}$
         "Enable": false,
         "join": "{player}加入了服务器",
         "left": "{player}退出了服务器",
-        "score": "§e§l检测到Score发生变化 §b原值: §f${OriScore} §a更改: §f${SetScore} §e现值: §f${GetScore}",
         "command": [],
         "tips": "该指令已被禁用" 
     },

@@ -222,12 +222,6 @@ namespace toolUtils {
         return false;
     }
 
-    bool isJsonArrayFind(void* mObject_ptr, const std::string& find) {
-        nlohmann::ordered_json mObject = *static_cast<nlohmann::ordered_json*>(mObject_ptr);
-        auto it = std::find(mObject.begin(), mObject.end(), find);
-        return it != mObject.end();
-    }
-
     bool isItemPlayerInventory(Player* player, void* itemStack_ptr) {
         ItemStack* itemStack = static_cast<ItemStack*>(itemStack_ptr);
         if (!itemStack || !player)

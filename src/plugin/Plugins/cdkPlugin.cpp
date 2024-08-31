@@ -265,7 +265,7 @@ namespace cdkPlugin {
                 }
             }
             nlohmann::ordered_json mPlayerList = cdkJson.at("player");
-            if (toolUtils::isJsonArrayFind(&mPlayerList, player->getUuid().asString())) {
+            if (std::find(mPlayerList.begin(), mPlayerList.end(), player->getUuid().asString()) != mPlayerList.end()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.convert.tip2"));
                 return;
             }

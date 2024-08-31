@@ -1,4 +1,6 @@
+#include <map>
 #include <memory>
+#include <string>
 #include <filesystem>
 
 #include <ll/api/Config.h>
@@ -18,6 +20,7 @@
 #include "Include/menuPlugin.h"
 #include "Include/tpaPlugin.h"
 #include "Include/shopPlugin.h"
+#include "Include/monitorPlugin.h"
 #include "Include/chatPlugin.h"
 
 #include "LangPlugin.h"
@@ -88,6 +91,13 @@ namespace LOICollection {
         if (this->config.Menu.Enable) menuPlugin::registery(&this->MenuDB, this->config.Menu.ItemId);
         if (this->config.Tpa) tpaPlugin::registery(&this->TpaDB);
         if (this->config.Shop) shopPlugin::registery(&this->ShopDB);
+        if (this->config.Monitor.Enable) {
+            std::map<std::string, std::string> options;
+            options["join"] = this->config.Monitor.join;
+            options["left"] = this->config.Monitor.left;
+            options["tips"] = this->config.Monitor.tips;
+            monitorPlugin::registery(options, this->config.Monitor.command);
+        }
         if (this->config.Chat.Enable) chatPlugin::registery(&this->ChatDB, this->config.Chat.chat);
         this->mSelf.getLogger().info("Register Event completed.");
         return true;
@@ -98,6 +108,7 @@ namespace LOICollection {
         if (this->config.Blacklist) blacklistPlugin::unregistery();
         if (this->config.Menu.Enable) menuPlugin::unregistery();
         if (this->config.Tpa) tpaPlugin::unregistery();
+        if (this->config.Monitor.Enable) monitorPlugin::unregistery();
         if (this->config.Chat.Enable) chatPlugin::unregistery();
         this->mSelf.getLogger().info("Unregister Event completed.");
         return true;

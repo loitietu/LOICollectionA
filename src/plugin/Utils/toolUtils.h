@@ -24,7 +24,6 @@ namespace toolUtils {
     std::vector<Player*> getAllPlayers();
     Player* getPlayerFromName(const std::string& name);
     bool isReach(const std::string& timeString);
-    bool isJsonArrayFind(void* mObject_ptr, const std::string& find);
     bool isItemPlayerInventory(Player* player, void* itemStack_ptr);
 
     namespace scoreboard {

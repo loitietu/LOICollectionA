@@ -23,7 +23,6 @@ struct C_Config {
         bool Enable = false;
         std::string join = "{player}加入了服务器";
         std::string left = "{player}退出了服务器";
-        std::string score = "§e§l检测到Score发生变化 §b原值: §f${OriScore} §a更改: §f${SetScore} §e现值: §f${GetScore}";
         std::vector<std::string> command = {};
         std::string tips = "该指令已被禁用";
     } Monitor;
