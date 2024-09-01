@@ -16,7 +16,7 @@
             "tietu"
         ]
     },
-    "asset_url": "https://github.com/loitietu/LOICollectionA/releases/download/1.4.0/LOICollectionA-windows-x64.zip",
+    "asset_url": "https://github.com/loitietu/LOICollectionA/releases/download/v1.4.0/LOICollectionA-windows-x64.zip",
     "prerequisites": {
         "github.com/LiteLDev/LeviLamina": "0.13.x"
     },
