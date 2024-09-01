@@ -20,8 +20,10 @@ AnnounCement | $\color{#00FF00}{√}$
 Market | $\color{#00FF00}{√}$
 
 ### 如何安装插件？
-1. 将文件 `LOICollection.dll` 放置在服务器目录的 `plugins` 文件夹中。
-- `LOICollection.dll`（您可以在发布页面下载）。
+1. 在服务器目录中执行命令
+```cmd
+lip install github.com/loitietu/LOICollectionA
+```
 2. 启动服务器。
 3. 等待输出加载文本。
 4. 完成安装。

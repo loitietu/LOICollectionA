@@ -20,8 +20,10 @@ AnnounCement | $\color{#00FF00}{√}$
 Market | $\color{#00FF00}{√}$
 
 ### How to install the plugin?
-1. Place the file `LOICollection.dll` in the server directory `plugins`.
-- `LOICollection.dll` (You can download it in the Release page.).
+1. Execute the command in the server directory
+```cmd
+lip install github.com/loitietu/LOICollectionA
+```
 2. Start the server
 3. Wait for the output to load the text
 4. Complete the installation
