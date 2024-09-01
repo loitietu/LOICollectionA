@@ -28,9 +28,8 @@ bool JsonUtils::del(std::string_view key) {
     return this->d_json.erase(key) > 0;
 }
 
-template<typename T>
-T JsonUtils::get(std::string_view key) {
-    return this->d_json.at(key).get<T>();
+std::string JsonUtils::getString(std::string_view key) {
+    return this->d_json.at(key).get<std::string>();
 }
 
 bool JsonUtils::has(std::string_view key) {

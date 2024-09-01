@@ -26,6 +26,7 @@
 #include "Include/pvpPlugin.h"
 #include "Include/walletPlugin.h"
 #include "Include/chatPlugin.h"
+#include "Include/acPlugin.h"
 
 #include "LangPlugin.h"
 
@@ -112,6 +113,7 @@ namespace LOICollection {
             walletPlugin::registery(options);
         }
         if (this->config.Chat.Enable) chatPlugin::registery(&this->ChatDB, this->config.Chat.chat);
+        if (this->config.AnnounCement) announcementPlugin::registery(&this->AnnounCementDB);
         this->mSelf.getLogger().info("Register Event completed.");
         return true;
     }
@@ -124,6 +126,7 @@ namespace LOICollection {
         if (this->config.Monitor.Enable) monitorPlugin::unregistery();
         if (this->config.Pvp) pvpPlugin::unregistery();
         if (this->config.Chat.Enable) chatPlugin::unregistery();
+        if (this->config.AnnounCement) announcementPlugin::unregistery();
         this->mSelf.getLogger().info("Unregister Event completed.");
         return true;
     }

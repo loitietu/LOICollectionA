@@ -20,8 +20,7 @@ public:
 
     bool del(std::string_view key);
 
-    template<typename T>
-    T get(std::string_view key);
+    std::string getString(std::string_view key);
 
     bool has(std::string_view key);
     bool empty();
