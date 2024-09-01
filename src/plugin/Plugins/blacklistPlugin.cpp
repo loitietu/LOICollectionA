@@ -12,7 +12,7 @@
 #include <ll/api/command/CommandRegistrar.h>
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
-#include <ll/api/event/player/PlayerConnectEvent.h>
+#include <ll/api/event/player/PlayerJoinEvent.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -51,7 +51,7 @@ namespace blacklistPlugin {
     };
 
     std::unique_ptr<SQLiteStorage> db;
-    ll::event::ListenerPtr PlayerConnectEventListener;
+    ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - Blacklist");
 
     namespace MainGui {
@@ -174,8 +174,8 @@ namespace blacklistPlugin {
 
         void listenEvent() {
             auto& eventBus = ll::event::EventBus::getInstance();
-            PlayerConnectEventListener = eventBus.emplaceListener<ll::event::PlayerConnectEvent>(
-                [](ll::event::PlayerConnectEvent& event) {
+            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
+                [](ll::event::PlayerJoinEvent& event) {
                     if (isBlacklist(&event.self())) {
                         std::string mObjectUuid = event.self().getUuid().asString();
                         std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
@@ -184,7 +184,11 @@ namespace blacklistPlugin {
                                 delBlacklist(mObjectUuid);
                                 return;
                             }
-                            event.cancel();
+                            ll::service::getServerNetworkHandler()->disconnectClient(
+                                event.self().getNetworkIdentifier(),
+                                Connection::DisconnectFailReason::Kicked,
+                                db->get("OBJECT$" + mObjectUuid, "cause"), false
+                            );
                             std::string logString = tr(getLanguage(&event.self()), "blacklist.log2");
                             logger.info(LOICollectionAPI::translateString(logString, &event.self(), true));
                             return;
@@ -196,7 +200,11 @@ namespace blacklistPlugin {
                                 delBlacklist(mObjectIP);
                                 return;
                             }
-                            event.cancel();
+                            ll::service::getServerNetworkHandler()->disconnectClient(
+                                event.self().getNetworkIdentifier(),
+                                Connection::DisconnectFailReason::Kicked,
+                                db->get("OBJECT$" + mObjectIP, "cause"), false
+                            );
                             std::string logString = tr(getLanguage(&event.self()), "blacklist.log2");
                             logger.info(LOICollectionAPI::translateString(logString, &event.self(), true));
                             return;
@@ -216,7 +224,7 @@ namespace blacklistPlugin {
 
     void unregistery() {
         auto& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerConnectEventListener);
+        eventBus.removeListener(PlayerJoinEventListener);
     }
 
     void addBlacklist(void* player_ptr, std::string cause, int time, int type) {
