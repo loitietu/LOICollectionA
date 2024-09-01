@@ -22,6 +22,8 @@ struct C_Config {
     struct C_Monitor {
         bool Enable = false;
         std::string join = "{player}加入了服务器";
+        std::string target = "money";
+        std::string changed = "§e§l检测到Score发生变化 §e现值: §f${GetScore}";
         std::vector<std::string> command = {};
         std::string tips = "该指令已被禁用";
     } Monitor;

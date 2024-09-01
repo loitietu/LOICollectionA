@@ -226,6 +226,7 @@ namespace menuPlugin {
 
     void registery(void* database, std::string itemid) {
         mItemId = itemid;
+        
         db = std::move(*static_cast<std::unique_ptr<JsonUtils>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
         registerCommand();

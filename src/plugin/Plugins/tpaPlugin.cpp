@@ -74,12 +74,12 @@ namespace tpaPlugin {
                     std::string logString = tr(getLanguage(&pl), "tpa.log");
                     if (!type) {
                         player->teleport(pl.getPosition(), pl.getDimensionId());
-                        logString = toolUtils::replaceString(logString, "${player1}", pl.getRealName());
-                        logString = toolUtils::replaceString(logString, "${player2}", player->getRealName());
+                        toolUtils::replaceString2(logString, "${player1}", pl.getRealName());
+                        toolUtils::replaceString2(logString, "${player2}", player->getRealName());
                     } else {
                         pl.teleport(player->getPosition(), player->getDimensionId());
-                        logString = toolUtils::replaceString(logString, "${player1}", player->getRealName());
-                        logString = toolUtils::replaceString(logString, "${player2}", pl.getRealName());
+                        toolUtils::replaceString2(logString, "${player1}", player->getRealName());
+                        toolUtils::replaceString2(logString, "${player2}", pl.getRealName());
                     }
                     logger.info(logString);
                     return;

@@ -53,8 +53,7 @@ namespace languagePlugin {
                 std::string dropdownValue = getLocalFromName(std::get<std::string>(dt->at("dropdown")));
                 std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
                 db->set("OBJECT$" + mObjectUuid, "language", dropdownValue);
-                std::string logString = tr(getLanguage(&pl), "language.log");
-                logger.info(LOICollectionAPI::translateString(logString, &pl, true));
+                logger.info(LOICollectionAPI::translateString(tr(getLanguage(&pl), "language.log"), &pl, true));
             });
         }
     }

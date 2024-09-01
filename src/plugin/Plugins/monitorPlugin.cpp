@@ -1,6 +1,7 @@
 #include <map>
-#include <vector>
 #include <string>
+#include <vector>
+#include <variant>
 
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
@@ -13,6 +14,7 @@
 #include <mc/server/commands/CommandContext.h>
 
 #include "../Include/API.hpp"
+#include "../Include/HookPlugin.h"
 
 #include "../Utils/toolUtils.h"
 
@@ -20,7 +22,8 @@
 
 namespace monitorPlugin {
     std::vector<std::string> mObjectCommands;
-    std::map<std::string, std::string> mObjectOptions;
+    std::map<std::string, std::variant<std::string, std::vector<std::string>>> mObjectOptions;
+    
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::event::ListenerPtr ExecuteCommandEvent;
 
@@ -30,7 +33,8 @@ namespace monitorPlugin {
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer()) return;
-                    std::string mMonitorString = LOICollectionAPI::translateString(mObjectOptions.at("join"), &event.self(), false);
+                    std::string mMonitorString = std::get<std::string>(mObjectOptions.at("join"));
+                    LOICollectionAPI::translateString2(mMonitorString, &event.self(), false);
                     toolUtils::broadcastText(mMonitorString);
                 }
             );
@@ -44,16 +48,30 @@ namespace monitorPlugin {
                         if (entity == nullptr || !entity->isType(ActorType::Player))
                             return;
                         Player* player = static_cast<Player*>(entity);
-                        player->sendMessage(mObjectOptions.at("tips"));
+                        player->sendMessage(std::get<std::string>(mObjectOptions.at("tips")));
                     }
                 }
             );
+            HookPlugin::Event::onPlayerScoreChangedEvent([](void* player_ptr, int score, std::string id) -> void {
+                Player* player = static_cast<Player*>(player_ptr);
+
+                if (player == nullptr) {
+                    return;
+                }
+
+                std::string target = std::get<std::string>(mObjectOptions.at("target"));
+                if (id == target) {
+                    std::string mChangedString = std::get<std::string>(mObjectOptions.at("changed"));
+                    toolUtils::replaceString2(mChangedString, "${GetScore}", std::to_string(score));
+                    player->sendMessage(mChangedString);
+                }
+            });
         }
     }
 
-    void registery(std::map<std::string, std::string>& options, std::vector<std::string>& commands) {
+    void registery(std::map<std::string, std::variant<std::string, std::vector<std::string>>>& options) {
+        mObjectCommands = std::get<std::vector<std::string>>(options.at("command"));
         mObjectOptions = options;
-        mObjectCommands = commands;
         listenEvent();
     }
 

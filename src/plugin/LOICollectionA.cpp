@@ -1,6 +1,8 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
+#include <variant>
 #include <filesystem>
 
 #include <ll/api/Config.h>
@@ -22,6 +24,7 @@
 #include "Include/shopPlugin.h"
 #include "Include/monitorPlugin.h"
 #include "Include/pvpPlugin.h"
+#include "Include/walletPlugin.h"
 #include "Include/chatPlugin.h"
 
 #include "LangPlugin.h"
@@ -93,12 +96,21 @@ namespace LOICollection {
         if (this->config.Tpa) tpaPlugin::registery(&this->TpaDB);
         if (this->config.Shop) shopPlugin::registery(&this->ShopDB);
         if (this->config.Monitor.Enable) {
-            std::map<std::string, std::string> options;
+            std::map<std::string, std::variant<std::string, std::vector<std::string>>> options;
             options["join"] = this->config.Monitor.join;
+            options["target"] = this->config.Monitor.target;
+            options["changed"] = this->config.Monitor.changed;
+            options["command"] = this->config.Monitor.command;
             options["tips"] = this->config.Monitor.tips;
-            monitorPlugin::registery(options, this->config.Monitor.command);
+            monitorPlugin::registery(options);
         }
         if (this->config.Pvp) pvpPlugin::registery(&this->PvpDB);
+        if (this->config.Wallet.Enable) {
+            std::map<std::string, std::variant<std::string, double>> options;
+            options["score"] = this->config.Wallet.score;
+            options["tax"] = this->config.Wallet.tax;
+            walletPlugin::registery(options);
+        }
         if (this->config.Chat.Enable) chatPlugin::registery(&this->ChatDB, this->config.Chat.chat);
         this->mSelf.getLogger().info("Register Event completed.");
         return true;

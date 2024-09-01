@@ -49,6 +49,8 @@ Market | $\color{#00FF00}{√}$
     "Monitor": {
         "Enable": false,
         "join": "{player}加入了服务器",
+        "target": "money",
+        "changed": "§e§l检测到Score发生变化 §e现值: §f${GetScore}",
         "command": [],
         "tips": "该指令已被禁用" 
     },

@@ -288,7 +288,7 @@ namespace cdkPlugin {
                 db->set(convertString, cdkJson);
             }
             std::string logString = tr(mObjectLanguage, "cdk.log3");
-            logString = toolUtils::replaceString(logString, "${cdk}", convertString);
+            toolUtils::replaceString2(logString, "${cdk}", convertString);
             logger.info(LOICollectionAPI::translateString(logString, player, true));
             player->sendMessage(tr(mObjectLanguage, "cdk.convert.tip3"));
             db->save();

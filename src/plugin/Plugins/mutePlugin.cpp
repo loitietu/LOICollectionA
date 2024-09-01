@@ -151,7 +151,7 @@ namespace mutePlugin {
                     }
                     std::string cause = db->get("OBJECT$" + mObject, "cause");
                     std::string logString = tr(getLanguage(player), "mute.log3");
-                    logString = toolUtils::replaceString(logString, "${message}", message);
+                    toolUtils::replaceString2(logString, "${message}", message);
                     logger.info(LOICollectionAPI::translateString(logString, player, true));
                     player->sendMessage(cause);
                     return true;
@@ -180,7 +180,7 @@ namespace mutePlugin {
             db->set("OBJECT$" + mObject, "time", toolUtils::timeCalculate(time));
         }
         std::string logString = tr(getLanguage(player), "mute.log1");
-        logString = toolUtils::replaceString(logString, "${cause}", cause);
+        toolUtils::replaceString2(logString, "${cause}", cause);
         logger.info(LOICollectionAPI::translateString(logString, player, true));
     }
 

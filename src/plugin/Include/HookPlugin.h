@@ -8,6 +8,7 @@
 namespace HookPlugin {
     namespace Event {
         void onTextPacketSendEvent(const std::function<bool(void*, const std::string&)>& callback);
+        void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string)>& callback);
     }
 
     void registery();

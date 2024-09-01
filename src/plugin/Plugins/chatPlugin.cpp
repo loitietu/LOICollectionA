@@ -208,9 +208,9 @@ namespace chatPlugin {
                 [](ll::event::PlayerChatEvent& event) {
                     if (event.self().isSimulatedPlayer()) return;
                     if (!mutePlugin::isMute(&event.self())) {
-                        std::string mMessage = LOICollectionAPI::translateString(mChatString, &event.self(), true);
-                        mMessage = toolUtils::replaceString(mMessage, "${chat}", event.message());
-                        toolUtils::broadcastText(mMessage);
+                        LOICollectionAPI::translateString2(mChatString, &event.self(), true);
+                        toolUtils::replaceString2(mChatString, "${chat}", event.message());
+                        toolUtils::broadcastText(mChatString);
                         event.cancel();
                     }
                 }
