@@ -42,7 +42,7 @@ namespace toolUtils {
         C_Config* config = static_cast<C_Config*>(config_ptr);
 
         std::stringstream ss;
-        std::vector<std::string> version = split(getVersion(), '.');
+        std::vector<std::string> version = split(getVersion(), ".");
         for (size_t i = 0; i < version.size(); i++) {
             ss << version[i];
         }
@@ -160,7 +160,7 @@ namespace toolUtils {
     int toInt(const std::string& intString, int defaultValue) {
         try {
             return std::stoi(intString);
-        } catch (const std::exception& /*unused*/) {
+        } catch (...) {
             return defaultValue;
         }
     }
@@ -168,18 +168,21 @@ namespace toolUtils {
     long long toInt64(const std::string& intString, long long defaultValue) {
         try {
             return std::stoll(intString);
-        } catch (const std::exception& /*unused*/) {
+        } catch (...) {
             return defaultValue;
         }
     }
 
-    std::vector<std::string> split(const std::string& s, char delimiter) {
+    std::vector<std::string> split(const std::string& s, const std::string& delimiter) {
         std::vector<std::string> tokens;
-        std::stringstream ss(s);
-        std::string token;
-        while (std::getline(ss, token, delimiter)) {
-            tokens.push_back(token);
+        size_t mStratPos = 0;
+        size_t mEndPos = s.find(delimiter);
+        while (mEndPos != std::string::npos) {
+            tokens.push_back(s.substr(mStratPos, mEndPos - mStratPos));
+            mStratPos = mEndPos + delimiter.length();
+            mEndPos = s.find(delimiter, mStratPos);
         }
+        tokens.push_back(s.substr(mStratPos));
         return tokens;
     }
 

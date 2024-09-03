@@ -20,7 +20,7 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "../Include/API.hpp"
+#include "../Include/APIUtils.h"
 #include "../Include/languagePlugin.h"
 #include "../Include/blacklistPlugin.h"
 
@@ -57,7 +57,7 @@ namespace tpaPlugin {
             });
         }
 
-        void tpa(void* player_ptr, void* target_ptr, int type) {
+        void tpa(void* player_ptr, void* target_ptr, bool type) {
             Player* player = static_cast<Player*>(player_ptr);
             Player* target = static_cast<Player*>(target_ptr);
             std::string mObjectLanguage = getLanguage(target);
@@ -104,10 +104,10 @@ namespace tpaPlugin {
                 std::string PlayerSelectType = std::get<std::string>(dt->at("dropdown2"));
                 if (!isInvite(pl2)) {
                     if (PlayerSelectType == "tpa") {
-                        MainGui::tpa(&pl, pl2, 0);
+                        MainGui::tpa(&pl, pl2, false);
                         return;
                     }
-                    MainGui::tpa(&pl, pl2, 1);
+                    MainGui::tpa(&pl, pl2, true);
                     return;
                 }
                 pl.sendMessage(tr(getLanguage(&pl), "tpa.no.tips"));

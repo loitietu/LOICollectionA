@@ -34,7 +34,7 @@ lip install github.com/loitietu/LOICollectionA
 3. When you open it, you'll see something like this:
 ```json
 {
-    "version": 140,
+    "version": 141,
     "FakeSeed": 114514,
     "language": {
         "update": true
@@ -67,7 +67,10 @@ lip install github.com/loitietu/LOICollectionA
         "chat": "<{player}> ${chat}"
     },
     "AnnounCement": false,
-    "Market": false
+    "Market": {
+        "Enable": false,
+        "score": "money"
+    }
 }
 ```
 - Please follow the Json specification (https://www.json.org/) for changes.

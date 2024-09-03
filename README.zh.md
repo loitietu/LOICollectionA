@@ -34,7 +34,7 @@ lip install github.com/loitietu/LOICollectionA
 3. 打开后，您会看到类似以下内容的内容：
 ```json
 {
-    "version": 140,
+    "version": 141,
     "FakeSeed": 114514,
     "language": {
         "update": true
@@ -67,7 +67,10 @@ lip install github.com/loitietu/LOICollectionA
         "chat": "<{player}> ${chat}"
     },
     "AnnounCement": false,
-    "Market": false
+    "Market": {
+        "Enable": false,
+        "score": "money"
+    }
 }
 ```
 - 请按照 Json 规范 (https://www.json.org/) 进行更改。

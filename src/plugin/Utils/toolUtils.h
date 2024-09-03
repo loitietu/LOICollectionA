@@ -23,7 +23,7 @@ namespace toolUtils {
     int toInt(const std::string& intString, int defaultValue);
     long long toInt64(const std::string& intString, long long defaultValue);
 
-    std::vector<std::string> split(const std::string& s, char delimiter);
+    std::vector<std::string> split(const std::string& s, const std::string& delimiter);
     std::vector<std::string> getAllPlayerName();
     std::vector<Player*> getAllPlayers();
 

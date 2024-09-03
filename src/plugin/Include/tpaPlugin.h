@@ -4,7 +4,7 @@
 namespace tpaPlugin {
     namespace MainGui {
         void setting(void* player_ptr);
-        void tpa(void* player_ptr, void* target_ptr, int type);
+        void tpa(void* player_ptr, void* target_ptr, bool type);
         void open(void* player_ptr);
     }
 

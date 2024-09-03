@@ -17,7 +17,7 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "../Include/API.hpp"
+#include "../Include/APIUtils.h"
 #include "../Include/languagePlugin.h"
 
 #include "../Utils/I18nUtils.h"

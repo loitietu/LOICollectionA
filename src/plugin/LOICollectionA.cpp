@@ -27,6 +27,7 @@
 #include "Include/walletPlugin.h"
 #include "Include/chatPlugin.h"
 #include "Include/acPlugin.h"
+#include "Include/marketPlugin.h"
 
 #include "LangPlugin.h"
 
@@ -47,16 +48,26 @@ namespace LOICollection {
         toolUtils::init(&mSelf);
         toolUtils::SynchronousPluginConfigVersion(&this->config);
         logger.info("Loading LOICollection - A (Version {})", toolUtils::getVersion());
-        if (!std::filesystem::exists(configFilePath)) {
-            logger.info("Configurations not found.");
-            logger.info("Saving default configurations.");
-            if (!ll::config::saveConfig(config, configFilePath)) {
-                logger.error("Failed to save default configurations.");
-                return false;
+        
+        try {
+            if (!std::filesystem::exists(configFilePath)) {
+                logger.info("Configurations not found.");
+                logger.info("Saving default configurations.");
+                if (!ll::config::saveConfig(config, configFilePath)) {
+                    logger.error("Failed to save default configurations.");
+                    return false;
+                }
             }
-        }
-        if (!ll::config::loadConfig(config, configFilePath)) {
-            logger.info("Update configurations.");
+            if (!ll::config::loadConfig(config, configFilePath)) {
+                logger.info("Update configurations.");
+                if (!ll::config::saveConfig(config, configFilePath)) {
+                    logger.error("Failed to save default configurations.");
+                    return false;
+                }
+            }
+        } catch (...) {
+            logger.warn("Configurations are corrupted.");
+            ll::config::saveConfig(config, configFilePath);
         }
 
         logger.info("Initialization of configurations completed.");
@@ -83,7 +94,7 @@ namespace LOICollection {
         logger.info("Initialization of language file completed.");
 
         HookPlugin::setFakeSeed(this->config.FakeSeed);
-        logger.info("Initialization of HookPlugin completed.");
+        logger.info("Initialization of Hook completed.");
         return true;
     }
 
@@ -114,6 +125,11 @@ namespace LOICollection {
         }
         if (this->config.Chat.Enable) chatPlugin::registery(&this->ChatDB, this->config.Chat.chat);
         if (this->config.AnnounCement) announcementPlugin::registery(&this->AnnounCementDB);
+        if (this->config.Market.Enable) {
+            std::map<std::string, std::string> options;
+            options["score"] = this->config.Market.score;
+            marketPlugin::registery(&this->MarketDB, options);
+        }
         this->mSelf.getLogger().info("Register Event completed.");
         return true;
     }
@@ -127,6 +143,7 @@ namespace LOICollection {
         if (this->config.Pvp) pvpPlugin::unregistery();
         if (this->config.Chat.Enable) chatPlugin::unregistery();
         if (this->config.AnnounCement) announcementPlugin::unregistery();
+        if (this->config.Market.Enable) marketPlugin::unregistery();
         this->mSelf.getLogger().info("Unregister Event completed.");
         return true;
     }

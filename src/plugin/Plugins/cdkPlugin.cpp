@@ -20,7 +20,7 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include "../Include/API.hpp"
+#include "../Include/APIUtils.h"
 #include "../Include/languagePlugin.h"
 
 #include "../Utils/I18nUtils.h"

@@ -24,7 +24,7 @@
 #include <mc/enums/connection/DisconnectFailReason.h>
 #include <mc/network/ServerNetworkHandler.h>
 
-#include "../Include/API.hpp"
+#include "../Include/APIUtils.h"
 #include "../Include/languagePlugin.h"
 
 #include "../Utils/I18nUtils.h"
@@ -193,7 +193,7 @@ namespace blacklistPlugin {
                             logger.info(LOICollectionAPI::translateString(logString, &event.self(), true));
                             return;
                         }
-                        std::string mObjectIP = toolUtils::split(event.self().getIPAndPort(), ':')[0];
+                        std::string mObjectIP = toolUtils::split(event.self().getIPAndPort(), ":")[0];
                         std::replace(mObjectIP.begin(), mObjectIP.end(), '.', '_');
                         if (db->has("OBJECT$" + mObjectIP)) {
                             if (toolUtils::isReach(db->get("OBJECT$" + mObjectIP, "time"))) {
@@ -232,7 +232,7 @@ namespace blacklistPlugin {
         if (player->isSimulatedPlayer()) return;
         if (cause.empty()) cause = tr(getLanguage(player), "blacklist.cause");
         std::string mObject = player->getUuid().asString();
-        if (!type) mObject = toolUtils::split(player->getIPAndPort(), ':')[0];
+        if (!type) mObject = toolUtils::split(player->getIPAndPort(), ":")[0];
         std::replace(mObject.begin(), mObject.end(), '.', '_');
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (!db->has("OBJECT$" + mObject)) {
@@ -258,7 +258,7 @@ namespace blacklistPlugin {
     bool isBlacklist(void* player_ptr) {
         Player* player = static_cast<Player*>(player_ptr);
         std::string mObjectUuid = player->getUuid().asString();
-        std::string mObjectIP = toolUtils::split(player->getIPAndPort(), ':')[0];
+        std::string mObjectIP = toolUtils::split(player->getIPAndPort(), ":")[0];
         std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
         std::replace(mObjectIP.begin(), mObjectIP.end(), '.', '_');
         if (db->has("OBJECT$" + mObjectUuid)) return true;

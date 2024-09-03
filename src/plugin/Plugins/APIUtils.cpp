@@ -1,19 +1,20 @@
-#pragma once
-
 #include <regex>
 #include <string>
 
 #include <mc/world/actor/player/Player.h>
 
-#include "pvpPlugin.h"
-#include "mutePlugin.h"
-#include "chatPlugin.h"
-#include "languagePlugin.h"
+#include "../Include/pvpPlugin.h"
+#include "../Include/mutePlugin.h"
+#include "../Include/chatPlugin.h"
+#include "../Include/languagePlugin.h"
 
 #include "../Utils/toolUtils.h"
 
+#include "../Include/APIUtils.h"
+
 namespace LOICollectionAPI {
-    inline void translateString2(std::string& contentString, Player* player, bool enable) {
+    void translateString2(std::string& contentString, void* player_ptr, bool enable) {
+        Player* player = static_cast<Player*>(player_ptr);
         std::string mChatTitle = chatPlugin::getTitle(player);
 
         chatPlugin::update(player);
@@ -59,8 +60,8 @@ namespace LOICollectionAPI {
         }
     }
 
-    inline std::string translateString(std::string contentString, Player* player, bool enable) {
-        translateString2(contentString, player, enable);
+    std::string translateString(std::string contentString, void* player_ptr, bool enable) {
+        translateString2(contentString, player_ptr, enable);
         return contentString;
     }
 }

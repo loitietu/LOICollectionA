@@ -38,7 +38,10 @@ struct C_Config {
         std::string chat = "<{player}> ${chat}";
     } Chat;
     bool AnnounCement = false;
-    bool Market = false;
+    struct C_Market {
+        bool Enable = false;
+        std::string score = "money";
+    } Market;
 };
 
 #endif

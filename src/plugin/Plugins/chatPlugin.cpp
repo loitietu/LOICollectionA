@@ -21,7 +21,7 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "../Include/API.hpp"
+#include "../Include/APIUtils.h"
 #include "../Include/languagePlugin.h"
 #include "../Include/blacklistPlugin.h"
 #include "../Include/mutePlugin.h"

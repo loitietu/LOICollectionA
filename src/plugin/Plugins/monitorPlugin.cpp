@@ -13,7 +13,7 @@
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandContext.h>
 
-#include "../Include/API.hpp"
+#include "../Include/APIUtils.h"
 #include "../Include/HookPlugin.h"
 
 #include "../Utils/toolUtils.h"
@@ -40,7 +40,7 @@ namespace monitorPlugin {
             );
             ExecuteCommandEvent = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>(
                 [](ll::event::ExecutingCommandEvent& event) {
-                    std::string mCommand = toolUtils::replaceString(toolUtils::split(event.commandContext().mCommand, ' ')[0], "/", "");
+                    std::string mCommand = toolUtils::replaceString(toolUtils::split(event.commandContext().mCommand, " ")[0], "/", "");
                     if (std::find(mObjectCommands.begin(), mObjectCommands.end(), mCommand) != mObjectCommands.end()) {
                         event.cancel();
 
