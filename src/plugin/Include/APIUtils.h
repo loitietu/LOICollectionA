@@ -4,6 +4,7 @@
 #include <string>
 
 namespace LOICollectionAPI {
+    void initialization();
     void translateString2(std::string& contentString, void* player_ptr, bool enable);
     std::string translateString(std::string contentString, void* player_ptr, bool enable);
 }

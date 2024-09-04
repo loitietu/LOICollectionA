@@ -1,6 +1,10 @@
 #include <regex>
 #include <string>
 
+#include <ll/api/schedule/Task.h>
+#include <ll/api/schedule/Scheduler.h>
+#include <ll/api/chrono/GameChrono.h>
+
 #include <mc/world/actor/player/Player.h>
 
 #include "../Include/pvpPlugin.h"
@@ -12,7 +16,37 @@
 
 #include "../Include/APIUtils.h"
 
+using namespace ll::chrono_literals;
+
+int mTicksPerSecond;
+float mTicksPerMinute;
+unsigned short mTicks;
+std::vector<unsigned short> mTicksList;
+
 namespace LOICollectionAPI {
+    void initialization() {
+        static ll::schedule::GameTickAsyncScheduler scheduler1;
+        static ll::schedule::ServerTimeAsyncScheduler scheduler2;
+        scheduler1.add<ll::schedule::RepeatTask>(1_tick, [] {
+            mTicks++;
+        });
+        scheduler2.add<ll::schedule::RepeatTask>(1s, [] {
+            if (mTicks > 20)
+                mTicks = 20;
+            mTicksList.push_back(mTicks);
+            mTicksPerSecond = (int) mTicks;
+            mTicks = 0;
+            if (mTicksList.size() >= 60) {
+                mTicksList.clear();
+                return;
+            }
+            unsigned int sum = 0;
+            for (auto& i : mTicksList)
+                sum = sum + i;
+            mTicksPerMinute = (float) sum / (int) mTicksList.size();
+        });
+    }
+
     void translateString2(std::string& contentString, void* player_ptr, bool enable) {
         Player* player = static_cast<Player*>(player_ptr);
         std::string mChatTitle = chatPlugin::getTitle(player);
@@ -23,6 +57,8 @@ namespace LOICollectionAPI {
         toolUtils::replaceString2(contentString, "{pvp}", pvpPlugin::isEnable(player) ? "true" : "false");
         toolUtils::replaceString2(contentString, "{mute}", mutePlugin::isMute(player) ? "true" : "false");
         toolUtils::replaceString2(contentString, "{language}", languagePlugin::getLanguage(player));
+        toolUtils::replaceString2(contentString, "{tps}", std::to_string(mTicksPerSecond));
+        toolUtils::replaceString2(contentString, "{tpm}", std::to_string(mTicksPerMinute));
         toolUtils::replaceString2(contentString, "{player}", player->getName());
         toolUtils::replaceString2(contentString, "{pos}", player->getPosition().toString());
         toolUtils::replaceString2(contentString, "{blockPos}", player->getEyePos().toString());

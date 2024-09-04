@@ -14,6 +14,7 @@
 #include "Utils/JsonUtils.h"
 #include "Utils/SQLiteStorage.h"
 
+#include "Include/APIUtils.h"
 #include "Include/HookPlugin.h"
 #include "Include/languagePlugin.h"
 #include "Include/blacklistPlugin.h"
@@ -99,6 +100,8 @@ namespace LOICollection {
     }
 
     bool A::enable() {
+        LOICollectionAPI::initialization();
+
         HookPlugin::registery();
         languagePlugin::registery(&this->LanguageDB);
         if (this->config.Blacklist) blacklistPlugin::registery(&this->BlacklistDB);

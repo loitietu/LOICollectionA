@@ -141,7 +141,6 @@ namespace mutePlugin {
         void listenEvent() {
             HookPlugin::Event::onTextPacketSendEvent([](void* player_ptr, std::string message) {
                 Player* player = static_cast<Player*>(player_ptr);
-                if (player->isSimulatedPlayer()) return false;
                 std::string mObject = player->getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 if (db->has("OBJECT$" + mObject)) {

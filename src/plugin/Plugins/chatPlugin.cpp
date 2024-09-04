@@ -208,9 +208,11 @@ namespace chatPlugin {
                 [](ll::event::PlayerChatEvent& event) {
                     if (event.self().isSimulatedPlayer()) return;
                     if (!mutePlugin::isMute(&event.self())) {
-                        LOICollectionAPI::translateString2(mChatString, &event.self(), true);
-                        toolUtils::replaceString2(mChatString, "${chat}", event.message());
-                        toolUtils::broadcastText(mChatString);
+                        std::string mChat = mChatString;
+                        
+                        LOICollectionAPI::translateString2(mChat, &event.self(), true);
+                        toolUtils::replaceString2(mChat, "${chat}", event.message());
+                        toolUtils::broadcastText(mChat);
                         event.cancel();
                     }
                 }
@@ -270,9 +272,8 @@ namespace chatPlugin {
 
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject + "$TITLE")) {
+        if (db->has("OBJECT$" + mObject + "$TITLE"))
             return db->has("OBJECT$" + mObject + "$TITLE", text);
-        }
         return false;
     }
 
@@ -289,13 +290,17 @@ namespace chatPlugin {
         Player* player = static_cast<Player*>(player_ptr);
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject + "$TITLE"))
-            return db->get("OBJECT$" + mObject + "$TITLE", text);
+        if (db->has("OBJECT$" + mObject + "$TITLE")) {
+            std::string mTimeString = db->get("OBJECT$" + mObject + "$TITLE", text);
+            if (mTimeString != "0")
+                return mTimeString;
+        }
         return "None";
     }
 
     void registery(void* database, std::string chat) {
         mChatString = chat;
+
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
         registerCommand();
