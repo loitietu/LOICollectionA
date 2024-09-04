@@ -83,12 +83,12 @@ function string_formatter(str, variables)
 end
 
 function cpPackage(name, target, outputdir)
-    local sqlite3 = target:pkg("sqlite3")
-    if sqlite3 then
-        local sqlite3_installdir = sqlite3:installdir()
-        if sqlite3_installdir then
-            local sqlite3_bindir = path.join(sqlite3_installdir, "bin")
-            os.cp(path.join(sqlite3_bindir, "*.dll"), outputdir)
+    local mPackage = target:pkg(name)
+    if mPackage then
+        local mPackage_installdir = mPackage:installdir()
+        if mPackage_installdir then
+            local mPackage_bindir = path.join(mPackage_installdir, "bin")
+            os.cp(path.join(mPackage_bindir, "*.dll"), outputdir)
         end
     end
 end

@@ -80,19 +80,6 @@ namespace marketPlugin {
                 }
                 pl.sendMessage(tr(getLanguage(&pl), "market.gui.sell.sellItem.tips4"));
             });
-            form.appendButton(tr(mObjectLanguage, "market.gui.sell.buy.button2"), [mItemId](Player& pl) {
-                if (!pl.getCarriedItem().isValid()) {
-                    std::string mNbt = db->get(mItemId, "nbt");
-                    ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mNbt)->mTags);
-                    pl.setCarriedItem(mItemStack);
-                    pl.refreshInventory();
-                    
-                    mItemStack.remove(mItemStack.mCount);
-                    pl.setCarriedItem(mItemStack);
-                    return;
-                }
-                pl.sendMessage(tr(getLanguage(&pl), "market.gui.sell.sellItem.tips5"));
-            });
             if ((int) player->getPlayerPermissionLevel() >= 2) {
                 form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) {
                     std::string mName = db->get(mItemId, "name");

@@ -36,7 +36,9 @@ namespace toolUtils {
         ll::mod::Manifest manifestPlugin;
     }
 
-    void init(void* mSelfPtr) { manifestPlugin = static_cast<ll::mod::NativeMod*>(mSelfPtr)->getManifest(); }
+    void init(void* mSelfPtr) {
+        manifestPlugin = static_cast<ll::mod::NativeMod*>(mSelfPtr)->getManifest();
+    }
 
     void SynchronousPluginConfigVersion(void* config_ptr) {
         C_Config* config = static_cast<C_Config*>(config_ptr);
@@ -141,20 +143,19 @@ namespace toolUtils {
     }
 
     std::string timeCalculate(int hours) {
-        if (hours > 0) {
-            std::time_t currentTime = std::time(nullptr);
-            std::tm timeInfo;
-            localtime_s(&timeInfo, &currentTime);
-            timeInfo.tm_hour += hours;
-            std::time_t laterTime = std::mktime(&timeInfo);
-            char formattedTime[15];
-            std::tm laterTimeInfo;
-            localtime_s(&laterTimeInfo, &laterTime);
-            std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", &laterTimeInfo);
-            std::string formattedTimeString(formattedTime);
-            return formattedTimeString;
-        }
-        return "0";
+        if (hours <= 0)
+            return "0";
+        std::time_t currentTime = std::time(nullptr);
+        std::tm timeInfo;
+        localtime_s(&timeInfo, &currentTime);
+        timeInfo.tm_hour += hours;
+        std::time_t laterTime = std::mktime(&timeInfo);
+        char formattedTime[15];
+        std::tm laterTimeInfo;
+        localtime_s(&laterTimeInfo, &laterTime);
+        std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", &laterTimeInfo);
+        std::string formattedTimeString(formattedTime);
+        return formattedTimeString;
     }
 
     int toInt(const std::string& intString, int defaultValue) {
@@ -215,18 +216,17 @@ namespace toolUtils {
     }
 
     bool isReach(const std::string& timeString) {
-        if (timeString != "0") {
-            std::time_t currentTime = std::time(nullptr);
-            char formattedTime[15];
-            std::tm currentTimeInfo;
-            localtime_s(&currentTimeInfo, &currentTime);
-            std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", &currentTimeInfo);
-            std::string formattedTimeString(formattedTime);
-            int64_t formattedTimeInt = std::stoll(formattedTimeString);
-            int64_t timeInt = std::stoll(timeString);
-            return formattedTimeInt > timeInt;
-        }
-        return false;
+        if (timeString == "0") 
+            return false;
+        std::time_t currentTime = std::time(nullptr);
+        char formattedTime[15];
+        std::tm currentTimeInfo;
+        localtime_s(&currentTimeInfo, &currentTime);
+        std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", &currentTimeInfo);
+        std::string formattedTimeString(formattedTime);
+        int64_t formattedTimeInt = std::stoll(formattedTimeString);
+        int64_t timeInt = std::stoll(timeString);
+        return formattedTimeInt > timeInt;
     }
 
     bool isItemPlayerInventory(Player* player, void* itemStack_ptr) {
