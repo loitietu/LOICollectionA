@@ -17,7 +17,6 @@ namespace blacklistPlugin {
     LOICOLLECTION_A_NDAPI bool isBlacklist(void* player_ptr);
 
     LOICOLLECTION_A_API   void registery(void* database);
-    LOICOLLECTION_A_API   void unregistery();
 }
 
 #endif

@@ -10,9 +10,6 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
-#include <ll/api/event/EventBus.h>
-#include <ll/api/event/ListenerBase.h>
-#include <ll/api/event/player/PlayerJoinEvent.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -23,13 +20,16 @@
 #include <mc/server/commands/CommandOutputMessageType.h>
 #include <mc/enums/connection/DisconnectFailReason.h>
 #include <mc/network/ServerNetworkHandler.h>
+#include <mc/network/NetworkIdentifier.h>
 
 #include "Include/APIUtils.h"
 #include "Include/languagePlugin.h"
+#include "Include/HookPlugin.h"
 
 #include "Utils/I18nUtils.h"
 #include "Utils/toolUtils.h"
 #include "Utils/SQLiteStorage.h"
+#include "mc/network/NetworkIdentifier.h"
 
 #include "Include/blacklistPlugin.h"
 
@@ -51,7 +51,6 @@ namespace blacklistPlugin {
     };
 
     std::unique_ptr<SQLiteStorage> db;
-    ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - Blacklist");
 
     namespace MainGui {
@@ -149,6 +148,8 @@ namespace blacklistPlugin {
                 }
                 delBlacklist(param.targetName);
                 output.success("Remove object {} from blacklist.", param.targetName);
+                std::string logString = tr(getLanguage(nullptr), "blacklist.log2");
+                logger.info(toolUtils::replaceString(logString, "${blacklist}", param.targetName));
             });
             command.overload<BlacklistOP>().required("subCommand").execute([](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param) {
                 if (param.subCommand == BlacklistOP::list) {
@@ -173,45 +174,34 @@ namespace blacklistPlugin {
         }
 
         void listenEvent() {
-            auto& eventBus = ll::event::EventBus::getInstance();
-            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) {
-                    if (isBlacklist(&event.self())) {
-                        std::string mObjectUuid = event.self().getUuid().asString();
-                        std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
-                        if (db->has("OBJECT$" + mObjectUuid)) {
-                            if (toolUtils::isReach(db->get("OBJECT$" + mObjectUuid, "time"))) {
-                                delBlacklist(mObjectUuid);
-                                return;
-                            }
-                            ll::service::getServerNetworkHandler()->disconnectClient(
-                                event.self().getNetworkIdentifier(),
-                                Connection::DisconnectFailReason::Kicked,
-                                db->get("OBJECT$" + mObjectUuid, "cause"), false
-                            );
-                            std::string logString = tr(getLanguage(&event.self()), "blacklist.log2");
-                            logger.info(LOICollectionAPI::translateString(logString, &event.self(), true));
-                            return;
-                        }
-                        std::string mObjectIP = toolUtils::split(event.self().getIPAndPort(), ":")[0];
-                        std::replace(mObjectIP.begin(), mObjectIP.end(), '.', '_');
-                        if (db->has("OBJECT$" + mObjectIP)) {
-                            if (toolUtils::isReach(db->get("OBJECT$" + mObjectIP, "time"))) {
-                                delBlacklist(mObjectIP);
-                                return;
-                            }
-                            ll::service::getServerNetworkHandler()->disconnectClient(
-                                event.self().getNetworkIdentifier(),
-                                Connection::DisconnectFailReason::Kicked,
-                                db->get("OBJECT$" + mObjectIP, "cause"), false
-                            );
-                            std::string logString = tr(getLanguage(&event.self()), "blacklist.log2");
-                            logger.info(LOICollectionAPI::translateString(logString, &event.self(), true));
-                            return;
-                        }
+            HookPlugin::Event::onLoginPacketSendEvent([](void* identifier_ptr, std::string mUuid, std::string mIpAndPort) {
+                NetworkIdentifier* identifier = static_cast<NetworkIdentifier*>(identifier_ptr);
+                std::replace(mUuid.begin(), mUuid.end(), '-', '_');
+                if (db->has("OBJECT$" + mUuid)) {
+                    if (toolUtils::isReach(db->get("OBJECT$" + mUuid, "time"))) {
+                        delBlacklist(mUuid);
+                        return;
                     }
+                    ll::service::getServerNetworkHandler()->disconnectClient(
+                        *identifier, Connection::DisconnectFailReason::Kicked,
+                        db->get("OBJECT$" + mUuid, "cause"), false
+                    );
+                    return;
                 }
-            );
+                std::string mObjectIP = toolUtils::split(mIpAndPort, ":")[0];
+                std::replace(mObjectIP.begin(), mObjectIP.end(), '.', '_');
+                if (db->has("OBJECT$" + mObjectIP)) {
+                    if (toolUtils::isReach(db->get("OBJECT$" + mObjectIP, "time"))) {
+                        delBlacklist(mObjectIP);
+                        return;
+                    }
+                    ll::service::getServerNetworkHandler()->disconnectClient(
+                        *identifier, Connection::DisconnectFailReason::Kicked,
+                        db->get("OBJECT$" + mObjectIP, "cause"), false
+                    );
+                    return;
+                }
+            });
         }
     }
 
@@ -258,10 +248,5 @@ namespace blacklistPlugin {
         logger.setFile("./logs/LOICollectionA.log");
         registerCommand();
         listenEvent();
-    }
-
-    void unregistery() {
-        auto& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerJoinEventListener);
     }
 }

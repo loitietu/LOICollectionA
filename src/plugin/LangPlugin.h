@@ -13,7 +13,7 @@ static const nlohmann::ordered_json CNLangData = {
     {"language.gui.lang", "§b当前语言: §r${language}"},
     {"language.gui.dropdown", "§e语言选择"},
     {"blacklist.log1", "已将玩家 {player}({uuid}) 添加进黑名单"},
-    {"blacklist.log2", "玩家 {player}({uuid}) 尝试加入服务器，已拦截对象"},
+    {"blacklist.log2", "已将 ${blacklist} 从黑名单中移除"},
     {"blacklist.cause", "§4您已被服务器加入黑名单\n§a请联系管理员解决问题"},
     {"blacklist.gui.title", "§e§lLOICollection -> §b服务器黑名单"},
     {"blacklist.gui.label", "§a功能如下:"},

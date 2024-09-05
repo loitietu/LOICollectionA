@@ -13,9 +13,12 @@
 #include <mc/world/scores/ServerScoreboard.h>
 #include <mc/deps/core/utility/BinaryStream.h>
 #include <mc/network/packet/StartGamePacket.h>
+#include <mc/network/packet/LoginPacket.h>
 #include <mc/network/packet/TextPacket.h>
 #include <mc/network/ServerNetworkHandler.h>
 #include <mc/network/NetworkIdentifier.h>
+#include <mc/certificates/Certificate.h>
+#include <mc/certificates/ExtendedCertificate.h>
 
 #include "Utils/toolUtils.h"
 
@@ -23,6 +26,7 @@
 
 int64_t mFakeSeed = 0;
 std::vector<std::function<bool(void*, std::string)>> mTextPacketSendEventCallbacks;
+std::vector<std::function<void(void*, std::string, std::string)>> mLoginPacketSendEventCallbacks;
 std::vector<std::function<void(void*, int, std::string)>> mPlayerScoreChangedEventCallbacks;
 
 LL_TYPE_INSTANCE_HOOK(
@@ -38,7 +42,7 @@ LL_TYPE_INSTANCE_HOOK(
 };
 
 LL_TYPE_INSTANCE_HOOK(
-    TextPacketSeedHook,
+    TextPacketSendHook,
     HookPriority::Low,
     ServerNetworkHandler,
     "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTextPacket@@@Z",
@@ -82,10 +86,32 @@ LL_TYPE_INSTANCE_HOOK(
     return origin(id, objective);
 };
 
+LL_TYPE_INSTANCE_HOOK(
+    LoginPacketSendHook,
+    HookPriority::Normal,
+    ServerNetworkHandler,
+    "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVLoginPacket@@@Z",
+    void,
+    NetworkIdentifier& identifier,
+    LoginPacket& packet
+) {
+    origin(identifier, packet);
+    auto certificate = packet.mConnectionRequest->getCertificate();
+    auto uuid = ExtendedCertificate::getIdentity(*certificate).asString();
+    auto ipAndPort = identifier.getIPAndPort();
+    for (auto& callback : mLoginPacketSendEventCallbacks) {
+        callback(&identifier, uuid, ipAndPort);
+    }
+};
+
 namespace HookPlugin {
     namespace Event {
         void onTextPacketSendEvent(const std::function<bool(void*, const std::string&)>& callback) {
             mTextPacketSendEventCallbacks.push_back(callback);
+        }
+
+        void onLoginPacketSendEvent(const std::function<void(void*, std::string, std::string)>& callback) {
+            mLoginPacketSendEventCallbacks.push_back(callback);
         }
 
         void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string)>& callback) {
@@ -99,7 +125,8 @@ namespace HookPlugin {
 
     void registery() {
         FakeSeedHook::hook();
-        TextPacketSeedHook::hook();
+        TextPacketSendHook::hook();
         PlayerScoreChangedHook::hook();
+        LoginPacketSendHook::hook();
     }
 }

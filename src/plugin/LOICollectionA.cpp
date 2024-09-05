@@ -139,7 +139,6 @@ namespace LOICollection {
 
     bool A::disable() {
         languagePlugin::unregistery();
-        if (this->config.Blacklist) blacklistPlugin::unregistery();
         if (this->config.Menu.Enable) menuPlugin::unregistery();
         if (this->config.Tpa) tpaPlugin::unregistery();
         if (this->config.Monitor.Enable) monitorPlugin::unregistery();

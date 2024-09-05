@@ -10,6 +10,7 @@
 namespace HookPlugin {
     namespace Event {
         LOICOLLECTION_A_API void onTextPacketSendEvent(const std::function<bool(void*, const std::string&)>& callback);
+        LOICOLLECTION_A_API void onLoginPacketSendEvent(const std::function<void(void*, std::string, std::string)>& callback);
         LOICOLLECTION_A_API void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string)>& callback);
     }
 

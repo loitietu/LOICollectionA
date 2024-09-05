@@ -94,8 +94,8 @@ namespace languagePlugin {
     }
 
     std::string getLanguage(void* player_ptr) {
+        if (player_ptr == nullptr) return "zh_CN";
         Player* player = static_cast<class Player*>(player_ptr);
-        if (player->isSimulatedPlayer()) return "zh_CN";
         std::string mObjectUuid = player->getUuid().asString();
         std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
         return db->get("OBJECT$" + mObjectUuid, "language");
