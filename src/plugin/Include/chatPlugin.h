@@ -3,26 +3,28 @@
 
 #include <string>
 
+#include "ExportLib.h"
+
 namespace chatPlugin {
     namespace MainGui {
-        void add(void* player_ptr);
-        void remove(void* player_ptr);
-        void title(void* player_ptr);
-        void setting(void* player_ptr);
-        void open(void* player_ptr);
+        LOICOLLECTION_A_API void add(void* player_ptr);
+        LOICOLLECTION_A_API void remove(void* player_ptr);
+        LOICOLLECTION_A_API void title(void* player_ptr);
+        LOICOLLECTION_A_API void setting(void* player_ptr);
+        LOICOLLECTION_A_API void open(void* player_ptr);
     }
 
-    void update(void* player_ptr);
-    void addChat(void* player_ptr, std::string text, int time);
-    void delChat(void* player_ptr, std::string text);
+    LOICOLLECTION_A_API   void update(void* player_ptr);
+    LOICOLLECTION_A_API   void addChat(void* player_ptr, std::string text, int time);
+    LOICOLLECTION_A_API   void delChat(void* player_ptr, std::string text);
 
-    bool isChat(void* player_ptr, std::string text);
+    LOICOLLECTION_A_NDAPI bool isChat(void* player_ptr, std::string text);
 
-    std::string getTitle(void* player_ptr);
-    std::string getTitleTime(void* player_ptr, std::string text);
+    LOICOLLECTION_A_NDAPI std::string getTitle(void* player_ptr);
+    LOICOLLECTION_A_NDAPI std::string getTitleTime(void* player_ptr, std::string text);
 
-    void registery(void* database, std::string chat);
-    void unregistery();
+    LOICOLLECTION_A_API   void registery(void* database, std::string chat);
+    LOICOLLECTION_A_API   void unregistery();
 }
 
 #endif

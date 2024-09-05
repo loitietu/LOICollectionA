@@ -6,9 +6,11 @@
 #include <vector>
 #include <variant>
 
+#include "ExportLib.h"
+
 namespace monitorPlugin {
-    void registery(std::map<std::string, std::variant<std::string, std::vector<std::string>>>& options);
-    void unregistery();
+    LOICOLLECTION_A_API void registery(std::map<std::string, std::variant<std::string, std::vector<std::string>>>& options);
+    LOICOLLECTION_A_API void unregistery();
 }
 
 #endif

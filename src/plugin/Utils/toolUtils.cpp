@@ -27,15 +27,13 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include "../ConfigPlugin.h"
+#include "ConfigPlugin.h"
 
 #include "toolUtils.h"
 
-namespace toolUtils {
-    namespace {
-        ll::mod::Manifest manifestPlugin;
-    }
+ll::mod::Manifest manifestPlugin;
 
+namespace toolUtils {
     void init(void* mSelfPtr) {
         manifestPlugin = static_cast<ll::mod::NativeMod*>(mSelfPtr)->getManifest();
     }

@@ -3,15 +3,17 @@
 
 #include <string>
 
+#include "ExportLib.h"
+
 namespace languagePlugin {
     namespace MainGui {
-        void open(void* player_ptr);
+        LOICOLLECTION_A_API void open(void* player_ptr);
     }
 
-    void registery(void* database);
-    void unregistery();
+    LOICOLLECTION_A_NDAPI std::string getLanguage(void* player_ptr);
 
-    std::string getLanguage(void* player_ptr);
+    LOICOLLECTION_A_API   void registery(void* database);
+    LOICOLLECTION_A_API   void unregistery();
 }
 
 #endif

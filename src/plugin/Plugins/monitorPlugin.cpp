@@ -13,12 +13,12 @@
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandContext.h>
 
-#include "../Include/APIUtils.h"
-#include "../Include/HookPlugin.h"
+#include "Include/APIUtils.h"
+#include "Include/HookPlugin.h"
 
-#include "../Utils/toolUtils.h"
+#include "Utils/toolUtils.h"
 
-#include "../Include/monitorPlugin.h"
+#include "Include/monitorPlugin.h"
 
 namespace monitorPlugin {
     std::vector<std::string> mObjectCommands;

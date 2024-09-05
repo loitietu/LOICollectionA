@@ -5,14 +5,16 @@
 #include <string>
 #include <variant>
 
+#include "ExportLib.h"
+
 namespace walletPlugin {
     namespace MainGui {
-        void transfer(void* player_ptr);
-        void wealth(void* player_ptr);
-        void open(void* player_ptr);
+        LOICOLLECTION_A_API void transfer(void* player_ptr);
+        LOICOLLECTION_A_API void wealth(void* player_ptr);
+        LOICOLLECTION_A_API void open(void* player_ptr);
     }
 
-    void registery(std::map<std::string, std::variant<std::string, double>>& options);
+    LOICOLLECTION_A_API void registery(std::map<std::string, std::variant<std::string, double>>& options);
 }
 
 #endif

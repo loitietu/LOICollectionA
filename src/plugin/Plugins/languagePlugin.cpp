@@ -18,13 +18,13 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "../Include/APIUtils.h"
+#include "Include/APIUtils.h"
 
-#include "../Utils/I18nUtils.h"
-#include "../Utils/toolUtils.h"
-#include "../Utils/SQLiteStorage.h"
+#include "Utils/I18nUtils.h"
+#include "Utils/toolUtils.h"
+#include "Utils/SQLiteStorage.h"
 
-#include "../Include/languagePlugin.h"
+#include "Include/languagePlugin.h"
 
 using I18nUtils::tr;
 using I18nUtils::keys;
@@ -93,6 +93,14 @@ namespace languagePlugin {
         }
     }
 
+    std::string getLanguage(void* player_ptr) {
+        Player* player = static_cast<class Player*>(player_ptr);
+        if (player->isSimulatedPlayer()) return "zh_CN";
+        std::string mObjectUuid = player->getUuid().asString();
+        std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
+        return db->get("OBJECT$" + mObjectUuid, "language");
+    }
+
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
@@ -103,13 +111,5 @@ namespace languagePlugin {
     void unregistery() {
         auto& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
-    }
-
-    std::string getLanguage(void* player_ptr) {
-        Player* player = static_cast<class Player*>(player_ptr);
-        if (player->isSimulatedPlayer()) return "zh_CN";
-        std::string mObjectUuid = player->getUuid().asString();
-        std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
-        return db->get("OBJECT$" + mObjectUuid, "language");
     }
 }

@@ -21,14 +21,14 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include "../Include/languagePlugin.h"
-#include "../Include/blacklistPlugin.h"
+#include "Include/languagePlugin.h"
+#include "Include/blacklistPlugin.h"
 
-#include "../Utils/I18nUtils.h"
-#include "../Utils/toolUtils.h"
-#include "../Utils/JsonUtils.h"
+#include "Utils/I18nUtils.h"
+#include "Utils/toolUtils.h"
+#include "Utils/JsonUtils.h"
 
-#include "../Include/acPlugin.h"
+#include "Include/acPlugin.h"
 
 using I18nUtils::tr;
 using languagePlugin::getLanguage;

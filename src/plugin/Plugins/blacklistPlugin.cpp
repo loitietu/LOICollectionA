@@ -24,14 +24,14 @@
 #include <mc/enums/connection/DisconnectFailReason.h>
 #include <mc/network/ServerNetworkHandler.h>
 
-#include "../Include/APIUtils.h"
-#include "../Include/languagePlugin.h"
+#include "Include/APIUtils.h"
+#include "Include/languagePlugin.h"
 
-#include "../Utils/I18nUtils.h"
-#include "../Utils/toolUtils.h"
-#include "../Utils/SQLiteStorage.h"
+#include "Utils/I18nUtils.h"
+#include "Utils/toolUtils.h"
+#include "Utils/SQLiteStorage.h"
 
-#include "../Include/blacklistPlugin.h"
+#include "Include/blacklistPlugin.h"
 
 using I18nUtils::tr;
 using languagePlugin::getLanguage;
@@ -215,18 +215,6 @@ namespace blacklistPlugin {
         }
     }
 
-    void registery(void* database) {
-        db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
-        logger.setFile("./logs/LOICollectionA.log");
-        registerCommand();
-        listenEvent();
-    }
-
-    void unregistery() {
-        auto& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerJoinEventListener);
-    }
-
     void addBlacklist(void* player_ptr, std::string cause, int time, int type) {
         Player* player = static_cast<Player*>(player_ptr);
         if (player->isSimulatedPlayer()) return;
@@ -263,5 +251,17 @@ namespace blacklistPlugin {
         std::replace(mObjectIP.begin(), mObjectIP.end(), '.', '_');
         if (db->has("OBJECT$" + mObjectUuid)) return true;
         return db->has("OBJECT$" + mObjectIP);
+    }
+
+    void registery(void* database) {
+        db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        logger.setFile("./logs/LOICollectionA.log");
+        registerCommand();
+        listenEvent();
+    }
+
+    void unregistery() {
+        auto& eventBus = ll::event::EventBus::getInstance();
+        eventBus.removeListener(PlayerJoinEventListener);
     }
 }

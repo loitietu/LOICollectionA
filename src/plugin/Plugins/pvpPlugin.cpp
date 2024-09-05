@@ -19,13 +19,13 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "../Include/APIUtils.h"
-#include "../Include/languagePlugin.h"
+#include "Include/APIUtils.h"
+#include "Include/languagePlugin.h"
 
-#include "../Utils/I18nUtils.h"
-#include "../Utils/SQLiteStorage.h"
+#include "Utils/I18nUtils.h"
+#include "Utils/SQLiteStorage.h"
 
-#include "../Include/pvpPlugin.h"
+#include "Include/pvpPlugin.h"
 
 using I18nUtils::tr;
 using languagePlugin::getLanguage;

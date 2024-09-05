@@ -20,15 +20,15 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "../Include/APIUtils.h"
-#include "../Include/languagePlugin.h"
-#include "../Include/blacklistPlugin.h"
+#include "Include/APIUtils.h"
+#include "Include/languagePlugin.h"
+#include "Include/blacklistPlugin.h"
 
-#include "../Utils/I18nUtils.h"
-#include "../Utils/toolUtils.h"
-#include "../Utils/SQLiteStorage.h"
+#include "Utils/I18nUtils.h"
+#include "Utils/toolUtils.h"
+#include "Utils/SQLiteStorage.h"
 
-#include "../Include/tpaPlugin.h"
+#include "Include/tpaPlugin.h"
 
 using I18nUtils::tr;
 using languagePlugin::getLanguage;
@@ -163,6 +163,17 @@ namespace tpaPlugin {
         }
     }
 
+    bool isInvite(void* player_ptr) {
+        Player* player = static_cast<Player*>(player_ptr);
+        if (player->isSimulatedPlayer()) return false;
+        std::string mObject = player->getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        if (db->has("OBJECT$" + mObject)) {
+            return db->get("OBJECT$" + mObject, "Toggle1") == "true";
+        }
+        return false;
+    }
+
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
@@ -173,16 +184,5 @@ namespace tpaPlugin {
     void unregistery() {
         auto& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
-    }
-
-    bool isInvite(void* player_ptr) {
-        Player* player = static_cast<Player*>(player_ptr);
-        if (player->isSimulatedPlayer()) return false;
-        std::string mObject = player->getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject)) {
-            return db->get("OBJECT$" + mObject, "Toggle1") == "true";
-        }
-        return false;
     }
 }

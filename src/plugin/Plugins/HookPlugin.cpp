@@ -17,9 +17,9 @@
 #include <mc/network/ServerNetworkHandler.h>
 #include <mc/network/NetworkIdentifier.h>
 
-#include "../Utils/toolUtils.h"
+#include "Utils/toolUtils.h"
 
-#include "../Include/HookPlugin.h"
+#include "Include/HookPlugin.h"
 
 int64_t mFakeSeed = 0;
 std::vector<std::function<bool(void*, std::string)>> mTextPacketSendEventCallbacks;
@@ -93,13 +93,13 @@ namespace HookPlugin {
         }
     }
 
+    void setFakeSeed(int64_t fakeSeed) {
+        mFakeSeed = fakeSeed;
+    }
+
     void registery() {
         FakeSeedHook::hook();
         TextPacketSeedHook::hook();
         PlayerScoreChangedHook::hook();
-    }
-
-    void setFakeSeed(int64_t fakeSeed) {
-        mFakeSeed = fakeSeed;
     }
 }

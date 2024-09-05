@@ -3,10 +3,12 @@
 
 #include <string>
 
+#include "ExportLib.h"
+
 namespace LOICollectionAPI {
-    void initialization();
-    void translateString2(std::string& contentString, void* player_ptr, bool enable);
-    std::string translateString(std::string contentString, void* player_ptr, bool enable);
+    LOICOLLECTION_A_API   void initialization();
+    LOICOLLECTION_A_API   void translateString2(std::string& contentString, void* player_ptr, bool enable);
+    LOICOLLECTION_A_NDAPI std::string translateString(std::string contentString, void* player_ptr, bool enable);
 }
 
 #endif

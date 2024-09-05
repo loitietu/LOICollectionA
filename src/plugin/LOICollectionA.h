@@ -6,6 +6,7 @@
 
 #include "Utils/JsonUtils.h"
 #include "Utils/SQLiteStorage.h"
+
 #include "ConfigPlugin.h"
 
 namespace LOICollection {

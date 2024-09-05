@@ -3,19 +3,21 @@
 
 #include <string>
 
+#include "ExportLib.h"
+
 namespace blacklistPlugin {
     namespace MainGui {
-        void add(void* player_ptr);
-        void remove(void* player_ptr);
-        void open(void* player_ptr);
+        LOICOLLECTION_A_API void add(void* player_ptr);
+        LOICOLLECTION_A_API void remove(void* player_ptr);
+        LOICOLLECTION_A_API void open(void* player_ptr);
     }
 
-    void registery(void* database);
-    void unregistery();
-    
-    void addBlacklist(void* player_ptr, std::string cause, int time, int type);
-    void delBlacklist(std::string target);
-    bool isBlacklist(void* player_ptr);
+    LOICOLLECTION_A_API   void addBlacklist(void* player_ptr, std::string cause, int time, int type);
+    LOICOLLECTION_A_API   void delBlacklist(std::string target);
+    LOICOLLECTION_A_NDAPI bool isBlacklist(void* player_ptr);
+
+    LOICOLLECTION_A_API   void registery(void* database);
+    LOICOLLECTION_A_API   void unregistery();
 }
 
 #endif

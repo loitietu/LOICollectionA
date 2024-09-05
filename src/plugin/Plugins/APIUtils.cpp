@@ -7,14 +7,14 @@
 
 #include <mc/world/actor/player/Player.h>
 
-#include "../Include/pvpPlugin.h"
-#include "../Include/mutePlugin.h"
-#include "../Include/chatPlugin.h"
-#include "../Include/languagePlugin.h"
+#include "Include/pvpPlugin.h"
+#include "Include/mutePlugin.h"
+#include "Include/chatPlugin.h"
+#include "Include/languagePlugin.h"
 
-#include "../Utils/toolUtils.h"
+#include "Utils/toolUtils.h"
 
-#include "../Include/APIUtils.h"
+#include "Include/APIUtils.h"
 
 using namespace ll::chrono_literals;
 

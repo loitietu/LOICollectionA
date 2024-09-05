@@ -7,17 +7,19 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include "ExportLib.h"
+
 namespace shopPlugin {
     namespace MainGui {
-        void menu(void* player_ptr, nlohmann::ordered_json& data, bool type);
-        void commodity(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type);
-        void title(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type);
-        void open(void* player_ptr, std::string uiName);
+        LOICOLLECTION_A_API void menu(void* player_ptr, nlohmann::ordered_json& data, bool type);
+        LOICOLLECTION_A_API void commodity(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type);
+        LOICOLLECTION_A_API void title(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type);
+        LOICOLLECTION_A_API void open(void* player_ptr, std::string uiName);
     }
 
-    bool checkModifiedData(void* player_ptr, nlohmann::ordered_json data, int number);
+    LOICOLLECTION_A_NDAPI bool checkModifiedData(void* player_ptr, nlohmann::ordered_json data, int number);
 
-    void registery(void* database);
+    LOICOLLECTION_A_API   void registery(void* database);
 }
 
 #endif

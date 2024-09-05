@@ -25,10 +25,10 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include "../Utils/toolUtils.h"
-#include "../Utils/JsonUtils.h"
+#include "Utils/toolUtils.h"
+#include "Utils/JsonUtils.h"
 
-#include "../Include/menuPlugin.h"
+#include "Include/menuPlugin.h"
 
 namespace menuPlugin {
     struct MenuOP {

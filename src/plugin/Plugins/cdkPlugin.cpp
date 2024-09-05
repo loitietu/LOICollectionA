@@ -20,14 +20,14 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include "../Include/APIUtils.h"
-#include "../Include/languagePlugin.h"
+#include "Include/APIUtils.h"
+#include "Include/languagePlugin.h"
 
-#include "../Utils/I18nUtils.h"
-#include "../Utils/toolUtils.h"
-#include "../Utils/JsonUtils.h"
+#include "Utils/I18nUtils.h"
+#include "Utils/toolUtils.h"
+#include "Utils/JsonUtils.h"
 
-#include "../Include/cdkPlugin.h"
+#include "Include/cdkPlugin.h"
 
 using I18nUtils::tr;
 using languagePlugin::getLanguage;
@@ -244,12 +244,6 @@ namespace cdkPlugin {
         }
     }
 
-    void registery(void* database) {
-        db = std::move(*static_cast<std::unique_ptr<JsonUtils>*>(database));
-        logger.setFile("./logs/LOICollectionA.log");
-        registerCommand();
-    }
-
     void cdkConvert(void* player_ptr, std::string convertString) {
         Player* player = static_cast<class Player*>(player_ptr);
         if (player->isSimulatedPlayer()) return;
@@ -295,5 +289,11 @@ namespace cdkPlugin {
             return;
         }
         player->sendMessage(tr(mObjectLanguage, "cdk.convert.tip1"));
+    }
+
+    void registery(void* database) {
+        db = std::move(*static_cast<std::unique_ptr<JsonUtils>*>(database));
+        logger.setFile("./logs/LOICollectionA.log");
+        registerCommand();
     }
 }

@@ -21,16 +21,16 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "../Include/APIUtils.h"
-#include "../Include/languagePlugin.h"
-#include "../Include/blacklistPlugin.h"
-#include "../Include/mutePlugin.h"
+#include "Include/APIUtils.h"
+#include "Include/languagePlugin.h"
+#include "Include/blacklistPlugin.h"
+#include "Include/mutePlugin.h"
 
-#include "../Utils/I18nUtils.h"
-#include "../Utils/toolUtils.h"
-#include "../Utils/SQLiteStorage.h"
+#include "Utils/I18nUtils.h"
+#include "Utils/toolUtils.h"
+#include "Utils/SQLiteStorage.h"
 
-#include "../Include/chatPlugin.h"
+#include "Include/chatPlugin.h"
 
 using I18nUtils::tr;
 using languagePlugin::getLanguage;

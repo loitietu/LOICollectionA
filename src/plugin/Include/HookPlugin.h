@@ -5,14 +5,17 @@
 #include <cstdint>
 #include <functional>
 
+#include "ExportLib.h"
+
 namespace HookPlugin {
     namespace Event {
-        void onTextPacketSendEvent(const std::function<bool(void*, const std::string&)>& callback);
-        void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string)>& callback);
+        LOICOLLECTION_A_API void onTextPacketSendEvent(const std::function<bool(void*, const std::string&)>& callback);
+        LOICOLLECTION_A_API void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string)>& callback);
     }
 
-    void registery();
-    void setFakeSeed(int64_t fakeSeed);
+    LOICOLLECTION_A_API void setFakeSeed(int64_t fakeSeed);
+
+    LOICOLLECTION_A_API void registery();
 }
 
 #endif
