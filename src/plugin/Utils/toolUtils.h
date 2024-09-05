@@ -8,7 +8,7 @@
 #include <mc/world/actor/player/PlayerScoreSetFunction.h>
 
 namespace toolUtils {
-    void init(void* mSelfPtr);
+    void initialization();
     void SynchronousPluginConfigVersion(void* config_ptr);
     void executeCommand(Player* player, const std::string& command);
     void clearItem(Player* player, void* itemStack_ptr);

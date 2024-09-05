@@ -27,6 +27,7 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include "LOICollectionA.h"
 #include "ConfigPlugin.h"
 
 #include "toolUtils.h"
@@ -34,8 +35,8 @@
 ll::mod::Manifest manifestPlugin;
 
 namespace toolUtils {
-    void init(void* mSelfPtr) {
-        manifestPlugin = static_cast<ll::mod::NativeMod*>(mSelfPtr)->getManifest();
+    void initialization() {
+        manifestPlugin = LOICollection::A::getInstance().getSelf().getManifest();
     }
 
     void SynchronousPluginConfigVersion(void* config_ptr) {

@@ -46,7 +46,7 @@ namespace LOICollection {
 
         logger.setFile("./logs/LOICollectionA.log", false);
 
-        toolUtils::init(&mSelf);
+        toolUtils::initialization();
         toolUtils::SynchronousPluginConfigVersion(&this->config);
         logger.info("Loading LOICollection - A (Version {})", toolUtils::getVersion());
         
