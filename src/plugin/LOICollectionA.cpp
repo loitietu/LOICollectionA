@@ -138,6 +138,7 @@ namespace LOICollection {
     }
 
     bool A::disable() {
+        HookPlugin::unregistery();
         languagePlugin::unregistery();
         if (this->config.Menu.Enable) menuPlugin::unregistery();
         if (this->config.Tpa) tpaPlugin::unregistery();

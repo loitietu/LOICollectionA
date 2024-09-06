@@ -52,6 +52,9 @@ namespace monitorPlugin {
                     }
                 }
             );
+            HookPlugin::Event::onLoginPacketSendEvent([](void* /*unused*/, std::string mUuid, std::string /*unused*/) {
+                HookPlugin::interceptTextPacket(mUuid);
+            });
             HookPlugin::Event::onPlayerScoreChangedEvent([](void* player_ptr, int score, std::string id) -> void {
                 Player* player = static_cast<Player*>(player_ptr);
 

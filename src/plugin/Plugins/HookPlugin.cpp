@@ -19,12 +19,17 @@
 #include <mc/network/NetworkIdentifier.h>
 #include <mc/certificates/Certificate.h>
 #include <mc/certificates/ExtendedCertificate.h>
+#include <mc/server/LoopbackPacketSender.h>
+#include <mc/enums/MinecraftPacketIds.h>
+#include <mc/enums/TextPacketType.h>
+#include <mc/enums/SubClientId.h>
 
 #include "Utils/toolUtils.h"
 
 #include "Include/HookPlugin.h"
 
 int64_t mFakeSeed = 0;
+std::vector<std::string> mInterceptedTextPacketTargets;
 std::vector<std::function<bool(void*, std::string)>> mTextPacketSendEventCallbacks;
 std::vector<std::function<void(void*, std::string, std::string)>> mLoginPacketSendEventCallbacks;
 std::vector<std::function<void(void*, int, std::string)>> mPlayerScoreChangedEventCallbacks;
@@ -39,6 +44,30 @@ LL_TYPE_INSTANCE_HOOK(
 ) {
     this->mSettings.setRandomSeed(LevelSeed64(mFakeSeed));
     return origin(stream);
+};
+
+LL_TYPE_INSTANCE_HOOK(
+    InterceptPacketHook,
+    HookPriority::Normal,
+    LoopbackPacketSender,
+    "?sendBroadcast@LoopbackPacketSender@@UEAAXAEBVNetworkIdentifier@@W4SubClientId@@AEBVPacket@@@Z",
+    void,
+    NetworkIdentifier const& identifier,
+    SubClientId subId,
+    Packet const& packet
+) {
+    if (packet.getId() == MinecraftPacketIds::Text) {
+        auto mTextPacket = static_cast<TextPacket const&>(packet);
+        if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 2) {
+            std::string mUuid = toolUtils::getPlayerFromName(mTextPacket.mParams.at(0))->getUuid().asString();
+            for (auto& target : mInterceptedTextPacketTargets) {
+                if (mUuid == target) {
+                    return;
+                }
+            }
+        }
+    }
+    return origin(identifier, subId, packet);
 };
 
 LL_TYPE_INSTANCE_HOOK(
@@ -119,14 +148,27 @@ namespace HookPlugin {
         }
     }
 
+    void interceptTextPacket(const std::string& uuid) {
+        mInterceptedTextPacketTargets.push_back(uuid);
+    }
+
     void setFakeSeed(int64_t fakeSeed) {
         mFakeSeed = fakeSeed;
     }
 
     void registery() {
         FakeSeedHook::hook();
+        InterceptPacketHook::hook();
         TextPacketSendHook::hook();
         PlayerScoreChangedHook::hook();
         LoginPacketSendHook::hook();
+    }
+
+    void unregistery() {
+        FakeSeedHook::unhook();
+        InterceptPacketHook::unhook();
+        TextPacketSendHook::unhook();
+        PlayerScoreChangedHook::unhook();
+        LoginPacketSendHook::unhook();
     }
 }
