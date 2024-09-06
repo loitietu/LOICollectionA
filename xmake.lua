@@ -32,7 +32,12 @@ target("LOICollectionA")
     add_defines("NOMINMAX", "UNICODE")
     add_files("src/plugin/**.cpp")
     add_includedirs("src/plugin")
-    add_packages("levilamina", "nlohmann_json", "sqlite3", "sqlitecpp")
+    add_packages(
+        "levilamina",
+        "nlohmann_json",
+        "sqlite3",
+        "sqlitecpp"
+    )
     add_shflags("/DELAYLOAD:bedrock_server.dll")
     set_exceptions("none")
     set_kind("shared")
