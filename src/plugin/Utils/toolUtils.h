@@ -21,7 +21,6 @@ namespace toolUtils {
     std::string timeCalculate(int hours); 
 
     int toInt(const std::string& intString, int defaultValue);
-    long long toInt64(const std::string& intString, long long defaultValue);
 
     std::vector<std::string> split(const std::string& s, const std::string& delimiter);
     std::vector<std::string> getAllPlayerName();

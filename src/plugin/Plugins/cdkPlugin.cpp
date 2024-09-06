@@ -22,6 +22,7 @@
 
 #include "Include/APIUtils.h"
 #include "Include/languagePlugin.h"
+#include "Include/chatPlugin.h"
 
 #include "Utils/I18nUtils.h"
 #include "Utils/toolUtils.h"
@@ -83,6 +84,7 @@ namespace cdkPlugin {
                         {"player", mEmptyArray},
                         {"scores", mEmptyObject},
                         {"item", mEmptyObject},
+                        {"title", mEmptyObject},
                         {"time", mObjectTime}
                     };
                     db->set(mObjectCdk, dataList);
@@ -170,6 +172,33 @@ namespace cdkPlugin {
             }
         }
 
+        void cdkAwardTitle(void *player_ptr) {
+            if (!db->empty()) {
+                Player* player = static_cast<Player*>(player_ptr);
+                std::string mObjectLanguage = getLanguage(player);
+                ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
+                form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
+                form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
+                form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.title.input1"), "", "None");
+                form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.title.input2"), "", "0");
+                form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+                    if (!dt) {
+                        pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                        return;
+                    }
+                    std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
+                    std::string mObjectName = std::get<std::string>(dt->at("Input1"));
+                    int mObjectTime = toolUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+                    nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
+                    if (!mObjectData.contains("title"))
+                        mObjectData["title"] = {};
+                    mObjectData["title"][mObjectName] = mObjectTime;
+                    db->set(mObjectCdk, mObjectData);
+                    db->save();
+                });
+            }
+        }
+
         void cdkAward(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
@@ -179,6 +208,9 @@ namespace cdkPlugin {
             });
             form.appendButton(tr(mObjectLanguage, "cdk.gui.award.item"), "textures/items/diamond", "path", [](Player& pl) {
                 MainGui::cdkAwardItem(&pl);
+            });
+            form.appendButton(tr(mObjectLanguage, "cdk.gui.award.title"), "textures/ui/backup_replace", "path", [](Player& pl) {
+                MainGui::cdkAwardTitle(&pl);
             });
             form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
@@ -263,11 +295,15 @@ namespace cdkPlugin {
                 player->sendMessage(tr(mObjectLanguage, "cdk.convert.tip2"));
                 return;
             }
+            if (cdkJson.contains("title")) {
+                nlohmann::ordered_json mTitleList = cdkJson.at("title");
+                for (nlohmann::ordered_json::iterator it = mTitleList.begin(); it != mTitleList.end(); ++it)
+                    chatPlugin::addChat(player, it.key(), it.value().get<int>());
+            }
             nlohmann::ordered_json mItemList = cdkJson.at("item");
             nlohmann::ordered_json mScoreboardList = cdkJson.at("scores");
-            for (nlohmann::ordered_json::iterator it = mScoreboardList.begin(); it != mScoreboardList.end(); ++it) {
+            for (nlohmann::ordered_json::iterator it = mScoreboardList.begin(); it != mScoreboardList.end(); ++it)
                 toolUtils::scoreboard::addScore(player, it.key(), it.value().get<int>());
-            }
             for (nlohmann::ordered_json::iterator it = mItemList.begin(); it != mItemList.end(); ++it) {
                 ItemStack itemStack(it.key(), it.value()["quantity"].get<int>());
                 itemStack.setAuxValue(it.value()["specialvalue"].get<short>());

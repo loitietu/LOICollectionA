@@ -222,31 +222,26 @@ namespace chatPlugin {
 
     void update(void* player_ptr) {
         Player* player = static_cast<Player*>(player_ptr);
-        if (player->isSimulatedPlayer()) return;
-
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject + "$TITLE")) {
             for (auto& i : db->list("OBJECT$" + mObject + "$TITLE")) {
-                if (i == "None") break;
+                if (i == "None")
+                    continue;
                 std::string mTimeString = db->get("OBJECT$" + mObject + "$TITLE", i);
-                if (toolUtils::isReach(std::to_string(toolUtils::toInt(mTimeString, 0)))) {
+                if (toolUtils::isReach(mTimeString))
                     db->del("OBJECT$" + mObject + "$TITLE", i);
-                }
             }
         }
         if (db->has("OBJECT$" + mObject)) {
             std::string mTitle = db->get("OBJECT$" + mObject, "title");
-            if (!db->has("OBJECT$" + mObject + "$TITLE", mTitle)) {
+            if (!db->has("OBJECT$" + mObject + "$TITLE", mTitle))
                 db->set("OBJECT$" + mObject, "title", "None");
-            }
         }
     }
 
     void addChat(void* player_ptr, std::string text, int time) {
         Player* player = static_cast<Player*>(player_ptr);
-        if (player->isSimulatedPlayer()) return;
-
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (!db->has("OBJECT$" + mObject + "$TITLE"))
@@ -256,8 +251,6 @@ namespace chatPlugin {
 
     void delChat(void* player_ptr, std::string text) {
         Player* player = static_cast<Player*>(player_ptr);
-        if (player->isSimulatedPlayer()) return;
-
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject)) {
@@ -268,8 +261,6 @@ namespace chatPlugin {
 
     bool isChat(void* player_ptr, std::string text) {
         Player* player = static_cast<Player*>(player_ptr);
-        if (player->isSimulatedPlayer()) return false;
-
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject + "$TITLE"))

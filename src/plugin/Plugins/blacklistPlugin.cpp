@@ -84,10 +84,9 @@ namespace blacklistPlugin {
         void remove(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
-            std::vector<std::string> list = db->list2("OBJECT$");
             ll::form::CustomForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"));
             form.appendLabel(tr(mObjectLanguage, "blacklist.gui.label"));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "blacklist.gui.remove.dropdown"), list);
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "blacklist.gui.remove.dropdown"), db->list2("OBJECT$"));
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
                     pl.sendMessage(tr(getLanguage(&pl), "exit"));

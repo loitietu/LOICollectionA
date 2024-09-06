@@ -165,14 +165,6 @@ namespace toolUtils {
         }
     }
 
-    long long toInt64(const std::string& intString, long long defaultValue) {
-        try {
-            return std::stoll(intString);
-        } catch (...) {
-            return defaultValue;
-        }
-    }
-
     std::vector<std::string> split(const std::string& s, const std::string& delimiter) {
         std::vector<std::string> tokens;
         size_t mStratPos = 0;

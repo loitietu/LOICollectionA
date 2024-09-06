@@ -12,6 +12,7 @@ namespace cdkPlugin {
         LOICOLLECTION_A_API void cdkRemove(void* player_ptr);
         LOICOLLECTION_A_API void cdkAwardScore(void* player_ptr);
         LOICOLLECTION_A_API void cdkAwardItem(void* player_ptr);
+        LOICOLLECTION_A_API void cdkAwardTitle(void *player_ptr);
         LOICOLLECTION_A_API void cdkAward(void* player_ptr);
         LOICOLLECTION_A_API void open(void* player_ptr);
     }
