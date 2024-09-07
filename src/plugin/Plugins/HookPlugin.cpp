@@ -165,7 +165,6 @@ namespace HookPlugin {
 
     void registery() {
         FakeSeedHook::hook();
-        InterceptGetNameTagHook::hook();
         InterceptPacketHook::hook();
         TextPacketSendHook::hook();
         PlayerScoreChangedHook::hook();
@@ -174,7 +173,6 @@ namespace HookPlugin {
 
     void unregistery() {
         FakeSeedHook::unhook();
-        InterceptGetNameTagHook::unhook();
         InterceptPacketHook::unhook();
         TextPacketSendHook::unhook();
         PlayerScoreChangedHook::unhook();
