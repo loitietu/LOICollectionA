@@ -3,13 +3,16 @@
 
 #include <string>
 #include <vector>
+#include <filesystem>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/world/actor/player/PlayerScoreSetFunction.h>
 
+#include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
+
 namespace toolUtils {
     void initialization();
-    void SynchronousPluginConfigVersion(void* config_ptr);
     void executeCommand(Player* player, const std::string& command);
     void clearItem(Player* player, void* itemStack_ptr);
     void broadcastText(const std::string& text);
@@ -37,6 +40,12 @@ namespace toolUtils {
         void addScore(Player* player, const std::string &name, int score);
         void reduceScore(Player* player, const std::string &name, int score);
         void* addObjective(const std::string& name, const std::string& displayName);
+    }
+
+    namespace Config {
+        void mergeJson(nlohmann::ordered_json& source, nlohmann::ordered_json& target);
+        void SynchronousPluginConfigVersion(void* config_ptr);
+        void SynchronousPluginConfigType(void* config_ptr, const std::filesystem::path& path);
     }
 }
 

@@ -45,6 +45,10 @@ bool JsonUtils::reset() {
     return true;
 }
 
+void JsonUtils::write(nlohmann::ordered_json& json) {
+    this->d_json = json;
+}
+
 void JsonUtils::set(std::string_view key, const std::string& value) {
     this->d_json[key] = value;
 }

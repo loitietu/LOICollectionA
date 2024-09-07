@@ -6,7 +6,7 @@
 
 struct C_Config {
     int version = 0;
-    int FakeSeed = 114514;
+    std::string FakeSeed = "random";
     struct C_Language{
         bool update = true;
     } language;

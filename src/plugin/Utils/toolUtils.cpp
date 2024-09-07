@@ -7,6 +7,7 @@
 #include <ll/api/Mod/Manifest.h>
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/service/Bedrock.h>
+#include <ll/api/reflection/Serialization.h>
 
 #include <mc/world/Minecraft.h>
 #include <mc/world/Container.h>
@@ -27,6 +28,8 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include "JsonUtils.h"
+
 #include "LOICollectionA.h"
 #include "ConfigPlugin.h"
 
@@ -37,18 +40,6 @@ ll::mod::Manifest manifestPlugin;
 namespace toolUtils {
     void initialization() {
         manifestPlugin = LOICollection::A::getInstance().getSelf().getManifest();
-    }
-
-    void SynchronousPluginConfigVersion(void* config_ptr) {
-        C_Config* config = static_cast<C_Config*>(config_ptr);
-
-        std::stringstream ss;
-        std::vector<std::string> version = split(getVersion(), ".");
-        for (size_t i = 0; i < version.size(); i++) {
-            ss << version[i];
-        }
-        config->version = std::stoi(ss.str());
-        ss.clear();
     }
 
     void executeCommand(Player* player, const std::string& command) {
@@ -286,6 +277,44 @@ namespace toolUtils {
 
         void* addObjective(const std::string& name, const std::string& displayName) {
             return ll::service::getLevel()->getScoreboard().addObjective(name, displayName, *ll::service::getLevel()->getScoreboard().getCriteria("dummy"));
+        }
+    }
+
+    namespace Config {
+        void mergeJson(nlohmann::ordered_json& source, nlohmann::ordered_json& target) {
+            for (auto it = source.begin(); it != source.end(); ++it) {
+                if (!target.contains(it.key())) {
+                    target[it.key()] = it.value();
+                    continue;
+                }
+                if (it.value().is_object() && target[it.key()].is_object()) {
+                    mergeJson(it.value(), target[it.key()]);
+                } else if (it->type() != target[it.key()].type()) {
+                    target[it.key()] = it.value();
+                }
+            }
+        }
+
+        void SynchronousPluginConfigVersion(void* config_ptr) {
+            C_Config* config = static_cast<C_Config*>(config_ptr);
+
+            std::stringstream ss;
+            std::vector<std::string> version = split(getVersion(), ".");
+            for (size_t i = 0; i < version.size(); i++) {
+                ss << version[i];
+            }
+            config->version = std::stoi(ss.str());
+            ss.clear();
+        }
+
+        void SynchronousPluginConfigType(void* config_ptr, const std::filesystem::path& path) {
+            JsonUtils mConfigObject(path);
+            auto patch = ll::reflection::serialize<nlohmann::ordered_json>(*static_cast<C_Config*>(config_ptr));
+            nlohmann::ordered_json mPatchJson = nlohmann::ordered_json::parse(patch->dump());
+            nlohmann::ordered_json mConfigJson = mConfigObject.toJson();
+            mergeJson(mPatchJson, mConfigJson);
+            mConfigObject.write(mConfigJson);
+            mConfigObject.save();
         }
     }
 }

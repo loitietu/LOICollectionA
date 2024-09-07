@@ -2,7 +2,6 @@
 #define LOICOLLECTION_A_HOOKPLUGIN_H
 
 #include <string>
-#include <cstdint>
 #include <functional>
 
 #include "ExportLib.h"
@@ -15,7 +14,7 @@ namespace HookPlugin {
     }
 
     LOICOLLECTION_A_API void interceptTextPacket(const std::string& uuid);
-    LOICOLLECTION_A_API void setFakeSeed(int64_t fakeSeed);
+    LOICOLLECTION_A_API void setFakeSeed(const std::string& fakeSeed);
 
     LOICOLLECTION_A_API void registery();
     LOICOLLECTION_A_API void unregistery();

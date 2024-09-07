@@ -47,28 +47,24 @@ namespace LOICollection {
         logger.setFile("./logs/LOICollectionA.log", false);
 
         toolUtils::initialization();
-        toolUtils::SynchronousPluginConfigVersion(&this->config);
+        toolUtils::Config::SynchronousPluginConfigVersion(&this->config);
         logger.info("Loading LOICollection - A (Version {})", toolUtils::getVersion());
         
-        try {
-            if (!std::filesystem::exists(configFilePath)) {
-                logger.info("Configurations not found.");
-                logger.info("Saving default configurations.");
-                if (!ll::config::saveConfig(config, configFilePath)) {
-                    logger.error("Failed to save default configurations.");
-                    return false;
-                }
+        if (!std::filesystem::exists(configFilePath)) {
+            logger.info("Configurations not found.");
+            logger.info("Saving default configurations.");
+            if (!ll::config::saveConfig(config, configFilePath)) {
+                logger.error("Failed to save default configurations.");
+                return false;
             }
-            if (!ll::config::loadConfig(config, configFilePath)) {
-                logger.info("Update configurations.");
-                if (!ll::config::saveConfig(config, configFilePath)) {
-                    logger.error("Failed to save default configurations.");
-                    return false;
-                }
+        }
+        toolUtils::Config::SynchronousPluginConfigType(&this->config, configFilePath);
+        if (!ll::config::loadConfig(config, configFilePath)) {
+            logger.info("Update configurations.");
+            if (!ll::config::saveConfig(config, configFilePath)) {
+                logger.error("Failed to save default configurations.");
+                return false;
             }
-        } catch (...) {
-            logger.warn("Configurations are corrupted.");
-            ll::config::saveConfig(config, configFilePath);
         }
 
         logger.info("Initialization of configurations completed.");

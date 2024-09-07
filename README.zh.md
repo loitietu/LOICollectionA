@@ -34,8 +34,8 @@ lip install github.com/loitietu/LOICollectionA
 3. 打开后，您会看到类似以下内容的内容：
 ```json
 {
-    "version": 141,
-    "FakeSeed": 114514,
+    "version": 144,
+    "FakeSeed": "random",
     "language": {
         "update": true
     },

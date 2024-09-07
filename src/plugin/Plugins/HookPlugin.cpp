@@ -1,5 +1,6 @@
 #include <vector>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
 
 #include <ll/api/memory/Hook.h>
@@ -60,11 +61,13 @@ LL_TYPE_INSTANCE_HOOK(
         auto mTextPacket = static_cast<TextPacket const&>(packet);
         if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 2) {
             std::string mUuid = toolUtils::getPlayerFromName(mTextPacket.mParams.at(0))->getUuid().asString();
-            for (auto& target : mInterceptedTextPacketTargets) {
-                if (mUuid == target) {
-                    return;
-                }
+            if (mInterceptedTextPacketTargets.size() >= 10000) {
+                mInterceptedTextPacketTargets.clear();
+                for (auto& player : toolUtils::getAllPlayers())
+                    mInterceptedTextPacketTargets.push_back(player->getUuid().asString());
             }
+            for (auto& target : mInterceptedTextPacketTargets)
+                if (mUuid == target) return;
         }
     }
     return origin(identifier, subId, packet);
@@ -79,11 +82,8 @@ LL_TYPE_INSTANCE_HOOK(
     NetworkIdentifier& identifier,
     TextPacket& packet
 ) {
-    for (auto& callback : mTextPacketSendEventCallbacks) {
-        if (callback(toolUtils::getPlayerFromName(packet.mAuthor), packet.mMessage)) {
-            return;
-        }
-    }
+    for (auto& callback : mTextPacketSendEventCallbacks)
+        if (callback(toolUtils::getPlayerFromName(packet.mAuthor), packet.mMessage)) return;
     return origin(identifier, packet);
 };
 
@@ -128,9 +128,8 @@ LL_TYPE_INSTANCE_HOOK(
     auto certificate = packet.mConnectionRequest->getCertificate();
     auto uuid = ExtendedCertificate::getIdentity(*certificate).asString();
     auto ipAndPort = identifier.getIPAndPort();
-    for (auto& callback : mLoginPacketSendEventCallbacks) {
+    for (auto& callback : mLoginPacketSendEventCallbacks)
         callback(&identifier, uuid, ipAndPort);
-    }
 };
 
 namespace HookPlugin {
@@ -152,8 +151,15 @@ namespace HookPlugin {
         mInterceptedTextPacketTargets.push_back(uuid);
     }
 
-    void setFakeSeed(int64_t fakeSeed) {
-        mFakeSeed = fakeSeed;
+    void setFakeSeed(const std::string& fakeSeed) {
+        srand((unsigned int) time(nullptr));
+        try {
+            if (fakeSeed.empty() || fakeSeed == "random") {
+                mFakeSeed = static_cast<int64_t>(rand());
+                return;
+            }
+            mFakeSeed = std::stoll(fakeSeed);
+        } catch (...) {}
     }
 
     void registery() {

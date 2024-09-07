@@ -26,6 +26,7 @@ public:
     bool empty();
     bool reset();
 
+    void write(nlohmann::ordered_json& json);
     void set(std::string_view key, const std::string& value);
     void set(std::string_view key, nlohmann::ordered_json& value);
     void set(std::string_view key, const nlohmann::ordered_json& value);

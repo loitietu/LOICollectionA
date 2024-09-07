@@ -34,8 +34,8 @@ Market | $\color{#00FF00}{√}$
 3. After opening, you will see content similar to the following:
    ```json
    {
-       "version": 141,
-       "FakeSeed": 114514,
+       "version": 144,
+       "FakeSeed": "random",
        "language": {
            "update": true
        },
