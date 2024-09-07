@@ -53,8 +53,8 @@ lip install github.com/loitietu/LOICollectionA
         "join": "{player}加入了服务器",
         "target": "money",
         "changed": "§e§l检测到Score发生变化 §e现值: §f${GetScore}",
+        "tips": "该指令已被禁用" ,
         "command": [],
-        "tips": "该指令已被禁用" 
     },
     "Pvp": false,
     "Wallet": {

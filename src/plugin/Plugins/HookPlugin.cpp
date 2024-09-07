@@ -12,6 +12,7 @@
 #include <mc/world/scores/ScoreInfo.h>
 #include <mc/world/scores/ScoreboardId.h>
 #include <mc/world/scores/ServerScoreboard.h>
+#include <mc/world/actor/player/Player.h>
 #include <mc/deps/core/utility/BinaryStream.h>
 #include <mc/network/packet/StartGamePacket.h>
 #include <mc/network/packet/LoginPacket.h>
@@ -164,6 +165,7 @@ namespace HookPlugin {
 
     void registery() {
         FakeSeedHook::hook();
+        InterceptGetNameTagHook::hook();
         InterceptPacketHook::hook();
         TextPacketSendHook::hook();
         PlayerScoreChangedHook::hook();
@@ -172,6 +174,7 @@ namespace HookPlugin {
 
     void unregistery() {
         FakeSeedHook::unhook();
+        InterceptGetNameTagHook::unhook();
         InterceptPacketHook::unhook();
         TextPacketSendHook::unhook();
         PlayerScoreChangedHook::unhook();

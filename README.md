@@ -53,8 +53,8 @@ Market | $\color{#00FF00}{√}$
            "join": "{player} has joined the server",
            "target": "money",
            "changed": "§e§lDetected Score Change §eCurrent Value: §f${GetScore}",
+           "tips": "This command has been disabled",
            "command": [],
-           "tips": "This command has been disabled" 
        },
        "Pvp": false,
        "Wallet": {

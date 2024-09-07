@@ -6,6 +6,7 @@
 #include <filesystem>
 
 #include <ll/api/Config.h>
+#include <ll/api/Versions.h>
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/Mod/RegisterHelper.h>
 
@@ -49,6 +50,7 @@ namespace LOICollection {
         toolUtils::initialization();
         toolUtils::Config::SynchronousPluginConfigVersion(&this->config);
         logger.info("Loading LOICollection - A (Version {})", toolUtils::getVersion());
+        logger.info("Plugin Server Protocol Version {}", ll::getNetworkProtocolVersion());
         
         if (!std::filesystem::exists(configFilePath)) {
             logger.info("Configurations not found.");
@@ -111,8 +113,8 @@ namespace LOICollection {
             options["join"] = this->config.Monitor.join;
             options["target"] = this->config.Monitor.target;
             options["changed"] = this->config.Monitor.changed;
-            options["command"] = this->config.Monitor.command;
             options["tips"] = this->config.Monitor.tips;
+            options["command"] = this->config.Monitor.command;
             monitorPlugin::registery(options);
         }
         if (this->config.Pvp) pvpPlugin::registery(&this->PvpDB);
