@@ -206,7 +206,6 @@ namespace chatPlugin {
             );
             PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>(
                 [](ll::event::PlayerChatEvent& event) {
-                    if (event.self().isSimulatedPlayer()) return;
                     if (!mutePlugin::isMute(&event.self())) {
                         std::string mChat = mChatString;
                         

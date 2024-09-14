@@ -31,6 +31,10 @@
 #include "Include/shopPlugin.h"
 
 namespace shopPlugin {
+    struct ShopOP {
+        std::string uiName;
+    };
+
     std::unique_ptr<JsonUtils> db;
     ll::Logger logger("LOICollectionA - Shop");
 
@@ -173,7 +177,17 @@ namespace shopPlugin {
             }
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("shop", "§e§lLOICollection -> §b服务器商店", CommandPermissionLevel::Any);
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
+            command.overload<ShopOP>().text("gui").required("uiName").execute([](CommandOrigin const& origin, CommandOutput& output, ShopOP param) {
+                auto* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isType(ActorType::Player)) {
+                    output.error("No player selected.");
+                    return;
+                }
+                Player* player = static_cast<Player*>(entity);
+                output.success("The UI has been opened to player {}", player->getRealName());
+                MainGui::open(player, param.uiName);
+            });
+            command.overload().text("buy").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isType(ActorType::Player)) {
                     output.error("No player selected.");

@@ -11,31 +11,36 @@
                 "title": "Button 1",
                 "image": "",
                 "scores": {
-                    "a": 100
+                    "money": 100
                 },
                 "command": "say Button1",
-                "type": "button"
+                "type": "button",
+                "permission": 0
             },
             {
                 "title": "From 1",
                 "image": "",
                 "scores": {},
                 "menu": "Menu1",
-                "type": "from"
+                "type": "from",
+                "permission": 0
             },
             {
                 "title": "OP Button 1",
                 "image": "",
                 "command": "say OPButton1",
-                "type": "opbutton"
+                "type": "button",
+                "permission": 2
             },
             {
                 "title": "OP From 1",
                 "image": "",
                 "menu": "Menu1",
-                "type": "opfrom"
+                "type": "from",
+                "permission": 2
             }
-        ]
+        ],
+        "permission": 0
     },
     "Menu1": {
         "title": "Menu 1",
@@ -47,13 +52,16 @@
             "title": "Confirm",
             "scores": {},
             "command": "say Confirm",
-            "type": "button"
+            "type": "button",
+            "permission": 0
         },
         "cancelButton": {
             "title": "Cancel",
             "scores": {},
             "command": "say Cancel",
-            "type": "button"
-        }
+            "type": "button",
+            "permission": 0
+        },
+        "permission": 0
     }
 }

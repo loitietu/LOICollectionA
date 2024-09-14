@@ -162,7 +162,6 @@ namespace mutePlugin {
 
     void addMute(void* player_ptr, std::string cause, int time) {
         Player* player = static_cast<Player*>(player_ptr);
-        if (player->isSimulatedPlayer()) return;
         if (cause.empty()) cause = tr(getLanguage(player), "mute.cause");
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');

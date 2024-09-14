@@ -149,7 +149,6 @@ namespace tpaPlugin {
             auto& eventBus = ll::event::EventBus::getInstance();
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
                 [](ll::event::PlayerJoinEvent& event) {
-                    if (event.self().isSimulatedPlayer()) return;
                     if (!blacklistPlugin::isBlacklist(&event.self())) {
                         std::string mObject = event.self().getUuid().asString();
                         std::replace(mObject.begin(), mObject.end(), '-', '_');
@@ -165,7 +164,6 @@ namespace tpaPlugin {
 
     bool isInvite(void* player_ptr) {
         Player* player = static_cast<Player*>(player_ptr);
-        if (player->isSimulatedPlayer()) return false;
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject)) {

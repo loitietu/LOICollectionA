@@ -206,7 +206,6 @@ namespace blacklistPlugin {
 
     void addBlacklist(void* player_ptr, std::string cause, int time, int type) {
         Player* player = static_cast<Player*>(player_ptr);
-        if (player->isSimulatedPlayer()) return;
         if (cause.empty()) cause = tr(getLanguage(player), "blacklist.cause");
         std::string mObject = player->getUuid().asString();
         if (!type) mObject = toolUtils::split(player->getIPAndPort(), ":")[0];

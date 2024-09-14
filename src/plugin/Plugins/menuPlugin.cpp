@@ -60,6 +60,12 @@ namespace menuPlugin {
                     return;
                 }
                 nlohmann::ordered_json mButton = mButtonLists.at(id);
+                if (mButton.contains("permission")) {
+                    if ((int) pl.getPlayerPermissionLevel() < mButton["permission"].get<int>()) {
+                        pl.sendMessage(data.at("NoPermission").get<std::string>());
+                        return;
+                    }
+                }
                 if (mButton.at("type").get<std::string>() == "button") {
                     if (!checkModifiedData(&pl, mButton)) {
                         pl.sendMessage(data.at("NoScore").get<std::string>());
@@ -71,19 +77,7 @@ namespace menuPlugin {
                         pl.sendMessage(data.at("NoScore").get<std::string>());
                         return;
                     }
-                    open(&pl, mButton.at("menu").get<std::string>());
-                } else if (mButton.at("type").get<std::string>() == "opbutton") {
-                    if ((int)pl.getPlayerPermissionLevel() >= 2) {
-                        toolUtils::executeCommand(&pl, mButton.at("command").get<std::string>());
-                        return;
-                    }
-                    pl.sendMessage(data.at("NoPermission").get<std::string>());
-                } else if (mButton.at("type").get<std::string>() == "opfrom") {
-                    if ((int)pl.getPlayerPermissionLevel() >= 2) {
-                        open(&pl, mButton.at("menu").get<std::string>());
-                        return;
-                    }
-                    pl.sendMessage(data.at("NoPermission").get<std::string>());
+                    MainGui::open(&pl, mButton.at("menu").get<std::string>());
                 }
             });
         }
@@ -101,6 +95,12 @@ namespace menuPlugin {
                 if (result == ll::form::ModalFormSelectedButton::Upper)
                     mButton = data.at("confirmButton");
                 else mButton = data.at("cancelButton");
+                if (mButton.contains("permission")) {
+                    if ((int) pl.getPlayerPermissionLevel() < mButton["permission"].get<int>()) {
+                        pl.sendMessage(data.at("NoPermission").get<std::string>());
+                        return;
+                    }
+                }
                 if (mButton.at("type").get<std::string>() == "button") {
                     if (!checkModifiedData(&pl, mButton)) {
                         pl.sendMessage(data.at("NoScore").get<std::string>());
@@ -112,24 +112,21 @@ namespace menuPlugin {
                         pl.sendMessage(data.at("NoScore").get<std::string>());
                         return;
                     }
-                    open(&pl, mButton.at("menu").get<std::string>());
-                } else if (mButton.at("type").get<std::string>() == "opbutton") {
-                    if ((int)pl.getPlayerPermissionLevel() >= 2) {
-                        toolUtils::executeCommand(&pl, mButton.at("command").get<std::string>());
-                        return;
-                    }
-                } else if (mButton.at("type").get<std::string>() == "opfrom") {
-                    if ((int)pl.getPlayerPermissionLevel() >= 2) {
-                        open(&pl, mButton.at("menu").get<std::string>());
-                        return;
-                    }
+                    MainGui::open(&pl, mButton.at("menu").get<std::string>());
                 }
             });
         }
 
         void open(void* player_ptr, std::string uiName) {
             if (db->has(uiName)) {
+                Player* player = static_cast<Player*>(player_ptr);
                 nlohmann::ordered_json data = db->toJson(uiName);
+                if (data.contains("permission")) {
+                    if ((int) player->getPlayerPermissionLevel() < data["permission"].get<int>()) {
+                        player->sendMessage(data.at("NoPermission").get<std::string>());
+                        return;
+                    }
+                }
                 if (data["type"].get<std::string>() == "Simple")
                     simple(player_ptr, data);
                 else if (data["type"].get<std::string>() == "Modal")
@@ -155,17 +152,12 @@ namespace menuPlugin {
                     return;
                 }
                 Player* player = static_cast<Player*>(entity);
+                output.success("The UI has been opened to player {}", player->getRealName());
                 if (param.uiName.empty()) {
-                    output.success("The UI has been opened to player {}", player->getRealName());
                     MainGui::open(player, "main");
                     return;
                 }
-                if ((int)player->getPlayerPermissionLevel() >= 2) {
-                    output.success("The UI has been opened to player {}", player->getRealName());
-                    MainGui::open(player, param.uiName);
-                    return;
-                }
-                output.error("No permission to open the ui.");
+                MainGui::open(player, param.uiName);
             });
             command.overload().text("clock").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
@@ -193,15 +185,12 @@ namespace menuPlugin {
             auto& eventBus = ll::event::EventBus::getInstance();
             PlayerUseItemEventListener = eventBus.emplaceListener<ll::event::PlayerUseItemEvent>(
                 [](ll::event::PlayerUseItemEvent& event) {
-                    if (event.self().isSimulatedPlayer()) return;
-                    if (event.item().getTypeName() == mItemId) {
+                    if (event.item().getTypeName() == mItemId)
                         MainGui::open(&event.self(), "main");
-                    }
                 }
             );
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
                 [](ll::event::PlayerJoinEvent& event) {
-                    if (event.self().isSimulatedPlayer()) return;
                     ItemStack itemStack(mItemId, 1);
                     if (!itemStack || toolUtils::isItemPlayerInventory(&event.self(), &itemStack))
                         return;

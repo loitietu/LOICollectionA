@@ -278,7 +278,6 @@ namespace cdkPlugin {
 
     void cdkConvert(void* player_ptr, std::string convertString) {
         Player* player = static_cast<class Player*>(player_ptr);
-        if (player->isSimulatedPlayer()) return;
         if (convertString.empty()) convertString = "default";
         std::string mObjectLanguage = getLanguage(player);
         if (db->has(convertString)) {
