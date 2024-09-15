@@ -9,6 +9,7 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -90,7 +91,7 @@ namespace cdkPlugin {
                     db->set(mObjectCdk, dataList);
                     db->save();
                 }
-                logger.info(toolUtils::replaceString(logString, "${cdk}", mObjectCdk));
+                logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
             });
         }
 
@@ -111,7 +112,7 @@ namespace cdkPlugin {
                     db->del(mObjectCdk);
                     db->save();
                     
-                    logger.info(toolUtils::replaceString(logString, "${cdk}", mObjectCdk));
+                    logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
                 });
             }
         }
@@ -317,7 +318,7 @@ namespace cdkPlugin {
                 db->set(convertString, cdkJson);
             }
             std::string logString = tr(mObjectLanguage, "cdk.log3");
-            toolUtils::replaceString2(logString, "${cdk}", convertString);
+            ll::string_utils::replaceAll(logString, "${cdk}", convertString);
             logger.info(LOICollectionAPI::translateString(logString, player, true));
             player->sendMessage(tr(mObjectLanguage, "cdk.convert.tip3"));
             db->save();

@@ -9,6 +9,7 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/server/commands/CommandOrigin.h>
@@ -150,7 +151,7 @@ namespace mutePlugin {
                     }
                     std::string cause = db->get("OBJECT$" + mObject, "cause");
                     std::string logString = tr(getLanguage(player), "mute.log3");
-                    toolUtils::replaceString2(logString, "${message}", message);
+                    ll::string_utils::replaceAll(logString, "${message}", message);
                     logger.info(LOICollectionAPI::translateString(logString, player, true));
                     player->sendMessage(cause);
                     return true;
@@ -171,7 +172,7 @@ namespace mutePlugin {
             db->set("OBJECT$" + mObject, "time", toolUtils::timeCalculate(time));
         }
         std::string logString = tr(getLanguage(player), "mute.log1");
-        toolUtils::replaceString2(logString, "${cause}", cause);
+        ll::string_utils::replaceAll(logString, "${cause}", cause);
         logger.info(LOICollectionAPI::translateString(logString, player, true));
     }
 

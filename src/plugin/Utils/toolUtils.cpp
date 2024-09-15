@@ -76,14 +76,6 @@ namespace toolUtils {
         });
     }
 
-    void replaceString2(std::string& str, const std::string& from, const std::string& to) {
-        for (std::string::size_type pos(0); pos != std::string::npos; pos += to.length()) {
-            if ((pos = str.find(from, pos)) != std::string::npos) {
-                str.replace(pos, from.length(), to);
-            } else break;
-        }
-    }
-
     std::string getVersion() {
         return manifestPlugin.version->to_string();
     }
@@ -125,11 +117,6 @@ namespace toolUtils {
             }
         }
         return "unknown";
-    }
-
-    std::string replaceString(std::string str, const std::string& from, const std::string& to) {
-        replaceString2(str, from, to);
-        return str;
     }
 
     std::string timeCalculate(int hours) {

@@ -10,6 +10,7 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -86,7 +87,7 @@ namespace blacklistPlugin {
             std::string mObjectLanguage = getLanguage(player);
             ll::form::CustomForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"));
             form.appendLabel(tr(mObjectLanguage, "blacklist.gui.label"));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "blacklist.gui.remove.dropdown"), db->list2("OBJECT$"));
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "blacklist.gui.remove.dropdown"), db->list());
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
                     pl.sendMessage(tr(getLanguage(&pl), "exit"));
@@ -148,13 +149,13 @@ namespace blacklistPlugin {
                 delBlacklist(param.targetName);
                 output.success("Remove object {} from blacklist.", param.targetName);
                 std::string logString = tr(getLanguage(nullptr), "blacklist.log2");
-                logger.info(toolUtils::replaceString(logString, "${blacklist}", param.targetName));
+                logger.info(ll::string_utils::replaceAll(logString, "${blacklist}", param.targetName));
             });
             command.overload<BlacklistOP>().required("subCommand").execute([](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param) {
                 if (param.subCommand == BlacklistOP::list) {
                     std::string content("Blacklist: Add list");
                     for (auto& key : db->list()) {
-                        content += toolUtils::replaceString(key, "OBJECT$", "!- ");
+                        content += ll::string_utils::replaceAll(key, "OBJECT$", "!- ");
                     }
                     output.success(content);
                     return;

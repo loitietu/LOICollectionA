@@ -28,7 +28,6 @@ public:
 
     LOICOLLECTION_A_NDAPI std::vector<std::string> list(std::string_view table);
     LOICOLLECTION_A_NDAPI std::vector<std::string> list();
-    LOICOLLECTION_A_NDAPI std::vector<std::string> list2(std::string_view target);
 
 private:
     SQLite::Database database;

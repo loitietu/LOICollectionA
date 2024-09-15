@@ -152,6 +152,8 @@ LL_TYPE_INSTANCE_HOOK(
         }
         if (damgeSource == nullptr || !damgeSource->isType(ActorType::Player))
             return origin(source, damage);
+        if (damgeSource->getOrCreateUniqueID().id == this->getOrCreateUniqueID().id)
+            return origin(source, damage);
         for (auto& callback : mPlayerHurtEventCallbacks) {
             if (callback(this, damgeSource, damage))
                 return 0.0f;
@@ -179,6 +181,8 @@ LL_TYPE_INSTANCE_HOOK(
             else damgeSource = ll::service::getLevel()->fetchEntity(source.getDamagingEntityUniqueID());
         }
         if (damgeSource == nullptr || !damgeSource->isType(ActorType::Player))
+            return origin(source, damage, knock, ignite);
+        if (damgeSource->getOrCreateUniqueID().id == this->getOrCreateUniqueID().id)
             return origin(source, damage, knock, ignite);
         for (auto& callback : mPlayerHurtEventCallbacks) {
             if (callback(this, damgeSource, damage))

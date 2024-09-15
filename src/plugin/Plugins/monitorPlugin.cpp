@@ -7,6 +7,7 @@
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
 #include <ll/api/event/command/ExecuteCommandEvent.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -39,7 +40,7 @@ namespace monitorPlugin {
             );
             ExecuteCommandEvent = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>(
                 [](ll::event::ExecutingCommandEvent& event) {
-                    std::string mCommand = toolUtils::replaceString(toolUtils::split(event.commandContext().mCommand, " ")[0], "/", "");
+                    std::string mCommand = ll::string_utils::replaceAll(toolUtils::split(event.commandContext().mCommand, " ")[0], "/", "");
                     if (std::find(mObjectCommands.begin(), mObjectCommands.end(), mCommand) != mObjectCommands.end()) {
                         event.cancel();
 
@@ -64,7 +65,7 @@ namespace monitorPlugin {
                 std::string target = std::get<std::string>(mObjectOptions.at("target"));
                 if (id == target) {
                     std::string mChangedString = std::get<std::string>(mObjectOptions.at("changed"));
-                    toolUtils::replaceString2(mChangedString, "${GetScore}", std::to_string(score));
+                    ll::string_utils::replaceAll(mChangedString, "${GetScore}", std::to_string(score));
                     player->sendMessage(mChangedString);
                 }
             });

@@ -83,6 +83,32 @@ namespace pvpPlugin {
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
             });
+            command.overload().text("off").execute([](CommandOrigin const& origin, CommandOutput& output) {
+                auto* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isType(ActorType::Player)) {
+                    output.error("No player selected.");
+                    return;
+                }
+                Player* player = static_cast<Player*>(entity);
+                std::string mObject = player->getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+                if (db->has("OBJECT$" + mObject))
+                    db->set("OBJECT$" + mObject, "enable", "false");
+                output.success("The PVP has been disabled");
+            });
+            command.overload().text("on").execute([](CommandOrigin const& origin, CommandOutput& output) {
+                auto* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isType(ActorType::Player)) {
+                    output.error("No player selected.");
+                    return;
+                }
+                Player* player = static_cast<Player*>(entity);
+                std::string mObject = player->getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+                if (db->has("OBJECT$" + mObject))
+                    db->set("OBJECT$" + mObject, "enable", "true");
+                output.success("The PVP has been enabled");
+            });
         }
 
         void listenEvent() {

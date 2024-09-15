@@ -11,6 +11,7 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -42,7 +43,7 @@ namespace languagePlugin {
             std::string mObjectLanguage = getLanguage(player);
             ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
-            form.appendLabel(toolUtils::replaceString(tr(mObjectLanguage, "language.gui.lang"), "${language}", getName(mObjectLanguage)));
+            form.appendLabel(ll::string_utils::replaceAll(tr(mObjectLanguage, "language.gui.lang"), "${language}", getName(mObjectLanguage)));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys());
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {

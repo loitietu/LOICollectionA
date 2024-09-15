@@ -10,6 +10,7 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -39,8 +40,8 @@ namespace walletPlugin {
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
             std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
 
-            toolUtils::replaceString2(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax"))));
-            toolUtils::replaceString2(mLabel, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, mScore)));
+            ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax"))));
+            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, mScore)));
 
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
             form.appendLabel(mLabel);
@@ -64,9 +65,9 @@ namespace walletPlugin {
                 toolUtils::scoreboard::addScore(target, mScore, mTargetMoney);
 
                 std::string logString = tr(getLanguage(&pl), "wallet.log");
-                toolUtils::replaceString2(logString, "${player1}", pl.getRealName());
-                toolUtils::replaceString2(logString, "${player2}", mTargetName);
-                toolUtils::replaceString2(logString, "${money}", std::to_string(mMoney));
+                ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
+                ll::string_utils::replaceAll(logString, "${player2}", mTargetName);
+                ll::string_utils::replaceAll(logString, "${money}", std::to_string(mMoney));
                 logger.info(logString);
             });
         }
@@ -75,7 +76,7 @@ namespace walletPlugin {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mTipsString = tr(getLanguage(player), "wallet.showOff");
             LOICollectionAPI::translateString2(mTipsString, player, true);
-            toolUtils::replaceString2(mTipsString, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
+            ll::string_utils::replaceAll(mTipsString, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
             toolUtils::broadcastText(mTipsString);
         }
 
@@ -84,8 +85,8 @@ namespace walletPlugin {
             std::string mObjectLanguage = getLanguage(player);
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
 
-            toolUtils::replaceString2(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax"))));
-            toolUtils::replaceString2(mLabel, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
+            ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax"))));
+            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
 
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
             form.appendLabel(mLabel);

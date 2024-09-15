@@ -11,6 +11,7 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -25,7 +26,6 @@
 #include "Include/blacklistPlugin.h"
 
 #include "Utils/I18nUtils.h"
-#include "Utils/toolUtils.h"
 #include "Utils/JsonUtils.h"
 
 #include "Include/acPlugin.h"
@@ -51,7 +51,7 @@ namespace announcementPlugin {
             form.appendLabel(tr(mObjectLanguage, "announcement.gui.label"));
             form.appendInput("Input", tr(mObjectLanguage, "announcement.gui.setTitle"), "", db->getString("title"));
             for (nlohmann::ordered_json::iterator it = data.begin(); it != data.end(); ++it) {
-                std::string mLine = toolUtils::replaceString(mLineString, "${index}", std::to_string(index));
+                std::string mLine = ll::string_utils::replaceAll(mLineString, "${index}", std::to_string(index));
                 form.appendInput("Input" + std::to_string(index), mLine, "", *it);
                 index++;
             }

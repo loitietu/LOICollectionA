@@ -13,6 +13,7 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/nbt/Tag.h>
 #include <mc/nbt/CompoundTag.h>
@@ -46,10 +47,10 @@ namespace marketPlugin {
             std::string mObjectLanguage = getLanguage(player);
             std::string mIntroduce = tr(mObjectLanguage, "market.gui.sell.introduce");
 
-            toolUtils::replaceString2(mIntroduce, "${introduce}", db->get(mItemId, "introduce"));
-            toolUtils::replaceString2(mIntroduce, "${score}", db->get(mItemId, "score"));
-            toolUtils::replaceString2(mIntroduce, "${nbt}", db->get(mItemId, "nbt"));
-            toolUtils::replaceString2(mIntroduce, "${player}", db->get(mItemId, "player"));
+            ll::string_utils::replaceAll(mIntroduce, "${introduce}", db->get(mItemId, "introduce"));
+            ll::string_utils::replaceAll(mIntroduce, "${score}", db->get(mItemId, "score"));
+            ll::string_utils::replaceAll(mIntroduce, "${nbt}", db->get(mItemId, "nbt"));
+            ll::string_utils::replaceAll(mIntroduce, "${player}", db->get(mItemId, "player"));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), mIntroduce);
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.buy.button1"), [mItemId](Player& pl) {
@@ -72,7 +73,7 @@ namespace marketPlugin {
                     } else {
                         std::string mName = db->get(mItemId, "name");
                         std::string mTips = tr(getLanguage(&pl), "market.gui.sell.sellItem.tips2");
-                        mPlayer->sendMessage(toolUtils::replaceString(mTips, "${item}", mName));
+                        mPlayer->sendMessage(ll::string_utils::replaceAll(mTips, "${item}", mName));
                         toolUtils::scoreboard::addScore(mPlayer, mObjectScore, mScore);
                     }
                     delItem(mItemId);
@@ -84,7 +85,7 @@ namespace marketPlugin {
                 form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) {
                     std::string mName = db->get(mItemId, "name");
                     std::string mTips = tr(getLanguage(&pl), "market.gui.sell.sellItem.tips3");
-                    pl.sendMessage(toolUtils::replaceString(mTips, "${item}", mName));
+                    pl.sendMessage(ll::string_utils::replaceAll(mTips, "${item}", mName));
                     delItem(mItemId);
                 });
             }
@@ -98,10 +99,10 @@ namespace marketPlugin {
             std::string mObjectLanguage = getLanguage(player);
             std::string mIntroduce = tr(mObjectLanguage, "market.gui.sell.introduce");
 
-            toolUtils::replaceString2(mIntroduce, "${introduce}", db->get(mItemId, "introduce"));
-            toolUtils::replaceString2(mIntroduce, "${score}", db->get(mItemId, "score"));
-            toolUtils::replaceString2(mIntroduce, "${nbt}", db->get(mItemId, "nbt"));
-            toolUtils::replaceString2(mIntroduce, "${player}", db->get(mItemId, "player"));
+            ll::string_utils::replaceAll(mIntroduce, "${introduce}", db->get(mItemId, "introduce"));
+            ll::string_utils::replaceAll(mIntroduce, "${score}", db->get(mItemId, "score"));
+            ll::string_utils::replaceAll(mIntroduce, "${nbt}", db->get(mItemId, "nbt"));
+            ll::string_utils::replaceAll(mIntroduce, "${player}", db->get(mItemId, "player"));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), mIntroduce);
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) {
@@ -109,7 +110,7 @@ namespace marketPlugin {
                 std::string mNbt = db->get(mItemId, "nbt");
                 std::string mTips = tr(getLanguage(&pl), "market.gui.sell.sellItem.tips3");
                 ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mNbt)->mTags);
-                pl.sendMessage(toolUtils::replaceString(mTips, "${item}", mName));
+                pl.sendMessage(ll::string_utils::replaceAll(mTips, "${item}", mName));
                 pl.add(mItemStack);
                 pl.refreshInventory();
                 delItem(mItemId);

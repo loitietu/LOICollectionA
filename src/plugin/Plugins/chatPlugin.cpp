@@ -14,6 +14,7 @@
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerChatEvent.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -210,7 +211,7 @@ namespace chatPlugin {
                         std::string mChat = mChatString;
                         
                         LOICollectionAPI::translateString2(mChat, &event.self(), true);
-                        toolUtils::replaceString2(mChat, "${chat}", event.message());
+                        ll::string_utils::replaceAll(mChat, "${chat}", event.message());
                         toolUtils::broadcastText(mChat);
                         event.cancel();
                     }

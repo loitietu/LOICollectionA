@@ -13,6 +13,7 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -74,12 +75,12 @@ namespace tpaPlugin {
                     std::string logString = tr(getLanguage(&pl), "tpa.log");
                     if (!type) {
                         player->teleport(pl.getPosition(), pl.getDimensionId());
-                        toolUtils::replaceString2(logString, "${player1}", pl.getRealName());
-                        toolUtils::replaceString2(logString, "${player2}", player->getRealName());
+                        ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
+                        ll::string_utils::replaceAll(logString, "${player2}", player->getRealName());
                     } else {
                         pl.teleport(player->getPosition(), player->getDimensionId());
-                        toolUtils::replaceString2(logString, "${player1}", player->getRealName());
-                        toolUtils::replaceString2(logString, "${player2}", pl.getRealName());
+                        ll::string_utils::replaceAll(logString, "${player1}", player->getRealName());
+                        ll::string_utils::replaceAll(logString, "${player2}", pl.getRealName());
                     }
                     logger.info(logString);
                     return;

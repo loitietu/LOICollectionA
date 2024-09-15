@@ -16,11 +16,9 @@ namespace toolUtils {
     void executeCommand(Player* player, const std::string& command);
     void clearItem(Player* player, void* itemStack_ptr);
     void broadcastText(const std::string& text);
-    void replaceString2(std::string& str, const std::string& from, const std::string& to);
 
     std::string getVersion();
     std::string getDevice(Player* player);
-    std::string replaceString(std::string str, const std::string& from, const std::string& to);
     std::string timeCalculate(int hours); 
 
     int toInt(const std::string& intString, int defaultValue);

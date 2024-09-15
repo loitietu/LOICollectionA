@@ -12,6 +12,7 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -85,7 +86,7 @@ namespace shopPlugin {
             } else mScoreboardListsString = "None";
 
             ll::form::CustomForm form(data.at("title").get<std::string>());
-            form.appendLabel(toolUtils::replaceString(data.at("introduce").get<std::string>(), "${scores}", mScoreboardListsString));
+            form.appendLabel(ll::string_utils::replaceAll(data.at("introduce").get<std::string>(), "${scores}", mScoreboardListsString));
             form.appendSlider("slider", data.at("number").get<std::string>(), 1, 64);
             form.sendTo(*player, [data, options, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
@@ -128,7 +129,7 @@ namespace shopPlugin {
 
             ll::form::ModalForm form;
             form.setTitle(data.at("title").get<std::string>());
-            form.setContent(toolUtils::replaceString(data.at("introduce").get<std::string>(), "${scores}", mScoreboardListsString));
+            form.setContent(ll::string_utils::replaceAll(data.at("introduce").get<std::string>(), "${scores}", mScoreboardListsString));
             form.setUpperButton(data.at("confirmButton").get<std::string>());
             form.setLowerButton(data.at("cancelButton").get<std::string>());
             form.sendTo(*player, [data, options, type](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {

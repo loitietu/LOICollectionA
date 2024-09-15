@@ -4,6 +4,7 @@
 #include <ll/api/schedule/Task.h>
 #include <ll/api/schedule/Scheduler.h>
 #include <ll/api/chrono/GameChrono.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 
@@ -52,40 +53,40 @@ namespace LOICollectionAPI {
         std::string mChatTitle = chatPlugin::getTitle(player);
 
         chatPlugin::update(player);
-        toolUtils::replaceString2(contentString, "{title}", mChatTitle);
-        toolUtils::replaceString2(contentString, "{title.time}", chatPlugin::getTitleTime(player, mChatTitle));
-        toolUtils::replaceString2(contentString, "{pvp}", pvpPlugin::isEnable(player) ? "true" : "false");
-        toolUtils::replaceString2(contentString, "{mute}", mutePlugin::isMute(player) ? "true" : "false");
-        toolUtils::replaceString2(contentString, "{language}", languagePlugin::getLanguage(player));
-        toolUtils::replaceString2(contentString, "{tps}", std::to_string(mTicksPerSecond));
-        toolUtils::replaceString2(contentString, "{tpm}", std::to_string(mTicksPerMinute));
-        toolUtils::replaceString2(contentString, "{player}", player->getName());
-        toolUtils::replaceString2(contentString, "{pos}", player->getPosition().toString());
-        toolUtils::replaceString2(contentString, "{blockPos}", player->getEyePos().toString());
+        ll::string_utils::replaceAll(contentString, "{title}", mChatTitle);
+        ll::string_utils::replaceAll(contentString, "{title.time}", chatPlugin::getTitleTime(player, mChatTitle));
+        ll::string_utils::replaceAll(contentString, "{pvp}", pvpPlugin::isEnable(player) ? "true" : "false");
+        ll::string_utils::replaceAll(contentString, "{mute}", mutePlugin::isMute(player) ? "true" : "false");
+        ll::string_utils::replaceAll(contentString, "{language}", languagePlugin::getLanguage(player));
+        ll::string_utils::replaceAll(contentString, "{tps}", std::to_string(mTicksPerSecond));
+        ll::string_utils::replaceAll(contentString, "{tpm}", std::to_string(mTicksPerMinute));
+        ll::string_utils::replaceAll(contentString, "{player}", player->getName());
+        ll::string_utils::replaceAll(contentString, "{pos}", player->getPosition().toString());
+        ll::string_utils::replaceAll(contentString, "{blockPos}", player->getEyePos().toString());
         try {
-            toolUtils::replaceString2(contentString, "{lastDeathPos}", player->getLastDeathPos()->toString());
+            ll::string_utils::replaceAll(contentString, "{lastDeathPos}", player->getLastDeathPos()->toString());
         } catch (...) {
-            toolUtils::replaceString2(contentString, "{lastDeathPos}", "NULL");
+            ll::string_utils::replaceAll(contentString, "{lastDeathPos}", "NULL");
         };
-        toolUtils::replaceString2(contentString, "{realName}", player->getRealName());
-        toolUtils::replaceString2(contentString, "{xuid}", player->getXuid());
-        toolUtils::replaceString2(contentString, "{uuid}", player->getUuid().asString());
-        toolUtils::replaceString2(contentString, "{canFly}", player->canFly() ? "true" : "false");
-        toolUtils::replaceString2(contentString, "{maxHealth}", std::to_string(player->getMaxHealth()));
-        toolUtils::replaceString2(contentString, "{health}", std::to_string(player->getHealth()));
-        toolUtils::replaceString2(contentString, "{speed}", std::to_string(player->getSpeed()));
-        toolUtils::replaceString2(contentString, "{direction}", std::to_string(player->getDirection()));
-        toolUtils::replaceString2(contentString, "{dimension}", std::to_string(player->getDimensionId()));
-        toolUtils::replaceString2(contentString, "{os}", toolUtils::getDevice(player));
-        toolUtils::replaceString2(contentString, "{ip}", player->getIPAndPort());
-        toolUtils::replaceString2(contentString, "{xp}", std::to_string(player->getXpEarnedAtCurrentLevel()));
-        toolUtils::replaceString2(contentString, "{HandItem}", player->getSelectedItem().getName());
-        toolUtils::replaceString2(contentString, "{OffHand}", player->getOffhandSlot().getName());
+        ll::string_utils::replaceAll(contentString, "{realName}", player->getRealName());
+        ll::string_utils::replaceAll(contentString, "{xuid}", player->getXuid());
+        ll::string_utils::replaceAll(contentString, "{uuid}", player->getUuid().asString());
+        ll::string_utils::replaceAll(contentString, "{canFly}", player->canFly() ? "true" : "false");
+        ll::string_utils::replaceAll(contentString, "{maxHealth}", std::to_string(player->getMaxHealth()));
+        ll::string_utils::replaceAll(contentString, "{health}", std::to_string(player->getHealth()));
+        ll::string_utils::replaceAll(contentString, "{speed}", std::to_string(player->getSpeed()));
+        ll::string_utils::replaceAll(contentString, "{direction}", std::to_string(player->getDirection()));
+        ll::string_utils::replaceAll(contentString, "{dimension}", std::to_string(player->getDimensionId()));
+        ll::string_utils::replaceAll(contentString, "{os}", toolUtils::getDevice(player));
+        ll::string_utils::replaceAll(contentString, "{ip}", player->getIPAndPort());
+        ll::string_utils::replaceAll(contentString, "{xp}", std::to_string(player->getXpEarnedAtCurrentLevel()));
+        ll::string_utils::replaceAll(contentString, "{HandItem}", player->getSelectedItem().getName());
+        ll::string_utils::replaceAll(contentString, "{OffHand}", player->getOffhandSlot().getName());
         if (enable) {
-            toolUtils::replaceString2(contentString, "{ms}", std::to_string(player->getNetworkStatus()->mAveragePing));
-            toolUtils::replaceString2(contentString, "{avgms}", std::to_string(player->getNetworkStatus()->mCurrentPing));
-            toolUtils::replaceString2(contentString, "{Packet}", std::to_string(player->getNetworkStatus()->mAveragePacketLoss));
-            toolUtils::replaceString2(contentString, "{avgPacket}", std::to_string(player->getNetworkStatus()->mCurrentPacketLoss));
+            ll::string_utils::replaceAll(contentString, "{ms}", std::to_string(player->getNetworkStatus()->mAveragePing));
+            ll::string_utils::replaceAll(contentString, "{avgms}", std::to_string(player->getNetworkStatus()->mCurrentPing));
+            ll::string_utils::replaceAll(contentString, "{Packet}", std::to_string(player->getNetworkStatus()->mAveragePacketLoss));
+            ll::string_utils::replaceAll(contentString, "{avgPacket}", std::to_string(player->getNetworkStatus()->mCurrentPacketLoss));
         }
         std::smatch match;
         std::regex pattern("\\{score\\((.*?)\\)\\}");

@@ -5,8 +5,6 @@
 #include <SQLiteCpp/SQLiteCpp.h>
 #include <SQLiteCpp/Statement.h>
 
-#include "toolUtils.h"
-
 #include "SQLiteStorage.h"
 
 void SQLiteStorage::create(std::string_view table) {
@@ -99,12 +97,4 @@ std::vector<std::string> SQLiteStorage::list() {
         tables.push_back(query.getColumn(0).getString());
     }
     return tables;
-}
-
-std::vector<std::string> SQLiteStorage::list2(std::string_view target) {
-    std::vector<std::string> mObjectLists = { "None" };
-    for (auto& key : list()) {
-        mObjectLists.push_back(toolUtils::replaceString(key, std::string(target), ""));
-    }
-    return mObjectLists;
 }
