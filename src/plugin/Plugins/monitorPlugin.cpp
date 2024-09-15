@@ -34,7 +34,7 @@ namespace monitorPlugin {
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
                 [](ll::event::PlayerJoinEvent& event) {
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("join"));
-                    LOICollectionAPI::translateString2(mMonitorString, &event.self(), false);
+                    LOICollectionAPI::translateString(mMonitorString, &event.self(), false);
                     toolUtils::broadcastText(mMonitorString);
                 }
             );
@@ -57,11 +57,6 @@ namespace monitorPlugin {
             });
             HookPlugin::Event::onPlayerScoreChangedEvent([](void* player_ptr, int score, std::string id) -> void {
                 Player* player = static_cast<Player*>(player_ptr);
-
-                if (player == nullptr) {
-                    return;
-                }
-
                 std::string target = std::get<std::string>(mObjectOptions.at("target"));
                 if (id == target) {
                     std::string mChangedString = std::get<std::string>(mObjectOptions.at("changed"));

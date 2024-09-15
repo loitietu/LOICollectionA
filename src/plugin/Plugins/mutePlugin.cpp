@@ -97,7 +97,7 @@ namespace mutePlugin {
     namespace {
         const auto MuteCommandADD = [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) {
             for (auto& pl : param.target.results(origin)) {
-                if (!isMute(pl)) {
+                if (!isMute(pl) && (int) pl->getPlayerPermissionLevel() < 2) {
                     output.addMessage(fmt::format("Add player {}({}) to mute.", 
                         pl->getRealName(), pl->getUuid().asString()), 
                         {}, CommandOutputMessageType::Success);
@@ -163,6 +163,10 @@ namespace mutePlugin {
 
     void addMute(void* player_ptr, std::string cause, int time) {
         Player* player = static_cast<Player*>(player_ptr);
+
+        if ((int) player->getPlayerPermissionLevel() >= 2)
+            return;
+
         if (cause.empty()) cause = tr(getLanguage(player), "mute.cause");
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');

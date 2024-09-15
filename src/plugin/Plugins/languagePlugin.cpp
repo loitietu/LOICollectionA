@@ -22,7 +22,6 @@
 #include "Include/APIUtils.h"
 
 #include "Utils/I18nUtils.h"
-#include "Utils/toolUtils.h"
 #include "Utils/SQLiteStorage.h"
 
 #include "Include/languagePlugin.h"

@@ -6,7 +6,6 @@
 #include <filesystem>
 
 #include <ll/api/Config.h>
-#include <ll/api/Versions.h>
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/Mod/RegisterHelper.h>
 
@@ -50,7 +49,7 @@ namespace LOICollection {
         toolUtils::initialization();
         toolUtils::Config::SynchronousPluginConfigVersion(&this->config);
         logger.info("Loading LOICollection - A (Version {})", toolUtils::getVersion());
-        logger.info("Plugin Server Protocol Version {}", ll::getNetworkProtocolVersion());
+        logger.info("Protocol - Mojang Eula (https://account.mojang.com/documents/minecraft_eula)");
         
         if (!std::filesystem::exists(configFilePath)) {
             logger.info("Configurations not found.");

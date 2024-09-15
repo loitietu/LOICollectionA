@@ -48,7 +48,7 @@ namespace LOICollectionAPI {
         });
     }
 
-    void translateString2(std::string& contentString, void* player_ptr, bool enable) {
+    std::string& translateString(std::string& contentString, void* player_ptr, bool enable) {
         Player* player = static_cast<Player*>(player_ptr);
         std::string mChatTitle = chatPlugin::getTitle(player);
 
@@ -95,10 +95,10 @@ namespace LOICollectionAPI {
             int score = toolUtils::scoreboard::getScore(player, extractedContent);
             contentString = std::regex_replace(contentString, pattern, std::to_string(score));
         }
+        return contentString;
     }
 
-    std::string translateString(std::string contentString, void* player_ptr, bool enable) {
-        translateString2(contentString, player_ptr, enable);
-        return contentString;
+    std::string& translateString(const std::string& contentString, void* player_ptr, bool enable) {
+        return translateString(const_cast<std::string&>(contentString), player_ptr, enable);
     }
 }

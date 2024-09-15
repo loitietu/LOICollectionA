@@ -96,108 +96,124 @@ namespace cdkPlugin {
         }
 
         void cdkRemove(void* player_ptr) {
-            if (!db->empty()) {
-                Player* player = static_cast<Player*>(player_ptr);
-                std::string mObjectLanguage = getLanguage(player);
-                ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
-                form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
-                form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
-                form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                    if (!dt) {
-                        pl.sendMessage(tr(getLanguage(&pl), "exit"));
-                        return;
-                    }
-                    std::string logString = tr(getLanguage(&pl), "cdk.log2");
-                    std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
-                    db->del(mObjectCdk);
-                    db->save();
-                    
-                    logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
-                });
+            Player* player = static_cast<Player*>(player_ptr);
+            std::string mObjectLanguage = getLanguage(player);
+
+            if (db->empty()) {
+                player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
+                return;
             }
+
+            ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
+            form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
+            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+                if (!dt) {
+                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    return;
+                }
+                std::string logString = tr(getLanguage(&pl), "cdk.log2");
+                std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
+                db->del(mObjectCdk);
+                db->save();
+                
+                logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
+            });
         }
 
         void cdkAwardScore(void* player_ptr) {
-            if (!db->empty()) {
-                Player* player = static_cast<Player*>(player_ptr);
-                std::string mObjectLanguage = getLanguage(player);
-                ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
-                form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
-                form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
-                form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.score.input1"), "", "money");
-                form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.score.input2"), "", "100");
-                form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                    if (!dt) {
-                        pl.sendMessage(tr(getLanguage(&pl), "exit"));
-                        return;
-                    }
-                    std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
-                    int mObjectScore = toolUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                    nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
-                    mObjectData["scores"][std::get<std::string>(dt->at("Input1"))] = mObjectScore;
-                    db->set(mObjectCdk, mObjectData);
-                    db->save();
-                });
+            Player* player = static_cast<Player*>(player_ptr);
+            std::string mObjectLanguage = getLanguage(player);
+
+            if (db->empty()) {
+                player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
+                return;
             }
+
+            ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
+            form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
+            form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.score.input1"), "", "money");
+            form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.score.input2"), "", "100");
+            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+                if (!dt) {
+                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    return;
+                }
+                std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
+                int mObjectScore = toolUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+                nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
+                mObjectData["scores"][std::get<std::string>(dt->at("Input1"))] = mObjectScore;
+                db->set(mObjectCdk, mObjectData);
+                db->save();
+            });
         }
 
         void cdkAwardItem(void* player_ptr) {
-            if (!db->empty()) {
-                Player* player = static_cast<Player*>(player_ptr);
-                std::string mObjectLanguage = getLanguage(player);
-                ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
-                form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
-                form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
-                form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.item.input1"), "", "minecraft:apple");
-                form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.item.input2"), "", "apple");
-                form.appendInput("Input3", tr(mObjectLanguage, "cdk.gui.award.item.input3"), "", "1");
-                form.appendInput("Input4", tr(mObjectLanguage, "cdk.gui.award.item.input4"), "", "0");
-                form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                    if (!dt) {
-                        pl.sendMessage(tr(getLanguage(&pl), "exit"));
-                        return;
-                    }
-                    std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
-                    std::string mObjectName = std::get<std::string>(dt->at("Input2"));
-                    int mObjectCount = toolUtils::toInt(std::get<std::string>(dt->at("Input3")), 1);
-                    int mObjectAux = toolUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
-                    nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
-                    mObjectData["item"][std::get<std::string>(dt->at("Input1"))] = {
-                        {"name", mObjectName},
-                        {"quantity", mObjectCount},
-                        {"specialvalue", mObjectAux}
-                    };
-                    db->set(mObjectCdk, mObjectData);
-                    db->save();
-                });
+            Player* player = static_cast<Player*>(player_ptr);
+            std::string mObjectLanguage = getLanguage(player);
+
+            if (db->empty()) {
+                player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
+                return;
             }
+            
+            ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
+            form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
+            form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.item.input1"), "", "minecraft:apple");
+            form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.item.input2"), "", "apple");
+            form.appendInput("Input3", tr(mObjectLanguage, "cdk.gui.award.item.input3"), "", "1");
+            form.appendInput("Input4", tr(mObjectLanguage, "cdk.gui.award.item.input4"), "", "0");
+            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+                if (!dt) {
+                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    return;
+                }
+                std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
+                std::string mObjectName = std::get<std::string>(dt->at("Input2"));
+                int mObjectCount = toolUtils::toInt(std::get<std::string>(dt->at("Input3")), 1);
+                int mObjectAux = toolUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
+                nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
+                mObjectData["item"][std::get<std::string>(dt->at("Input1"))] = {
+                    {"name", mObjectName},
+                    {"quantity", mObjectCount},
+                    {"specialvalue", mObjectAux}
+                };
+                db->set(mObjectCdk, mObjectData);
+                db->save();
+            });
         }
 
         void cdkAwardTitle(void *player_ptr) {
-            if (!db->empty()) {
-                Player* player = static_cast<Player*>(player_ptr);
-                std::string mObjectLanguage = getLanguage(player);
-                ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
-                form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
-                form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
-                form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.title.input1"), "", "None");
-                form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.title.input2"), "", "0");
-                form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                    if (!dt) {
-                        pl.sendMessage(tr(getLanguage(&pl), "exit"));
-                        return;
-                    }
-                    std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
-                    std::string mObjectName = std::get<std::string>(dt->at("Input1"));
-                    int mObjectTime = toolUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                    nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
-                    if (!mObjectData.contains("title"))
-                        mObjectData["title"] = {};
-                    mObjectData["title"][mObjectName] = mObjectTime;
-                    db->set(mObjectCdk, mObjectData);
-                    db->save();
-                });
+            Player* player = static_cast<Player*>(player_ptr);
+            std::string mObjectLanguage = getLanguage(player);
+            
+            if (db->empty()) {
+                player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
+                return;
             }
+
+            ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
+            form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
+            form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.title.input1"), "", "None");
+            form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.title.input2"), "", "0");
+            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+                if (!dt) {
+                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    return;
+                }
+                std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
+                std::string mObjectName = std::get<std::string>(dt->at("Input1"));
+                int mObjectTime = toolUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+                nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
+                if (!mObjectData.contains("title"))
+                    mObjectData["title"] = {};
+                mObjectData["title"][mObjectName] = mObjectTime;
+                db->set(mObjectCdk, mObjectData);
+                db->save();
+            });
         }
 
         void cdkAward(void* player_ptr) {
@@ -285,14 +301,14 @@ namespace cdkPlugin {
             nlohmann::ordered_json cdkJson(db->toJson(convertString));
             if (cdkJson.contains("time")) {
                 if (toolUtils::isReach(cdkJson["time"].get<std::string>())) {
-                    player->sendMessage(tr(mObjectLanguage, "cdk.convert.tip1"));
+                    player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
                     db->del(convertString);
                     return;
                 }
             }
             nlohmann::ordered_json mPlayerList = cdkJson.at("player");
             if (std::find(mPlayerList.begin(), mPlayerList.end(), player->getUuid().asString()) != mPlayerList.end()) {
-                player->sendMessage(tr(mObjectLanguage, "cdk.convert.tip2"));
+                player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips2"));
                 return;
             }
             if (cdkJson.contains("title")) {
@@ -320,11 +336,11 @@ namespace cdkPlugin {
             std::string logString = tr(mObjectLanguage, "cdk.log3");
             ll::string_utils::replaceAll(logString, "${cdk}", convertString);
             logger.info(LOICollectionAPI::translateString(logString, player, true));
-            player->sendMessage(tr(mObjectLanguage, "cdk.convert.tip3"));
+            player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
             db->save();
             return;
         }
-        player->sendMessage(tr(mObjectLanguage, "cdk.convert.tip1"));
+        player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
     }
 
     void registery(void* database) {

@@ -210,7 +210,7 @@ namespace chatPlugin {
                     if (!mutePlugin::isMute(&event.self())) {
                         std::string mChat = mChatString;
                         
-                        LOICollectionAPI::translateString2(mChat, &event.self(), true);
+                        LOICollectionAPI::translateString(mChat, &event.self(), true);
                         ll::string_utils::replaceAll(mChat, "${chat}", event.message());
                         toolUtils::broadcastText(mChat);
                         event.cancel();
