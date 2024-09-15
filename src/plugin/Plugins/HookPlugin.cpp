@@ -6,19 +6,24 @@
 #include <ll/api/memory/Hook.h>
 #include <ll/api/service/Bedrock.h>
 
+#include <mc/world/ActorUniqueID.h>
+#include <mc/world/actor/Mob.h>
+#include <mc/world/actor/Actor.h>
+#include <mc/world/actor/ActorDamageSource.h>
+#include <mc/world/actor/player/Player.h>
 #include <mc/world/level/Level.h>
 #include <mc/world/level/LevelSeed64.h>
 #include <mc/world/scores/Objective.h>
 #include <mc/world/scores/ScoreInfo.h>
 #include <mc/world/scores/ScoreboardId.h>
 #include <mc/world/scores/ServerScoreboard.h>
-#include <mc/world/actor/player/Player.h>
 #include <mc/deps/core/utility/BinaryStream.h>
 #include <mc/network/packet/StartGamePacket.h>
 #include <mc/network/packet/LoginPacket.h>
 #include <mc/network/packet/TextPacket.h>
 #include <mc/network/ServerNetworkHandler.h>
 #include <mc/network/NetworkIdentifier.h>
+#include <mc/entity/utilities/ActorType.h>
 #include <mc/certificates/Certificate.h>
 #include <mc/certificates/ExtendedCertificate.h>
 #include <mc/server/LoopbackPacketSender.h>
@@ -35,6 +40,7 @@ std::vector<std::string> mInterceptedTextPacketTargets;
 std::vector<std::function<bool(void*, std::string)>> mTextPacketSendEventCallbacks;
 std::vector<std::function<void(void*, std::string, std::string)>> mLoginPacketSendEventCallbacks;
 std::vector<std::function<void(void*, int, std::string)>> mPlayerScoreChangedEventCallbacks;
+std::vector<std::function<bool(void*, void*, float)>> mPlayerHurtEventCallbacks;
 
 LL_TYPE_INSTANCE_HOOK(
     FakeSeedHook,
@@ -76,7 +82,7 @@ LL_TYPE_INSTANCE_HOOK(
 
 LL_TYPE_INSTANCE_HOOK(
     TextPacketSendHook,
-    HookPriority::Low,
+    HookPriority::Normal,
     ServerNetworkHandler,
     "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTextPacket@@@Z",
     void,
@@ -86,34 +92,6 @@ LL_TYPE_INSTANCE_HOOK(
     for (auto& callback : mTextPacketSendEventCallbacks)
         if (callback(toolUtils::getPlayerFromName(packet.mAuthor), packet.mMessage)) return;
     return origin(identifier, packet);
-};
-
-LL_TYPE_INSTANCE_HOOK(
-    PlayerScoreChangedHook,
-    HookPriority::Normal,
-    ServerScoreboard,
-    "?onScoreChanged@ServerScoreboard@@UEAAXAEBUScoreboardId@@AEBVObjective@@@Z",
-    void,
-    ScoreboardId const& id,
-    Objective const& objective
-) {
-    if (id.getIdentityDef().isPlayerType()) {
-        Player* player = nullptr;
-        for (auto& pls : toolUtils::getAllPlayers()) {
-            if (ll::service::getLevel()->getScoreboard().getScoreboardId(*pls).mRawId == id.mRawId) {
-                player = pls;
-                break;
-            }
-        }
-        for (auto& callback : mPlayerScoreChangedEventCallbacks) {
-            callback(
-                player,
-                objective.getPlayerScore(id).mScore,
-                objective.getName()
-            );
-        }
-    }
-    return origin(id, objective);
 };
 
 LL_TYPE_INSTANCE_HOOK(
@@ -133,6 +111,83 @@ LL_TYPE_INSTANCE_HOOK(
         callback(&identifier, uuid, ipAndPort);
 };
 
+LL_TYPE_INSTANCE_HOOK(
+    PlayerScoreChangedHook,
+    HookPriority::Normal,
+    ServerScoreboard,
+    "?onScoreChanged@ServerScoreboard@@UEAAXAEBUScoreboardId@@AEBVObjective@@@Z",
+    void,
+    ScoreboardId const& id,
+    Objective const& objective
+) {
+    if (id.getIdentityDef().isPlayerType()) {
+        for (auto& callback : mPlayerScoreChangedEventCallbacks) {
+            callback(
+                ll::service::getLevel()->getPlayer(ActorUniqueID(id.getIdentityDef().getPlayerId().mActorUniqueId)),
+                objective.getPlayerScore(id).mScore,
+                objective.getName()
+            );
+        }
+    }
+    return origin(id, objective);
+};
+
+LL_TYPE_INSTANCE_HOOK(
+    PlayerHurtHook1,
+    HookPriority::Normal,
+    Mob,
+    &Mob::getDamageAfterResistanceEffect,
+    float,
+    ActorDamageSource const& source,
+    float damage
+) {
+    if (!this->isType(ActorType::Player))
+        return origin(source, damage);
+    if (source.getCause() == ActorDamageCause::Magic || source.getCause() == ActorDamageCause::Wither) {
+        Actor* damgeSource = nullptr;
+        if (source.isEntitySource()) {
+            if (source.isChildEntitySource())
+                damgeSource = ll::service::getLevel()->fetchEntity(source.getEntityUniqueID());
+            else damgeSource = ll::service::getLevel()->fetchEntity(source.getDamagingEntityUniqueID());
+        }
+        if (damgeSource == nullptr || !damgeSource->isType(ActorType::Player))
+            return origin(source, damage);
+        for (auto& callback : mPlayerHurtEventCallbacks) {
+            if (callback(this, damgeSource, damage))
+                return 0.0f;
+        }
+    }
+    return origin(source, damage);
+};
+
+LL_TYPE_INSTANCE_HOOK(
+    PlayerHurtHook2,
+    HookPriority::Normal,
+    Actor,
+    &Actor::hurt,
+    bool,
+    ActorDamageSource const& source,
+    float damage,
+    bool knock,
+    bool ignite
+) {
+    if (this->isType(ActorType::Player)) {
+        Actor* damgeSource = nullptr;
+        if (source.isEntitySource()) {
+            if (source.isChildEntitySource())
+                damgeSource = ll::service::getLevel()->fetchEntity(source.getEntityUniqueID());
+            else damgeSource = ll::service::getLevel()->fetchEntity(source.getDamagingEntityUniqueID());
+        }
+        if (damgeSource == nullptr || !damgeSource->isType(ActorType::Player))
+            return origin(source, damage, knock, ignite);
+        for (auto& callback : mPlayerHurtEventCallbacks) {
+            if (callback(this, damgeSource, damage))
+                return false;
+        }
+    }
+    return origin(source, damage, knock, ignite);
+};
+
 namespace HookPlugin {
     namespace Event {
         void onTextPacketSendEvent(const std::function<bool(void*, const std::string&)>& callback) {
@@ -145,6 +200,10 @@ namespace HookPlugin {
 
         void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string)>& callback) {
             mPlayerScoreChangedEventCallbacks.push_back(callback);
+        }
+
+        void onPlayerHurtEvent(const std::function<bool(void*, void*, float)>& callback) {
+            mPlayerHurtEventCallbacks.push_back(callback);
         }
     }
 
@@ -167,15 +226,19 @@ namespace HookPlugin {
         FakeSeedHook::hook();
         InterceptPacketHook::hook();
         TextPacketSendHook::hook();
-        PlayerScoreChangedHook::hook();
         LoginPacketSendHook::hook();
+        PlayerScoreChangedHook::hook();
+        PlayerHurtHook1::hook();
+        PlayerHurtHook2::hook();
     }
 
     void unregistery() {
         FakeSeedHook::unhook();
         InterceptPacketHook::unhook();
         TextPacketSendHook::unhook();
-        PlayerScoreChangedHook::unhook();
         LoginPacketSendHook::unhook();
+        PlayerScoreChangedHook::unhook();
+        PlayerHurtHook1::unhook();
+        PlayerHurtHook2::unhook();
     }
 }

@@ -11,8 +11,10 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
-#include <ll/api/event/player/PlayerAttackEvent.h>
 
+#include <mc/world/level/Level.h>
+#include <mc/world/actor/Actor.h>
+#include <mc/world/actor/ActorDamageSource.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
 #include <mc/server/commands/CommandOrigin.h>
@@ -21,6 +23,7 @@
 
 #include "Include/APIUtils.h"
 #include "Include/languagePlugin.h"
+#include "Include/HookPlugin.h"
 
 #include "Utils/I18nUtils.h"
 #include "Utils/SQLiteStorage.h"
@@ -33,7 +36,6 @@ using languagePlugin::getLanguage;
 namespace pvpPlugin {
     std::unique_ptr<SQLiteStorage> db;
     ll::event::ListenerPtr PlayerJoinEventListener;
-    ll::event::ListenerPtr PlayerAttackEventListener;
     ll::Logger logger("LOICollectionA - PVP");
 
     namespace MainGui {
@@ -95,23 +97,18 @@ namespace pvpPlugin {
                     }
                 }
             );
-            PlayerAttackEventListener = eventBus.emplaceListener<ll::event::PlayerAttackEvent>(
-                [](ll::event::PlayerAttackEvent& event) {
-                    auto* entity = &event.target();
-                    if (entity == nullptr || !entity->isType(ActorType::Player))
-                        return;
-                    Player* player = static_cast<Player*>(entity);
-
-                    std::string mObjectLanguage = getLanguage(&event.self());
-                    if (!isEnable(player)) {
-                        event.self().sendMessage(tr(mObjectLanguage, "pvp.off1"));
-                        event.cancel();
-                    } else if (!isEnable(&event.self())) {
-                        event.self().sendMessage(tr(mObjectLanguage, "pvp.off2"));
-                        event.cancel();
-                    }
+            HookPlugin::Event::onPlayerHurtEvent([](void* target_ptr, void* source_ptr, float /*unused*/) {
+                Player* target = static_cast<Player*>(target_ptr);
+                Player* source = static_cast<Player*>(source_ptr);
+                if (!isEnable(target)) {
+                    source->sendMessage(tr(getLanguage(source), "pvp.off1"));
+                    return true;
+                } else if (!isEnable(source)) {
+                    source->sendMessage(tr(getLanguage(source), "pvp.off2"));
+                    return true;
                 }
-            );
+                return false;
+            });
         }
     }
 
@@ -134,6 +131,5 @@ namespace pvpPlugin {
     void unregistery() {
         auto& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
-        eventBus.removeListener(PlayerAttackEventListener);
     }
 }
