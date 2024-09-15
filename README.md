@@ -32,48 +32,48 @@ Market | $\color{#00FF00}{√}$
 1. Open the plugin directory `LOICollectionA`.
 2. Open the file `config.json`.
 3. After opening, you will see content similar to the following:
-   ```json
-   {
-       "version": 144,
-       "FakeSeed": "random",
-       "language": {
-           "update": true
-       },
-       "Blacklist": false,
-       "Mute": false, 
-       "Cdk": false,
-       "Menu": {
-           "Enable": false,
-           "ItemId": "minecraft:clock" 
-       },
-       "Tpa": false,
-       "Shop": false,
-       "Monitor": {
-           "Enable": false,
-           "join": "{player} has joined the server",
-           "target": "money",
-           "changed": "§e§lDetected Score Change §eCurrent Value: §f${GetScore}",
-           "tips": "This command has been disabled",
-           "command": [],
-       },
-       "Pvp": false,
-       "Wallet": {
-           "Enable": false,
-           "score": "money",
-           "tax": 0.1 
-       },
-       "Chat": {
-           "Enable": false,
-           "chat": "<{player}> ${chat}"
-       },
-       "Announcement": false,
-       "Market": {
-           "Enable": false,
-           "score": "money"
-       }
-   }
-   ```
-   - Please make changes according to the Json specification (https://www.json.org/).
+```json
+{
+    "version": 144,
+    "FakeSeed": "random",
+    "language": {
+        "update": true
+    },
+    "Blacklist": false,
+    "Mute": false, 
+    "Cdk": false,
+    "Menu": {
+        "Enable": false,
+        "ItemId": "minecraft:clock" 
+    },
+    "Tpa": false,
+    "Shop": false,
+    "Monitor": {
+        "Enable": false,
+        "join": "{player} has joined the server",
+        "target": "money",
+        "changed": "§e§lDetected Score Change §eCurrent Value: §f${GetScore}",
+        "tips": "This command has been disabled",
+        "command": [],
+    },
+    "Pvp": false,
+    "Wallet": {
+        "Enable": false,
+        "score": "money",
+        "tax": 0.1 
+    },
+    "Chat": {
+        "Enable": false,
+        "chat": "<{player}> ${chat}"
+    },
+    "Announcement": false,
+    "Market": {
+        "Enable": false,
+        "score": "money"
+    }
+}
+```
+- Please make changes according to the Json specification (https://www.json.org/).
 4. You can freely make changes and save.
 
 ### How to Compile Locally?
