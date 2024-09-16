@@ -113,7 +113,7 @@ namespace chatPlugin {
             std::vector<std::string> list = db->list("OBJECT$" + mObject + "$TITLE");
             
             ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
-            form.appendLabel(LOICollectionAPI::translateString(tr(mObjectLanguage, "chat.gui.setTitle.label"), player, true));
+            form.appendLabel(LOICollectionAPI::translateString(tr(mObjectLanguage, "chat.gui.setTitle.label"), player));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.setTitle.dropdown"), list);
             form.sendTo(*player, [mObject](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
@@ -210,7 +210,7 @@ namespace chatPlugin {
                     if (!mutePlugin::isMute(&event.self())) {
                         std::string mChat = mChatString;
                         
-                        LOICollectionAPI::translateString(mChat, &event.self(), true);
+                        LOICollectionAPI::translateString(mChat, &event.self());
                         ll::string_utils::replaceAll(mChat, "${chat}", event.message());
                         toolUtils::broadcastText(mChat);
                         event.cancel();

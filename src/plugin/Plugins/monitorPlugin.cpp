@@ -34,7 +34,7 @@ namespace monitorPlugin {
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
                 [](ll::event::PlayerJoinEvent& event) {
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("join"));
-                    LOICollectionAPI::translateString(mMonitorString, &event.self(), false);
+                    LOICollectionAPI::translateString(mMonitorString, &event.self());
                     toolUtils::broadcastText(mMonitorString);
                 }
             );

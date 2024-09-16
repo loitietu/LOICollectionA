@@ -237,7 +237,7 @@ namespace blacklistPlugin {
             cause, false
         );
         std::string logString = tr(getLanguage(player), "blacklist.log1");
-        logger.info(LOICollectionAPI::translateString(logString, player, true));
+        logger.info(LOICollectionAPI::translateString(logString, player));
     }
 
     void delBlacklist(std::string target) {

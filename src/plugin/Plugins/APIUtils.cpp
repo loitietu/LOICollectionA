@@ -1,5 +1,7 @@
 #include <regex>
 #include <string>
+#include <functional>
+#include <unordered_map>
 
 #include <ll/api/schedule/Task.h>
 #include <ll/api/schedule/Scheduler.h>
@@ -24,6 +26,8 @@ float mTicksPerMinute;
 unsigned short mTicks;
 std::vector<unsigned short> mTicksList;
 
+std::unordered_map<std::string, std::function<std::string(void*)>> mVariableMap;
+
 namespace LOICollectionAPI {
     void initialization() {
         static ll::schedule::GameTickAsyncScheduler scheduler1;
@@ -46,59 +50,137 @@ namespace LOICollectionAPI {
                 sum = sum + i;
             mTicksPerMinute = (float) sum / (int) mTicksList.size();
         });
+
+        registerVariable("title", [](void* player_ptr) {
+            chatPlugin::update(player_ptr);
+            return chatPlugin::getTitle(player_ptr);
+        });
+        registerVariable("title.time", [](void* player_ptr) {
+            chatPlugin::update(player_ptr);
+            return chatPlugin::getTitleTime(player_ptr, chatPlugin::getTitle(player_ptr));
+        });
+        registerVariable("pvp", [](void* player_ptr) { return pvpPlugin::isEnable(player_ptr) ? "true" : "false"; });
+        registerVariable("mute", [](void* player_ptr) { return mutePlugin::isMute(player_ptr) ? "true" : "false"; });
+        registerVariable("language", [](void* player_ptr) { return languagePlugin::getLanguage(player_ptr); });
+        registerVariable("tps", [](void* /*unused*/) { return std::to_string(mTicksPerSecond); });
+        registerVariable("tpm", [](void* /*unused*/) { return std::to_string(mTicksPerMinute); });
+        registerVariable("player", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return player->getName();
+        });
+        registerVariable("pos", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return player->getPosition().toString();
+        });
+        registerVariable("blockPos", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return player->getEyePos().toString();
+        });
+        registerVariable("lastDeathPos", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return player->getLastDeathPos()->toString();
+        });
+        registerVariable("realName", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return player->getRealName();
+        });
+        registerVariable("xuid", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return player->getXuid();
+        });
+        registerVariable("uuid", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return player->getUuid().asString();
+        });
+        registerVariable("canFly", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return player->canFly() ? "true" : "false";
+        });
+        registerVariable("maxHealth", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return std::to_string(player->getMaxHealth());
+        });
+        registerVariable("health", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return std::to_string(player->getHealth());
+        });
+        registerVariable("speed", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return std::to_string(player->getSpeed());
+        });
+        registerVariable("direction", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return std::to_string(player->getDirection());
+        });
+        registerVariable("dimension", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return std::to_string(player->getDimensionId());
+        });
+        registerVariable("os", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return toolUtils::getDevice(player);
+        });
+        registerVariable("ip", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return player->getIPAndPort();
+        });
+        registerVariable("xp", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return std::to_string(player->getXpEarnedAtCurrentLevel());
+        });
+        registerVariable("HandItem", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return player->getCarriedItem().getName();
+        });
+        registerVariable("OffHand", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return player->getOffhandSlot().getName();
+        });
+        registerVariable("ms", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return std::to_string(player->getNetworkStatus()->mAveragePing);
+        });
+        registerVariable("avgms", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return std::to_string(player->getNetworkStatus()->mCurrentPing);
+        });
+        registerVariable("Packet", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return std::to_string(player->getNetworkStatus()->mAveragePacketLoss);
+        });
+        registerVariable("avgPacket", [](void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return std::to_string(player->getNetworkStatus()->mCurrentPacketLoss);
+        });
     }
 
-    std::string& translateString(std::string& contentString, void* player_ptr, bool enable) {
-        Player* player = static_cast<Player*>(player_ptr);
-        std::string mChatTitle = chatPlugin::getTitle(player);
+    void registerVariable(const std::string& name, const std::function<std::string(void*)> callback) {
+        if (mVariableMap.find(name) != mVariableMap.end())
+            return;
+        mVariableMap.insert({name, callback});
+    }
 
-        chatPlugin::update(player);
-        ll::string_utils::replaceAll(contentString, "{title}", mChatTitle);
-        ll::string_utils::replaceAll(contentString, "{title.time}", chatPlugin::getTitleTime(player, mChatTitle));
-        ll::string_utils::replaceAll(contentString, "{pvp}", pvpPlugin::isEnable(player) ? "true" : "false");
-        ll::string_utils::replaceAll(contentString, "{mute}", mutePlugin::isMute(player) ? "true" : "false");
-        ll::string_utils::replaceAll(contentString, "{language}", languagePlugin::getLanguage(player));
-        ll::string_utils::replaceAll(contentString, "{tps}", std::to_string(mTicksPerSecond));
-        ll::string_utils::replaceAll(contentString, "{tpm}", std::to_string(mTicksPerMinute));
-        ll::string_utils::replaceAll(contentString, "{player}", player->getName());
-        ll::string_utils::replaceAll(contentString, "{pos}", player->getPosition().toString());
-        ll::string_utils::replaceAll(contentString, "{blockPos}", player->getEyePos().toString());
-        try {
-            ll::string_utils::replaceAll(contentString, "{lastDeathPos}", player->getLastDeathPos()->toString());
-        } catch (...) {
-            ll::string_utils::replaceAll(contentString, "{lastDeathPos}", "NULL");
-        };
-        ll::string_utils::replaceAll(contentString, "{realName}", player->getRealName());
-        ll::string_utils::replaceAll(contentString, "{xuid}", player->getXuid());
-        ll::string_utils::replaceAll(contentString, "{uuid}", player->getUuid().asString());
-        ll::string_utils::replaceAll(contentString, "{canFly}", player->canFly() ? "true" : "false");
-        ll::string_utils::replaceAll(contentString, "{maxHealth}", std::to_string(player->getMaxHealth()));
-        ll::string_utils::replaceAll(contentString, "{health}", std::to_string(player->getHealth()));
-        ll::string_utils::replaceAll(contentString, "{speed}", std::to_string(player->getSpeed()));
-        ll::string_utils::replaceAll(contentString, "{direction}", std::to_string(player->getDirection()));
-        ll::string_utils::replaceAll(contentString, "{dimension}", std::to_string(player->getDimensionId()));
-        ll::string_utils::replaceAll(contentString, "{os}", toolUtils::getDevice(player));
-        ll::string_utils::replaceAll(contentString, "{ip}", player->getIPAndPort());
-        ll::string_utils::replaceAll(contentString, "{xp}", std::to_string(player->getXpEarnedAtCurrentLevel()));
-        ll::string_utils::replaceAll(contentString, "{HandItem}", player->getSelectedItem().getName());
-        ll::string_utils::replaceAll(contentString, "{OffHand}", player->getOffhandSlot().getName());
-        if (enable) {
-            ll::string_utils::replaceAll(contentString, "{ms}", std::to_string(player->getNetworkStatus()->mAveragePing));
-            ll::string_utils::replaceAll(contentString, "{avgms}", std::to_string(player->getNetworkStatus()->mCurrentPing));
-            ll::string_utils::replaceAll(contentString, "{Packet}", std::to_string(player->getNetworkStatus()->mAveragePacketLoss));
-            ll::string_utils::replaceAll(contentString, "{avgPacket}", std::to_string(player->getNetworkStatus()->mCurrentPacketLoss));
+    std::string& translateString(std::string& contentString, void* player_ptr) {
+        if (contentString.empty())
+            return contentString;
+        for (auto& [name, callback] : mVariableMap) {
+            if (contentString.find("{" + name + "}") == std::string::npos)
+                continue;
+            try {
+                ll::string_utils::replaceAll(contentString, "{" + name + "}", callback(player_ptr));
+            } catch (...) { ll::string_utils::replaceAll(contentString, "{" + name + "}", "None"); };
         }
         std::smatch match;
         std::regex pattern("\\{score\\((.*?)\\)\\}");
         while (std::regex_search(contentString, match, pattern)) {
             std::string extractedContent = match.str(1);
-            int score = toolUtils::scoreboard::getScore(player, extractedContent);
+            int score = toolUtils::scoreboard::getScore(static_cast<Player*>(player_ptr), extractedContent);
             contentString = std::regex_replace(contentString, pattern, std::to_string(score));
         }
         return contentString;
     }
 
-    std::string& translateString(const std::string& contentString, void* player_ptr, bool enable) {
-        return translateString(const_cast<std::string&>(contentString), player_ptr, enable);
+    std::string& translateString(const std::string& contentString, void* player_ptr) {
+        return translateString(const_cast<std::string&>(contentString), player_ptr);
     }
 }

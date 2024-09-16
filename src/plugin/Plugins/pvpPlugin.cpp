@@ -49,7 +49,7 @@ namespace pvpPlugin {
                 if (db->has("OBJECT$" + mObject)) {
                     db->set("OBJECT$" + mObject, "enable", "true");
                 }
-                logger.info(LOICollectionAPI::translateString(tr(getLanguage(&pl), "pvp.log1"), &pl, true));
+                logger.info(LOICollectionAPI::translateString(tr(getLanguage(&pl), "pvp.log1"), &pl));
             });
             form.appendButton(tr(mObjectLanguage, "pvp.gui.off"), "textures/ui/cancel", "path", [](Player& pl) {
                 std::string mObject = pl.getUuid().asString();
@@ -57,7 +57,7 @@ namespace pvpPlugin {
                 if (db->has("OBJECT$" + mObject)) {
                     db->set("OBJECT$" + mObject, "enable", "false");
                 }
-                logger.info(LOICollectionAPI::translateString(tr(getLanguage(&pl), "pvp.log2"), &pl, true));
+                logger.info(LOICollectionAPI::translateString(tr(getLanguage(&pl), "pvp.log2"), &pl));
             });
             form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));

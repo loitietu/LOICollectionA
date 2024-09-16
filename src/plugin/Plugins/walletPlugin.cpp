@@ -75,7 +75,7 @@ namespace walletPlugin {
         void wealth(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mTipsString = tr(getLanguage(player), "wallet.showOff");
-            LOICollectionAPI::translateString(mTipsString, player, true);
+            LOICollectionAPI::translateString(mTipsString, player);
             ll::string_utils::replaceAll(mTipsString, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
             toolUtils::broadcastText(mTipsString);
         }

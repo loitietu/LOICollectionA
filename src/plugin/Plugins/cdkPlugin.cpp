@@ -335,7 +335,7 @@ namespace cdkPlugin {
             }
             std::string logString = tr(mObjectLanguage, "cdk.log3");
             ll::string_utils::replaceAll(logString, "${cdk}", convertString);
-            logger.info(LOICollectionAPI::translateString(logString, player, true));
+            logger.info(LOICollectionAPI::translateString(logString, player));
             player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
             db->save();
             return;

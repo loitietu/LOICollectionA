@@ -152,7 +152,7 @@ namespace mutePlugin {
                     std::string cause = db->get("OBJECT$" + mObject, "cause");
                     std::string logString = tr(getLanguage(player), "mute.log3");
                     ll::string_utils::replaceAll(logString, "${message}", message);
-                    logger.info(LOICollectionAPI::translateString(logString, player, true));
+                    logger.info(LOICollectionAPI::translateString(logString, player));
                     player->sendMessage(cause);
                     return true;
                 }
@@ -177,7 +177,7 @@ namespace mutePlugin {
         }
         std::string logString = tr(getLanguage(player), "mute.log1");
         ll::string_utils::replaceAll(logString, "${cause}", cause);
-        logger.info(LOICollectionAPI::translateString(logString, player, true));
+        logger.info(LOICollectionAPI::translateString(logString, player));
     }
 
     void delMute(void* player_ptr) {
@@ -188,7 +188,7 @@ namespace mutePlugin {
             db->remove("OBJECT$" + mObject);
         }
         std::string logString = tr(getLanguage(player), "mute.log2");
-        logger.info(LOICollectionAPI::translateString(logString, player, true));
+        logger.info(LOICollectionAPI::translateString(logString, player));
     }
 
     bool isMute(void* player_ptr) {

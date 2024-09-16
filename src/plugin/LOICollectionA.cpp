@@ -130,7 +130,6 @@ namespace LOICollection {
             options["score"] = this->config.Market.score;
             marketPlugin::registery(&this->MarketDB, options);
         }
-        this->mSelf.getLogger().info("Register Event completed.");
         return true;
     }
 
@@ -144,7 +143,6 @@ namespace LOICollection {
         if (this->config.Chat.Enable) chatPlugin::unregistery();
         if (this->config.AnnounCement) announcementPlugin::unregistery();
         if (this->config.Market.Enable) marketPlugin::unregistery();
-        this->mSelf.getLogger().info("Unregister Event completed.");
         return true;
     }
 }
