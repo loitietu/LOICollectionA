@@ -73,11 +73,10 @@ namespace blacklistPlugin {
                 std::string PlayerInputCause = std::get<std::string>(dt->at("Input1"));
                 int time = toolUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 Player* pl2 = toolUtils::getPlayerFromName(PlayerSelectName);
-                if (PlayerSelectType == "ip") {
+                if (PlayerSelectType == "ip")
                     blacklistPlugin::addBlacklist(pl2, PlayerInputCause, time, 0);
-                } else if (PlayerSelectType == "uuid") {
+                else if (PlayerSelectType == "uuid")
                     blacklistPlugin::addBlacklist(pl2, PlayerInputCause, time, 1);
-                }
             });
         }
 

@@ -13,7 +13,10 @@
                 "scores": {
                     "money": 100
                 },
-                "command": "say Button1",
+                "command": [
+                    "say Button1",
+                    "say Button1 - 1"
+                ],
                 "type": "button",
                 "permission": 0
             },
@@ -26,9 +29,19 @@
                 "permission": 0
             },
             {
+                "title": "From 2",
+                "image": "",
+                "scores": {},
+                "menu": "Menu2",
+                "type": "from",
+                "permission": 0
+            },
+            {
                 "title": "OP Button 1",
                 "image": "",
-                "command": "say OPButton1",
+                "command": [ 
+                    "say OPButton1"
+                ],
                 "type": "button",
                 "permission": 2
             },
@@ -51,17 +64,76 @@
         "confirmButton": {
             "title": "Confirm",
             "scores": {},
-            "command": "say Confirm",
+            "command": [ 
+                "say Confirm"
+            ],
             "type": "button",
             "permission": 0
         },
         "cancelButton": {
             "title": "Cancel",
             "scores": {},
-            "command": "say Cancel",
+            "command": [ 
+                "say Cancel" 
+            ],
             "type": "button",
             "permission": 0
         },
+        "permission": 0
+    },
+    "Menu2": {
+        "title": "Menu2",
+        "exit": "Exit Menu",
+        "type": "Custom",
+        "customize": [
+            {
+                "title": "This is a Menu 2",
+                "type": "Label"
+            },
+            {
+                "title": "This is a Input",
+                "id": "Input",
+                "placeholder": "This is a content",
+                "defaultValue": "default",
+                "type": "Input"
+            },
+            {
+                "title": "Dropdown",
+                "id": "Dropdown",
+                "options": [ "default" ],
+                "defaultValue": 0,
+                "type": "Dropdown"
+            },
+            {
+                "title": "This is a Toggle",
+                "id": "Toggle",
+                "defaultValue": false,
+                "type": "Toggle"
+            },
+            {
+                "title": "this is a Slider",
+                "id": "Slider",
+                "min": 0,
+                "max": 100,
+                "step": 1,
+                "defaultValue": 50,
+                "type": "Slider"
+            },
+            {
+                "title": "This is a StepSlider",
+                "id": "StepSlider",
+                "options": [ "default1", "default2" ],
+                "defaultValue": 0,
+                "type": "StepSlider"
+            }
+        ],
+        "command": [
+            "say Input: {Input}",
+            "say Dropdown: {Dropdown}",
+            "say Toggle: {Toggle}",
+            "say Slider: {Slider}",
+            "say StepSlider: {StepSlider}"
+        ],
         "permission": 0
     }
 }

@@ -1,10 +1,10 @@
 #include <vector>
 #include <cstdint>
-#include <cstdlib>
 #include <functional>
 
 #include <ll/api/memory/Hook.h>
 #include <ll/api/service/Bedrock.h>
+#include <ll/api/utils/RandomUtils.h>
 
 #include <mc/world/ActorUniqueID.h>
 #include <mc/world/actor/Mob.h>
@@ -82,7 +82,7 @@ LL_TYPE_INSTANCE_HOOK(
 
 LL_TYPE_INSTANCE_HOOK(
     TextPacketSendHook,
-    HookPriority::Normal,
+    HookPriority::High,
     ServerNetworkHandler,
     "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTextPacket@@@Z",
     void,
@@ -154,10 +154,8 @@ LL_TYPE_INSTANCE_HOOK(
             return origin(source, damage);
         if (damgeSource->getOrCreateUniqueID().id == this->getOrCreateUniqueID().id)
             return origin(source, damage);
-        for (auto& callback : mPlayerHurtEventCallbacks) {
-            if (callback(this, damgeSource, damage))
-                return 0.0f;
-        }
+        for (auto& callback : mPlayerHurtEventCallbacks)
+            if (callback(this, damgeSource, damage)) return 0.0f;
     }
     return origin(source, damage);
 };
@@ -184,10 +182,8 @@ LL_TYPE_INSTANCE_HOOK(
             return origin(source, damage, knock, ignite);
         if (damgeSource->getOrCreateUniqueID().id == this->getOrCreateUniqueID().id)
             return origin(source, damage, knock, ignite);
-        for (auto& callback : mPlayerHurtEventCallbacks) {
-            if (callback(this, damgeSource, damage))
-                return false;
-        }
+        for (auto& callback : mPlayerHurtEventCallbacks)
+            if (callback(this, damgeSource, damage)) return false;
     }
     return origin(source, damage, knock, ignite);
 };
@@ -216,10 +212,9 @@ namespace HookPlugin {
     }
 
     void setFakeSeed(const std::string& fakeSeed) {
-        srand((unsigned int) time(nullptr));
         try {
             if (fakeSeed.empty() || fakeSeed == "random") {
-                mFakeSeed = static_cast<int64_t>(rand());
+                mFakeSeed = ll::random_utils::rand<int64_t>();
                 return;
             }
             mFakeSeed = std::stoll(fakeSeed);

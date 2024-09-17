@@ -15,6 +15,7 @@
 #include "Include/chatPlugin.h"
 #include "Include/languagePlugin.h"
 
+#include "Utils/I18nUtils.h"
 #include "Utils/toolUtils.h"
 
 #include "Include/APIUtils.h"
@@ -170,12 +171,20 @@ namespace LOICollectionAPI {
                 ll::string_utils::replaceAll(contentString, "{" + name + "}", callback(player_ptr));
             } catch (...) { ll::string_utils::replaceAll(contentString, "{" + name + "}", "None"); };
         }
+        Player* player = static_cast<Player*>(player_ptr);
+
         std::smatch match;
-        std::regex pattern("\\{score\\((.*?)\\)\\}");
-        while (std::regex_search(contentString, match, pattern)) {
+        std::regex pattern1("\\{score\\((.*?)\\)\\}");
+        std::regex pattern2("\\{tr\\((.*?)\\)\\}");
+        while (std::regex_search(contentString, match, pattern1)) {
             std::string extractedContent = match.str(1);
-            int score = toolUtils::scoreboard::getScore(static_cast<Player*>(player_ptr), extractedContent);
-            contentString = std::regex_replace(contentString, pattern, std::to_string(score));
+            int score = toolUtils::scoreboard::getScore(player, extractedContent);
+            contentString = std::regex_replace(contentString, pattern1, std::to_string(score));
+        }
+        while (std::regex_search(contentString, match, pattern2)) {
+            std::string extractedContent = match.str(1);
+            std::string translatedContent = I18nUtils::tr(languagePlugin::getLanguage(player), extractedContent);
+            contentString = std::regex_replace(contentString, pattern2, translatedContent);
         }
         return contentString;
     }

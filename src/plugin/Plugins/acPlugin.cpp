@@ -153,10 +153,8 @@ namespace announcementPlugin {
         db = std::move(*static_cast<std::unique_ptr<JsonUtils>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
         if (!db->has("title") || !db->has("content")) {
-            nlohmann::ordered_json mEmptyArray = nlohmann::ordered_json::array();
-            mEmptyArray.push_back("这是一条测试公告，欢迎使用本插件！");
             db->set("title", std::string("测试公告123"));
-            db->set("content", mEmptyArray);
+            db->set("content", nlohmann::ordered_json::array({"这是一条测试公告，欢迎使用本插件！"}));
             db->save();
         }
         registerCommand();
