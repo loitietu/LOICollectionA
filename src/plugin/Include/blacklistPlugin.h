@@ -7,6 +7,7 @@
 
 namespace blacklistPlugin {
     namespace MainGui {
+        LOICOLLECTION_A_API void info(void* player_ptr, std::string target);
         LOICOLLECTION_A_API void add(void* player_ptr);
         LOICOLLECTION_A_API void remove(void* player_ptr);
         LOICOLLECTION_A_API void open(void* player_ptr);

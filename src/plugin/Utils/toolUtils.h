@@ -28,6 +28,7 @@ namespace toolUtils {
     std::vector<Player*> getAllPlayers();
 
     Player* getPlayerFromName(const std::string& name);
+    Player* getPlayerByUuid(const std::string& uuid);
     
     bool isReach(const std::string& timeString);
     bool isItemPlayerInventory(Player* player, void* itemStack_ptr);

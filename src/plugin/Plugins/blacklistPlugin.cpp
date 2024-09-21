@@ -38,9 +38,6 @@ using languagePlugin::getLanguage;
 
 namespace blacklistPlugin {
     struct BlacklistOP {
-        enum SubCommand {
-            list, gui
-        } subCommand;
         enum SelectorType {
             ip, uuid
         } selectorType;
@@ -54,6 +51,24 @@ namespace blacklistPlugin {
     ll::Logger logger("LOICollectionA - Blacklist");
 
     namespace MainGui {
+        void info(void* player_ptr, std::string target) {
+            Player* player = static_cast<Player*>(player_ptr);
+            std::string mObjectLanguage = getLanguage(player);
+            std::string mObjectLabel = tr(mObjectLanguage, "blacklist.gui.info.label");
+
+            ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
+            ll::string_utils::replaceAll(mObjectLabel, "${cause}", db->get("OBJECT$" + target, "cause"));
+            ll::string_utils::replaceAll(mObjectLabel, "${time}", db->get("OBJECT$" + target, "time"));
+
+            ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), mObjectLabel);
+            form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [target](Player& /*unused*/) {
+                delBlacklist(target);
+            });
+            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
+            });
+        }
+
         void add(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
@@ -74,34 +89,24 @@ namespace blacklistPlugin {
                 int time = toolUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 Player* pl2 = toolUtils::getPlayerFromName(PlayerSelectName);
                 if (PlayerSelectType == "ip")
-                    blacklistPlugin::addBlacklist(pl2, PlayerInputCause, time, 0);
+                    addBlacklist(pl2, PlayerInputCause, time, 0);
                 else if (PlayerSelectType == "uuid")
-                    blacklistPlugin::addBlacklist(pl2, PlayerInputCause, time, 1);
+                    addBlacklist(pl2, PlayerInputCause, time, 1);
             });
         }
 
         void remove(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
-            std::vector<std::string> mObjectLists;
-
-            for (auto& mItem : db->list())
-                mObjectLists.push_back(ll::string_utils::replaceAll(mItem, "OBJECT$", ""));
-            if (mObjectLists.empty()) {
-                player->sendMessage(tr(mObjectLanguage, "blacklist.tips"));
-                return;
+            ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), tr(mObjectLanguage, "blacklist.gui.remove.label"));
+            for (auto& mItem : db->list()) {
+                ll::string_utils::replaceAll(mItem, "OBJECT$", "");
+                form.appendButton(mItem, [mItem](Player& pl) {
+                    MainGui::info(&pl, mItem);
+                });
             }
-
-            ll::form::CustomForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"));
-            form.appendLabel(tr(mObjectLanguage, "blacklist.gui.label"));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "blacklist.gui.remove.dropdown"), mObjectLists);
-            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
-                    return;
-                }
-                std::string PlayerSelectString = std::get<std::string>(dt->at("dropdown"));
-                blacklistPlugin::delBlacklist(PlayerSelectString);
+            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
             });
         }
 
@@ -161,43 +166,41 @@ namespace blacklistPlugin {
                 }
                 delBlacklist(param.targetName);
                 output.success("Remove object {} from blacklist.", param.targetName);
-                std::string logString = tr(getLanguage(nullptr), "blacklist.log2");
-                logger.info(ll::string_utils::replaceAll(logString, "${blacklist}", param.targetName));
             });
-            command.overload<BlacklistOP>().required("subCommand").execute([](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param) {
-                if (param.subCommand == BlacklistOP::list) {
-                    std::string content("Blacklist: Add list");
-                    for (auto& key : db->list()) {
-                        content += ll::string_utils::replaceAll(key, "OBJECT$", "!- ");
-                    }
-                    output.success(content);
-                    return;
+            command.overload().text("list").execute([](CommandOrigin const& /*unused*/, CommandOutput& output) {
+                std::string content("Blacklist: Add list -\n");
+                for (auto& key : db->list()) {
+                    content += ll::string_utils::replaceAll(key, "OBJECT$", "") + ",";
                 }
+                content.pop_back();
+                output.success(content);
+            });
+            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isType(ActorType::Player)) {
                     output.error("No player selected.");
                     return;
                 }
                 Player* player = static_cast<Player*>(entity);
-                if (param.subCommand == BlacklistOP::gui) {
-                    output.success("The UI has been opened to player {}", player->getRealName());
-                    MainGui::open(player);
-                }
+                output.success("The UI has been opened to player {}", player->getRealName());
+                MainGui::open(player);
             });
         }
 
         void listenEvent() {
             HookPlugin::Event::onLoginPacketSendEvent([](void* identifier_ptr, std::string mUuid, std::string mIpAndPort) {
                 NetworkIdentifier* identifier = static_cast<NetworkIdentifier*>(identifier_ptr);
+                std::string mObjectTips = tr(getLanguage(toolUtils::getPlayerByUuid(mUuid)), "blacklist.tips");
                 std::replace(mUuid.begin(), mUuid.end(), '-', '_');
                 if (db->has("OBJECT$" + mUuid)) {
                     if (toolUtils::isReach(db->get("OBJECT$" + mUuid, "time"))) {
                         delBlacklist(mUuid);
                         return;
                     }
+                    ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mUuid, "cause"));
+                    ll::string_utils::replaceAll(mObjectTips, "${time}", db->get("OBJECT$" + mUuid, "time"));
                     ll::service::getServerNetworkHandler()->disconnectClient(
-                        *identifier, Connection::DisconnectFailReason::Kicked,
-                        db->get("OBJECT$" + mUuid, "cause"), false
+                        *identifier, Connection::DisconnectFailReason::Kicked, mObjectTips, false
                     );
                     return;
                 }
@@ -208,9 +211,10 @@ namespace blacklistPlugin {
                         delBlacklist(mObjectIP);
                         return;
                     }
+                    ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mObjectIP, "cause"));
+                    ll::string_utils::replaceAll(mObjectTips, "${time}", db->get("OBJECT$" + mObjectIP, "time"));
                     ll::service::getServerNetworkHandler()->disconnectClient(
-                        *identifier, Connection::DisconnectFailReason::Kicked,
-                        db->get("OBJECT$" + mObjectIP, "cause"), false
+                        *identifier, Connection::DisconnectFailReason::Kicked, mObjectTips, false
                     );
                     return;
                 }
@@ -220,22 +224,28 @@ namespace blacklistPlugin {
 
     void addBlacklist(void* player_ptr, std::string cause, int time, int type) {
         Player* player = static_cast<Player*>(player_ptr);
+
+        if ((int) player->getPlayerPermissionLevel() >= 2)
+            return;
+
+        std::string mObjectLanguage = getLanguage(player);
+        std::string mObjectTips = tr(mObjectLanguage, "blacklist.tips");
         std::string mObject = player->getUuid().asString();
         if (!type) mObject = toolUtils::split(player->getIPAndPort(), ":")[0];
-        if (cause.empty()) cause = tr(getLanguage(player), "blacklist.cause");
         std::replace(mObject.begin(), mObject.end(), '.', '_');
         std::replace(mObject.begin(), mObject.end(), '-', '_');
+        if (cause.empty()) cause = tr(mObjectLanguage, "blacklist.cause");
         if (!db->has("OBJECT$" + mObject)) {
             db->create("OBJECT$" + mObject);
             db->set("OBJECT$" + mObject, "cause", cause);
             db->set("OBJECT$" + mObject, "time", toolUtils::timeCalculate(time));
         }
+        ll::string_utils::replaceAll(mObjectTips, "${cause}", cause);
+        ll::string_utils::replaceAll(mObjectTips, "${time}", db->get("OBJECT$" + mObject, "time"));
         ll::service::getServerNetworkHandler()->disconnectClient(
-            player->getNetworkIdentifier(),
-            Connection::DisconnectFailReason::Kicked,
-            cause, false
+            player->getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked, mObjectTips, false
         );
-        std::string logString = tr(getLanguage(player), "blacklist.log1");
+        std::string logString = tr(mObjectLanguage, "blacklist.log1");
         logger.info(LOICollectionAPI::translateString(logString, player));
     }
 
@@ -243,6 +253,8 @@ namespace blacklistPlugin {
         if (db->has("OBJECT$" + target)) {
             db->remove("OBJECT$" + target);
         }
+        std::string logString = tr(getLanguage(nullptr), "blacklist.log2");
+        logger.info(ll::string_utils::replaceAll(logString, "${target}", target));
     }
 
     bool isBlacklist(void* player_ptr) {

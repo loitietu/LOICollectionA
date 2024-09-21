@@ -65,9 +65,9 @@ namespace tpaPlugin {
 
             ll::form::ModalForm form;
             form.setTitle(tr(mObjectLanguage, "tpa.gui.title"));
-            if (!type) {
+            if (!type)
                 form.setContent(LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player));
-            } else form.setContent(LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player));
+            else form.setContent(LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player));
             form.setUpperButton(tr(mObjectLanguage, "tpa.yes"));
             form.setLowerButton(tr(mObjectLanguage, "tpa.no"));
             form.sendTo(*target, [type, player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {

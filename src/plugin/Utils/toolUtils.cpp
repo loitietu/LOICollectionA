@@ -184,6 +184,10 @@ namespace toolUtils {
         return nullptr;
     }
 
+    Player* getPlayerByUuid(const std::string& uuid) {
+        return ll::service::getLevel()->getPlayer(uuid);
+    }
+
     bool isReach(const std::string& timeString) {
         if (timeString == "0") 
             return false;
