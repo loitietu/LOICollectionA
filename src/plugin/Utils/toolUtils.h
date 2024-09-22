@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <functional>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/world/actor/player/PlayerScoreSetFunction.h>
@@ -32,6 +33,10 @@ namespace toolUtils {
     
     bool isReach(const std::string& timeString);
     bool isItemPlayerInventory(Player* player, void* itemStack_ptr);
+
+    namespace Gui {
+        void submission(Player* player, std::function<void(void*)> callback);
+    }
 
     namespace scoreboard {
         int getScore(Player* player, const std::string& name);

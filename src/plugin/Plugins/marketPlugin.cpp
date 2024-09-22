@@ -77,9 +77,14 @@ namespace marketPlugin {
                         toolUtils::scoreboard::addScore(mPlayer, mObjectScore, mScore);
                     }
                     delItem(mItemId);
+                    
+                    toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                        MainGui::buy(player_ptr);
+                    });
                     return;
                 }
                 pl.sendMessage(tr(getLanguage(&pl), "market.gui.sell.sellItem.tips4"));
+                MainGui::buy(&pl);
             });
             if ((int) player->getPlayerPermissionLevel() >= 2) {
                 form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) {
@@ -87,10 +92,14 @@ namespace marketPlugin {
                     std::string mTips = tr(getLanguage(&pl), "market.gui.sell.sellItem.tips3");
                     pl.sendMessage(ll::string_utils::replaceAll(mTips, "${item}", mName));
                     delItem(mItemId);
+
+                    toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                        MainGui::buy(player_ptr);
+                    });
                 });
             }
             form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                if (id == -1) MainGui::buy(&pl);
             });
         }
 
@@ -114,9 +123,13 @@ namespace marketPlugin {
                 pl.add(mItemStack);
                 pl.refreshInventory();
                 delItem(mItemId);
+
+                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    MainGui::sellItemContent(player_ptr);
+                });
             });
             form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                if (id == -1) MainGui::sellItemContent(&pl);
             });
         }
 
@@ -132,7 +145,7 @@ namespace marketPlugin {
             form.appendInput("Input4", tr(mObjectLanguage, "market.gui.sell.sellItem.input4"), "", "100");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    MainGui::sell(&pl);
                     return;
                 }
                 if (pl.getCarriedItem().isValid()) {
@@ -161,9 +174,14 @@ namespace marketPlugin {
                     mItemStack.remove(mItemStack.mCount);
                     pl.setCarriedItem(mItemStack);
                     pl.refreshInventory();
+
+                    toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                        MainGui::sellItem(player_ptr);
+                    });
                     return;
                 }
                 pl.sendMessage(tr(getLanguage(&pl), "market.gui.sell.sellItem.tips1"));
+                MainGui::sellItem(&pl);
             });
         }
 
@@ -184,7 +202,7 @@ namespace marketPlugin {
             }
             form.sendTo(*player, [mItems, mObject](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    MainGui::sell(&pl);
                     return;
                 }
                 MainGui::itemContent(&pl, ("OBJECT$" + mObject + "$ITEMS_$LIST_" + mItems.at(id)));
@@ -263,6 +281,8 @@ namespace marketPlugin {
             auto& eventBus = ll::event::EventBus::getInstance();
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
                 [](ll::event::PlayerJoinEvent& event) {
+                    if (event.self().isSimulatedPlayer())
+                        return;
                     if (!blacklistPlugin::isBlacklist(&event.self())) {
                         std::string mObject = event.self().getUuid().asString();
                         std::replace(mObject.begin(), mObject.end(), '-', '_');

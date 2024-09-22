@@ -141,6 +141,8 @@ namespace announcementPlugin {
             auto& eventBus = ll::event::EventBus::getInstance();
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
                 [](ll::event::PlayerJoinEvent& event) {
+                    if (event.self().isSimulatedPlayer())
+                        return;
                     if (!blacklistPlugin::isBlacklist(&event.self())) {
                         MainGui::open(&event.self());
                     }

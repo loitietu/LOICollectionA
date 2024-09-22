@@ -61,11 +61,15 @@ namespace blacklistPlugin {
             ll::string_utils::replaceAll(mObjectLabel, "${time}", db->get("OBJECT$" + target, "time"));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), mObjectLabel);
-            form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [target](Player& /*unused*/) {
+            form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [target](Player& pl) {
                 delBlacklist(target);
+
+                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    MainGui::remove(player_ptr);
+                });
             });
             form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                if (id == -1) MainGui::remove(&pl);
             });
         }
 
@@ -80,7 +84,7 @@ namespace blacklistPlugin {
             form.appendInput("Input2", tr(mObjectLanguage, "blacklist.gui.add.input2"), "", "0");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    MainGui::open(&pl);
                     return;
                 }
                 std::string PlayerSelectName = std::get<std::string>(dt->at("dropdown1"));
@@ -92,6 +96,10 @@ namespace blacklistPlugin {
                     addBlacklist(pl2, PlayerInputCause, time, 0);
                 else if (PlayerSelectType == "uuid")
                     addBlacklist(pl2, PlayerInputCause, time, 1);
+                
+                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    MainGui::add(player_ptr);
+                });
             });
         }
 
@@ -106,7 +114,7 @@ namespace blacklistPlugin {
                 });
             }
             form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                if (id == -1) MainGui::open(&pl);
             });
         }
 

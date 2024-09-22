@@ -6,6 +6,7 @@
 
 #include <ll/api/Mod/Manifest.h>
 #include <ll/api/Mod/NativeMod.h>
+#include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/reflection/Serialization.h>
 
@@ -28,12 +29,18 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include "JsonUtils.h"
+#include "Include/languagePlugin.h"
+
+#include "Utils/I18nUtils.h"
+#include "Utils/JsonUtils.h"
 
 #include "LOICollectionA.h"
 #include "ConfigPlugin.h"
 
 #include "toolUtils.h"
+
+using I18nUtils::tr;
+using languagePlugin::getLanguage;
 
 ll::mod::Manifest manifestPlugin;
 
@@ -219,6 +226,22 @@ namespace toolUtils {
             }
         }
         return false;
+    }
+
+    namespace Gui {
+        void submission(Player* player, std::function<void(void*)> callback) {
+            std::string mObjectLanguage = getLanguage(player);
+            ll::form::SimpleForm form(tr(mObjectLanguage, "exit.gui.title"), tr(mObjectLanguage, "exit.gui.label"));
+            form.appendButton(tr(mObjectLanguage, "exit.gui.button1"), [callback](Player& pl) {
+                callback(&pl);
+            });
+            form.appendButton(tr(mObjectLanguage, "exit.gui.button2"), [](Player& pl) {
+                pl.sendMessage(tr(getLanguage(&pl), "exit"));
+            });
+            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
+            });
+        }
     }
 
     namespace scoreboard {

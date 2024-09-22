@@ -70,7 +70,7 @@ namespace cdkPlugin {
             form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.new.input2"), "", "0");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    MainGui::open(&pl);
                     return;
                 }
                 std::string logString = tr(getLanguage(&pl), "cdk.log1");
@@ -91,6 +91,11 @@ namespace cdkPlugin {
                     db->set(mObjectCdk, dataList);
                     db->save();
                 }
+                
+                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    MainGui::cdkNew(player_ptr);
+                });
+
                 logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
             });
         }
@@ -101,6 +106,7 @@ namespace cdkPlugin {
 
             if (db->empty()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
+                MainGui::open(player);
                 return;
             }
 
@@ -109,14 +115,18 @@ namespace cdkPlugin {
             form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    MainGui::open(&pl);
                     return;
                 }
                 std::string logString = tr(getLanguage(&pl), "cdk.log2");
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
                 db->del(mObjectCdk);
                 db->save();
-                
+
+                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    MainGui::cdkRemove(player_ptr);
+                });
+
                 logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
             });
         }
@@ -127,6 +137,7 @@ namespace cdkPlugin {
 
             if (db->empty()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
+                MainGui::cdkAward(player);
                 return;
             }
 
@@ -137,7 +148,7 @@ namespace cdkPlugin {
             form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.score.input2"), "", "100");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    MainGui::cdkAward(&pl);
                     return;
                 }
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
@@ -146,6 +157,10 @@ namespace cdkPlugin {
                 mObjectData["scores"][std::get<std::string>(dt->at("Input1"))] = mObjectScore;
                 db->set(mObjectCdk, mObjectData);
                 db->save();
+
+                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    MainGui::cdkAwardScore(player_ptr);
+                });
             });
         }
 
@@ -155,6 +170,7 @@ namespace cdkPlugin {
 
             if (db->empty()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
+                MainGui::cdkAward(player);
                 return;
             }
             
@@ -167,7 +183,7 @@ namespace cdkPlugin {
             form.appendInput("Input4", tr(mObjectLanguage, "cdk.gui.award.item.input4"), "", "0");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    MainGui::cdkAward(&pl);
                     return;
                 }
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
@@ -182,6 +198,10 @@ namespace cdkPlugin {
                 };
                 db->set(mObjectCdk, mObjectData);
                 db->save();
+
+                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    MainGui::cdkAwardItem(player_ptr);
+                });
             });
         }
 
@@ -191,6 +211,7 @@ namespace cdkPlugin {
             
             if (db->empty()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
+                MainGui::cdkAward(player);
                 return;
             }
 
@@ -201,7 +222,7 @@ namespace cdkPlugin {
             form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.title.input2"), "", "0");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    MainGui::cdkAward(&pl);
                     return;
                 }
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
@@ -213,6 +234,10 @@ namespace cdkPlugin {
                 mObjectData["title"][mObjectName] = mObjectTime;
                 db->set(mObjectCdk, mObjectData);
                 db->save();
+
+                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    MainGui::cdkAwardTitle(player_ptr);
+                });
             });
         }
 
@@ -230,7 +255,7 @@ namespace cdkPlugin {
                 MainGui::cdkAwardTitle(&pl);
             });
             form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                if (id == -1) MainGui::open(&pl);
             });
         }
 

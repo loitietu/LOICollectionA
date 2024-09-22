@@ -60,6 +60,8 @@ bool SQLiteStorage::has(std::string_view table) {
 }
 
 std::string SQLiteStorage::get(std::string_view table, std::string_view key) {
+    if (!has(table) || !has(table, key))
+        return "";
     std::string sql = "SELECT value FROM " + std::string(table) + " WHERE key = ?;";
     SQLite::Statement query(database, sql);
     query.bind(1, std::string(key));

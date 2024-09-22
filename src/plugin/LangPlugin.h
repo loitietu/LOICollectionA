@@ -7,6 +7,10 @@
 static const nlohmann::ordered_json CNLangData = {
     {"name", "简体中文"},
     {"exit", "§e[LOICollection] §c已退出"},
+    {"exit.gui.title", "§e§l内容提交"},
+    {"exit.gui.label", "§a请选择执行内容"},
+    {"exit.gui.button1", "§c返回上一级菜单"},
+    {"exit.gui.button2", "§b退出菜单"},
     {"language.log", "玩家 {player}({uuid}) 将语言更改为 {language}"},
     {"language.gui.title", "§e§lLOICollection -> §a语言设置"},
     {"language.gui.label", "§a个人语言设置"},

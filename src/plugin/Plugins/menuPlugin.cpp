@@ -247,12 +247,16 @@ namespace menuPlugin {
             auto& eventBus = ll::event::EventBus::getInstance();
             PlayerUseItemEventListener = eventBus.emplaceListener<ll::event::PlayerUseItemEvent>(
                 [](ll::event::PlayerUseItemEvent& event) {
+                    if (event.self().isSimulatedPlayer())
+                        return;
                     if (event.item().getTypeName() == mItemId)
                         MainGui::open(&event.self(), "main");
                 }
             );
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
                 [](ll::event::PlayerJoinEvent& event) {
+                    if (event.self().isSimulatedPlayer())
+                        return;
                     ItemStack itemStack(mItemId, 1);
                     if (!itemStack || toolUtils::isItemPlayerInventory(&event.self(), &itemStack))
                         return;

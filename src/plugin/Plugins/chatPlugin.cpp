@@ -55,7 +55,7 @@ namespace chatPlugin {
             form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.add.dropdown"), toolUtils::getAllPlayerName());
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    MainGui::open(&pl);
                     return;
                 }
                 std::string PlayerSelectName = std::get<std::string>(dt->at("dropdown"));
@@ -67,6 +67,10 @@ namespace chatPlugin {
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
 
                 db->set("OBJECT$" + mObject + "$TITLE", PlayerInputTitle, toolUtils::timeCalculate(time));
+
+                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    MainGui::add(player_ptr);
+                });
             });
         }
 
@@ -79,7 +83,7 @@ namespace chatPlugin {
             form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.remove.dropdown1"), toolUtils::getAllPlayerName());
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    MainGui::open(&pl);
                     return;
                 }
                 Player* pl2 = toolUtils::getPlayerFromName(std::get<std::string>(dt->at("dropdown")));
@@ -93,7 +97,7 @@ namespace chatPlugin {
                 form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.remove.dropdown2"), list);
                 form.sendTo(*pl2, [mObject](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                     if (!dt) {
-                        pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                        MainGui::remove(&pl);
                         return;
                     }
                     std::string PlayerSelectTitle = std::get<std::string>(dt->at("dropdown"));
@@ -101,6 +105,10 @@ namespace chatPlugin {
                         db->del("OBJECT$" + mObject + "$TITLE", PlayerSelectTitle);
                         update(&pl);
                     }
+
+                    toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                        MainGui::remove(player_ptr);
+                    });
                 });
             });
         }
@@ -117,11 +125,15 @@ namespace chatPlugin {
             form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.setTitle.dropdown"), list);
             form.sendTo(*player, [mObject](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    MainGui::setting(&pl);
                     return;
                 }
                 std::string PlayerSelectTitle = std::get<std::string>(dt->at("dropdown"));
                 db->set("OBJECT$" + mObject, "title", PlayerSelectTitle);
+                
+                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    MainGui::title(player_ptr);
+                });
             });
         }
 
@@ -191,6 +203,8 @@ namespace chatPlugin {
             auto& eventBus = ll::event::EventBus::getInstance();
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
                 [](ll::event::PlayerJoinEvent& event) {
+                    if (event.self().isSimulatedPlayer())
+                        return;
                     if (!blacklistPlugin::isBlacklist(&event.self())) {
                         std::string mObject = event.self().getUuid().asString();
                         std::replace(mObject.begin(), mObject.end(), '-', '_');
@@ -207,6 +221,8 @@ namespace chatPlugin {
             );
             PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>(
                 [](ll::event::PlayerChatEvent& event) {
+                    if (event.self().isSimulatedPlayer())
+                        return;
                     if (!mutePlugin::isMute(&event.self())) {
                         std::string mChat = mChatString;
                         
