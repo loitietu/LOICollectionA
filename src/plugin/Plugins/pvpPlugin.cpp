@@ -128,10 +128,10 @@ namespace pvpPlugin {
             HookPlugin::Event::onPlayerHurtEvent([](void* target_ptr, void* source_ptr, float /*unused*/) {
                 Player* target = static_cast<Player*>(target_ptr);
                 Player* source = static_cast<Player*>(source_ptr);
-                if (!isEnable(target)) {
+                if (!isEnable(target) && !target->isSimulatedPlayer()) {
                     source->sendMessage(tr(getLanguage(source), "pvp.off1"));
                     return true;
-                } else if (!isEnable(source)) {
+                } else if (!isEnable(source) && !source->isSimulatedPlayer()) {
                     source->sendMessage(tr(getLanguage(source), "pvp.off2"));
                     return true;
                 }

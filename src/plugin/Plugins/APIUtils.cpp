@@ -65,6 +65,7 @@ namespace LOICollectionAPI {
         registerVariable("language", [](void* player_ptr) { return languagePlugin::getLanguage(player_ptr); });
         registerVariable("tps", [](void* /*unused*/) { return std::to_string(mTicksPerSecond); });
         registerVariable("tpm", [](void* /*unused*/) { return std::to_string(mTicksPerMinute); });
+        registerVariable("time", [](void* /*unused*/) { return toolUtils::getNowTime(); });
         registerVariable("player", [](void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             return player->getName();

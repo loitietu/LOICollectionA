@@ -20,6 +20,7 @@ namespace toolUtils {
 
     std::string getVersion();
     std::string getDevice(Player* player);
+    std::string getNowTime();
     std::string timeCalculate(int hours); 
     std::string formatDataTime(const std::string& timeString);
 

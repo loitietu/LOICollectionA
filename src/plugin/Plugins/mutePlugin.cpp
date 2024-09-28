@@ -122,7 +122,7 @@ namespace mutePlugin {
     namespace {
         const auto MuteCommandADD = [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) {
             for (auto& pl : param.target.results(origin)) {
-                if (!isMute(pl) && (int) pl->getPlayerPermissionLevel() < 2) {
+                if (!isMute(pl) && (int) pl->getPlayerPermissionLevel() < 2 && !pl->isSimulatedPlayer()) {
                     output.addMessage(fmt::format("Add player {}({}) to mute.", 
                         pl->getRealName(), pl->getUuid().asString()), 
                         {}, CommandOutputMessageType::Success);

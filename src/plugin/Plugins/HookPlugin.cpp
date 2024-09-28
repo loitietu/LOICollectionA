@@ -65,16 +65,18 @@ LL_TYPE_INSTANCE_HOOK(
     SubClientId subId,
     Packet const& packet
 ) {
+    if (mInterceptedTextPacketTargets.size() >= 10000) {
+        mInterceptedTextPacketTargets.clear();
+        for (auto& player : toolUtils::getAllPlayers())
+            mInterceptedTextPacketTargets.push_back(player->getUuid().asString());
+    }
     if (packet.getId() == MinecraftPacketIds::Text) {
         auto mTextPacket = static_cast<TextPacket const&>(packet);
         if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 2) {
-            std::string mUuid = toolUtils::getPlayerFromName(mTextPacket.mParams.at(0))->getUuid().asString();
-            if (mInterceptedTextPacketTargets.size() >= 10000) {
-                mInterceptedTextPacketTargets.clear();
-                for (auto& player : toolUtils::getAllPlayers())
-                    mInterceptedTextPacketTargets.push_back(player->getUuid().asString());
-            }
-            if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), mUuid)!= mInterceptedTextPacketTargets.end())
+            Player* player = toolUtils::getPlayerFromName(mTextPacket.mParams.at(0));
+            if (player == nullptr)
+                return origin(identifier, subId, packet);
+            if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), player->getUuid().asString())!= mInterceptedTextPacketTargets.end())
                 return;
         }
     }
@@ -95,11 +97,11 @@ LL_TYPE_INSTANCE_HOOK(
     }
     if (this->isType(ActorType::Player)) {
         Player* player = (Player*) this;
-        
-        static std::string mName;
-        mName = player->getRealName();
-        if (std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), player->getUuid().asString()) != mInterceptedGetNameTagTargets.end())
+        if (std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), player->getUuid().asString()) != mInterceptedGetNameTagTargets.end()) {
+            static std::string mName;
+            mName = player->getRealName();
             return mName;
+        }
     }
     return origin();
 };
@@ -113,8 +115,13 @@ LL_TYPE_INSTANCE_HOOK(
     NetworkIdentifier& identifier,
     TextPacket& packet
 ) {
+    Player* player = toolUtils::getPlayerFromName(packet.mAuthor);
+    
+    if (player == nullptr) 
+        return origin(identifier, packet);
+    
     for (auto& callback : mTextPacketSendEventCallbacks)
-        if (callback(toolUtils::getPlayerFromName(packet.mAuthor), packet.mMessage)) return;
+        if (callback(player, packet.mMessage)) return;
     return origin(identifier, packet);
 };
 

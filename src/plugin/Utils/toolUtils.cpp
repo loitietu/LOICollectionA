@@ -9,6 +9,7 @@
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/reflection/Serialization.h>
+#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/Minecraft.h>
 #include <mc/world/Container.h>
@@ -126,6 +127,15 @@ namespace toolUtils {
         return "unknown";
     }
 
+    std::string getNowTime() {
+        std::time_t currentTime = std::time(nullptr);
+        char formattedTime[20];
+        std::tm currentTimeInfo;
+        localtime_s(&currentTimeInfo, &currentTime);
+        std::strftime(formattedTime, sizeof(formattedTime), "%Y-%m-%d %H:%M:%S", &currentTimeInfo);
+        return std::string(formattedTime);
+    }
+
     std::string timeCalculate(int hours) {
         if (hours <= 0)
             return "0";
@@ -138,8 +148,7 @@ namespace toolUtils {
         std::tm laterTimeInfo;
         localtime_s(&laterTimeInfo, &laterTime);
         std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", &laterTimeInfo);
-        std::string formattedTimeString(formattedTime);
-        return formattedTimeString;
+        return std::string(formattedTime);
     }
 
     std::string formatDataTime(const std::string& timeString) {
@@ -188,7 +197,8 @@ namespace toolUtils {
     std::vector<Player*> getAllPlayers() {
         std::vector<Player*> mObjectLists = {};
         ll::service::getLevel()->forEachPlayer([&](Player& player) -> bool {
-            mObjectLists.push_back(&player);
+            if (!player.isSimulatedPlayer())
+                mObjectLists.push_back(&player);
             return true;
         });
         return mObjectLists;
@@ -211,15 +221,11 @@ namespace toolUtils {
     bool isReach(const std::string& timeString) {
         if (timeString == "0") 
             return false;
-        std::time_t currentTime = std::time(nullptr);
-        char formattedTime[15];
-        std::tm currentTimeInfo;
-        localtime_s(&currentTimeInfo, &currentTime);
-        std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", &currentTimeInfo);
-        std::string formattedTimeString(formattedTime);
-        int64_t formattedTimeInt = std::stoll(formattedTimeString);
-        int64_t timeInt = std::stoll(timeString);
-        return formattedTimeInt > timeInt;
+        std::string formattedTime = getNowTime();
+        ll::string_utils::replaceAll(formattedTime, "-", "");
+        ll::string_utils::replaceAll(formattedTime, ":", "");
+        ll::string_utils::replaceAll(formattedTime, " ", "");
+        return std::stoll(formattedTime) > std::stoll(timeString);
     }
 
     bool isItemPlayerInventory(Player* player, void* itemStack_ptr) {
