@@ -37,6 +37,7 @@
 
 int64_t mFakeSeed = 0;
 std::vector<std::string> mInterceptedTextPacketTargets;
+std::vector<std::string> mInterceptedGetNameTagTargets;
 std::vector<std::function<bool(void*, std::string)>> mTextPacketSendEventCallbacks;
 std::vector<std::function<void(void*, std::string, std::string)>> mLoginPacketSendEventCallbacks;
 std::vector<std::function<void(void*, int, std::string)>> mPlayerScoreChangedEventCallbacks;
@@ -73,11 +74,34 @@ LL_TYPE_INSTANCE_HOOK(
                 for (auto& player : toolUtils::getAllPlayers())
                     mInterceptedTextPacketTargets.push_back(player->getUuid().asString());
             }
-            for (auto& target : mInterceptedTextPacketTargets)
-                if (mUuid == target) return;
+            if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), mUuid)!= mInterceptedTextPacketTargets.end())
+                return;
         }
     }
     return origin(identifier, subId, packet);
+};
+
+LL_TYPE_INSTANCE_HOOK(
+    InterceptGetNameTagHook,
+    HookPriority::Normal,
+    Actor,
+    &Actor::getNameTag,
+    std::string const&
+) {
+    if (mInterceptedGetNameTagTargets.size() >= 10000) {
+        mInterceptedGetNameTagTargets.clear();
+        for (auto& player : toolUtils::getAllPlayers())
+            mInterceptedGetNameTagTargets.push_back(player->getUuid().asString());
+    }
+    if (this->isType(ActorType::Player)) {
+        Player* player = (Player*) this;
+        
+        static std::string mName;
+        mName = player->getRealName();
+        if (std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), player->getUuid().asString()) != mInterceptedGetNameTagTargets.end())
+            return mName;
+    }
+    return origin();
 };
 
 LL_TYPE_INSTANCE_HOOK(
@@ -211,6 +235,10 @@ namespace HookPlugin {
         mInterceptedTextPacketTargets.push_back(uuid);
     }
 
+    void interceptGetNameTag(const std::string& uuid) {
+        mInterceptedGetNameTagTargets.push_back(uuid);
+    }
+
     void setFakeSeed(const std::string& fakeSeed) {
         try {
             if (fakeSeed.empty() || fakeSeed == "random") {
@@ -224,6 +252,7 @@ namespace HookPlugin {
     void registery() {
         FakeSeedHook::hook();
         InterceptPacketHook::hook();
+        InterceptGetNameTagHook::hook();
         TextPacketSendHook::hook();
         LoginPacketSendHook::hook();
         PlayerScoreChangedHook::hook();
@@ -234,6 +263,7 @@ namespace HookPlugin {
     void unregistery() {
         FakeSeedHook::unhook();
         InterceptPacketHook::unhook();
+        InterceptGetNameTagHook::unhook();
         TextPacketSendHook::unhook();
         LoginPacketSendHook::unhook();
         PlayerScoreChangedHook::unhook();

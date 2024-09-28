@@ -21,6 +21,7 @@ struct C_Config {
     bool Shop = false;
     struct C_Monitor {
         bool Enable = false;
+        std::string show = "{player}\n称号: {title}";
         std::string join = "{player}加入了服务器";
         std::string target = "money";
         std::string changed = "§e§l检测到Score发生变化 §e现值: §f${GetScore}";

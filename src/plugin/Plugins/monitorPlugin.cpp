@@ -3,11 +3,15 @@
 #include <vector>
 #include <variant>
 
+#include <ll/api/schedule/Task.h>
+#include <ll/api/schedule/Scheduler.h>
+#include <ll/api/chrono/GameChrono.h>
+#include <ll/api/utils/StringUtils.h>
+
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
 #include <ll/api/event/command/ExecuteCommandEvent.h>
-#include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -20,6 +24,8 @@
 #include "Utils/toolUtils.h"
 
 #include "Include/monitorPlugin.h"
+
+using namespace ll::chrono_literals;
 
 namespace monitorPlugin {
     std::vector<std::string> mObjectCommands;
@@ -56,6 +62,7 @@ namespace monitorPlugin {
             );
             HookPlugin::Event::onLoginPacketSendEvent([](void* /*unused*/, std::string mUuid, std::string /*unused*/) {
                 HookPlugin::interceptTextPacket(mUuid);
+                HookPlugin::interceptGetNameTag(mUuid);
             });
             HookPlugin::Event::onPlayerScoreChangedEvent([](void* player_ptr, int score, std::string id) {
                 Player* player = static_cast<Player*>(player_ptr);
@@ -64,6 +71,16 @@ namespace monitorPlugin {
                     std::string mChangedString = std::get<std::string>(mObjectOptions.at("changed"));
                     ll::string_utils::replaceAll(mChangedString, "${GetScore}", std::to_string(score));
                     player->sendMessage(mChangedString);
+                }
+            });
+
+            static ll::schedule::GameTickAsyncScheduler scheduler;
+            scheduler.add<ll::schedule::RepeatTask>(3_tick, [] {
+                for (auto& player : toolUtils::getAllPlayers()) {
+                    std::string mMonitorString = std::get<std::string>(mObjectOptions.at("show"));
+                    LOICollectionAPI::translateString(mMonitorString, player);
+                    player->setNameTag(mMonitorString);
+                    player->_sendDirtyActorData();
                 }
             });
         }

@@ -142,6 +142,19 @@ namespace toolUtils {
         return formattedTimeString;
     }
 
+    std::string formatDataTime(const std::string& timeString) {
+        if (timeString.size() != 14) 
+            return "None";
+        std::string fomatted;
+        fomatted += timeString.substr(0, 4) + "-";
+        fomatted += timeString.substr(4, 2) + "-";
+        fomatted += timeString.substr(6, 2) + " ";
+        fomatted += timeString.substr(8, 2) + ":";
+        fomatted += timeString.substr(10, 2) + ":";
+        fomatted += timeString.substr(12, 2);
+        return fomatted;
+    }
+
     int toInt(const std::string& intString, int defaultValue) {
         try {
             return std::stoi(intString);

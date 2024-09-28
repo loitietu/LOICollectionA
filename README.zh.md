@@ -34,7 +34,7 @@ lip install github.com/loitietu/LOICollectionA
 3. 打开后，您会看到类似以下内容的内容：
 ```json
 {
-    "version": 144,
+    "version": 146,
     "FakeSeed": "random",
     "language": {
         "update": true
@@ -50,6 +50,7 @@ lip install github.com/loitietu/LOICollectionA
     "Shop": false,
     "Monitor": {
         "Enable": false,
+        "show": "{player}\n称号: {title}",
         "join": "{player}加入了服务器",
         "target": "money",
         "changed": "§e§l检测到Score发生变化 §e现值: §f${GetScore}",

@@ -58,7 +58,7 @@ namespace LOICollectionAPI {
         });
         registerVariable("title.time", [](void* player_ptr) {
             chatPlugin::update(player_ptr);
-            return chatPlugin::getTitleTime(player_ptr, chatPlugin::getTitle(player_ptr));
+            return toolUtils::formatDataTime(chatPlugin::getTitleTime(player_ptr, chatPlugin::getTitle(player_ptr)));
         });
         registerVariable("pvp", [](void* player_ptr) { return pvpPlugin::isEnable(player_ptr) ? "true" : "false"; });
         registerVariable("mute", [](void* player_ptr) { return mutePlugin::isMute(player_ptr) ? "true" : "false"; });

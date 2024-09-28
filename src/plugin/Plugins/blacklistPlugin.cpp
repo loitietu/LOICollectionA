@@ -58,7 +58,7 @@ namespace blacklistPlugin {
 
             ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
             ll::string_utils::replaceAll(mObjectLabel, "${cause}", db->get("OBJECT$" + target, "cause"));
-            ll::string_utils::replaceAll(mObjectLabel, "${time}", db->get("OBJECT$" + target, "time"));
+            ll::string_utils::replaceAll(mObjectLabel, "${time}", toolUtils::formatDataTime(db->get("OBJECT$" + target, "time")));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), mObjectLabel);
             form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [target](Player& pl) {
@@ -206,7 +206,7 @@ namespace blacklistPlugin {
                         return;
                     }
                     ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mUuid, "cause"));
-                    ll::string_utils::replaceAll(mObjectTips, "${time}", db->get("OBJECT$" + mUuid, "time"));
+                    ll::string_utils::replaceAll(mObjectTips, "${time}", toolUtils::formatDataTime(db->get("OBJECT$" + mUuid, "time")));
                     ll::service::getServerNetworkHandler()->disconnectClient(
                         *identifier, Connection::DisconnectFailReason::Kicked, mObjectTips, false
                     );
@@ -220,7 +220,7 @@ namespace blacklistPlugin {
                         return;
                     }
                     ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mObjectIP, "cause"));
-                    ll::string_utils::replaceAll(mObjectTips, "${time}", db->get("OBJECT$" + mObjectIP, "time"));
+                    ll::string_utils::replaceAll(mObjectTips, "${time}", toolUtils::formatDataTime(db->get("OBJECT$" + mObjectIP, "time")));
                     ll::service::getServerNetworkHandler()->disconnectClient(
                         *identifier, Connection::DisconnectFailReason::Kicked, mObjectTips, false
                     );
@@ -249,7 +249,7 @@ namespace blacklistPlugin {
             db->set("OBJECT$" + mObject, "time", toolUtils::timeCalculate(time));
         }
         ll::string_utils::replaceAll(mObjectTips, "${cause}", cause);
-        ll::string_utils::replaceAll(mObjectTips, "${time}", db->get("OBJECT$" + mObject, "time"));
+        ll::string_utils::replaceAll(mObjectTips, "${time}", toolUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
         ll::service::getServerNetworkHandler()->disconnectClient(
             player->getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked, mObjectTips, false
         );

@@ -49,7 +49,7 @@ namespace mutePlugin {
 
             ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
             ll::string_utils::replaceAll(mObjectLabel, "${cause}", db->get("OBJECT$" + target, "cause"));
-            ll::string_utils::replaceAll(mObjectLabel, "${time}", db->get("OBJECT$" + target, "time"));
+            ll::string_utils::replaceAll(mObjectLabel, "${time}", toolUtils::formatDataTime(db->get("OBJECT$" + target, "time")));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), mObjectLabel);
             form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [target](Player& pl) {
@@ -178,7 +178,7 @@ namespace mutePlugin {
                     std::string logString = tr(getLanguage(player), "mute.log3");
 
                     ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mObject, "cause"));
-                    ll::string_utils::replaceAll(mObjectTips, "${time}", db->get("OBJECT$" + mObject, "time"));
+                    ll::string_utils::replaceAll(mObjectTips, "${time}", toolUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
                     ll::string_utils::replaceAll(logString, "${message}", message);
 
                     logger.info(LOICollectionAPI::translateString(logString, player));

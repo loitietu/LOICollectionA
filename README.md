@@ -34,7 +34,7 @@ Market | $\color{#00FF00}{√}$
 3. After opening, you will see content similar to the following:
 ```json
 {
-    "version": 144,
+    "version": 146,
     "FakeSeed": "random",
     "language": {
         "update": true
@@ -50,6 +50,7 @@ Market | $\color{#00FF00}{√}$
     "Shop": false,
     "Monitor": {
         "Enable": false,
+        "show": "{player}\nTitle: {title}",
         "join": "{player} has joined the server",
         "target": "money",
         "changed": "§e§lDetected Score Change §eCurrent Value: §f${GetScore}",

@@ -109,6 +109,7 @@ namespace LOICollection {
         if (this->config.Shop) shopPlugin::registery(&this->ShopDB);
         if (this->config.Monitor.Enable) {
             std::map<std::string, std::variant<std::string, std::vector<std::string>>> options;
+            options["show"] = this->config.Monitor.show;
             options["join"] = this->config.Monitor.join;
             options["target"] = this->config.Monitor.target;
             options["changed"] = this->config.Monitor.changed;
