@@ -5,6 +5,7 @@
 
 #include <ll/api/Logger.h>
 #include <ll/api/form/ModalForm.h>
+#include <ll/api/form/SimpleForm.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
@@ -89,20 +90,19 @@ namespace tpaPlugin {
             });
         }
 
-        void open(void* player_ptr) {
+        void content(void* player_ptr, std::string target) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             ll::form::CustomForm form(tr(mObjectLanguage, "tpa.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "tpa.gui.label"));
-            form.appendDropdown("dropdown1", tr(mObjectLanguage, "tpa.gui.dropdown1"), toolUtils::getAllPlayerName());
-            form.appendDropdown("dropdown2", tr(mObjectLanguage, "tpa.gui.dropdown2"), { "tpa", "tphere" });
-            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "tpa.gui.dropdown"), { "tpa", "tphere" });
+            form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    MainGui::open(&pl);
                     return;
                 }
-                Player* pl2 = toolUtils::getPlayerFromName(std::get<std::string>(dt->at("dropdown1")));
-                std::string PlayerSelectType = std::get<std::string>(dt->at("dropdown2"));
+                Player* pl2 = toolUtils::getPlayerFromName(target);
+                std::string PlayerSelectType = std::get<std::string>(dt->at("dropdown"));
                 if (!isInvite(pl2)) {
                     if (PlayerSelectType == "tpa") {
                         MainGui::tpa(&pl, pl2, false);
@@ -112,6 +112,20 @@ namespace tpaPlugin {
                     return;
                 }
                 pl.sendMessage(tr(getLanguage(&pl), "tpa.no.tips"));
+            });
+        }
+
+        void open(void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            std::string mObjectLanguage = getLanguage(player);
+            ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.title"), tr(mObjectLanguage, "tpa.gui.label2"));
+            for (auto& mTarget : toolUtils::getAllPlayerName()) {
+                form.appendButton(mTarget, [mTarget](Player& pl) {
+                    MainGui::content(&pl, mTarget);
+                });
+            }
+            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
             });
         }
     }

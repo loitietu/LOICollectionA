@@ -42,7 +42,8 @@ namespace LOICollection {
     bool A::load() {
         auto& logger = mSelf.getLogger();
         const auto& dataFilePath = this->mSelf.getDataDir();
-        const auto& configFilePath = this->mSelf.getConfigDir() / "config.json";
+        const auto& configDataPath = this->mSelf.getConfigDir();
+        const auto& configFilePath = configDataPath / "config.json";
 
         logger.setFile("./logs/LOICollectionA.log", false);
 
@@ -77,13 +78,13 @@ namespace LOICollection {
         this->PvpDB = std::make_unique<SQLiteStorage>(dataFilePath / "pvp.db");
         this->ChatDB = std::make_unique<SQLiteStorage>(dataFilePath / "chat.db");
         this->MarketDB = std::make_unique<SQLiteStorage>(dataFilePath / "market.db");
-        this->CdkDB = std::make_unique<JsonUtils>(dataFilePath / "cdk.json");
-        this->MenuDB = std::make_unique<JsonUtils>(dataFilePath / "menu.json");
-        this->ShopDB = std::make_unique<JsonUtils>(dataFilePath / "shop.json");
-        this->AnnounCementDB = std::make_unique<JsonUtils>(dataFilePath / "announcement.json");
+        this->CdkDB = std::make_unique<JsonUtils>(configDataPath / "cdk.json");
+        this->MenuDB = std::make_unique<JsonUtils>(configDataPath / "menu.json");
+        this->ShopDB = std::make_unique<JsonUtils>(configDataPath / "shop.json");
+        this->AnnounCementDB = std::make_unique<JsonUtils>(configDataPath / "announcement.json");
         logger.info("Initialization of database file completed.");
 
-        if (this->config.language.update) {
+        if (this->config.Plugins.language.update) {
             JsonUtils mObjectLanguage(this->mSelf.getConfigDir() / "language.json");
             mObjectLanguage.set("zh_CN", CNLangData);
             mObjectLanguage.save();
@@ -91,7 +92,7 @@ namespace LOICollection {
         I18nUtils::load(mSelf.getConfigDir() / "language.json");
         logger.info("Initialization of language file completed.");
 
-        HookPlugin::setFakeSeed(this->config.FakeSeed);
+        HookPlugin::setFakeSeed(this->config.Plugins.FakeSeed);
         logger.info("Initialization of Hook completed.");
         return true;
     }
@@ -101,34 +102,34 @@ namespace LOICollection {
 
         HookPlugin::registery();
         languagePlugin::registery(&this->LanguageDB);
-        if (this->config.Blacklist) blacklistPlugin::registery(&this->BlacklistDB);
-        if (this->config.Mute) mutePlugin::registery(&this->MuteDB);
-        if (this->config.Cdk) cdkPlugin::registery(&this->CdkDB);
-        if (this->config.Menu.Enable) menuPlugin::registery(&this->MenuDB, this->config.Menu.ItemId);
-        if (this->config.Tpa) tpaPlugin::registery(&this->TpaDB);
-        if (this->config.Shop) shopPlugin::registery(&this->ShopDB);
-        if (this->config.Monitor.Enable) {
+        if (this->config.Plugins.Blacklist) blacklistPlugin::registery(&this->BlacklistDB);
+        if (this->config.Plugins.Mute) mutePlugin::registery(&this->MuteDB);
+        if (this->config.Plugins.Cdk) cdkPlugin::registery(&this->CdkDB);
+        if (this->config.Plugins.Menu.Enable) menuPlugin::registery(&this->MenuDB, this->config.Plugins.Menu.ItemId);
+        if (this->config.Plugins.Tpa) tpaPlugin::registery(&this->TpaDB);
+        if (this->config.Plugins.Shop) shopPlugin::registery(&this->ShopDB);
+        if (this->config.Plugins.Monitor.Enable) {
             std::map<std::string, std::variant<std::string, std::vector<std::string>>> options;
-            options["show"] = this->config.Monitor.show;
-            options["join"] = this->config.Monitor.join;
-            options["target"] = this->config.Monitor.target;
-            options["changed"] = this->config.Monitor.changed;
-            options["tips"] = this->config.Monitor.tips;
-            options["command"] = this->config.Monitor.command;
+            options["show"] = this->config.Plugins.Monitor.show;
+            options["join"] = this->config.Plugins.Monitor.join;
+            options["target"] = this->config.Plugins.Monitor.target;
+            options["changed"] = this->config.Plugins.Monitor.changed;
+            options["tips"] = this->config.Plugins.Monitor.tips;
+            options["command"] = this->config.Plugins.Monitor.command;
             monitorPlugin::registery(options);
         }
-        if (this->config.Pvp) pvpPlugin::registery(&this->PvpDB);
-        if (this->config.Wallet.Enable) {
+        if (this->config.Plugins.Pvp) pvpPlugin::registery(&this->PvpDB);
+        if (this->config.Plugins.Wallet.Enable) {
             std::map<std::string, std::variant<std::string, double>> options;
-            options["score"] = this->config.Wallet.score;
-            options["tax"] = this->config.Wallet.tax;
+            options["score"] = this->config.Plugins.Wallet.score;
+            options["tax"] = this->config.Plugins.Wallet.tax;
             walletPlugin::registery(options);
         }
-        if (this->config.Chat.Enable) chatPlugin::registery(&this->ChatDB, this->config.Chat.chat);
-        if (this->config.AnnounCement) announcementPlugin::registery(&this->AnnounCementDB);
-        if (this->config.Market.Enable) {
+        if (this->config.Plugins.Chat.Enable) chatPlugin::registery(&this->ChatDB, this->config.Plugins.Chat.chat);
+        if (this->config.Plugins.AnnounCement) announcementPlugin::registery(&this->AnnounCementDB);
+        if (this->config.Plugins.Market.Enable) {
             std::map<std::string, std::string> options;
-            options["score"] = this->config.Market.score;
+            options["score"] = this->config.Plugins.Market.score;
             marketPlugin::registery(&this->MarketDB, options);
         }
         return true;
@@ -137,13 +138,13 @@ namespace LOICollection {
     bool A::disable() {
         HookPlugin::unregistery();
         languagePlugin::unregistery();
-        if (this->config.Menu.Enable) menuPlugin::unregistery();
-        if (this->config.Tpa) tpaPlugin::unregistery();
-        if (this->config.Monitor.Enable) monitorPlugin::unregistery();
-        if (this->config.Pvp) pvpPlugin::unregistery();
-        if (this->config.Chat.Enable) chatPlugin::unregistery();
-        if (this->config.AnnounCement) announcementPlugin::unregistery();
-        if (this->config.Market.Enable) marketPlugin::unregistery();
+        if (this->config.Plugins.Menu.Enable) menuPlugin::unregistery();
+        if (this->config.Plugins.Tpa) tpaPlugin::unregistery();
+        if (this->config.Plugins.Monitor.Enable) monitorPlugin::unregistery();
+        if (this->config.Plugins.Pvp) pvpPlugin::unregistery();
+        if (this->config.Plugins.Chat.Enable) chatPlugin::unregistery();
+        if (this->config.Plugins.AnnounCement) announcementPlugin::unregistery();
+        if (this->config.Plugins.Market.Enable) marketPlugin::unregistery();
         return true;
     }
 }

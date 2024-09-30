@@ -28,17 +28,18 @@ unsigned short mTicks;
 std::vector<unsigned short> mTicksList;
 
 std::unordered_map<std::string, std::function<std::string(void*)>> mVariableMap;
+std::unordered_map<std::string, std::function<std::string(void*, std::string)>> mVariableMapParameter;
 
 namespace LOICollectionAPI {
     void initialization() {
         static ll::schedule::GameTickAsyncScheduler scheduler1;
-        static ll::schedule::ServerTimeAsyncScheduler scheduler2;
+        static ll::schedule::ServerTimeScheduler scheduler2;
         scheduler1.add<ll::schedule::RepeatTask>(1_tick, [] {
             mTicks++;
-        });
-        scheduler2.add<ll::schedule::RepeatTask>(1s, [] {
             if (mTicks > 20)
                 mTicks = 20;
+        });
+        scheduler2.add<ll::schedule::RepeatTask>(1s, [] {
             mTicksList.push_back(mTicks);
             mTicksPerSecond = (int) mTicks;
             mTicks = 0;
@@ -70,6 +71,7 @@ namespace LOICollectionAPI {
             Player* player = static_cast<Player*>(player_ptr);
             return player->getName();
         });
+        registerVariable("maxPlayer", [](void* /*unused*/) { return std::to_string(toolUtils::getAllPlayers().size()); });
         registerVariable("pos", [](void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             return player->getPosition().toString();
@@ -154,17 +156,36 @@ namespace LOICollectionAPI {
             Player* player = static_cast<Player*>(player_ptr);
             return std::to_string(player->getNetworkStatus()->mCurrentPacketLoss);
         });
+        registerVariableParameter("score", [](void* player_ptr, std::string name) {
+            Player* player = static_cast<Player*>(player_ptr);
+            return std::to_string(toolUtils::scoreboard::getScore(player, name));
+        });
+        registerVariableParameter("tr", [](void* player_ptr, std::string name) {
+            return I18nUtils::tr(languagePlugin::getLanguage(player_ptr), name);
+        });
     }
 
     void registerVariable(const std::string& name, const std::function<std::string(void*)> callback) {
         if (mVariableMap.find(name) != mVariableMap.end())
             return;
-        mVariableMap.insert({name, callback});
+        mVariableMap[name] = callback;
+    }
+
+    void registerVariableParameter(const std::string& name, const std::function<std::string(void*, std::string)> callback) {
+        if (mVariableMapParameter.find(name) != mVariableMapParameter.end())
+            return;
+        mVariableMapParameter[name] = callback;
     }
 
     std::string& translateString(std::string& contentString, void* player_ptr) {
         if (contentString.empty())
             return contentString;
+
+        std::smatch mMatchFind;
+        std::regex mPatternFind("\\{(.*?)\\}");
+        if (!std::regex_search(contentString, mMatchFind, mPatternFind))
+            return contentString;
+
         for (auto& [name, callback] : mVariableMap) {
             if (contentString.find("{" + name + "}") == std::string::npos)
                 continue;
@@ -172,20 +193,16 @@ namespace LOICollectionAPI {
                 ll::string_utils::replaceAll(contentString, "{" + name + "}", callback(player_ptr));
             } catch (...) { ll::string_utils::replaceAll(contentString, "{" + name + "}", "None"); };
         }
-        Player* player = static_cast<Player*>(player_ptr);
 
-        std::smatch match;
-        std::regex pattern1("\\{score\\((.*?)\\)\\}");
-        std::regex pattern2("\\{tr\\((.*?)\\)\\}");
-        while (std::regex_search(contentString, match, pattern1)) {
-            std::string extractedContent = match.str(1);
-            int score = toolUtils::scoreboard::getScore(player, extractedContent);
-            contentString = std::regex_replace(contentString, pattern1, std::to_string(score));
-        }
-        while (std::regex_search(contentString, match, pattern2)) {
-            std::string extractedContent = match.str(1);
-            std::string translatedContent = I18nUtils::tr(languagePlugin::getLanguage(player), extractedContent);
-            contentString = std::regex_replace(contentString, pattern2, translatedContent);
+        std::smatch mMatchParameter;
+        for (auto& [name, callback] : mVariableMapParameter) {
+            std::regex mPatternParameter("\\{" + name + "\\((.*?)\\)\\}");
+            while (std::regex_search(contentString, mMatchParameter, mPatternParameter)) {
+                std::string extractedContent = mMatchParameter.str(1);
+                try {
+                    ll::string_utils::replaceAll(contentString, "{" + name + "(" + extractedContent + ")}", callback(player_ptr, extractedContent));
+                } catch (...) { ll::string_utils::replaceAll(contentString, "{" + name + "(" + extractedContent + ")}", "None"); };
+            }
         }
         return contentString;
     }

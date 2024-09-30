@@ -9,6 +9,7 @@
 
 namespace walletPlugin {
     namespace MainGui {
+        LOICOLLECTION_A_API void content(void* player_ptr, std::string target);
         LOICOLLECTION_A_API void transfer(void* player_ptr);
         LOICOLLECTION_A_API void wealth(void* player_ptr);
         LOICOLLECTION_A_API void open(void* player_ptr);

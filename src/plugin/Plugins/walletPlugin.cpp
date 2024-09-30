@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <ll/api/Logger.h>
+#include <ll/api/form/SimpleForm.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
@@ -30,26 +31,25 @@ using I18nUtils::tr;
 using languagePlugin::getLanguage;
 
 namespace walletPlugin {
+    std::string mScore;
     std::map<std::string, std::variant<std::string, double>> mObjectOptions;
     ll::Logger logger("LOICollectionA - Wallet");
 
     namespace MainGui {
-        void transfer(void* player_ptr) {
+        void content(void* player_ptr, std::string target) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
-            std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
 
-            ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%");
+            ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%%");
             ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, mScore)));
 
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
             form.appendLabel(mLabel);
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "wallet.gui.stepslider.dropdown"), toolUtils::getAllPlayerName());
             form.appendInput("Input", tr(mObjectLanguage, "wallet.gui.stepslider.input"), "", "100");
-            form.sendTo(*player, [mScore](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    MainGui::open(&pl);
+                    MainGui::transfer(&pl);
                     return;
                 }
                 int mMoney = toolUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
@@ -59,10 +59,8 @@ namespace walletPlugin {
                     return;
                 }
 
-                std::string mTargetName = std::get<std::string>(dt->at("dropdown"));
-                Player* target = toolUtils::getPlayerFromName(mTargetName);
                 toolUtils::scoreboard::reduceScore(&pl, mScore, mMoney);
-                toolUtils::scoreboard::addScore(target, mScore, mTargetMoney);
+                toolUtils::scoreboard::addScore(toolUtils::getPlayerFromName(target), mScore, mTargetMoney);
 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
                     MainGui::transfer(player_ptr);
@@ -70,9 +68,23 @@ namespace walletPlugin {
 
                 std::string logString = tr(getLanguage(&pl), "wallet.log");
                 ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
-                ll::string_utils::replaceAll(logString, "${player2}", mTargetName);
+                ll::string_utils::replaceAll(logString, "${player2}", target);
                 ll::string_utils::replaceAll(logString, "${money}", std::to_string(mMoney));
                 logger.info(logString);
+            });
+        }
+
+        void transfer(void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            std::string mObjectLanguage = getLanguage(player);
+            ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), tr(mObjectLanguage, "wallet.gui.stepslider.label"));
+            for (auto& mTarget : toolUtils::getAllPlayerName()) {
+                form.appendButton(mTarget, [mTarget](Player& pl) {
+                    MainGui::content(&pl, mTarget);
+                });
+            }
+            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) MainGui::open(&pl);
             });
         }
 
@@ -93,8 +105,8 @@ namespace walletPlugin {
             std::string mObjectLanguage = getLanguage(player);
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
 
-            ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%");
-            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
+            ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%%");
+            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, mScore)));
 
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
             form.appendLabel(mLabel);
@@ -135,6 +147,7 @@ namespace walletPlugin {
     }
 
     void registery(std::map<std::string, std::variant<std::string, double>>& options) {
+        mScore = std::get<std::string>(options.at("score"));
         mObjectOptions = options;
 
         logger.setFile("./logs/LOICollectionA.log");

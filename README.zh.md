@@ -35,42 +35,44 @@ lip install github.com/loitietu/LOICollectionA
 ```json
 {
     "version": 146,
-    "FakeSeed": "random",
-    "language": {
-        "update": true
-    },
-    "Blacklist": false,
-    "Mute": false, 
-    "Cdk": false,
-    "Menu": {
-        "Enable": false,
-        "ItemId": "minecraft:clock" 
-    },
-    "Tpa": false,
-    "Shop": false,
-    "Monitor": {
-        "Enable": false,
-        "show": "{player}\n称号: {title}",
-        "join": "{player}加入了服务器",
-        "target": "money",
-        "changed": "§e§l检测到Score发生变化 §e现值: §f${GetScore}",
-        "tips": "该指令已被禁用" ,
-        "command": [],
-    },
-    "Pvp": false,
-    "Wallet": {
-        "Enable": false,
-        "score": "money",
-        "tax": 0.1 
-    },
-    "Chat": {
-        "Enable": false,
-        "chat": "<{player}> ${chat}"
-    },
-    "AnnounCement": false,
-    "Market": {
-        "Enable": false,
-        "score": "money"
+    "Plugins": {
+        "FakeSeed": "random",
+        "language": {
+            "update": true
+        },
+        "Blacklist": false,
+        "Mute": false, 
+        "Cdk": false,
+        "Menu": {
+            "Enable": false,
+            "ItemId": "minecraft:clock" 
+        },
+        "Tpa": false,
+        "Shop": false,
+        "Monitor": {
+            "Enable": false,
+            "show": "{player}\n称号: {title}",
+            "join": "{player}加入了服务器",
+            "target": "money",
+            "changed": "§e§l检测到Score发生变化 §e现值: §f${GetScore}",
+            "tips": "该指令已被禁用" ,
+            "command": [],
+        },
+        "Pvp": false,
+        "Wallet": {
+            "Enable": false,
+            "score": "money",
+            "tax": 0.1 
+        },
+        "Chat": {
+            "Enable": false,
+            "chat": "<{player}> ${chat}"
+        },
+        "AnnounCement": false,
+        "Market": {
+            "Enable": false,
+            "score": "money"
+        }
     }
 }
 ```

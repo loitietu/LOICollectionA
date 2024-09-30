@@ -35,42 +35,44 @@ Market | $\color{#00FF00}{√}$
 ```json
 {
     "version": 146,
-    "FakeSeed": "random",
-    "language": {
-        "update": true
-    },
-    "Blacklist": false,
-    "Mute": false, 
-    "Cdk": false,
-    "Menu": {
-        "Enable": false,
-        "ItemId": "minecraft:clock" 
-    },
-    "Tpa": false,
-    "Shop": false,
-    "Monitor": {
-        "Enable": false,
-        "show": "{player}\nTitle: {title}",
-        "join": "{player} has joined the server",
-        "target": "money",
-        "changed": "§e§lDetected Score Change §eCurrent Value: §f${GetScore}",
-        "tips": "This command has been disabled",
-        "command": [],
-    },
-    "Pvp": false,
-    "Wallet": {
-        "Enable": false,
-        "score": "money",
-        "tax": 0.1 
-    },
-    "Chat": {
-        "Enable": false,
-        "chat": "<{player}> ${chat}"
-    },
-    "Announcement": false,
-    "Market": {
-        "Enable": false,
-        "score": "money"
+    "Plugins": {
+        "FakeSeed": "random",
+        "language": {
+            "update": true
+        },
+        "Blacklist": false,
+        "Mute": false, 
+        "Cdk": false,
+        "Menu": {
+            "Enable": false,
+            "ItemId": "minecraft:clock" 
+        },
+        "Tpa": false,
+        "Shop": false,
+        "Monitor": {
+            "Enable": false,
+            "show": "{player}\nTitle: {title}",
+            "join": "{player} has joined the server",
+            "target": "money",
+            "changed": "§e§lDetected Score Change §eCurrent Value: §f${GetScore}",
+            "tips": "This command has been disabled",
+            "command": [],
+        },
+        "Pvp": false,
+        "Wallet": {
+            "Enable": false,
+            "score": "money",
+            "tax": 0.1 
+        },
+        "Chat": {
+            "Enable": false,
+            "chat": "<{player}> ${chat}"
+        },
+        "Announcement": false,
+        "Market": {
+            "Enable": false,
+            "score": "money"
+        }
     }
 }
 ```

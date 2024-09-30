@@ -44,7 +44,7 @@ namespace chatPlugin {
     ll::Logger logger("LOICollectionA - Chat");
 
     namespace MainGui {
-        void add(void* player_ptr) {
+        void contentAdd(void* player_ptr, std::string target) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
@@ -52,17 +52,15 @@ namespace chatPlugin {
             form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
             form.appendInput("Input1", tr(mObjectLanguage, "chat.gui.manager.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "chat.gui.manager.add.input2"), "", "0");
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.add.dropdown"), toolUtils::getAllPlayerName());
-            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    MainGui::open(&pl);
+                    MainGui::add(&pl);
                     return;
                 }
-                std::string PlayerSelectName = std::get<std::string>(dt->at("dropdown"));
                 std::string PlayerInputTitle = std::get<std::string>(dt->at("Input1"));
                 int time = toolUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 
-                Player* pl2 = toolUtils::getPlayerFromName(PlayerSelectName);
+                Player* pl2 = toolUtils::getPlayerFromName(target);
                 std::string mObject = pl2->getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
 
@@ -73,43 +71,60 @@ namespace chatPlugin {
                 });
             });
         }
+        
+        void contentRemove(void* player_ptr, std::string target) {
+            Player* player = static_cast<Player*>(player_ptr);
+            std::string mObjectLanguage = getLanguage(player);
+
+            Player* mTargetObject = toolUtils::getPlayerFromName(target);
+            std::string mObject = mTargetObject->getUuid().asString();
+            std::replace(mObject.begin(), mObject.end(), '-', '_');
+            std::vector<std::string> list = db->list("OBJECT$" + mObject + "$TITLE");
+            ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
+            form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.remove.dropdown"), list);
+            form.sendTo(*mTargetObject, [mObject](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+                if (!dt) {
+                    MainGui::remove(&pl);
+                    return;
+                }
+                std::string PlayerSelectTitle = std::get<std::string>(dt->at("dropdown"));
+                if (PlayerSelectTitle != "None") {
+                    db->del("OBJECT$" + mObject + "$TITLE", PlayerSelectTitle);
+                    update(&pl);
+                }
+
+                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    MainGui::remove(player_ptr);
+                });
+            });
+        }
+
+        void add(void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            std::string mObjectLanguage = getLanguage(player);
+            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.add.label"));
+            for (auto& mTarget : toolUtils::getAllPlayerName()) {
+                form.appendButton(mTarget, [mTarget](Player& pl) {
+                    MainGui::contentAdd(&pl, mTarget);
+                });
+            }
+            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) MainGui::open(&pl);
+            });
+        }
 
         void remove(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
-
-            ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
-            form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.remove.dropdown1"), toolUtils::getAllPlayerName());
-            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::open(&pl);
-                    return;
-                }
-                Player* pl2 = toolUtils::getPlayerFromName(std::get<std::string>(dt->at("dropdown")));
-                std::string mObject = pl2->getUuid().asString();
-                std::string mObjectLanguage = getLanguage(pl2);
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-                std::vector<std::string> list = db->list("OBJECT$" + mObject + "$TITLE");
-
-                ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
-                form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
-                form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.remove.dropdown2"), list);
-                form.sendTo(*pl2, [mObject](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                    if (!dt) {
-                        MainGui::remove(&pl);
-                        return;
-                    }
-                    std::string PlayerSelectTitle = std::get<std::string>(dt->at("dropdown"));
-                    if (PlayerSelectTitle != "None") {
-                        db->del("OBJECT$" + mObject + "$TITLE", PlayerSelectTitle);
-                        update(&pl);
-                    }
-
-                    toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                        MainGui::remove(player_ptr);
-                    });
+            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.remove.label"));
+            for (auto& mTarget : toolUtils::getAllPlayerName()) {
+                form.appendButton(mTarget, [mTarget](Player& pl) {
+                    MainGui::contentRemove(&pl, mTarget);
                 });
+            }
+            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) MainGui::open(&pl);
             });
         }
 

@@ -73,25 +73,23 @@ namespace blacklistPlugin {
             });
         }
 
-        void add(void* player_ptr) {
+        void content(void* player_ptr, std::string target) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             ll::form::CustomForm form(tr(mObjectLanguage, "blacklist.gui.add.title"));
             form.appendLabel(tr(mObjectLanguage, "blacklist.gui.label"));
-            form.appendDropdown("dropdown1", tr(mObjectLanguage, "blacklist.gui.add.dropdown1"), toolUtils::getAllPlayerName());
-            form.appendDropdown("dropdown2", tr(mObjectLanguage, "blacklist.gui.add.dropdown2"), { "ip", "uuid" });
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "blacklist.gui.add.dropdown"), { "ip", "uuid" });
             form.appendInput("Input1", tr(mObjectLanguage, "blacklist.gui.add.input1"), "", tr(mObjectLanguage, "blacklist.cause"));
             form.appendInput("Input2", tr(mObjectLanguage, "blacklist.gui.add.input2"), "", "0");
-            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
-                    MainGui::open(&pl);
+                    MainGui::add(&pl);
                     return;
                 }
-                std::string PlayerSelectName = std::get<std::string>(dt->at("dropdown1"));
-                std::string PlayerSelectType = std::get<std::string>(dt->at("dropdown2"));
+                std::string PlayerSelectType = std::get<std::string>(dt->at("dropdown"));
                 std::string PlayerInputCause = std::get<std::string>(dt->at("Input1"));
                 int time = toolUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                Player* pl2 = toolUtils::getPlayerFromName(PlayerSelectName);
+                Player* pl2 = toolUtils::getPlayerFromName(target);
                 if (PlayerSelectType == "ip")
                     addBlacklist(pl2, PlayerInputCause, time, 0);
                 else if (PlayerSelectType == "uuid")
@@ -100,6 +98,20 @@ namespace blacklistPlugin {
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
                     MainGui::add(player_ptr);
                 });
+            });
+        }
+
+        void add(void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            std::string mObjectLanguage = getLanguage(player);
+            ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.add.title"), tr(mObjectLanguage, "blacklist.gui.add.label"));
+            for (auto& mTarget : toolUtils::getAllPlayerName()) {
+                form.appendButton(mTarget, [mTarget](Player& pl) {
+                    MainGui::content(&pl, mTarget);
+                });
+            }
+            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) MainGui::open(&pl);
             });
         }
 
