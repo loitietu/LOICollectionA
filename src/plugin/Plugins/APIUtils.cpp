@@ -3,12 +3,16 @@
 #include <functional>
 #include <unordered_map>
 
+#include <ll/api/memory/Memory.h>
 #include <ll/api/schedule/Task.h>
 #include <ll/api/schedule/Scheduler.h>
+#include <ll/api/service/Bedrock.h>
 #include <ll/api/chrono/GameChrono.h>
 #include <ll/api/utils/StringUtils.h>
 
+#include <mc/world/level/Level.h>
 #include <mc/world/actor/player/Player.h>
+#include <mc/network/ServerNetworkHandler.h>
 
 #include "Include/pvpPlugin.h"
 #include "Include/mutePlugin.h"
@@ -71,7 +75,12 @@ namespace LOICollectionAPI {
             Player* player = static_cast<Player*>(player_ptr);
             return player->getName();
         });
-        registerVariable("maxPlayer", [](void* /*unused*/) { return std::to_string(toolUtils::getAllPlayers().size()); });
+        registerVariable("maxPlayer", [](void* /*unused*/) {
+            return std::to_string(ll::memory::dAccess<int>(ll::service::getServerNetworkHandler().as_ptr(), 200 * 4));
+        });
+        registerVariable("onlinePlayer", [](void* /*unused*/) {
+            return std::to_string(ll::service::getLevel()->getActivePlayerCount());
+        });
         registerVariable("pos", [](void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             return player->getPosition().toString();
