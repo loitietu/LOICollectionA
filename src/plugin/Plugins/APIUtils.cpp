@@ -3,6 +3,7 @@
 #include <functional>
 #include <unordered_map>
 
+#include <ll/api/Versions.h>
 #include <ll/api/memory/Memory.h>
 #include <ll/api/schedule/Task.h>
 #include <ll/api/schedule/Scheduler.h>
@@ -34,7 +35,7 @@ std::vector<unsigned short> mTicksList;
 std::unordered_map<std::string, std::function<std::string(void*)>> mVariableMap;
 std::unordered_map<std::string, std::function<std::string(void*, std::string)>> mVariableMapParameter;
 
-namespace LOICollectionAPI {
+namespace LOICollection::LOICollectionAPI {
     void initialization() {
         static ll::schedule::GameTickAsyncScheduler scheduler1;
         static ll::schedule::ServerTimeScheduler scheduler2;
@@ -57,17 +58,20 @@ namespace LOICollectionAPI {
             mTicksPerMinute = (float) sum / (int) mTicksList.size();
         });
 
+        registerVariable("mcVersion", [](void* /*unused*/) { return ll::getGameVersion().to_string(); });
+        registerVariable("llVersion", [](void* /*unused*/) { return ll::getLoaderVersion().to_string(); });
+        registerVariable("protocolVersion", [](void* /*unused*/) { return std::to_string(ll::getNetworkProtocolVersion()); });
         registerVariable("title", [](void* player_ptr) {
-            chatPlugin::update(player_ptr);
-            return chatPlugin::getTitle(player_ptr);
+            Plugins::chat::update(player_ptr);
+            return Plugins::chat::getTitle(player_ptr);
         });
         registerVariable("title.time", [](void* player_ptr) {
-            chatPlugin::update(player_ptr);
-            return toolUtils::formatDataTime(chatPlugin::getTitleTime(player_ptr, chatPlugin::getTitle(player_ptr)));
+            Plugins::chat::update(player_ptr);
+            return toolUtils::formatDataTime(Plugins::chat::getTitleTime(player_ptr, Plugins::chat::getTitle(player_ptr)));
         });
-        registerVariable("pvp", [](void* player_ptr) { return pvpPlugin::isEnable(player_ptr) ? "true" : "false"; });
-        registerVariable("mute", [](void* player_ptr) { return mutePlugin::isMute(player_ptr) ? "true" : "false"; });
-        registerVariable("language", [](void* player_ptr) { return languagePlugin::getLanguage(player_ptr); });
+        registerVariable("pvp", [](void* player_ptr) { return Plugins::pvp::isEnable(player_ptr) ? "true" : "false"; });
+        registerVariable("mute", [](void* player_ptr) { return Plugins::mute::isMute(player_ptr) ? "true" : "false"; });
+        registerVariable("language", [](void* player_ptr) { return Plugins::language::getLanguage(player_ptr); });
         registerVariable("tps", [](void* /*unused*/) { return std::to_string(mTicksPerSecond); });
         registerVariable("tpm", [](void* /*unused*/) { return std::to_string(mTicksPerMinute); });
         registerVariable("time", [](void* /*unused*/) { return toolUtils::getNowTime(); });
@@ -170,7 +174,7 @@ namespace LOICollectionAPI {
             return std::to_string(toolUtils::scoreboard::getScore(player, name));
         });
         registerVariableParameter("tr", [](void* player_ptr, std::string name) {
-            return I18nUtils::tr(languagePlugin::getLanguage(player_ptr), name);
+            return I18nUtils::tr(Plugins::language::getLanguage(player_ptr), name);
         });
     }
 

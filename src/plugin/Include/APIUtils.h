@@ -6,7 +6,7 @@
 
 #include "ExportLib.h"
 
-namespace LOICollectionAPI {
+namespace LOICollection::LOICollectionAPI {
     LOICOLLECTION_A_API void initialization();
     LOICOLLECTION_A_API void registerVariable(const std::string& name, const std::function<std::string(void*)> callback);
     LOICOLLECTION_A_API void registerVariableParameter(const std::string& name, const std::function<std::string(void*, std::string)> callback);

@@ -5,7 +5,7 @@
 
 #include "ExportLib.h"
 
-namespace languagePlugin {
+namespace LOICollection::Plugins::language {
     namespace MainGui {
         LOICOLLECTION_A_API void open(void* player_ptr);
     }

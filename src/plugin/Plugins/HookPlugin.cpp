@@ -76,7 +76,7 @@ LL_TYPE_INSTANCE_HOOK(
             Player* player = toolUtils::getPlayerFromName(mTextPacket.mParams.at(0));
             if (player == nullptr)
                 return origin(identifier, subId, packet);
-            if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), player->getUuid().asString())!= mInterceptedTextPacketTargets.end())
+            if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), player->getUuid().asString()) != mInterceptedTextPacketTargets.end())
                 return;
         }
     }
@@ -219,7 +219,7 @@ LL_TYPE_INSTANCE_HOOK(
     return origin(source, damage, knock, ignite);
 };
 
-namespace HookPlugin {
+namespace LOICollection::HookPlugin {
     namespace Event {
         void onTextPacketSendEvent(const std::function<bool(void*, const std::string&)>& callback) {
             mTextPacketSendEventCallbacks.push_back(callback);

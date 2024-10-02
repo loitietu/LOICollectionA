@@ -27,7 +27,7 @@
 
 using namespace ll::chrono_literals;
 
-namespace monitorPlugin {
+namespace LOICollection::Plugins::monitor {
     std::vector<std::string> mObjectCommands;
     std::map<std::string, std::variant<std::string, std::vector<std::string>>> mObjectOptions;
     
@@ -42,7 +42,7 @@ namespace monitorPlugin {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("join"));
-                    LOICollectionAPI::translateString(mMonitorString, &event.self());
+                    LOICollection::LOICollectionAPI::translateString(mMonitorString, &event.self());
                     toolUtils::broadcastText(mMonitorString);
                 }
             );
@@ -60,11 +60,11 @@ namespace monitorPlugin {
                     }
                 }
             );
-            HookPlugin::Event::onLoginPacketSendEvent([](void* /*unused*/, std::string mUuid, std::string /*unused*/) {
-                HookPlugin::interceptTextPacket(mUuid);
-                HookPlugin::interceptGetNameTag(mUuid);
+            LOICollection::HookPlugin::Event::onLoginPacketSendEvent([](void* /*unused*/, std::string mUuid, std::string /*unused*/) {
+                LOICollection::HookPlugin::interceptTextPacket(mUuid);
+                LOICollection::HookPlugin::interceptGetNameTag(mUuid);
             });
-            HookPlugin::Event::onPlayerScoreChangedEvent([](void* player_ptr, int score, std::string id) {
+            LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([](void* player_ptr, int score, std::string id) {
                 Player* player = static_cast<Player*>(player_ptr);
                 std::string target = std::get<std::string>(mObjectOptions.at("target"));
                 if (id == target) {
@@ -78,7 +78,7 @@ namespace monitorPlugin {
             scheduler.add<ll::schedule::RepeatTask>(3_tick, [] {
                 for (auto& player : toolUtils::getAllPlayers()) {
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("show"));
-                    LOICollectionAPI::translateString(mMonitorString, player);
+                    LOICollection::LOICollectionAPI::translateString(mMonitorString, player);
                     player->setNameTag(mMonitorString);
                     player->_sendDirtyActorData();
                 }

@@ -5,7 +5,7 @@
 
 #include "ExportLib.h"
 
-namespace tpaPlugin {
+namespace LOICollection::Plugins::tpa {
     namespace MainGui {
         LOICOLLECTION_A_API void setting(void* player_ptr);
         LOICOLLECTION_A_API void tpa(void* player_ptr, void* target_ptr, bool type);

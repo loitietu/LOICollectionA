@@ -3,7 +3,7 @@
 
 #include "ExportLib.h"
 
-namespace pvpPlugin {
+namespace LOICollection::Plugins::pvp {
     namespace MainGui {
         LOICOLLECTION_A_API void open(void* player_ptr);
     }

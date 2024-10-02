@@ -1,6 +1,4 @@
-#include <string>
 #include <vector>
-#include <cstddef>
 #include <fstream>
 #include <filesystem>
 #include <string_view>
@@ -10,8 +8,7 @@
 
 #include "JsonUtils.h"
 
-JsonUtils::JsonUtils(const std::filesystem::path& path) {
-    this->d_path = path;
+JsonUtils::JsonUtils(const std::filesystem::path& path) : d_path(path) {
     if (!std::filesystem::exists(path)) {
         std::ofstream newfile(path);
         newfile << this->d_json.dump();
@@ -24,44 +21,23 @@ JsonUtils::JsonUtils(const std::filesystem::path& path) {
     }
 }
 
-bool JsonUtils::del(std::string_view key) {
+bool JsonUtils::remove(std::string_view key) {
     return this->d_json.erase(key) > 0;
 }
 
-std::string JsonUtils::getString(std::string_view key) {
-    return this->d_json.at(key).get<std::string>();
-}
-
-bool JsonUtils::has(std::string_view key) {
+bool JsonUtils::has(std::string_view key) const {
     return this->d_json.contains(key);
 }
 
-bool JsonUtils::empty() {
+bool JsonUtils::isEmpty() const {
     return this->d_json.empty();
-}
-
-bool JsonUtils::reset() {
-    this->d_json.clear();
-    return true;
 }
 
 void JsonUtils::write(nlohmann::ordered_json& json) {
     this->d_json = json;
 }
 
-void JsonUtils::set(std::string_view key, const std::string& value) {
-    this->d_json[key] = value;
-}
-
-void JsonUtils::set(std::string_view key, nlohmann::ordered_json& value) {
-    this->d_json[key] = value;
-}
-
-void JsonUtils::set(std::string_view key, const nlohmann::ordered_json& value) {
-    this->d_json[key] = value;
-}
-
-void JsonUtils::save() {
+void JsonUtils::save() const {
     std::ofstream file(this->d_path);
     if (file.is_open()) {
         file << this->d_json.dump(4);
@@ -69,7 +45,7 @@ void JsonUtils::save() {
     }
 }
 
-std::vector<std::string> JsonUtils::keys() {
+std::vector<std::string> JsonUtils::keys() const {
     std::vector<std::string> keyl;
     for (auto& [key, _] : this->d_json.items()) {
         keyl.push_back(key);
@@ -77,18 +53,16 @@ std::vector<std::string> JsonUtils::keys() {
     return keyl;
 }
 
-size_t JsonUtils::size() {
-    return this->d_json.size();
-}
-
-std::string JsonUtils::toString(int indent) {
+std::string JsonUtils::toString(int indent) const {
     return this->d_json.dump(indent);
 }
 
-nlohmann::ordered_json JsonUtils::toJson(std::string key) {
-    return this->d_json[key];
+nlohmann::ordered_json JsonUtils::toJson(std::string_view key) const {
+    if (!has(key))
+        return nlohmann::ordered_json();
+    return this->d_json.at(key);
 }
 
-nlohmann::ordered_json JsonUtils::toJson() {
+nlohmann::ordered_json JsonUtils::toJson() const {
     return this->d_json;
 }

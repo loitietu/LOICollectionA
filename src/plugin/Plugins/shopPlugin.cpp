@@ -24,6 +24,7 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include "Include/APIUtils.h"
 #include "Include/chatPlugin.h"
 
 #include "Utils/toolUtils.h"
@@ -31,7 +32,9 @@
 
 #include "Include/shopPlugin.h"
 
-namespace shopPlugin {
+using LOICollection::LOICollectionAPI::translateString;
+
+namespace LOICollection::Plugins::shop {
     struct ShopOP {
         std::string uiName;
     };
@@ -44,25 +47,25 @@ namespace shopPlugin {
             Player* player = static_cast<Player*>(player_ptr);
 
             std::vector<nlohmann::ordered_json> mItemLists;
-            ll::form::SimpleForm form(data.at("title").get<std::string>());
-            form.setContent(data.at("content").get<std::string>());
+            ll::form::SimpleForm form(translateString(data.at("title").get<std::string>(), player));
+            form.setContent(translateString(data.at("content").get<std::string>(), player));
             for (auto& item : data.at("classiflcation")) {
-                std::string mTitle = item.at("title").get<std::string>();
+                std::string mTitle = translateString(item.at("title").get<std::string>(), player);
                 std::string mImage = item.at("image").get<std::string>();
                 form.appendButton(mTitle, mImage, "path");
                 mItemLists.push_back(item);
             }
             form.sendTo(*player, [data, mItemLists, type](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) {
-                    pl.sendMessage(data.at("exit").get<std::string>());
+                    pl.sendMessage(translateString(data.at("exit").get<std::string>(), &pl));
                     return;
                 }
                 std::map<std::string, std::string> options;
-                options["exit"] = data.at("exit").get<std::string>();
-                if (type) options["score"] = data.at("NoScore").get<std::string>();
+                options["exit"] = translateString(data.at("exit").get<std::string>(), &pl);
+                if (type) options["score"] = translateString(data.at("NoScore").get<std::string>(), &pl);
                 else {
-                    options["title"] = data.at("NoTitle").get<std::string>();
-                    options["item"] = data.at("NoItem").get<std::string>();
+                    options["title"] = translateString(data.at("NoTitle").get<std::string>(), &pl);
+                    options["item"] = translateString(data.at("NoItem").get<std::string>(), &pl);
                 }
 
                 nlohmann::ordered_json mItem = mItemLists.at(id);
@@ -84,16 +87,17 @@ namespace shopPlugin {
                     mScoreboardListsString += it.key() + ":" + std::to_string(it.value().get<int>()) + ";";
                 mScoreboardListsString.pop_back();
             } else mScoreboardListsString = "None";
+            std::string mIntroduce = translateString(data.at("introduce").get<std::string>(), player);
 
-            ll::form::CustomForm form(data.at("title").get<std::string>());
-            form.appendLabel(ll::string_utils::replaceAll(data.at("introduce").get<std::string>(), "${scores}", mScoreboardListsString));
-            form.appendSlider("slider", data.at("number").get<std::string>(), 1, 64);
+            ll::form::CustomForm form(translateString(data.at("title").get<std::string>(), player));
+            form.appendLabel(ll::string_utils::replaceAll(mIntroduce, "${scores}", mScoreboardListsString));
+            form.appendSlider("slider", translateString(data.at("number").get<std::string>(), player), 1, 64);
             form.sendTo(*player, [data, options, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
                     pl.sendMessage(options.at("exit"));
                     return;
                 }
-                int mNumber = (int)std::get<double>(dt->at("slider"));
+                int mNumber = (int) std::get<double>(dt->at("slider"));
                 if (type) {
                     if (checkModifiedData(&pl, data, mNumber)) {
                         ItemStack itemStack(data.at("id").get<std::string>(), mNumber);
@@ -126,30 +130,31 @@ namespace shopPlugin {
                     mScoreboardListsString += it.key() + ":" + std::to_string(it.value().get<int>()) + ";";
                 mScoreboardListsString.pop_back();
             } else mScoreboardListsString = "None";
+            std::string mIntroduce = translateString(data.at("introduce").get<std::string>(), player);
 
             ll::form::ModalForm form;
-            form.setTitle(data.at("title").get<std::string>());
-            form.setContent(ll::string_utils::replaceAll(data.at("introduce").get<std::string>(), "${scores}", mScoreboardListsString));
-            form.setUpperButton(data.at("confirmButton").get<std::string>());
-            form.setLowerButton(data.at("cancelButton").get<std::string>());
+            form.setTitle(translateString(data.at("title").get<std::string>(), player));
+            form.setContent(ll::string_utils::replaceAll(mIntroduce, "${scores}", mScoreboardListsString));
+            form.setUpperButton(translateString(data.at("confirmButton").get<std::string>(), player));
+            form.setLowerButton(translateString(data.at("cancelButton").get<std::string>(), player));
             form.sendTo(*player, [data, options, type](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
                     std::string id = data.at("id").get<std::string>();
                     if (type) {
                         if (checkModifiedData(&pl, data, 1)) {
                             if (data.contains("time")) {
-                                chatPlugin::addChat(&pl, id, data.at("time").get<int>());
+                                chat::addChat(&pl, id, data.at("time").get<int>());
                                 return;
                             }
-                            chatPlugin::addChat(&pl, id, 0);
+                            chat::addChat(&pl, id, 0);
                         }
                         return;
                     }
-                    if (chatPlugin::isChat(&pl, id)) {
+                    if (chat::isChat(&pl, id)) {
                         nlohmann::ordered_json mScoreboardBase = data.at("scores");
                         for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
                             toolUtils::scoreboard::addScore(&pl, it.key(), it.value().get<int>());
-                        chatPlugin::delChat(&pl, id);
+                        chat::delChat(&pl, id);
                         return;
                     }
                     pl.sendMessage(options.at("title"));

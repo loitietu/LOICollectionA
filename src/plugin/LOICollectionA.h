@@ -30,9 +30,9 @@ namespace LOICollection {
         std::unique_ptr<SQLiteStorage> PvpDB;
         std::unique_ptr<SQLiteStorage> ChatDB;
         std::unique_ptr<SQLiteStorage> MarketDB;
+        std::unique_ptr<JsonUtils> AnnounCementDB;
         std::unique_ptr<JsonUtils> CdkDB;
         std::unique_ptr<JsonUtils> MenuDB;
         std::unique_ptr<JsonUtils> ShopDB;
-        std::unique_ptr<JsonUtils> AnnounCementDB;
     };
 }

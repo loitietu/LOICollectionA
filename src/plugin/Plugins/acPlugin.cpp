@@ -22,18 +22,20 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+#include "Include/APIUtils.h"
 #include "Include/languagePlugin.h"
 #include "Include/blacklistPlugin.h"
 
+#include "Utils/toolUtils.h"
 #include "Utils/I18nUtils.h"
 #include "Utils/JsonUtils.h"
 
 #include "Include/acPlugin.h"
 
 using I18nUtils::tr;
-using languagePlugin::getLanguage;
+using LOICollection::Plugins::language::getLanguage;
 
-namespace announcementPlugin {
+namespace LOICollection::Plugins::announcement {
     std::unique_ptr<JsonUtils> db;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - AnnounCement");
@@ -49,7 +51,7 @@ namespace announcementPlugin {
 
             ll::form::CustomForm form(tr(mObjectLanguage, "announcement.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "announcement.gui.label"));
-            form.appendInput("Input", tr(mObjectLanguage, "announcement.gui.setTitle"), "", db->getString("title"));
+            form.appendInput("Input", tr(mObjectLanguage, "announcement.gui.setTitle"), "", db->get<std::string>("title"));
             for (nlohmann::ordered_json::iterator it = data.begin(); it != data.end(); ++it) {
                 std::string mLine = ll::string_utils::replaceAll(mLineString, "${index}", std::to_string(index));
                 form.appendInput("Input" + std::to_string(index), mLine, "", *it);
@@ -71,7 +73,7 @@ namespace announcementPlugin {
                     db->save();
                     MainGui::setting(&pl);
                 } else if (std::get<uint64>(dt->at("Toggle2"))) {
-                    data.erase(data.end() -1);
+                    data.erase(data.end() - 1);
                     db->set("title", mTitle);
                     db->set("content", data);
                     db->save();
@@ -83,6 +85,12 @@ namespace announcementPlugin {
                     db->set("title", mTitle);
                     db->set("content", mDataNewList);
                     db->save();
+
+                    toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                        MainGui::setting(player_ptr);
+                    });
+
+                    logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "announcement.log"), &pl));
                 }
             });
         }
@@ -91,7 +99,7 @@ namespace announcementPlugin {
             Player* player = static_cast<Player*>(player_ptr);
             nlohmann::ordered_json data = db->toJson("content");
 
-            ll::form::CustomForm form(db->getString("title"));
+            ll::form::CustomForm form(db->get<std::string>("title"));
             for (nlohmann::ordered_json::iterator it = data.begin(); it != data.end(); ++it)
                 form.appendLabel(*it);
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
@@ -128,7 +136,7 @@ namespace announcementPlugin {
                     return;
                 }
                 Player* player = static_cast<Player*>(entity);
-                if ((int)player->getPlayerPermissionLevel() >= 2) {
+                if ((int) player->getPlayerPermissionLevel() >= 2) {
                     output.success("The UI has been opened to player {}", player->getRealName());
                     MainGui::setting(player);
                     return;
@@ -143,7 +151,7 @@ namespace announcementPlugin {
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
-                    if (!blacklistPlugin::isBlacklist(&event.self())) {
+                    if (!blacklist::isBlacklist(&event.self())) {
                         MainGui::open(&event.self());
                     }
                 }

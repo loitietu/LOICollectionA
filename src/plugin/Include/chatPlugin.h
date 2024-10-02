@@ -5,7 +5,7 @@
 
 #include "ExportLib.h"
 
-namespace chatPlugin {
+namespace LOICollection::Plugins::chat {
     namespace MainGui {
         LOICOLLECTION_A_API void contentAdd(void* player_ptr, std::string target);
         LOICOLLECTION_A_API void contentRemove(void* player_ptr, std::string target);

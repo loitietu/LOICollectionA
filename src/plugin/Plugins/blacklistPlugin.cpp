@@ -34,9 +34,9 @@
 #include "Include/blacklistPlugin.h"
 
 using I18nUtils::tr;
-using languagePlugin::getLanguage;
+using LOICollection::Plugins::language::getLanguage;
 
-namespace blacklistPlugin {
+namespace LOICollection::Plugins::blacklist {
     struct BlacklistOP {
         enum SelectorType {
             ip, uuid
@@ -208,7 +208,7 @@ namespace blacklistPlugin {
         }
 
         void listenEvent() {
-            HookPlugin::Event::onLoginPacketSendEvent([](void* identifier_ptr, std::string mUuid, std::string mIpAndPort) {
+            LOICollection::HookPlugin::Event::onLoginPacketSendEvent([](void* identifier_ptr, std::string mUuid, std::string mIpAndPort) {
                 NetworkIdentifier* identifier = static_cast<NetworkIdentifier*>(identifier_ptr);
                 std::string mObjectTips = tr(getLanguage(toolUtils::getPlayerByUuid(mUuid)), "blacklist.tips");
                 std::replace(mUuid.begin(), mUuid.end(), '-', '_');
@@ -249,7 +249,6 @@ namespace blacklistPlugin {
             return;
 
         std::string mObjectLanguage = getLanguage(player);
-        std::string mObjectTips = tr(mObjectLanguage, "blacklist.tips");
         std::string mObject = player->getUuid().asString();
         if (!type) mObject = toolUtils::split(player->getIPAndPort(), ":")[0];
         std::replace(mObject.begin(), mObject.end(), '.', '_');
@@ -260,13 +259,14 @@ namespace blacklistPlugin {
             db->set("OBJECT$" + mObject, "cause", cause);
             db->set("OBJECT$" + mObject, "time", toolUtils::timeCalculate(time));
         }
+        std::string mObjectTips = tr(mObjectLanguage, "blacklist.tips");
         ll::string_utils::replaceAll(mObjectTips, "${cause}", cause);
         ll::string_utils::replaceAll(mObjectTips, "${time}", toolUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
         ll::service::getServerNetworkHandler()->disconnectClient(
             player->getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked, mObjectTips, false
         );
         std::string logString = tr(mObjectLanguage, "blacklist.log1");
-        logger.info(LOICollectionAPI::translateString(logString, player));
+        logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
     }
 
     void delBlacklist(std::string target) {

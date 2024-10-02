@@ -4,7 +4,7 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-static const nlohmann::ordered_json CNLangData = {
+static nlohmann::ordered_json CNLangData = {
     {"name", "简体中文"},
     {"exit", "§e[LOICollection] §c已退出"},
     {"exit.gui.title", "§e§l内容提交"},
@@ -108,6 +108,10 @@ static const nlohmann::ordered_json CNLangData = {
     {"wallet.gui.stepslider", "§a请选择类型§r"},
     {"wallet.gui.stepslider.label", "§b请选择玩家"},
     {"wallet.gui.stepslider.input", "请输入金额"},
+    {"chat.log1", "玩家 {player}({uuid}) 更改称号为 {title}"},
+    {"chat.log2", "玩家 {player}({uuid}) 获得称号 ${title}"},
+    {"chat.log3", "玩家 {player}({uuid}) 移除称号 ${title}"},
+    {"chat.log4", "玩家 {player}({uuid}) 称号 ${title} 已达到预定时间"},
     {"chat.gui.title", "§eLOIChat §b-> §a个人称号"},
     {"chat.gui.label", "§b功能如下:"},
     {"chat.gui.setTitle", "§a设置称号\n§4设置自己的称号显示"},
@@ -120,12 +124,16 @@ static const nlohmann::ordered_json CNLangData = {
     {"chat.gui.manager.add.input2", "§d请输入称号存在的时间[/hour](0为永久存在)"},
     {"chat.gui.manager.remove.label", "§a请选择要删除的玩家"},
     {"chat.gui.manager.remove.dropdown", "§e请选择要删除的称号"},
+    {"announcement.log", "玩家 {player}({uuid}) 重新编辑了公告"},
     {"announcement.gui.title", "§eLOIAnnounCement §b-> §a公告系统"},
     {"announcement.gui.label", "§b功能如下:"},
     {"announcement.gui.setTitle", "§e设置标题"},
     {"announcement.gui.line", "§a第${index}行"},
     {"announcement.gui.addLine", "§b添加一行"},
     {"announcement.gui.removeLine", "§c删除一行"}, 
+    {"market.log1", "玩家 {player}({uuid}) 购买物品 ${item}"},
+    {"market.log2", "玩家 {player}({uuid}) 出售物品 ${item}"},
+    {"market.log3", "玩家 {player}({uuid}) 下架物品 ${item}"},
     {"market.gui.title", "§e§lLOIMarket -> §b玩家市场"},
     {"market.gui.label", "§b功能如下:"},
     {"market.gui.sell.introduce", "§b物品介绍: §r${introduce}\n§e物品价格: §r${score}\n§a物品Nbt: §r${nbt}\n§d上传玩家: §r${player}"},

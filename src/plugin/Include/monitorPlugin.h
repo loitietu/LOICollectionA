@@ -8,7 +8,7 @@
 
 #include "ExportLib.h"
 
-namespace monitorPlugin {
+namespace LOICollection::Plugins::monitor {
     LOICOLLECTION_A_API void registery(std::map<std::string, std::variant<std::string, std::vector<std::string>>>& options);
     LOICOLLECTION_A_API void unregistery();
 }

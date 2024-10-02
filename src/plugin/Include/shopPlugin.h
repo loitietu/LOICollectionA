@@ -9,7 +9,7 @@
 
 #include "ExportLib.h"
 
-namespace shopPlugin {
+namespace LOICollection::Plugins::shop {
     namespace MainGui {
         LOICOLLECTION_A_API void menu(void* player_ptr, nlohmann::ordered_json& data, bool type);
         LOICOLLECTION_A_API void commodity(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type);

@@ -29,9 +29,9 @@
 #include "Include/mutePlugin.h"
 
 using I18nUtils::tr;
-using languagePlugin::getLanguage;
+using LOICollection::Plugins::language::getLanguage;
 
-namespace mutePlugin {
+namespace LOICollection::Plugins::mute {
     struct MuteOP {
         CommandSelector<Player> target;
         std::string cause;
@@ -177,7 +177,7 @@ namespace mutePlugin {
         }
 
         void listenEvent() {
-            HookPlugin::Event::onTextPacketSendEvent([](void* player_ptr, std::string message) {
+            LOICollection::HookPlugin::Event::onTextPacketSendEvent([](void* player_ptr, std::string message) {
                 Player* player = static_cast<Player*>(player_ptr);
                 std::string mObject = player->getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
@@ -193,7 +193,7 @@ namespace mutePlugin {
                     ll::string_utils::replaceAll(mObjectTips, "${time}", toolUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
                     ll::string_utils::replaceAll(logString, "${message}", message);
 
-                    logger.info(LOICollectionAPI::translateString(logString, player));
+                    logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
                     player->sendMessage(mObjectTips);
                     return true;
                 }
@@ -219,7 +219,7 @@ namespace mutePlugin {
         }
         std::string logString = tr(mObjectLanguage, "mute.log1");
         ll::string_utils::replaceAll(logString, "${cause}", cause);
-        logger.info(LOICollectionAPI::translateString(logString, player));
+        logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
     }
 
     void delMute(void* player_ptr) {

@@ -32,9 +32,9 @@
 #include "Include/cdkPlugin.h"
 
 using I18nUtils::tr;
-using languagePlugin::getLanguage;
+using LOICollection::Plugins::language::getLanguage;
 
-namespace cdkPlugin {
+namespace LOICollection::Plugins::cdk {
     struct CDKOP {
         std::string convertString;
         bool setting = false;
@@ -104,7 +104,7 @@ namespace cdkPlugin {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
-            if (db->empty()) {
+            if (db->isEmpty()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
                 MainGui::open(player);
                 return;
@@ -120,7 +120,7 @@ namespace cdkPlugin {
                 }
                 std::string logString = tr(getLanguage(&pl), "cdk.log2");
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
-                db->del(mObjectCdk);
+                db->remove(mObjectCdk);
                 db->save();
 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
@@ -135,7 +135,7 @@ namespace cdkPlugin {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
-            if (db->empty()) {
+            if (db->isEmpty()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
                 MainGui::cdkAward(player);
                 return;
@@ -168,7 +168,7 @@ namespace cdkPlugin {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
-            if (db->empty()) {
+            if (db->isEmpty()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
                 MainGui::cdkAward(player);
                 return;
@@ -209,7 +209,7 @@ namespace cdkPlugin {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             
-            if (db->empty()) {
+            if (db->isEmpty()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
                 MainGui::cdkAward(player);
                 return;
@@ -304,7 +304,7 @@ namespace cdkPlugin {
                 }
                 Player* player = static_cast<Player*>(entity);
                 if (param.setting) {
-                    if ((int)player->getPlayerPermissionLevel() >= 2) {
+                    if ((int) player->getPlayerPermissionLevel() >= 2) {
                         output.success("The UI has been opened to player {}", player->getRealName());
                         MainGui::open(player);
                         return;
@@ -323,11 +323,11 @@ namespace cdkPlugin {
         if (convertString.empty()) convertString = "default";
         std::string mObjectLanguage = getLanguage(player);
         if (db->has(convertString)) {
-            nlohmann::ordered_json cdkJson(db->toJson(convertString));
+            nlohmann::ordered_json cdkJson = db->toJson(convertString);
             if (cdkJson.contains("time")) {
                 if (toolUtils::isReach(cdkJson["time"].get<std::string>())) {
                     player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
-                    db->del(convertString);
+                    db->remove(convertString);
                     return;
                 }
             }
@@ -339,7 +339,7 @@ namespace cdkPlugin {
             if (cdkJson.contains("title")) {
                 nlohmann::ordered_json mTitleList = cdkJson.at("title");
                 for (nlohmann::ordered_json::iterator it = mTitleList.begin(); it != mTitleList.end(); ++it)
-                    chatPlugin::addChat(player, it.key(), it.value().get<int>());
+                    chat::addChat(player, it.key(), it.value().get<int>());
             }
             nlohmann::ordered_json mItemList = cdkJson.at("item");
             nlohmann::ordered_json mScoreboardList = cdkJson.at("scores");
@@ -352,7 +352,7 @@ namespace cdkPlugin {
                 player->add(itemStack);
                 player->refreshInventory();
             }
-            if (cdkJson["personal"].get<bool>()) db->del(convertString);
+            if (cdkJson["personal"].get<bool>()) db->remove(convertString);
             else {
                 mPlayerList.push_back(player->getUuid().asString());
                 cdkJson["player"] = mPlayerList;
@@ -360,7 +360,7 @@ namespace cdkPlugin {
             }
             std::string logString = tr(mObjectLanguage, "cdk.log3");
             ll::string_utils::replaceAll(logString, "${cdk}", convertString);
-            logger.info(LOICollectionAPI::translateString(logString, player));
+            logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
             player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
             db->save();
             return;

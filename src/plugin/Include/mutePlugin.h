@@ -5,7 +5,7 @@
 
 #include "ExportLib.h"
 
-namespace mutePlugin {
+namespace LOICollection::Plugins::mute {
     namespace MainGui {
         LOICOLLECTION_A_API void info(void* player_ptr, std::string target);
         LOICOLLECTION_A_API void content(void* player_ptr, std::string target);

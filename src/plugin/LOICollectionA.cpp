@@ -78,10 +78,10 @@ namespace LOICollection {
         this->PvpDB = std::make_unique<SQLiteStorage>(dataFilePath / "pvp.db");
         this->ChatDB = std::make_unique<SQLiteStorage>(dataFilePath / "chat.db");
         this->MarketDB = std::make_unique<SQLiteStorage>(dataFilePath / "market.db");
+        this->AnnounCementDB = std::make_unique<JsonUtils>(configDataPath / "announcement.json");
         this->CdkDB = std::make_unique<JsonUtils>(configDataPath / "cdk.json");
         this->MenuDB = std::make_unique<JsonUtils>(configDataPath / "menu.json");
         this->ShopDB = std::make_unique<JsonUtils>(configDataPath / "shop.json");
-        this->AnnounCementDB = std::make_unique<JsonUtils>(configDataPath / "announcement.json");
         logger.info("Initialization of database file completed.");
 
         if (this->config.Plugins.language.update) {
@@ -101,13 +101,13 @@ namespace LOICollection {
         LOICollectionAPI::initialization();
 
         HookPlugin::registery();
-        languagePlugin::registery(&this->LanguageDB);
-        if (this->config.Plugins.Blacklist) blacklistPlugin::registery(&this->BlacklistDB);
-        if (this->config.Plugins.Mute) mutePlugin::registery(&this->MuteDB);
-        if (this->config.Plugins.Cdk) cdkPlugin::registery(&this->CdkDB);
-        if (this->config.Plugins.Menu.Enable) menuPlugin::registery(&this->MenuDB, this->config.Plugins.Menu.ItemId);
-        if (this->config.Plugins.Tpa) tpaPlugin::registery(&this->TpaDB);
-        if (this->config.Plugins.Shop) shopPlugin::registery(&this->ShopDB);
+        Plugins::language::registery(&this->LanguageDB);
+        if (this->config.Plugins.Blacklist) Plugins::blacklist::registery(&this->BlacklistDB);
+        if (this->config.Plugins.Mute) Plugins::mute::registery(&this->MuteDB);
+        if (this->config.Plugins.Cdk) Plugins::cdk::registery(&this->CdkDB);
+        if (this->config.Plugins.Menu.Enable) Plugins::menu::registery(&this->MenuDB, this->config.Plugins.Menu.ItemId);
+        if (this->config.Plugins.Tpa) Plugins::tpa::registery(&this->TpaDB);
+        if (this->config.Plugins.Shop) Plugins::shop::registery(&this->ShopDB);
         if (this->config.Plugins.Monitor.Enable) {
             std::map<std::string, std::variant<std::string, std::vector<std::string>>> options;
             options["show"] = this->config.Plugins.Monitor.show;
@@ -116,35 +116,35 @@ namespace LOICollection {
             options["changed"] = this->config.Plugins.Monitor.changed;
             options["tips"] = this->config.Plugins.Monitor.tips;
             options["command"] = this->config.Plugins.Monitor.command;
-            monitorPlugin::registery(options);
+            Plugins::monitor::registery(options);
         }
-        if (this->config.Plugins.Pvp) pvpPlugin::registery(&this->PvpDB);
+        if (this->config.Plugins.Pvp) Plugins::pvp::registery(&this->PvpDB);
         if (this->config.Plugins.Wallet.Enable) {
             std::map<std::string, std::variant<std::string, double>> options;
             options["score"] = this->config.Plugins.Wallet.score;
             options["tax"] = this->config.Plugins.Wallet.tax;
-            walletPlugin::registery(options);
+            Plugins::wallet::registery(options);
         }
-        if (this->config.Plugins.Chat.Enable) chatPlugin::registery(&this->ChatDB, this->config.Plugins.Chat.chat);
-        if (this->config.Plugins.AnnounCement) announcementPlugin::registery(&this->AnnounCementDB);
+        if (this->config.Plugins.Chat.Enable) Plugins::chat::registery(&this->ChatDB, this->config.Plugins.Chat.chat);
+        if (this->config.Plugins.AnnounCement) Plugins::announcement::registery(&this->AnnounCementDB);
         if (this->config.Plugins.Market.Enable) {
             std::map<std::string, std::string> options;
             options["score"] = this->config.Plugins.Market.score;
-            marketPlugin::registery(&this->MarketDB, options);
+            Plugins::market::registery(&this->MarketDB, options);
         }
         return true;
     }
 
     bool A::disable() {
         HookPlugin::unregistery();
-        languagePlugin::unregistery();
-        if (this->config.Plugins.Menu.Enable) menuPlugin::unregistery();
-        if (this->config.Plugins.Tpa) tpaPlugin::unregistery();
-        if (this->config.Plugins.Monitor.Enable) monitorPlugin::unregistery();
-        if (this->config.Plugins.Pvp) pvpPlugin::unregistery();
-        if (this->config.Plugins.Chat.Enable) chatPlugin::unregistery();
-        if (this->config.Plugins.AnnounCement) announcementPlugin::unregistery();
-        if (this->config.Plugins.Market.Enable) marketPlugin::unregistery();
+        Plugins::language::unregistery();
+        if (this->config.Plugins.Menu.Enable) Plugins::menu::unregistery();
+        if (this->config.Plugins.Tpa) Plugins::tpa::unregistery();
+        if (this->config.Plugins.Monitor.Enable) Plugins::monitor::unregistery();
+        if (this->config.Plugins.Pvp) Plugins::pvp::unregistery();
+        if (this->config.Plugins.Chat.Enable) Plugins::chat::unregistery();
+        if (this->config.Plugins.AnnounCement) Plugins::announcement::unregistery();
+        if (this->config.Plugins.Market.Enable) Plugins::market::unregistery();
         return true;
     }
 }

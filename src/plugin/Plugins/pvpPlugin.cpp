@@ -31,9 +31,9 @@
 #include "Include/pvpPlugin.h"
 
 using I18nUtils::tr;
-using languagePlugin::getLanguage;
+using LOICollection::Plugins::language::getLanguage;
 
-namespace pvpPlugin {
+namespace LOICollection::Plugins::pvp {
     std::unique_ptr<SQLiteStorage> db;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - PVP");
@@ -49,7 +49,7 @@ namespace pvpPlugin {
                 if (db->has("OBJECT$" + mObject)) {
                     db->set("OBJECT$" + mObject, "enable", "true");
                 }
-                logger.info(LOICollectionAPI::translateString(tr(getLanguage(&pl), "pvp.log1"), &pl));
+                logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "pvp.log1"), &pl));
             });
             form.appendButton(tr(mObjectLanguage, "pvp.gui.off"), "textures/ui/cancel", "path", [](Player& pl) {
                 std::string mObject = pl.getUuid().asString();
@@ -57,7 +57,7 @@ namespace pvpPlugin {
                 if (db->has("OBJECT$" + mObject)) {
                     db->set("OBJECT$" + mObject, "enable", "false");
                 }
-                logger.info(LOICollectionAPI::translateString(tr(getLanguage(&pl), "pvp.log2"), &pl));
+                logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "pvp.log2"), &pl));
             });
             form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
@@ -125,7 +125,7 @@ namespace pvpPlugin {
                     }
                 }
             );
-            HookPlugin::Event::onPlayerHurtEvent([](void* target_ptr, void* source_ptr, float /*unused*/) {
+            LOICollection::HookPlugin::Event::onPlayerHurtEvent([](void* target_ptr, void* source_ptr, float /*unused*/) {
                 Player* target = static_cast<Player*>(target_ptr);
                 Player* source = static_cast<Player*>(source_ptr);
                 if (!isEnable(target) && !target->isSimulatedPlayer()) {

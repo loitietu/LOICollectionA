@@ -5,7 +5,7 @@
 
 #include "ExportLib.h"
 
-namespace cdkPlugin {
+namespace LOICollection::Plugins::cdk {
     namespace MainGui {
         LOICOLLECTION_A_API void convert(void* player_ptr);
         LOICOLLECTION_A_API void cdkNew(void* player_ptr);

@@ -6,7 +6,7 @@
 
 #include "ExportLib.h"
 
-namespace marketPlugin {
+namespace LOICollection::Plugins::market {
     namespace MainGui {
         LOICOLLECTION_A_API void buyItem(void* player_ptr, std::string mItemId);
         LOICOLLECTION_A_API void itemContent(void* player_ptr, std::string mItemId);

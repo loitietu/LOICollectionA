@@ -8,7 +8,7 @@
 
 #include "ExportLib.h"
 
-namespace menuPlugin {
+namespace LOICollection::Plugins::menu {
     namespace MainGui {
         LOICOLLECTION_A_API void custom(void* player_ptr, nlohmann::ordered_json& data);
         LOICOLLECTION_A_API void simple(void* player_ptr, nlohmann::ordered_json& data);

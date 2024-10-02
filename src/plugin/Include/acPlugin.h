@@ -3,7 +3,7 @@
 
 #include "ExportLib.h"
 
-namespace announcementPlugin {
+namespace LOICollection::Plugins::announcement {
     namespace MainGui {
         LOICOLLECTION_A_API void setting(void* player_ptr);
         LOICOLLECTION_A_API void open(void* player_ptr);

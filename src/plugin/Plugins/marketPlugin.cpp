@@ -4,6 +4,7 @@
 #include <string>
 #include <stdexcept>
 
+#include <ll/api/Logger.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
@@ -24,6 +25,7 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
+#include "Include/APIUtils.h"
 #include "Include/languagePlugin.h"
 #include "Include/blacklistPlugin.h"
 
@@ -34,12 +36,13 @@
 #include "Include/marketPlugin.h"
 
 using I18nUtils::tr;
-using languagePlugin::getLanguage;
+using LOICollection::Plugins::language::getLanguage;
 
-namespace marketPlugin {
+namespace LOICollection::Plugins::market {
     std::map<std::string, std::string> mObjectOptions;
     std::unique_ptr<SQLiteStorage> db;
     ll::event::ListenerPtr PlayerJoinEventListener;
+    ll::Logger logger("LOICollectionA - Market");
 
     namespace MainGui {
         void buyItem(void* player_ptr, std::string mItemId) {
@@ -58,20 +61,19 @@ namespace marketPlugin {
                 int mScore = toolUtils::toInt(db->get(mItemId, "score"), 0);
                 if (toolUtils::scoreboard::getScore(&pl, mObjectScore) >= mScore) {
                     toolUtils::scoreboard::reduceScore(&pl, mObjectScore, mScore);
+                    std::string mName = db->get(mItemId, "name");
                     std::string mNbt = db->get(mItemId, "nbt");
-                    std::string mPlayerName = db->get(mItemId, "player");
                     ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mNbt)->mTags);
                     pl.add(mItemStack);
                     pl.refreshInventory();
 
-                    Player* mPlayer = toolUtils::getPlayerFromName(mPlayerName);
+                    Player* mPlayer = toolUtils::getPlayerFromName(db->get(mItemId, "player"));
                     if (mPlayer == nullptr) {
                         std::string mObject = pl.getUuid().asString();
                         std::replace(mObject.begin(), mObject.end(), '-', '_');
                         int mPlayerScore = toolUtils::toInt(db->get("OBJECT$" + mObject, "score"), 0) + mScore;
                         db->set("OBJECT$" + mObject, "score", std::to_string(mPlayerScore));
                     } else {
-                        std::string mName = db->get(mItemId, "name");
                         std::string mTips = tr(getLanguage(&pl), "market.gui.sell.sellItem.tips2");
                         mPlayer->sendMessage(ll::string_utils::replaceAll(mTips, "${item}", mName));
                         toolUtils::scoreboard::addScore(mPlayer, mObjectScore, mScore);
@@ -81,6 +83,10 @@ namespace marketPlugin {
                     toolUtils::Gui::submission(&pl, [](void* player_ptr) {
                         MainGui::buy(player_ptr);
                     });
+
+                    std::string logString = tr(getLanguage(&pl), "market.log1");
+                    ll::string_utils::replaceAll(logString, "${item}", mName);
+                    logger.info(LOICollection::LOICollectionAPI::translateString(logString, &pl));
                     return;
                 }
                 pl.sendMessage(tr(getLanguage(&pl), "market.gui.sell.sellItem.tips4"));
@@ -96,6 +102,10 @@ namespace marketPlugin {
                     toolUtils::Gui::submission(&pl, [](void* player_ptr) {
                         MainGui::buy(player_ptr);
                     });
+
+                    std::string logString = tr(getLanguage(&pl), "market.log3");
+                    ll::string_utils::replaceAll(logString, "${item}", mName);
+                    logger.info(LOICollection::LOICollectionAPI::translateString(logString, &pl));
                 });
             }
             form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
@@ -127,6 +137,10 @@ namespace marketPlugin {
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
                     MainGui::sellItemContent(player_ptr);
                 });
+
+                std::string logString = tr(getLanguage(&pl), "market.log3");
+                ll::string_utils::replaceAll(logString, "${item}", mName);
+                logger.info(LOICollection::LOICollectionAPI::translateString(logString, &pl));
             });
             form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) MainGui::sellItemContent(&pl);
@@ -178,6 +192,10 @@ namespace marketPlugin {
                     toolUtils::Gui::submission(&pl, [](void* player_ptr) {
                         MainGui::sellItem(player_ptr);
                     });
+
+                    std::string logString = tr(getLanguage(&pl), "market.log2");
+                    ll::string_utils::replaceAll(logString, "${item}", mItemName);
+                    logger.info(LOICollection::LOICollectionAPI::translateString(logString, &pl));
                     return;
                 }
                 pl.sendMessage(tr(getLanguage(&pl), "market.gui.sell.sellItem.tips1"));
@@ -283,7 +301,7 @@ namespace marketPlugin {
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
-                    if (!blacklistPlugin::isBlacklist(&event.self())) {
+                    if (!blacklist::isBlacklist(&event.self())) {
                         std::string mObject = event.self().getUuid().asString();
                         std::replace(mObject.begin(), mObject.end(), '-', '_');
                         if (!db->has("Item")) {
@@ -318,6 +336,7 @@ namespace marketPlugin {
         mObjectOptions = options;
 
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        logger.setFile("./logs/LOICollectionA.log");
         registerCommand();
         listenEvent();
     }

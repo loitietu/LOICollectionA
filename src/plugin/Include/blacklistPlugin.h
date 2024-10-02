@@ -5,7 +5,7 @@
 
 #include "ExportLib.h"
 
-namespace blacklistPlugin {
+namespace LOICollection::Plugins::blacklist {
     namespace MainGui {
         LOICOLLECTION_A_API void info(void* player_ptr, std::string target);
         LOICOLLECTION_A_API void content(void* player_ptr, std::string target);

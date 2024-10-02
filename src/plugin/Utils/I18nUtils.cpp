@@ -10,10 +10,7 @@
 #include "I18nUtils.h"
 
 namespace I18nUtils {
-    namespace {
-        using nlohmann::ordered_json;
-        std::unique_ptr<JsonUtils> json;
-    }
+    std::unique_ptr<JsonUtils> json;
 
     void load(std::filesystem::path path) {
         json = std::make_unique<JsonUtils>(path);
@@ -21,7 +18,7 @@ namespace I18nUtils {
 
     std::string tr(const std::string& local, const std::string& key) {
         if (json->has(local)) {
-            ordered_json localJson = json->toJson(local);
+            nlohmann::ordered_json localJson = json->toJson(local);
             if (localJson.contains(key)) {
                 return localJson[key];
             }
@@ -30,7 +27,7 @@ namespace I18nUtils {
     }
 
     std::string getName(const std::string& local) {
-        ordered_json localJson = json->toJson(local);
+        nlohmann::ordered_json localJson = json->toJson(local);
         if (localJson.contains("name")) {
             return localJson["name"];
         }

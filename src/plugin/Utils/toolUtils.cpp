@@ -40,9 +40,6 @@
 
 #include "toolUtils.h"
 
-using I18nUtils::tr;
-using languagePlugin::getLanguage;
-
 ll::mod::Manifest manifestPlugin;
 
 namespace toolUtils {
@@ -248,6 +245,9 @@ namespace toolUtils {
     }
 
     namespace Gui {
+        using I18nUtils::tr;
+        using LOICollection::Plugins::language::getLanguage;
+
         void submission(Player* player, std::function<void(void*)> callback) {
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "exit.gui.title"), tr(mObjectLanguage, "exit.gui.label"));

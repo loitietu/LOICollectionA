@@ -7,7 +7,7 @@
 
 #include "ExportLib.h"
 
-namespace walletPlugin {
+namespace LOICollection::Plugins::wallet {
     namespace MainGui {
         LOICOLLECTION_A_API void content(void* player_ptr, std::string target);
         LOICOLLECTION_A_API void transfer(void* player_ptr);

@@ -31,7 +31,7 @@ using I18nUtils::keys;
 using I18nUtils::getName;
 using I18nUtils::getLocalFromName;
 
-namespace languagePlugin {
+namespace LOICollection::Plugins::language {
     std::unique_ptr<SQLiteStorage> db;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - language");
@@ -52,7 +52,8 @@ namespace languagePlugin {
                 std::string mObjectUuid = pl.getUuid().asString();
                 std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
                 db->set("OBJECT$" + mObjectUuid, "language", getLocalFromName(std::get<std::string>(dt->at("dropdown"))));
-                logger.info(LOICollectionAPI::translateString(tr(getLanguage(&pl), "language.log"), &pl));
+                
+                logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "language.log"), &pl));
             });
         }
     }

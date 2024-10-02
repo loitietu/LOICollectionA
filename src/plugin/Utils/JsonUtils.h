@@ -1,9 +1,7 @@
 #ifndef JSONUTILS_H
 #define JSONUTILS_H
 
-#include <string>
 #include <vector>
-#include <cstddef>
 #include <filesystem>
 #include <string_view>
 
@@ -12,33 +10,31 @@
 
 class JsonUtils {
 public:
-    JsonUtils(const std::filesystem::path& path);
-    ~JsonUtils() {
-        this->d_path.clear();
-        this->d_json.clear();
+    explicit JsonUtils(const std::filesystem::path& path);
+    ~JsonUtils() = default;
+
+    bool remove(std::string_view key);
+    bool has(std::string_view key) const;
+    bool isEmpty() const;
+
+    template <typename T>
+    T get(std::string_view key) const {
+        return this->d_json.at(key).get<T>();
     }
 
-    bool del(std::string_view key);
-
-    std::string getString(std::string_view key);
-
-    bool has(std::string_view key);
-    bool empty();
-    bool reset();
+    template <typename T>
+    void set(std::string_view key, T value) {
+        this->d_json[key] = value;
+    }
 
     void write(nlohmann::ordered_json& json);
-    void set(std::string_view key, const std::string& value);
-    void set(std::string_view key, nlohmann::ordered_json& value);
-    void set(std::string_view key, const nlohmann::ordered_json& value);
-    void save();
+    void save() const;
     
-    std::vector<std::string> keys();
+    std::vector<std::string> keys() const;
 
-    size_t size();
-
-    std::string toString(int indent = 0);
-    nlohmann::ordered_json toJson(std::string key);
-    nlohmann::ordered_json toJson();
+    std::string toString(int indent = 0) const;
+    nlohmann::ordered_json toJson(std::string_view key) const;
+    nlohmann::ordered_json toJson() const;
 private:
     std::filesystem::path d_path;
     nlohmann::ordered_json d_json = nlohmann::ordered_json::object();

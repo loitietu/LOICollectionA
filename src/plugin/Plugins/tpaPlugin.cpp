@@ -33,9 +33,9 @@
 #include "Include/tpaPlugin.h"
 
 using I18nUtils::tr;
-using languagePlugin::getLanguage;
+using LOICollection::Plugins::language::getLanguage;
 
-namespace tpaPlugin {
+namespace LOICollection::Plugins::tpa {
     std::unique_ptr<SQLiteStorage> db;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - TPA");
@@ -67,8 +67,8 @@ namespace tpaPlugin {
             ll::form::ModalForm form;
             form.setTitle(tr(mObjectLanguage, "tpa.gui.title"));
             if (!type)
-                form.setContent(LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player));
-            else form.setContent(LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player));
+                form.setContent(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player));
+            else form.setContent(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player));
             form.setUpperButton(tr(mObjectLanguage, "tpa.yes"));
             form.setLowerButton(tr(mObjectLanguage, "tpa.no"));
             form.sendTo(*target, [type, player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
@@ -166,7 +166,7 @@ namespace tpaPlugin {
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
-                    if (!blacklistPlugin::isBlacklist(&event.self())) {
+                    if (!blacklist::isBlacklist(&event.self())) {
                         std::string mObject = event.self().getUuid().asString();
                         std::replace(mObject.begin(), mObject.end(), '-', '_');
                         if (!db->has("OBJECT$" + mObject)) {

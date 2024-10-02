@@ -35,9 +35,9 @@
 
 #include "Include/menuPlugin.h"
 
-using LOICollectionAPI::translateString;
+using LOICollection::LOICollectionAPI::translateString;
 
-namespace menuPlugin {
+namespace LOICollection::Plugins::menu {
     struct MenuOP {
         std::string uiName;
     };
