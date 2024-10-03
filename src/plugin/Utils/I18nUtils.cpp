@@ -19,35 +19,29 @@ namespace I18nUtils {
     std::string tr(const std::string& local, const std::string& key) {
         if (json->has(local)) {
             nlohmann::ordered_json localJson = json->toJson(local);
-            if (localJson.contains(key)) {
+            if (localJson.contains(key))
                 return localJson[key];
-            }
         }
         return key;
     }
 
     std::string getName(const std::string& local) {
         nlohmann::ordered_json localJson = json->toJson(local);
-        if (localJson.contains("name")) {
+        if (localJson.contains("name"))
             return localJson["name"];
-        }
         return local;
     }
 
     std::string getLocalFromName(const std::string& name) {
-        for (auto& local : json->keys()) {
-            if (getName(local) == name) {
-                return local;
-            }
-        }
+        for (auto& local : json->keys())
+            if (getName(local) == name) return local;
         return "";
     }
 
     std::vector<std::string> keys() {
         std::vector<std::string> keyl;
-        for (auto& local : json->keys()) {
+        for (auto& local : json->keys())
             keyl.push_back(getName(local));
-        }
         return keyl;
     }
 }

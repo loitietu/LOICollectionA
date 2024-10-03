@@ -52,7 +52,8 @@ lip install github.com/loitietu/LOICollectionA
         "Monitor": {
             "Enable": false,
             "show": "{player}\n称号: {title}",
-            "join": "{player}加入了服务器",
+            "join": "{player} 加入了服务器",
+            "exit": "{player} 退出了服务器",
             "target": "money",
             "changed": "§e§l检测到Score发生变化 §e现值: §f${GetScore}",
             "tips": "该指令已被禁用" ,

@@ -11,6 +11,7 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
+#include <ll/api/event/player/PlayerLeaveEvent.h>
 #include <ll/api/event/command/ExecuteCommandEvent.h>
 
 #include <mc/world/actor/player/Player.h>
@@ -32,6 +33,7 @@ namespace LOICollection::Plugins::monitor {
     std::map<std::string, std::variant<std::string, std::vector<std::string>>> mObjectOptions;
     
     ll::event::ListenerPtr PlayerJoinEventListener;
+    ll::event::ListenerPtr PlayerLeaveEventListener;
     ll::event::ListenerPtr ExecuteCommandEvent;
 
     namespace {
@@ -42,6 +44,15 @@ namespace LOICollection::Plugins::monitor {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("join"));
+                    LOICollection::LOICollectionAPI::translateString(mMonitorString, &event.self());
+                    toolUtils::broadcastText(mMonitorString);
+                }
+            );
+            PlayerLeaveEventListener = eventBus.emplaceListener<ll::event::PlayerLeaveEvent>(
+                [](ll::event::PlayerLeaveEvent& event) {
+                    if (event.self().isSimulatedPlayer())
+                        return;
+                    std::string mMonitorString = std::get<std::string>(mObjectOptions.at("exit"));
                     LOICollection::LOICollectionAPI::translateString(mMonitorString, &event.self());
                     toolUtils::broadcastText(mMonitorString);
                 }
@@ -95,6 +106,7 @@ namespace LOICollection::Plugins::monitor {
     void unregistery() {
         auto& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
+        eventBus.removeListener(PlayerLeaveEventListener);
         eventBus.removeListener(ExecuteCommandEvent);
     }
 }

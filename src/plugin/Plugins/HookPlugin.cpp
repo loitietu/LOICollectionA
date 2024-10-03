@@ -56,7 +56,7 @@ LL_TYPE_INSTANCE_HOOK(
 };
 
 LL_TYPE_INSTANCE_HOOK(
-    InterceptPacketHook,
+    InterceptPacketHook1,
     HookPriority::Normal,
     LoopbackPacketSender,
     "?sendBroadcast@LoopbackPacketSender@@UEAAXAEBVNetworkIdentifier@@W4SubClientId@@AEBVPacket@@@Z",
@@ -81,6 +81,32 @@ LL_TYPE_INSTANCE_HOOK(
         }
     }
     return origin(identifier, subId, packet);
+};
+
+LL_TYPE_INSTANCE_HOOK(
+    InterceptPacketHook2,
+    HookPriority::Normal,
+    LoopbackPacketSender,
+    "?sendBroadcast@LoopbackPacketSender@@UEAAXAEBVPacket@@@Z",
+    void,
+    Packet const& packet
+) {
+    if (mInterceptedTextPacketTargets.size() >= 10000) {
+        mInterceptedTextPacketTargets.clear();
+        for (auto& player : toolUtils::getAllPlayers())
+            mInterceptedTextPacketTargets.push_back(player->getUuid().asString());
+    }
+    if (packet.getId() == MinecraftPacketIds::Text) {
+        auto mTextPacket = static_cast<TextPacket const&>(packet);
+        if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 2) {
+            Player* player = toolUtils::getPlayerFromName(mTextPacket.mParams.at(0));
+            if (player == nullptr)
+                return origin(packet);
+            if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), player->getUuid().asString()) != mInterceptedTextPacketTargets.end())
+                return;
+        }
+    }
+    return origin(packet);
 };
 
 LL_TYPE_INSTANCE_HOOK(
@@ -258,7 +284,8 @@ namespace LOICollection::HookPlugin {
 
     void registery() {
         FakeSeedHook::hook();
-        InterceptPacketHook::hook();
+        InterceptPacketHook1::hook();
+        InterceptPacketHook2::hook();
         InterceptGetNameTagHook::hook();
         TextPacketSendHook::hook();
         LoginPacketSendHook::hook();
@@ -269,7 +296,8 @@ namespace LOICollection::HookPlugin {
 
     void unregistery() {
         FakeSeedHook::unhook();
-        InterceptPacketHook::unhook();
+        InterceptPacketHook1::unhook();
+        InterceptPacketHook2::unhook();
         InterceptGetNameTagHook::unhook();
         TextPacketSendHook::unhook();
         LoginPacketSendHook::unhook();

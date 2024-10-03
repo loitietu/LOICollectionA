@@ -23,7 +23,8 @@ struct C_Config {
         struct C_Monitor {
             bool Enable = false;
             std::string show = "{player}\n称号: {title}";
-            std::string join = "{player}加入了服务器";
+            std::string join = "{player} 加入了服务器";
+            std::string exit = "{player} 退出了服务器";
             std::string target = "money";
             std::string changed = "§e§l检测到Score发生变化 §e现值: §f${GetScore}";
             std::string tips = "该指令已被禁用";

@@ -112,6 +112,7 @@ namespace LOICollection {
             std::map<std::string, std::variant<std::string, std::vector<std::string>>> options;
             options["show"] = this->config.Plugins.Monitor.show;
             options["join"] = this->config.Plugins.Monitor.join;
+            options["exit"] = this->config.Plugins.Monitor.exit;
             options["target"] = this->config.Plugins.Monitor.target;
             options["changed"] = this->config.Plugins.Monitor.changed;
             options["tips"] = this->config.Plugins.Monitor.tips;

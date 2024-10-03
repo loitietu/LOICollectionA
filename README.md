@@ -53,6 +53,7 @@ Market | $\color{#00FF00}{√}$
             "Enable": false,
             "show": "{player}\nTitle: {title}",
             "join": "{player} has joined the server",
+            "exit": "{player} has leave the server",
             "target": "money",
             "changed": "§e§lDetected Score Change §eCurrent Value: §f${GetScore}",
             "tips": "This command has been disabled",
