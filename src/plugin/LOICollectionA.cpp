@@ -30,6 +30,8 @@
 #include "Include/acPlugin.h"
 #include "Include/marketPlugin.h"
 
+#include "Include/AntiCheat/RedStone.h"
+
 #include "LangPlugin.h"
 
 #include "LOICollectionA.h"
@@ -133,6 +135,8 @@ namespace LOICollection {
             options["score"] = this->config.Plugins.Market.score;
             Plugins::market::registery(&this->MarketDB, options);
         }
+
+        if (this->config.AntiCheat.RedStone.Enable) AntiCheat::RedStone::registery(this->config.AntiCheat.RedStone.tick);
         return true;
     }
 
@@ -146,6 +150,8 @@ namespace LOICollection {
         if (this->config.Plugins.Chat.Enable) Plugins::chat::unregistery();
         if (this->config.Plugins.AnnounCement) Plugins::announcement::unregistery();
         if (this->config.Plugins.Market.Enable) Plugins::market::unregistery();
+
+        if (this->config.AntiCheat.RedStone.Enable) AntiCheat::RedStone::unregistery();
         return true;
     }
 }

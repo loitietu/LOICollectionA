@@ -46,6 +46,12 @@ struct C_Config {
             std::string score = "money";
         } Market;
     } Plugins;
+    struct C_AntiCheat {
+        struct C_RedStone {
+            bool Enable = false;
+            int tick = 5;
+        } RedStone;
+    } AntiCheat;
 };
 
 #endif

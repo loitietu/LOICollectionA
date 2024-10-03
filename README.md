@@ -74,6 +74,12 @@ Market | $\color{#00FF00}{√}$
             "Enable": false,
             "score": "money"
         }
+    },
+    "AntiCheat": {
+        "RedStone": {
+            "Enable": false,
+            "tick": 5
+        }
     }
 }
 ```

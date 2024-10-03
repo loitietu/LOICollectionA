@@ -74,6 +74,12 @@ lip install github.com/loitietu/LOICollectionA
             "Enable": false,
             "score": "money"
         }
+    },
+    "AntiCheat": {
+        "RedStone": {
+            "Enable": false,
+            "tick": 5
+        }
     }
 }
 ```
