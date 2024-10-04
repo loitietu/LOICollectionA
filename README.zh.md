@@ -34,7 +34,7 @@ lip install github.com/loitietu/LOICollectionA
 3. 打开后，您会看到类似以下内容的内容：
 ```json
 {
-    "version": 146,
+    "version": 147,
     "Plugins": {
         "FakeSeed": "random",
         "language": {
@@ -76,10 +76,7 @@ lip install github.com/loitietu/LOICollectionA
         }
     },
     "AntiCheat": {
-        "RedStone": {
-            "Enable": false,
-            "tick": 5
-        }
+        "RedStone": 0
     }
 }
 ```

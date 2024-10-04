@@ -136,7 +136,7 @@ namespace LOICollection {
             Plugins::market::registery(&this->MarketDB, options);
         }
 
-        if (this->config.AntiCheat.RedStone.Enable) AntiCheat::RedStone::registery(this->config.AntiCheat.RedStone.tick);
+        if (this->config.AntiCheat.RedStone) AntiCheat::RedStone::registery(this->config.AntiCheat.RedStone);
         return true;
     }
 
@@ -151,7 +151,7 @@ namespace LOICollection {
         if (this->config.Plugins.AnnounCement) Plugins::announcement::unregistery();
         if (this->config.Plugins.Market.Enable) Plugins::market::unregistery();
 
-        if (this->config.AntiCheat.RedStone.Enable) AntiCheat::RedStone::unregistery();
+        if (this->config.AntiCheat.RedStone) AntiCheat::RedStone::unregistery();
         return true;
     }
 }

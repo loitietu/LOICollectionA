@@ -105,7 +105,6 @@ namespace LOICollection::AntiCheat::RedStone {
         ComparatorBlockHook::hook();
         ObserverBlockHook::hook();
 
-
         static ll::schedule::ServerTimeScheduler scheduler;
         scheduler.add<ll::schedule::RepeatTask>(1s, [] {
             if (mRedStoneMap.empty()) return;

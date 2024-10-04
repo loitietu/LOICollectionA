@@ -49,7 +49,7 @@ LL_TYPE_INSTANCE_HOOK(
     StartGamePacket,
     "?write@StartGamePacket@@UEBAXAEAVBinaryStream@@@Z",
     void,
-    class BinaryStream& stream
+    BinaryStream& stream
 ) {
     this->mSettings.setRandomSeed(LevelSeed64(mFakeSeed));
     return origin(stream);
@@ -72,10 +72,11 @@ LL_TYPE_INSTANCE_HOOK(
     }
     if (packet.getId() == MinecraftPacketIds::Text) {
         auto mTextPacket = static_cast<TextPacket const&>(packet);
-        if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 2) {
-            Player* player = toolUtils::getPlayerFromName(mTextPacket.mParams.at(0));
-            if (player == nullptr)
+        if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {
+            if (mTextPacket.mMessage.find("multiplayer.player.joined") == std::string::npos)
                 return origin(identifier, subId, packet);
+            Player* player = toolUtils::getPlayerFromName(mTextPacket.mParams.at(0));
+            if (player == nullptr) return origin(identifier, subId, packet);
             if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), player->getUuid().asString()) != mInterceptedTextPacketTargets.end())
                 return;
         }
@@ -98,10 +99,11 @@ LL_TYPE_INSTANCE_HOOK(
     }
     if (packet.getId() == MinecraftPacketIds::Text) {
         auto mTextPacket = static_cast<TextPacket const&>(packet);
-        if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 2) {
-            Player* player = toolUtils::getPlayerFromName(mTextPacket.mParams.at(0));
-            if (player == nullptr)
+        if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {
+            if (mTextPacket.mMessage.find("multiplayer.player.left") == std::string::npos)
                 return origin(packet);
+            Player* player = toolUtils::getPlayerFromName(mTextPacket.mParams.at(0));
+            if (player == nullptr) return origin(packet);
             if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), player->getUuid().asString()) != mInterceptedTextPacketTargets.end())
                 return;
         }
@@ -143,9 +145,7 @@ LL_TYPE_INSTANCE_HOOK(
 ) {
     Player* player = toolUtils::getPlayerFromName(packet.mAuthor);
     
-    if (player == nullptr) 
-        return origin(identifier, packet);
-    
+    if (player == nullptr) return origin(identifier, packet);
     for (auto& callback : mTextPacketSendEventCallbacks)
         if (callback(player, packet.mMessage)) return;
     return origin(identifier, packet);

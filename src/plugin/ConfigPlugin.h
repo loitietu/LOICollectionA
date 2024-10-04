@@ -47,10 +47,7 @@ struct C_Config {
         } Market;
     } Plugins;
     struct C_AntiCheat {
-        struct C_RedStone {
-            bool Enable = false;
-            int tick = 5;
-        } RedStone;
+        int RedStone = 0;
     } AntiCheat;
 };
 

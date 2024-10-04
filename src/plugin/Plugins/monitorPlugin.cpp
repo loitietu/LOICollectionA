@@ -91,7 +91,6 @@ namespace LOICollection::Plugins::monitor {
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("show"));
                     LOICollection::LOICollectionAPI::translateString(mMonitorString, player);
                     player->setNameTag(mMonitorString);
-                    player->_sendDirtyActorData();
                 }
             });
         }
