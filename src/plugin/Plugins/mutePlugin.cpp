@@ -56,7 +56,7 @@ namespace LOICollection::Plugins::mute {
                 delMute(target);
 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    MainGui::remove(player_ptr);
+                    return MainGui::remove(player_ptr);
                 });
             });
             form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
@@ -81,7 +81,7 @@ namespace LOICollection::Plugins::mute {
                 addMute(toolUtils::getPlayerFromName(target), PlayerInputCause, time);
                 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    MainGui::add(player_ptr);
+                    return MainGui::add(player_ptr);
                 });
             });
         }

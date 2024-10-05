@@ -3,6 +3,7 @@
 #include <string>
 #include <sstream>
 #include <cstddef>
+#include <filesystem>
 
 #include <ll/api/Mod/Manifest.h>
 #include <ll/api/Mod/NativeMod.h>
@@ -21,6 +22,7 @@
 #include <mc/world/actor/player/Player.h>
 #include <mc/world/actor/player/PlayerScoreSetFunction.h>
 #include <mc/world/item/registry/ItemStack.h>
+
 #include <mc/server/commands/CommandContext.h>
 #include <mc/server/commands/PlayerCommandOrigin.h>
 #include <mc/server/commands/MinecraftCommands.h>

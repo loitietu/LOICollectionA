@@ -24,7 +24,6 @@
 
 #include "Include/APIUtils.h"
 #include "Include/languagePlugin.h"
-#include "Include/blacklistPlugin.h"
 
 #include "Utils/toolUtils.h"
 #include "Utils/I18nUtils.h"
@@ -87,7 +86,7 @@ namespace LOICollection::Plugins::announcement {
                     db->save();
 
                     toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                        MainGui::setting(player_ptr);
+                        return MainGui::setting(player_ptr);
                     });
 
                     logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "announcement.log"), &pl));
@@ -151,9 +150,7 @@ namespace LOICollection::Plugins::announcement {
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
-                    if (!blacklist::isBlacklist(&event.self())) {
-                        MainGui::open(&event.self());
-                    }
+                    MainGui::open(&event.self());
                 }
             );
         }

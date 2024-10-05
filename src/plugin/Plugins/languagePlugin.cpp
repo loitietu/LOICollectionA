@@ -32,7 +32,7 @@ using I18nUtils::getName;
 using I18nUtils::getLocalFromName;
 
 namespace LOICollection::Plugins::language {
-    std::unique_ptr<SQLiteStorage> db;
+    std::shared_ptr<SQLiteStorage> db;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - language");
 
@@ -49,9 +49,9 @@ namespace LOICollection::Plugins::language {
                     pl.sendMessage(tr(getLanguage(&pl), "exit"));
                     return;
                 }
-                std::string mObjectUuid = pl.getUuid().asString();
-                std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
-                db->set("OBJECT$" + mObjectUuid, "language", getLocalFromName(std::get<std::string>(dt->at("dropdown"))));
+                std::string mObject = pl.getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+                db->set("OBJECT$" + mObject, "language", getLocalFromName(std::get<std::string>(dt->at("dropdown"))));
                 
                 logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "language.log"), &pl));
             });
@@ -83,12 +83,12 @@ namespace LOICollection::Plugins::language {
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
-                    std::string mObjectUuid = event.self().getUuid().asString();
-                    std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
-                    if (!db->has("OBJECT$" + mObjectUuid)) {
-                        db->create("OBJECT$" + mObjectUuid);
-                        db->set("OBJECT$" + mObjectUuid, "language", "zh_CN");
-                    }
+                    std::string mObject = event.self().getUuid().asString();
+                    std::replace(mObject.begin(), mObject.end(), '-', '_');
+                    if (!db->has("OBJECT$" + mObject))
+                        db->create("OBJECT$" + mObject);
+                    if (!db->has("OBJECT$" + mObject, "language"))
+                        db->set("OBJECT$" + mObject, "language", "zh_CN");
                 }
             );
         }
@@ -97,13 +97,13 @@ namespace LOICollection::Plugins::language {
     std::string getLanguage(void* player_ptr) {
         if (player_ptr == nullptr) return "zh_CN";
         Player* player = static_cast<class Player*>(player_ptr);
-        std::string mObjectUuid = player->getUuid().asString();
-        std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
-        return db->get("OBJECT$" + mObjectUuid, "language");
+        std::string mObject = player->getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        return db->get("OBJECT$" + mObject, "language");
     }
 
     void registery(void* database) {
-        db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
         logger.setFile("./logs/LOICollectionA.log");
         registerCommand();
         listenEvent();

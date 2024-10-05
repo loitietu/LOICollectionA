@@ -27,7 +27,6 @@
 
 #include "Include/APIUtils.h"
 #include "Include/languagePlugin.h"
-#include "Include/blacklistPlugin.h"
 
 #include "Utils/I18nUtils.h"
 #include "Utils/toolUtils.h"
@@ -81,7 +80,7 @@ namespace LOICollection::Plugins::market {
                     delItem(mItemId);
                     
                     toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                        MainGui::buy(player_ptr);
+                        return MainGui::buy(player_ptr);
                     });
 
                     std::string logString = tr(getLanguage(&pl), "market.log1");
@@ -100,7 +99,7 @@ namespace LOICollection::Plugins::market {
                     delItem(mItemId);
 
                     toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                        MainGui::buy(player_ptr);
+                        return MainGui::buy(player_ptr);
                     });
 
                     std::string logString = tr(getLanguage(&pl), "market.log3");
@@ -135,7 +134,7 @@ namespace LOICollection::Plugins::market {
                 delItem(mItemId);
 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    MainGui::sellItemContent(player_ptr);
+                    return MainGui::sellItemContent(player_ptr);
                 });
 
                 std::string logString = tr(getLanguage(&pl), "market.log3");
@@ -190,7 +189,7 @@ namespace LOICollection::Plugins::market {
                     pl.refreshInventory();
 
                     toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                        MainGui::sellItem(player_ptr);
+                        return MainGui::sellItem(player_ptr);
                     });
 
                     std::string logString = tr(getLanguage(&pl), "market.log2");
@@ -301,24 +300,21 @@ namespace LOICollection::Plugins::market {
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
-                    if (!blacklist::isBlacklist(&event.self())) {
-                        std::string mObject = event.self().getUuid().asString();
-                        std::replace(mObject.begin(), mObject.end(), '-', '_');
-                        if (!db->has("Item")) {
-                            db->create("Item");
-                        }
-                        if (!db->has("OBJECT$" + mObject)) {
-                            db->create("OBJECT$" + mObject);
-                            db->create("OBJECT$" + mObject + "$ITEMS");
-                            db->set("OBJECT$" + mObject, "score", "0");
-                            return;
-                        }
-                        int mScore = toolUtils::toInt(db->get("OBJECT$" + mObject, "score"), 0);
-                        if (mScore > 0) {
-                            std::string mObjectScore = mObjectOptions.at("score");
-                            toolUtils::scoreboard::addScore(&event.self(), mObjectScore, mScore);
-                            db->set("OBJECT$" + mObject, "score", "0");
-                        }
+                    std::string mObject = event.self().getUuid().asString();
+                    std::replace(mObject.begin(), mObject.end(), '-', '_');
+                    if (!db->has("Item")) 
+                        db->create("Item");
+                    if (!db->has("OBJECT$" + mObject)) {
+                        db->create("OBJECT$" + mObject);
+                        db->create("OBJECT$" + mObject + "$ITEMS");
+                        db->set("OBJECT$" + mObject, "score", "0");
+                        return;
+                    }
+                    int mScore = toolUtils::toInt(db->get("OBJECT$" + mObject, "score"), 0);
+                    if (mScore > 0) {
+                        std::string mObjectScore = mObjectOptions.at("score");
+                        toolUtils::scoreboard::addScore(&event.self(), mObjectScore, mScore);
+                        db->set("OBJECT$" + mObject, "score", "0");
                     }
                 }
             );

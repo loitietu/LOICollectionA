@@ -93,7 +93,7 @@ namespace LOICollection::Plugins::cdk {
                 }
                 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    MainGui::cdkNew(player_ptr);
+                    return MainGui::cdkNew(player_ptr);
                 });
 
                 logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
@@ -124,7 +124,7 @@ namespace LOICollection::Plugins::cdk {
                 db->save();
 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    MainGui::cdkRemove(player_ptr);
+                    return MainGui::cdkRemove(player_ptr);
                 });
 
                 logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
@@ -159,7 +159,7 @@ namespace LOICollection::Plugins::cdk {
                 db->save();
 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    MainGui::cdkAwardScore(player_ptr);
+                    return MainGui::cdkAwardScore(player_ptr);
                 });
             });
         }
@@ -200,7 +200,7 @@ namespace LOICollection::Plugins::cdk {
                 db->save();
 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    MainGui::cdkAwardItem(player_ptr);
+                    return MainGui::cdkAwardItem(player_ptr);
                 });
             });
         }
@@ -236,7 +236,7 @@ namespace LOICollection::Plugins::cdk {
                 db->save();
 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    MainGui::cdkAwardTitle(player_ptr);
+                    return MainGui::cdkAwardTitle(player_ptr);
                 });
             });
         }

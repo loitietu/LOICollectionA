@@ -73,11 +73,9 @@ namespace LOICollection {
 
         logger.info("Initialization of configurations completed.");
         std::filesystem::create_directory(dataFilePath);
-        this->LanguageDB = std::make_unique<SQLiteStorage>(dataFilePath / "language.db");
+        this->SettingsDB = std::make_unique<SQLiteStorage>(dataFilePath / "settings.db");
         this->BlacklistDB = std::make_unique<SQLiteStorage>(dataFilePath / "blacklist.db");
         this->MuteDB = std::make_unique<SQLiteStorage>(dataFilePath / "mute.db");
-        this->TpaDB = std::make_unique<SQLiteStorage>(dataFilePath / "tpa.db");
-        this->PvpDB = std::make_unique<SQLiteStorage>(dataFilePath / "pvp.db");
         this->ChatDB = std::make_unique<SQLiteStorage>(dataFilePath / "chat.db");
         this->MarketDB = std::make_unique<SQLiteStorage>(dataFilePath / "market.db");
         this->AnnounCementDB = std::make_unique<JsonUtils>(configDataPath / "announcement.json");
@@ -85,7 +83,7 @@ namespace LOICollection {
         this->MenuDB = std::make_unique<JsonUtils>(configDataPath / "menu.json");
         this->ShopDB = std::make_unique<JsonUtils>(configDataPath / "shop.json");
         logger.info("Initialization of database file completed.");
-
+        
         if (this->config.Plugins.language.update) {
             JsonUtils mObjectLanguage(this->mSelf.getConfigDir() / "language.json");
             mObjectLanguage.set("zh_CN", CNLangData);
@@ -103,12 +101,12 @@ namespace LOICollection {
         LOICollectionAPI::initialization();
 
         HookPlugin::registery();
-        Plugins::language::registery(&this->LanguageDB);
+        Plugins::language::registery(&this->SettingsDB);
         if (this->config.Plugins.Blacklist) Plugins::blacklist::registery(&this->BlacklistDB);
         if (this->config.Plugins.Mute) Plugins::mute::registery(&this->MuteDB);
         if (this->config.Plugins.Cdk) Plugins::cdk::registery(&this->CdkDB);
         if (this->config.Plugins.Menu.Enable) Plugins::menu::registery(&this->MenuDB, this->config.Plugins.Menu.ItemId);
-        if (this->config.Plugins.Tpa) Plugins::tpa::registery(&this->TpaDB);
+        if (this->config.Plugins.Tpa) Plugins::tpa::registery(&this->SettingsDB);
         if (this->config.Plugins.Shop) Plugins::shop::registery(&this->ShopDB);
         if (this->config.Plugins.Monitor.Enable) {
             std::map<std::string, std::variant<std::string, std::vector<std::string>>> options;
@@ -121,7 +119,7 @@ namespace LOICollection {
             options["command"] = this->config.Plugins.Monitor.command;
             Plugins::monitor::registery(options);
         }
-        if (this->config.Plugins.Pvp) Plugins::pvp::registery(&this->PvpDB);
+        if (this->config.Plugins.Pvp) Plugins::pvp::registery(&this->SettingsDB);
         if (this->config.Plugins.Wallet.Enable) {
             std::map<std::string, std::variant<std::string, double>> options;
             options["score"] = this->config.Plugins.Wallet.score;

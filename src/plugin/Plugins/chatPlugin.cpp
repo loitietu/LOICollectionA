@@ -24,7 +24,6 @@
 
 #include "Include/APIUtils.h"
 #include "Include/languagePlugin.h"
-#include "Include/blacklistPlugin.h"
 #include "Include/mutePlugin.h"
 
 #include "Utils/I18nUtils.h"
@@ -62,7 +61,7 @@ namespace LOICollection::Plugins::chat {
                 addChat(toolUtils::getPlayerFromName(target), PlayerInputTitle, time);
 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    MainGui::add(player_ptr);
+                    return MainGui::add(player_ptr);
                 });
             });
         }
@@ -85,7 +84,7 @@ namespace LOICollection::Plugins::chat {
                 delChat(toolUtils::getPlayerFromName(target), PlayerSelectTitle);
 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    MainGui::remove(player_ptr);
+                    return MainGui::remove(player_ptr);
                 });
             });
         }
@@ -137,7 +136,7 @@ namespace LOICollection::Plugins::chat {
                 db->set("OBJECT$" + mObject, "title", PlayerSelectTitle);
                 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    MainGui::title(player_ptr);
+                    return MainGui::title(player_ptr);
                 });
 
                 logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "chat.log1"), &pl));
@@ -212,17 +211,15 @@ namespace LOICollection::Plugins::chat {
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
-                    if (!blacklist::isBlacklist(&event.self())) {
-                        std::string mObject = event.self().getUuid().asString();
-                        std::replace(mObject.begin(), mObject.end(), '-', '_');
-                        if (!db->has("OBJECT$" + mObject)) {
-                            db->create("OBJECT$" + mObject);
-                            db->set("OBJECT$" + mObject, "title", "None");
-                        }
-                        if (!db->has("OBJECT$" + mObject + "$TITLE")) {
-                            db->create("OBJECT$" + mObject + "$TITLE");
-                            db->set("OBJECT$" + mObject + "$TITLE", "None", "0");
-                        }
+                    std::string mObject = event.self().getUuid().asString();
+                    std::replace(mObject.begin(), mObject.end(), '-', '_');
+                    if (!db->has("OBJECT$" + mObject)) {
+                        db->create("OBJECT$" + mObject);
+                        db->set("OBJECT$" + mObject, "title", "None");
+                    }
+                    if (!db->has("OBJECT$" + mObject + "$TITLE")) {
+                        db->create("OBJECT$" + mObject + "$TITLE");
+                        db->set("OBJECT$" + mObject + "$TITLE", "None", "0");
                     }
                 }
             );
@@ -230,14 +227,13 @@ namespace LOICollection::Plugins::chat {
                 [](ll::event::PlayerChatEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
-                    if (!mute::isMute(&event.self())) {
-                        event.cancel();
-                        
-                        std::string mChat = mChatString;
-                        LOICollection::LOICollectionAPI::translateString(mChat, &event.self());
-                        ll::string_utils::replaceAll(mChat, "${chat}", event.message());
-                        toolUtils::broadcastText(mChat);
-                    }
+                    if (mute::isMute(&event.self()))
+                        return;
+                    event.cancel();
+                    std::string mChat = mChatString;
+                    LOICollection::LOICollectionAPI::translateString(mChat, &event.self());
+                    ll::string_utils::replaceAll(mChat, "${chat}", event.message());
+                    toolUtils::broadcastText(mChat);
                 }
             );
         }

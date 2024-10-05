@@ -63,7 +63,7 @@ namespace LOICollection::Plugins::wallet {
                 toolUtils::scoreboard::addScore(toolUtils::getPlayerFromName(target), mScore, mTargetMoney);
 
                 toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    MainGui::transfer(player_ptr);
+                    return MainGui::transfer(player_ptr);
                 });
 
                 std::string logString = tr(getLanguage(&pl), "wallet.log");
@@ -96,7 +96,7 @@ namespace LOICollection::Plugins::wallet {
             toolUtils::broadcastText(mTipsString);
             
             toolUtils::Gui::submission(player, [](void* player_ptr) {
-                MainGui::open(player_ptr);
+                return MainGui::open(player_ptr);
             });
         }
 

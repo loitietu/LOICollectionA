@@ -34,7 +34,7 @@ using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::pvp {
-    std::unique_ptr<SQLiteStorage> db;
+    std::shared_ptr<SQLiteStorage> db;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - PVP");
 
@@ -44,20 +44,10 @@ namespace LOICollection::Plugins::pvp {
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "pvp.gui.title"), tr(mObjectLanguage, "pvp.gui.label"));
             form.appendButton(tr(mObjectLanguage, "pvp.gui.on"), "textures/ui/book_addtextpage_default", "path", [](Player& pl) {
-                std::string mObject = pl.getUuid().asString();
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-                if (db->has("OBJECT$" + mObject)) {
-                    db->set("OBJECT$" + mObject, "enable", "true");
-                }
-                logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "pvp.log1"), &pl));
+                enable(&pl, true);
             });
             form.appendButton(tr(mObjectLanguage, "pvp.gui.off"), "textures/ui/cancel", "path", [](Player& pl) {
-                std::string mObject = pl.getUuid().asString();
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-                if (db->has("OBJECT$" + mObject)) {
-                    db->set("OBJECT$" + mObject, "enable", "false");
-                }
-                logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "pvp.log2"), &pl));
+                enable(&pl, false);
             });
             form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
@@ -90,11 +80,8 @@ namespace LOICollection::Plugins::pvp {
                     return;
                 }
                 Player* player = static_cast<Player*>(entity);
-                std::string mObject = player->getUuid().asString();
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-                if (db->has("OBJECT$" + mObject))
-                    db->set("OBJECT$" + mObject, "enable", "false");
                 output.success("The PVP has been disabled");
+                enable(player, false);
             });
             command.overload().text("on").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
@@ -103,11 +90,8 @@ namespace LOICollection::Plugins::pvp {
                     return;
                 }
                 Player* player = static_cast<Player*>(entity);
-                std::string mObject = player->getUuid().asString();
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-                if (db->has("OBJECT$" + mObject))
-                    db->set("OBJECT$" + mObject, "enable", "true");
                 output.success("The PVP has been enabled");
+                enable(player, true);
             });
         }
 
@@ -119,10 +103,10 @@ namespace LOICollection::Plugins::pvp {
                         return;
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (!db->has("OBJECT$" + mObject)) {
+                    if (!db->has("OBJECT$" + mObject))
                         db->create("OBJECT$" + mObject);
-                        db->set("OBJECT$" + mObject, "enable", "false");
-                    }
+                    if (!db->has("OBJECT$" + mObject, "Pvp_Enable"))
+                        db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
                 }
             );
             LOICollection::HookPlugin::Event::onPlayerHurtEvent([](void* target_ptr, void* source_ptr, float /*unused*/) {
@@ -140,17 +124,32 @@ namespace LOICollection::Plugins::pvp {
         }
     }
 
+    void enable(void* player_ptr, bool value) {
+        Player* player = static_cast<Player*>(player_ptr);
+        std::string mObject = player->getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        if (value) {
+            if (db->has("OBJECT$" + mObject))
+                db->set("OBJECT$" + mObject, "Pvp_Enable", "true");
+            logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(player), "pvp.log1"), player));
+            return;
+        }
+        if (db->has("OBJECT$" + mObject))
+            db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
+        logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(player), "pvp.log2"), player));
+    }
+
     bool isEnable(void* player_ptr) {
         Player* player = static_cast<Player*>(player_ptr);
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject))
-            return db->get("OBJECT$" + mObject, "enable") == "true";
+            return db->get("OBJECT$" + mObject, "Pvp_Enable") == "true";
         return false;
     }
 
     void registery(void* database) {
-        db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
         logger.setFile("./logs/LOICollectionA.log");
         registerCommand();
         listenEvent();

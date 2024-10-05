@@ -24,7 +24,6 @@
 
 #include "Include/APIUtils.h"
 #include "Include/languagePlugin.h"
-#include "Include/blacklistPlugin.h"
 
 #include "Utils/I18nUtils.h"
 #include "Utils/toolUtils.h"
@@ -36,7 +35,7 @@ using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::tpa {
-    std::unique_ptr<SQLiteStorage> db;
+    std::shared_ptr<SQLiteStorage> db;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - TPA");
 
@@ -55,7 +54,11 @@ namespace LOICollection::Plugins::tpa {
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 bool mObjectToggle1 = std::get<uint64>(dt->at("Toggle1"));
-                db->set("OBJECT$" + mObject, "Toggle1", mObjectToggle1 ? "true" : "false");
+                db->set("OBJECT$" + mObject, "Tpa_Toggle1", mObjectToggle1 ? "true" : "false");
+
+                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::setting(player_ptr);
+                });
             });
         }
 
@@ -166,14 +169,12 @@ namespace LOICollection::Plugins::tpa {
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
-                    if (!blacklist::isBlacklist(&event.self())) {
-                        std::string mObject = event.self().getUuid().asString();
-                        std::replace(mObject.begin(), mObject.end(), '-', '_');
-                        if (!db->has("OBJECT$" + mObject)) {
-                            db->create("OBJECT$" + mObject);
-                            db->set("OBJECT$" + mObject, "Toggle1", "false");
-                        }
-                    }
+                    std::string mObject = event.self().getUuid().asString();
+                    std::replace(mObject.begin(), mObject.end(), '-', '_');
+                    if (!db->has("OBJECT$" + mObject))
+                        db->create("OBJECT$" + mObject);
+                    if (!db->has("OBJECT$" + mObject, "Tpa_Toggle1"))
+                        db->set("OBJECT$" + mObject, "Tpa_Toggle1", "false");
                 }
             );
         }
@@ -184,13 +185,13 @@ namespace LOICollection::Plugins::tpa {
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject)) {
-            return db->get("OBJECT$" + mObject, "Toggle1") == "true";
+            return db->get("OBJECT$" + mObject, "Tpa_Toggle1") == "true";
         }
         return false;
     }
 
     void registery(void* database) {
-        db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
         logger.setFile("./logs/LOICollectionA.log");
         registerCommand();
         listenEvent();
