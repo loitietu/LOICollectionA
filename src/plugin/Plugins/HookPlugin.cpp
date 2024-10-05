@@ -11,22 +11,24 @@
 #include <mc/world/actor/Actor.h>
 #include <mc/world/actor/ActorDamageSource.h>
 #include <mc/world/actor/player/Player.h>
-#include <mc/world/level/Level.h>
-#include <mc/world/level/LevelSeed64.h>
 #include <mc/world/scores/Objective.h>
 #include <mc/world/scores/ScoreInfo.h>
 #include <mc/world/scores/ScoreboardId.h>
 #include <mc/world/scores/ServerScoreboard.h>
+#include <mc/world/level/LevelSeed64.h>
+#include <mc/world/level/Level.h>
+
 #include <mc/deps/core/utility/BinaryStream.h>
 #include <mc/network/packet/StartGamePacket.h>
 #include <mc/network/packet/LoginPacket.h>
 #include <mc/network/packet/TextPacket.h>
 #include <mc/network/ServerNetworkHandler.h>
 #include <mc/network/NetworkIdentifier.h>
-#include <mc/entity/utilities/ActorType.h>
 #include <mc/certificates/Certificate.h>
 #include <mc/certificates/ExtendedCertificate.h>
 #include <mc/server/LoopbackPacketSender.h>
+
+#include <mc/entity/utilities/ActorType.h>
 #include <mc/enums/MinecraftPacketIds.h>
 #include <mc/enums/TextPacketType.h>
 #include <mc/enums/SubClientId.h>

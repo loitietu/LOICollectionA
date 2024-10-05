@@ -1,16 +1,15 @@
 #include <regex>
+#include <chrono>
 #include <string>
 #include <functional>
 #include <unordered_map>
 
 #include <ll/api/Versions.h>
 #include <ll/api/memory/Memory.h>
-#include <ll/api/schedule/Task.h>
-#include <ll/api/schedule/Scheduler.h>
 #include <ll/api/service/Bedrock.h>
-#include <ll/api/chrono/GameChrono.h>
 #include <ll/api/utils/StringUtils.h>
 
+#include <mc/util/ProfilerLite.h>
 #include <mc/world/level/Level.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/network/ServerNetworkHandler.h>
@@ -25,39 +24,11 @@
 
 #include "Include/APIUtils.h"
 
-using namespace ll::chrono_literals;
-
-int mTicksPerSecond;
-float mTicksPerMinute;
-unsigned short mTicks;
-std::vector<unsigned short> mTicksList;
-
 std::unordered_map<std::string, std::function<std::string(void*)>> mVariableMap;
 std::unordered_map<std::string, std::function<std::string(void*, std::string)>> mVariableMapParameter;
 
 namespace LOICollection::LOICollectionAPI {
     void initialization() {
-        static ll::schedule::GameTickAsyncScheduler scheduler1;
-        static ll::schedule::ServerTimeScheduler scheduler2;
-        scheduler1.add<ll::schedule::RepeatTask>(1_tick, [] {
-            mTicks++;
-            if (mTicks > 20)
-                mTicks = 20;
-        });
-        scheduler2.add<ll::schedule::RepeatTask>(1s, [] {
-            mTicksList.push_back(mTicks);
-            mTicksPerSecond = (int) mTicks;
-            mTicks = 0;
-            if (mTicksList.size() >= 60) {
-                mTicksList.clear();
-                return;
-            }
-            unsigned int sum = 0;
-            for (auto& i : mTicksList)
-                sum = sum + i;
-            mTicksPerMinute = (float) sum / (int) mTicksList.size();
-        });
-
         registerVariable("mcVersion", [](void* /*unused*/) { return ll::getGameVersion().to_string(); });
         registerVariable("llVersion", [](void* /*unused*/) { return ll::getLoaderVersion().to_string(); });
         registerVariable("protocolVersion", [](void* /*unused*/) { return std::to_string(ll::getNetworkProtocolVersion()); });
@@ -72,8 +43,13 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("pvp", [](void* player_ptr) { return Plugins::pvp::isEnable(player_ptr) ? "true" : "false"; });
         registerVariable("mute", [](void* player_ptr) { return Plugins::mute::isMute(player_ptr) ? "true" : "false"; });
         registerVariable("language", [](void* player_ptr) { return Plugins::language::getLanguage(player_ptr); });
-        registerVariable("tps", [](void* /*unused*/) { return std::to_string(mTicksPerSecond); });
-        registerVariable("tpm", [](void* /*unused*/) { return std::to_string(mTicksPerMinute); });
+        registerVariable("tps", [](void* /*unused*/) {
+            double mMspt = ((double) ProfilerLite::gProfilerLiteInstance.getServerTickTime().count() / 1000000.0);
+            return std::to_string(mMspt <= 50.0 ? 20.0 : (double)(1000.0 / mMspt));
+        });
+        registerVariable("mspt", [](void* /*unused*/) { 
+            return std::to_string((double) ProfilerLite::gProfilerLiteInstance.getServerTickTime().count() / 1000000.0);
+        });
         registerVariable("time", [](void* /*unused*/) { return toolUtils::getNowTime(); });
         registerVariable("player", [](void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
