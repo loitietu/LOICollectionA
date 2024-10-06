@@ -28,6 +28,7 @@
 #include "Utils/toolUtils.h"
 #include "Utils/I18nUtils.h"
 #include "Utils/JsonUtils.h"
+#include "Utils/SQLiteStorage.h"
 
 #include "Include/acPlugin.h"
 
@@ -36,24 +37,49 @@ using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::announcement {
     std::unique_ptr<JsonUtils> db;
+    std::shared_ptr<SQLiteStorage> db2;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - AnnounCement");
 
     namespace MainGui {
         void setting(void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            std::string mObjectLanguage = getLanguage(player);
+            ll::form::CustomForm form(tr(mObjectLanguage, "announcement.gui.title"));
+            form.appendLabel(tr(mObjectLanguage, "announcement.gui.label"));
+            form.appendToggle("Toggle1", tr(mObjectLanguage, "announcement.gui.setting.switch1"), isClose(player));
+            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+                if (!dt) {
+                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                    return;
+                }
+                bool mObjectToggle1 = std::get<uint64>(dt->at("Toggle1"));
+                
+                std::string mObject = pl.getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+                db2->set("OBJECT$" + mObject, "AnnounCement_Toggle1", mObjectToggle1 ? "true" : "false");
+
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::setting(player);
+                });
+            });
+        }
+
+        void edit(void* player_ptr) {
             int index = 1;
 
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
-            std::string mLineString = tr(mObjectLanguage, "announcement.gui.line");
+            std::string mObjectLineString = tr(mObjectLanguage, "announcement.gui.line");
             nlohmann::ordered_json data = db->toJson("content");
 
             ll::form::CustomForm form(tr(mObjectLanguage, "announcement.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "announcement.gui.label"));
             form.appendInput("Input", tr(mObjectLanguage, "announcement.gui.setTitle"), "", db->get<std::string>("title"));
-            for (nlohmann::ordered_json::iterator it = data.begin(); it != data.end(); ++it) {
+            for (auto& item : data) {
+                std::string mLineString = mObjectLineString;
                 std::string mLine = ll::string_utils::replaceAll(mLineString, "${index}", std::to_string(index));
-                form.appendInput("Input" + std::to_string(index), mLine, "", *it);
+                form.appendInput("Input" + std::to_string(index), mLine, "", item);
                 index++;
             }
             form.appendToggle("Toggle1", tr(mObjectLanguage, "announcement.gui.addLine"));
@@ -70,27 +96,27 @@ namespace LOICollection::Plugins::announcement {
                     db->set("title", mTitle);
                     db->set("content", data);
                     db->save();
-                    MainGui::setting(&pl);
+                    MainGui::edit(&pl);
+                    return;
                 } else if (std::get<uint64>(dt->at("Toggle2"))) {
                     data.erase(data.end() - 1);
                     db->set("title", mTitle);
                     db->set("content", data);
                     db->save();
-                    MainGui::setting(&pl);
-                } else {
-                    nlohmann::ordered_json mDataNewList = nlohmann::ordered_json::array();
-                    for (int i = 1; i < index; i++)
-                        mDataNewList.push_back(std::get<std::string>(dt->at("Input" + std::to_string(i))));
-                    db->set("title", mTitle);
-                    db->set("content", mDataNewList);
-                    db->save();
-
-                    toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                        return MainGui::setting(player_ptr);
-                    });
-
-                    logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "announcement.log"), &pl));
+                    MainGui::edit(&pl);
+                    return;
                 }
+                for (int i = 1; i < index; i++)
+                    data.at(i - 1) = std::get<std::string>(dt->at("Input" + std::to_string(i)));
+                db->set("title", mTitle);
+                db->set("content", data);
+                db->save();
+
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::edit(player);
+                });
+
+                logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "announcement.log"), &pl));
             });
         }
 
@@ -135,9 +161,19 @@ namespace LOICollection::Plugins::announcement {
                     return;
                 }
                 Player* player = static_cast<Player*>(entity);
+                output.success("The UI has been opened to player {}", player->getRealName());
+                MainGui::setting(player);
+            });
+            command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
+                auto* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isType(ActorType::Player)) {
+                    output.error("No player selected.");
+                    return;
+                }
+                Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {
                     output.success("The UI has been opened to player {}", player->getRealName());
-                    MainGui::setting(player);
+                    MainGui::edit(player);
                     return;
                 }
                 output.error("No permission to open the ui.");
@@ -150,14 +186,33 @@ namespace LOICollection::Plugins::announcement {
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
+                    std::string mObject = event.self().getUuid().asString();
+                    std::replace(mObject.begin(), mObject.end(), '-', '_');
+                    if (!db2->has("OBJECT$" + mObject))
+                        db2->create("OBJECT$" + mObject);
+                    if (!db2->has("OBJECT$" + mObject, "AnnounCement_Toggle1"))
+                        db2->set("OBJECT$" + mObject, "AnnounCement_Toggle1", "false");
+                    
+                    if (isClose(&event.self()))
+                        return;
                     MainGui::open(&event.self());
                 }
             );
         }
     }
 
-    void registery(void* database) {
+    bool isClose(void* player_ptr) {
+        Player* player = static_cast<Player*>(player_ptr);
+        std::string mObject = player->getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        if (db2->has("OBJECT$" + mObject, "AnnounCement_Toggle1"))
+            return db2->get("OBJECT$" + mObject, "AnnounCement_Toggle1") == "true";
+        return false;
+    }
+
+    void registery(void* database, void* database2) {
         db = std::move(*static_cast<std::unique_ptr<JsonUtils>*>(database));
+        db2 = *static_cast<std::shared_ptr<SQLiteStorage>*>(database2);
         logger.setFile("./logs/LOICollectionA.log");
         if (!db->has("title") || !db->has("content")) {
             db->set("title", std::string("测试公告123"));

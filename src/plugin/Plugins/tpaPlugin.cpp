@@ -51,13 +51,14 @@ namespace LOICollection::Plugins::tpa {
                     pl.sendMessage(tr(getLanguage(&pl), "exit"));
                     return;
                 }
+                bool mObjectToggle1 = std::get<uint64>(dt->at("Toggle1"));
+
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
-                bool mObjectToggle1 = std::get<uint64>(dt->at("Toggle1"));
                 db->set("OBJECT$" + mObject, "Tpa_Toggle1", mObjectToggle1 ? "true" : "false");
 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::setting(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::setting(player);
                 });
             });
         }

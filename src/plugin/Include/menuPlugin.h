@@ -8,8 +8,20 @@
 
 #include "ExportLib.h"
 
+#define SIMPLE_TYPE 1
+#define MODAL_TYPE 2
+
 namespace LOICollection::Plugins::menu {
     namespace MainGui {
+        LOICOLLECTION_A_API void editNew(void* player_ptr);
+        LOICOLLECTION_A_API void editRemove(void* player_ptr);
+        LOICOLLECTION_A_API void editAwardSetting(void* player_ptr, std::string uiName);
+        LOICOLLECTION_A_API void editAwardNew(void* player_ptr, std::string uiName, int mType);
+        LOICOLLECTION_A_API void editAwardRemove(void* player_ptr, std::string uiName);
+        LOICOLLECTION_A_API void editAwardCommand(void* player_ptr, std::string uiName);
+        LOICOLLECTION_A_API void editAwardContent(void* player_ptr, std::string uiName);
+        LOICOLLECTION_A_API void editAward(void* player_ptr);
+        LOICOLLECTION_A_API void edit(void* player_ptr);
         LOICOLLECTION_A_API void custom(void* player_ptr, nlohmann::ordered_json& data);
         LOICOLLECTION_A_API void simple(void* player_ptr, nlohmann::ordered_json& data);
         LOICOLLECTION_A_API void modal(void* player_ptr, nlohmann::ordered_json& data);

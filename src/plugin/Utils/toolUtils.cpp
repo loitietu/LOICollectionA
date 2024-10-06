@@ -250,7 +250,7 @@ namespace toolUtils {
         using I18nUtils::tr;
         using LOICollection::Plugins::language::getLanguage;
 
-        void submission(Player* player, std::function<void(void*)> callback) {
+        void submission(Player* player, std::function<void(Player*)> callback) {
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "exit.gui.title"), tr(mObjectLanguage, "exit.gui.label"));
             form.appendButton(tr(mObjectLanguage, "exit.gui.button1"), [callback](Player& pl) {

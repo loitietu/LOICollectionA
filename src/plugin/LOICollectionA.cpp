@@ -127,7 +127,7 @@ namespace LOICollection {
             Plugins::wallet::registery(options);
         }
         if (this->config.Plugins.Chat.Enable) Plugins::chat::registery(&this->ChatDB, this->config.Plugins.Chat.chat);
-        if (this->config.Plugins.AnnounCement) Plugins::announcement::registery(&this->AnnounCementDB);
+        if (this->config.Plugins.AnnounCement) Plugins::announcement::registery(&this->AnnounCementDB, &this->SettingsDB);
         if (this->config.Plugins.Market.Enable) {
             std::map<std::string, std::string> options;
             options["score"] = this->config.Plugins.Market.score;

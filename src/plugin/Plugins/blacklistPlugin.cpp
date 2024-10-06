@@ -64,8 +64,8 @@ namespace LOICollection::Plugins::blacklist {
             form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [target](Player& pl) {
                 delBlacklist(target);
 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::remove(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::remove(player);
                 });
             });
             form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
@@ -95,8 +95,8 @@ namespace LOICollection::Plugins::blacklist {
                 else if (PlayerSelectType == "uuid")
                     addBlacklist(pl2, PlayerInputCause, time, 1);
                 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::add(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::add(player);
                 });
             });
         }

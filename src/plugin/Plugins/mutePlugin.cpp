@@ -55,8 +55,8 @@ namespace LOICollection::Plugins::mute {
             form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [target](Player& pl) {
                 delMute(target);
 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::remove(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::remove(player);
                 });
             });
             form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
@@ -80,8 +80,8 @@ namespace LOICollection::Plugins::mute {
                 int time = toolUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 addMute(toolUtils::getPlayerFromName(target), PlayerInputCause, time);
                 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::add(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::add(player);
                 });
             });
         }

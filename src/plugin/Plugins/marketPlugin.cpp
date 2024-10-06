@@ -79,8 +79,8 @@ namespace LOICollection::Plugins::market {
                     }
                     delItem(mItemId);
                     
-                    toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                        return MainGui::buy(player_ptr);
+                    toolUtils::Gui::submission(&pl, [](Player* player) {
+                        return MainGui::buy(player);
                     });
 
                     std::string logString = tr(getLanguage(&pl), "market.log1");
@@ -98,8 +98,8 @@ namespace LOICollection::Plugins::market {
                     pl.sendMessage(ll::string_utils::replaceAll(mTips, "${item}", mName));
                     delItem(mItemId);
 
-                    toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                        return MainGui::buy(player_ptr);
+                    toolUtils::Gui::submission(&pl, [](Player* player) {
+                        return MainGui::buy(player);
                     });
 
                     std::string logString = tr(getLanguage(&pl), "market.log3");
@@ -133,8 +133,8 @@ namespace LOICollection::Plugins::market {
                 pl.refreshInventory();
                 delItem(mItemId);
 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::sellItemContent(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::sellItemContent(player);
                 });
 
                 std::string logString = tr(getLanguage(&pl), "market.log3");
@@ -188,8 +188,8 @@ namespace LOICollection::Plugins::market {
                     pl.setCarriedItem(mItemStack);
                     pl.refreshInventory();
 
-                    toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                        return MainGui::sellItem(player_ptr);
+                    toolUtils::Gui::submission(&pl, [](Player* player) {
+                        return MainGui::sellItem(player);
                     });
 
                     std::string logString = tr(getLanguage(&pl), "market.log2");

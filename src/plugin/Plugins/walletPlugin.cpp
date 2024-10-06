@@ -62,8 +62,8 @@ namespace LOICollection::Plugins::wallet {
                 toolUtils::scoreboard::reduceScore(&pl, mScore, mMoney);
                 toolUtils::scoreboard::addScore(toolUtils::getPlayerFromName(target), mScore, mTargetMoney);
 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::transfer(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::transfer(player);
                 });
 
                 std::string logString = tr(getLanguage(&pl), "wallet.log");
@@ -95,8 +95,8 @@ namespace LOICollection::Plugins::wallet {
             ll::string_utils::replaceAll(mTipsString, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
             toolUtils::broadcastText(mTipsString);
             
-            toolUtils::Gui::submission(player, [](void* player_ptr) {
-                return MainGui::open(player_ptr);
+            toolUtils::Gui::submission(player, [](Player* player) {
+                return MainGui::open(player);
             });
         }
 

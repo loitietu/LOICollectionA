@@ -37,7 +37,7 @@ namespace toolUtils {
     bool isItemPlayerInventory(Player* player, void* itemStack_ptr);
 
     namespace Gui {
-        void submission(Player* player, std::function<void(void*)> callback);
+        void submission(Player* player, std::function<void(Player*)> callback);
     }
 
     namespace scoreboard {

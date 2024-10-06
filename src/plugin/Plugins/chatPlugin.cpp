@@ -60,8 +60,8 @@ namespace LOICollection::Plugins::chat {
                 int time = toolUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 addChat(toolUtils::getPlayerFromName(target), PlayerInputTitle, time);
 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::add(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::add(player);
                 });
             });
         }
@@ -83,8 +83,8 @@ namespace LOICollection::Plugins::chat {
                 std::string PlayerSelectTitle = std::get<std::string>(dt->at("dropdown"));
                 delChat(toolUtils::getPlayerFromName(target), PlayerSelectTitle);
 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::remove(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::remove(player);
                 });
             });
         }
@@ -135,8 +135,8 @@ namespace LOICollection::Plugins::chat {
                 std::string PlayerSelectTitle = std::get<std::string>(dt->at("dropdown"));
                 db->set("OBJECT$" + mObject, "title", PlayerSelectTitle);
                 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::title(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::title(player);
                 });
 
                 logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "chat.log1"), &pl));

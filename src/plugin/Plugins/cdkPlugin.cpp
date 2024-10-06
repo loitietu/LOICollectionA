@@ -92,8 +92,8 @@ namespace LOICollection::Plugins::cdk {
                     db->save();
                 }
                 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::cdkNew(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::cdkNew(player);
                 });
 
                 logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
@@ -123,8 +123,8 @@ namespace LOICollection::Plugins::cdk {
                 db->remove(mObjectCdk);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::cdkRemove(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::cdkRemove(player);
                 });
 
                 logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
@@ -158,8 +158,8 @@ namespace LOICollection::Plugins::cdk {
                 db->set(mObjectCdk, mObjectData);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::cdkAwardScore(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::cdkAwardScore(player);
                 });
             });
         }
@@ -199,8 +199,8 @@ namespace LOICollection::Plugins::cdk {
                 db->set(mObjectCdk, mObjectData);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::cdkAwardItem(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::cdkAwardItem(player);
                 });
             });
         }
@@ -235,8 +235,8 @@ namespace LOICollection::Plugins::cdk {
                 db->set(mObjectCdk, mObjectData);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::cdkAwardTitle(player_ptr);
+                toolUtils::Gui::submission(&pl, [](Player* player) {
+                    return MainGui::cdkAwardTitle(player);
                 });
             });
         }
