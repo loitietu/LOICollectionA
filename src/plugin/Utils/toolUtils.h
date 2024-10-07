@@ -13,28 +13,33 @@
 #include <nlohmann/json_fwd.hpp>
 
 namespace toolUtils {
-    void initialization();
-    void executeCommand(Player* player, const std::string& command);
-    void clearItem(Player* player, void* itemStack_ptr);
-    void broadcastText(const std::string& text);
+    namespace Mc {
+        void executeCommand(Player* player, const std::string& command);
+        void clearItem(Player* player, void* itemStack_ptr);
+        void broadcastText(const std::string& text);
 
-    std::string getVersion();
-    std::string getDevice(Player* player);
-    std::string getNowTime();
-    std::string timeCalculate(int hours); 
-    std::string formatDataTime(const std::string& timeString);
+        std::string getDevice(Player* player);
 
-    int toInt(const std::string& intString, int defaultValue);
+        std::vector<Player*> getAllPlayers();
+        std::vector<std::string> getAllPlayerName();
 
-    std::vector<std::string> split(const std::string& s, const std::string& delimiter);
-    std::vector<std::string> getAllPlayerName();
-    std::vector<Player*> getAllPlayers();
+        Player* getPlayerFromName(const std::string& name);
+        
+        bool isItemPlayerInventory(Player* player, void* itemStack_ptr);
+    }
 
-    Player* getPlayerFromName(const std::string& name);
-    Player* getPlayerByUuid(const std::string& uuid);
-    
-    bool isReach(const std::string& timeString);
-    bool isItemPlayerInventory(Player* player, void* itemStack_ptr);
+    namespace System {
+        std::string getNowTime();
+        std::string timeCalculate(int hours); 
+        std::string formatDataTime(const std::string& timeString);
+
+        int toInt(const std::string& intString, int defaultValue);
+        int64_t toInt64t(const std::string& intString, int defaultValue);
+
+        std::vector<std::string> split(const std::string& s, const std::string& delimiter);
+
+        bool isReach(const std::string& timeString);
+    }
 
     namespace Gui {
         void submission(Player* player, std::function<void(Player*)> callback);
@@ -49,6 +54,7 @@ namespace toolUtils {
     }
 
     namespace Config {
+        std::string getVersion();
         void mergeJson(nlohmann::ordered_json& source, nlohmann::ordered_json& target);
         void SynchronousPluginConfigVersion(void* config_ptr);
         void SynchronousPluginConfigType(void* config_ptr, const std::filesystem::path& path);

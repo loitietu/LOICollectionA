@@ -42,208 +42,206 @@
 
 #include "toolUtils.h"
 
-ll::mod::Manifest manifestPlugin;
-
 namespace toolUtils {
-    void initialization() {
-        manifestPlugin = LOICollection::A::getInstance().getSelf().getManifest();
-    }
+    namespace Mc {
+        void executeCommand(Player* player, const std::string& command) {
+            CommandContext context = CommandContext(command, std::make_unique<PlayerCommandOrigin>(PlayerCommandOrigin(*player)));
+            ll::service::getMinecraft()->getCommands().executeCommand(context);
+        }
 
-    void executeCommand(Player* player, const std::string& command) {
-        CommandContext context = CommandContext(command, std::make_unique<PlayerCommandOrigin>(PlayerCommandOrigin(*player)));
-        ll::service::getMinecraft()->getCommands().executeCommand(context);
-    }
-
-    void clearItem(Player* player, void* itemStack_ptr) {
-        ItemStack* itemStack = static_cast<ItemStack*>(itemStack_ptr);
-        if (!itemStack || !player)
-            return;
-        int mItemStackCount = itemStack->mCount;
-        Container& mItemInventory = player->getInventory();
-        for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
-            auto& mItemObject = mItemInventory.getItem(i);
-            if (mItemObject.isValid()) {
-                if (itemStack->getTypeName() == mItemObject.getTypeName()) {
-                    if (mItemObject.mCount >= mItemStackCount) {
-                        mItemInventory.removeItem(i, mItemStackCount);
-                        return;
-                    } else {
-                        mItemStackCount -= mItemObject.mCount;
-                        mItemInventory.removeItem(i, mItemObject.mCount);
+        void clearItem(Player* player, void* itemStack_ptr) {
+            ItemStack* itemStack = static_cast<ItemStack*>(itemStack_ptr);
+            if (!itemStack || !player)
+                return;
+            int mItemStackCount = itemStack->mCount;
+            Container& mItemInventory = player->getInventory();
+            for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
+                auto& mItemObject = mItemInventory.getItem(i);
+                if (mItemObject.isValid()) {
+                    if (itemStack->getTypeName() == mItemObject.getTypeName()) {
+                        if (mItemObject.mCount >= mItemStackCount) {
+                            mItemInventory.removeItem(i, mItemStackCount);
+                            return;
+                        } else {
+                            mItemStackCount -= mItemObject.mCount;
+                            mItemInventory.removeItem(i, mItemObject.mCount);
+                        }
                     }
                 }
             }
         }
-    }
 
-    void broadcastText(const std::string& text) {
-        ll::service::getLevel()->forEachPlayer([&](Player& player) -> bool {
-            player.sendMessage(text);
-            return true;
-        });
-    }
+        void broadcastText(const std::string& text) {
+            ll::service::getLevel()->forEachPlayer([text](Player& player) -> bool {
+                player.sendMessage(text);
+                return true;
+            });
+        }
 
-    std::string getVersion() {
-        return manifestPlugin.version->to_string();
-    }
-
-    std::string getDevice(Player* player) {
-        if (!player->isSimulated()) {
-            auto request = player->getConnectionRequest();
-            if (request) {
-                switch (request->getDeviceOS()) {
-                    case BuildPlatform::Android:
-                        return "android";
-                    case BuildPlatform::iOS:
-                        return "ios";
-                    case BuildPlatform::Amazon:
-                        return "amazon";
-                    case BuildPlatform::Linux:
-                        return "linux";
-                    case BuildPlatform::Xbox:
-                        return "xbox";
-                    case BuildPlatform::Dedicated:
-                        return "dedicated";
-                    case BuildPlatform::GearVR:
-                        return "gearvr";
-                    case BuildPlatform::Nx:
-                        return "nx";
-                    case BuildPlatform::OSX:
-                        return "osx";
-                    case BuildPlatform::PS4:
-                        return "ps4";
-                    case BuildPlatform::WindowsPhone:
-                        return "windowsphone";
-                    case BuildPlatform::Win32:
-                        return "win32";
-                    case BuildPlatform::UWP:
-                        return "uwp";
-                    default:
-                        return "unknown";
+        std::string getDevice(Player* player) {
+            if (!player->isSimulatedPlayer()) {
+                auto request = player->getConnectionRequest();
+                if (request) {
+                    switch (request->getDeviceOS()) {
+                        case BuildPlatform::Android:
+                            return "android";
+                        case BuildPlatform::iOS:
+                            return "ios";
+                        case BuildPlatform::Amazon:
+                            return "amazon";
+                        case BuildPlatform::Linux:
+                            return "linux";
+                        case BuildPlatform::Xbox:
+                            return "xbox";
+                        case BuildPlatform::Dedicated:
+                            return "dedicated";
+                        case BuildPlatform::GearVR:
+                            return "gearvr";
+                        case BuildPlatform::Nx:
+                            return "nx";
+                        case BuildPlatform::OSX:
+                            return "osx";
+                        case BuildPlatform::PS4:
+                            return "ps4";
+                        case BuildPlatform::WindowsPhone:
+                            return "windowsphone";
+                        case BuildPlatform::Win32:
+                            return "win32";
+                        case BuildPlatform::UWP:
+                            return "uwp";
+                        default:
+                            return "unknown";
+                    }
                 }
             }
+            return "unknown";
         }
-        return "unknown";
-    }
 
-    std::string getNowTime() {
-        std::time_t currentTime = std::time(nullptr);
-        char formattedTime[20];
-        std::tm currentTimeInfo;
-        localtime_s(&currentTimeInfo, &currentTime);
-        std::strftime(formattedTime, sizeof(formattedTime), "%Y-%m-%d %H:%M:%S", &currentTimeInfo);
-        return std::string(formattedTime);
-    }
-
-    std::string timeCalculate(int hours) {
-        if (hours <= 0)
-            return "0";
-        std::time_t currentTime = std::time(nullptr);
-        std::tm timeInfo;
-        localtime_s(&timeInfo, &currentTime);
-        timeInfo.tm_hour += hours;
-        std::time_t laterTime = std::mktime(&timeInfo);
-        char formattedTime[15];
-        std::tm laterTimeInfo;
-        localtime_s(&laterTimeInfo, &laterTime);
-        std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", &laterTimeInfo);
-        return std::string(formattedTime);
-    }
-
-    std::string formatDataTime(const std::string& timeString) {
-        if (timeString.size() != 14) 
-            return "None";
-        std::string fomatted;
-        fomatted += timeString.substr(0, 4) + "-";
-        fomatted += timeString.substr(4, 2) + "-";
-        fomatted += timeString.substr(6, 2) + " ";
-        fomatted += timeString.substr(8, 2) + ":";
-        fomatted += timeString.substr(10, 2) + ":";
-        fomatted += timeString.substr(12, 2);
-        return fomatted;
-    }
-
-    int toInt(const std::string& intString, int defaultValue) {
-        try {
-            return std::stoi(intString);
-        } catch (...) {
-            return defaultValue;
+        std::vector<Player*> getAllPlayers() {
+            std::vector<Player*> mObjectLists = {};
+            ll::service::getLevel()->forEachPlayer([&](Player& player) -> bool {
+                if (!player.isSimulatedPlayer())
+                    mObjectLists.push_back(&player);
+                return true;
+            });
+            return mObjectLists;
         }
-    }
 
-    std::vector<std::string> split(const std::string& s, const std::string& delimiter) {
-        std::vector<std::string> tokens;
-        size_t mStratPos = 0;
-        size_t mEndPos = s.find(delimiter);
-        while (mEndPos != std::string::npos) {
-            tokens.push_back(s.substr(mStratPos, mEndPos - mStratPos));
-            mStratPos = mEndPos + delimiter.length();
-            mEndPos = s.find(delimiter, mStratPos);
-        }
-        tokens.push_back(s.substr(mStratPos));
-        return tokens;
-    }
-
-    std::vector<std::string> getAllPlayerName() {
-        std::vector<std::string> mObjectLists = {};
-        std::vector<Player*> mObjectPlayerLists = getAllPlayers();
-        for (auto& player : mObjectPlayerLists) {
-            mObjectLists.push_back(player->getRealName());
-        }
-        return mObjectLists;
-    }
-
-    std::vector<Player*> getAllPlayers() {
-        std::vector<Player*> mObjectLists = {};
-        ll::service::getLevel()->forEachPlayer([&](Player& player) -> bool {
-            if (!player.isSimulatedPlayer())
-                mObjectLists.push_back(&player);
-            return true;
-        });
-        return mObjectLists;
-    }
-
-    Player* getPlayerFromName(const std::string& name) {
-        std::vector<Player*> mObjectPlayerLists = getAllPlayers();
-        for (auto& player : mObjectPlayerLists) {
-            if (player->getRealName() == name) {
-                return player;
+        std::vector<std::string> getAllPlayerName() {
+            std::vector<std::string> mObjectLists = {};
+            std::vector<Player*> mObjectPlayerLists = getAllPlayers();
+            for (auto& player : mObjectPlayerLists) {
+                mObjectLists.push_back(player->getRealName());
             }
+            return mObjectLists;
         }
-        return nullptr;
-    }
 
-    Player* getPlayerByUuid(const std::string& uuid) {
-        return ll::service::getLevel()->getPlayer(uuid);
-    }
-
-    bool isReach(const std::string& timeString) {
-        if (timeString == "0") 
-            return false;
-        std::string formattedTime = getNowTime();
-        ll::string_utils::replaceAll(formattedTime, "-", "");
-        ll::string_utils::replaceAll(formattedTime, ":", "");
-        ll::string_utils::replaceAll(formattedTime, " ", "");
-        return std::stoll(formattedTime) > std::stoll(timeString);
-    }
-
-    bool isItemPlayerInventory(Player* player, void* itemStack_ptr) {
-        ItemStack* itemStack = static_cast<ItemStack*>(itemStack_ptr);
-        if (!itemStack || !player)
-            return false;
-        int mItemStackCount = itemStack->mCount;
-        Container& mItemInventory = player->getInventory();
-        for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
-            auto& mItemObject = mItemInventory.getItem(i);
-            if (mItemObject.isValid()) {
-                if (itemStack->getTypeName() == mItemObject.getTypeName()) {
-                    if (mItemStackCount <= mItemObject.mCount) {
-                        return true;
-                    } else mItemStackCount -= mItemObject.mCount;
+        Player* getPlayerFromName(const std::string& name) {
+            std::vector<Player*> mObjectPlayerLists = getAllPlayers();
+            for (auto& player : mObjectPlayerLists) {
+                if (player->getRealName() == name) {
+                    return player;
                 }
             }
+            return nullptr;
         }
-        return false;
+        
+        bool isItemPlayerInventory(Player* player, void* itemStack_ptr) {
+            ItemStack* itemStack = static_cast<ItemStack*>(itemStack_ptr);
+            if (!itemStack || !player)
+                return false;
+            int mItemStackCount = itemStack->mCount;
+            Container& mItemInventory = player->getInventory();
+            for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
+                auto& mItemObject = mItemInventory.getItem(i);
+                if (mItemObject.isValid()) {
+                    if (itemStack->getTypeName() == mItemObject.getTypeName()) {
+                        if (mItemStackCount <= mItemObject.mCount) {
+                            return true;
+                        } else mItemStackCount -= mItemObject.mCount;
+                    }
+                }
+            }
+            return false;
+        }
+    }
+
+    namespace System {
+        std::string getNowTime() {
+            std::time_t currentTime = std::time(nullptr);
+            char formattedTime[20];
+            std::tm currentTimeInfo;
+            localtime_s(&currentTimeInfo, &currentTime);
+            std::strftime(formattedTime, sizeof(formattedTime), "%Y-%m-%d %H:%M:%S", &currentTimeInfo);
+            return std::string(formattedTime);
+        }
+
+        std::string timeCalculate(int hours) {
+            if (hours <= 0)
+                return "0";
+            std::time_t currentTime = std::time(nullptr);
+            std::tm timeInfo;
+            localtime_s(&timeInfo, &currentTime);
+            timeInfo.tm_hour += hours;
+            std::time_t laterTime = std::mktime(&timeInfo);
+            char formattedTime[15];
+            std::tm laterTimeInfo;
+            localtime_s(&laterTimeInfo, &laterTime);
+            std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", &laterTimeInfo);
+            return std::string(formattedTime);
+        }
+
+        std::string formatDataTime(const std::string& timeString) {
+            if (timeString.size() != 14) 
+                return "None";
+            std::string fomatted;
+            fomatted += timeString.substr(0, 4) + "-";
+            fomatted += timeString.substr(4, 2) + "-";
+            fomatted += timeString.substr(6, 2) + " ";
+            fomatted += timeString.substr(8, 2) + ":";
+            fomatted += timeString.substr(10, 2) + ":";
+            fomatted += timeString.substr(12, 2);
+            return fomatted;
+        }
+
+        int toInt(const std::string& intString, int defaultValue) {
+            try {
+                return std::stoi(intString);
+            } catch (...) {
+                return defaultValue;
+            }
+        }
+
+        int64_t toInt64t(const std::string& intString, int defaultValue) {
+            try {
+                return std::stoll(intString);
+            } catch (...) {
+                return defaultValue;
+            }
+        }
+
+        std::vector<std::string> split(const std::string& s, const std::string& delimiter) {
+            std::vector<std::string> tokens;
+            size_t mStratPos = 0;
+            size_t mEndPos = s.find(delimiter);
+            while (mEndPos != std::string::npos) {
+                tokens.push_back(s.substr(mStratPos, mEndPos - mStratPos));
+                mStratPos = mEndPos + delimiter.length();
+                mEndPos = s.find(delimiter, mStratPos);
+            }
+            tokens.push_back(s.substr(mStratPos));
+            return tokens;
+        }
+
+        bool isReach(const std::string& timeString) {
+            if (timeString == "0") 
+                return false;
+            std::string formattedTime = getNowTime();
+            ll::string_utils::replaceAll(formattedTime, "-", "");
+            ll::string_utils::replaceAll(formattedTime, ":", "");
+            ll::string_utils::replaceAll(formattedTime, " ", "");
+            return std::stoll(formattedTime) > std::stoll(timeString);
+        }
     }
 
     namespace Gui {
@@ -316,6 +314,10 @@ namespace toolUtils {
     }
 
     namespace Config {
+        std::string getVersion() {
+            return LOICollection::A::getInstance().getSelf().getManifest().version->to_string();
+        }
+
         void mergeJson(nlohmann::ordered_json& source, nlohmann::ordered_json& target) {
             for (auto it = source.begin(); it != source.end(); ++it) {
                 if (!target.contains(it.key())) {
@@ -334,7 +336,7 @@ namespace toolUtils {
             C_Config* config = static_cast<C_Config*>(config_ptr);
 
             std::stringstream ss;
-            std::vector<std::string> version = split(getVersion(), ".");
+            std::vector<std::string> version = toolUtils::System::split(getVersion(), ".");
             for (size_t i = 0; i < version.size(); i++) {
                 ss << version[i];
             }

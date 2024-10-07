@@ -109,11 +109,11 @@ namespace LOICollection::Plugins::shop {
                     return;
                 }
                 ItemStack itemStack(data.at("id").get<std::string>(), mNumber);
-                if (toolUtils::isItemPlayerInventory(&pl, &itemStack)) {
+                if (toolUtils::Mc::isItemPlayerInventory(&pl, &itemStack)) {
                     nlohmann::ordered_json mScoreboardBase = data.at("scores");
                     for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
                         toolUtils::scoreboard::addScore(&pl, it.key(), (it.value().get<int>() * mNumber));
-                    toolUtils::clearItem(&pl, &itemStack);
+                    toolUtils::Mc::clearItem(&pl, &itemStack);
                     pl.refreshInventory();
                     return;
                 }

@@ -52,7 +52,7 @@ namespace LOICollection::Plugins::wallet {
                     MainGui::transfer(&pl);
                     return;
                 }
-                int mMoney = toolUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
+                int mMoney = toolUtils::System::toInt(std::get<std::string>(dt->at("Input")), 0);
                 int mTargetMoney = mMoney - (int)(mMoney * std::get<double>(mObjectOptions.at("tax")));
                 if (toolUtils::scoreboard::getScore(&pl, mScore) < mMoney || mTargetMoney < 0) {
                     pl.sendMessage(tr(getLanguage(&pl), "wallet.tips"));
@@ -60,7 +60,7 @@ namespace LOICollection::Plugins::wallet {
                 }
 
                 toolUtils::scoreboard::reduceScore(&pl, mScore, mMoney);
-                toolUtils::scoreboard::addScore(toolUtils::getPlayerFromName(target), mScore, mTargetMoney);
+                toolUtils::scoreboard::addScore(toolUtils::Mc::getPlayerFromName(target), mScore, mTargetMoney);
 
                 toolUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::transfer(player);
@@ -78,7 +78,7 @@ namespace LOICollection::Plugins::wallet {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), tr(mObjectLanguage, "wallet.gui.stepslider.label"));
-            for (auto& mTarget : toolUtils::getAllPlayerName()) {
+            for (auto& mTarget : toolUtils::Mc::getAllPlayerName()) {
                 form.appendButton(mTarget, [mTarget](Player& pl) {
                     MainGui::content(&pl, mTarget);
                 });
@@ -93,7 +93,7 @@ namespace LOICollection::Plugins::wallet {
             std::string mTipsString = tr(getLanguage(player), "wallet.showOff");
             LOICollection::LOICollectionAPI::translateString(mTipsString, player);
             ll::string_utils::replaceAll(mTipsString, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
-            toolUtils::broadcastText(mTipsString);
+            toolUtils::Mc::broadcastText(mTipsString);
             
             toolUtils::Gui::submission(player, [](Player* player) {
                 return MainGui::open(player);

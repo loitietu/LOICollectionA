@@ -105,7 +105,7 @@ namespace LOICollection::Plugins::tpa {
                     MainGui::open(&pl);
                     return;
                 }
-                Player* pl2 = toolUtils::getPlayerFromName(target);
+                Player* pl2 = toolUtils::Mc::getPlayerFromName(target);
                 std::string PlayerSelectType = std::get<std::string>(dt->at("dropdown"));
                 if (!isInvite(pl2)) {
                     if (PlayerSelectType == "tpa") {
@@ -123,7 +123,7 @@ namespace LOICollection::Plugins::tpa {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.title"), tr(mObjectLanguage, "tpa.gui.label2"));
-            for (auto& mTarget : toolUtils::getAllPlayerName()) {
+            for (auto& mTarget : toolUtils::Mc::getAllPlayerName()) {
                 form.appendButton(mTarget, [mTarget](Player& pl) {
                     MainGui::content(&pl, mTarget);
                 });

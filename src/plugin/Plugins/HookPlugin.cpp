@@ -53,7 +53,8 @@ LL_TYPE_INSTANCE_HOOK(
     void,
     BinaryStream& stream
 ) {
-    this->mSettings.setRandomSeed(LevelSeed64(mFakeSeed));
+    if (!mFakeSeed)
+        this->mSettings.setRandomSeed(LevelSeed64(mFakeSeed));
     return origin(stream);
 };
 
@@ -69,7 +70,7 @@ LL_TYPE_INSTANCE_HOOK(
 ) {
     if (mInterceptedTextPacketTargets.size() >= 10000) {
         mInterceptedTextPacketTargets.clear();
-        for (auto& player : toolUtils::getAllPlayers())
+        for (auto& player : toolUtils::Mc::getAllPlayers())
             mInterceptedTextPacketTargets.push_back(player->getUuid().asString());
     }
     if (packet.getId() == MinecraftPacketIds::Text) {
@@ -77,7 +78,7 @@ LL_TYPE_INSTANCE_HOOK(
         if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {
             if (mTextPacket.mMessage.find("multiplayer.player.joined") == std::string::npos)
                 return origin(identifier, subId, packet);
-            Player* player = toolUtils::getPlayerFromName(mTextPacket.mParams.at(0));
+            Player* player = toolUtils::Mc::getPlayerFromName(mTextPacket.mParams.at(0));
             if (player == nullptr) return origin(identifier, subId, packet);
             if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), player->getUuid().asString()) != mInterceptedTextPacketTargets.end())
                 return;
@@ -96,7 +97,7 @@ LL_TYPE_INSTANCE_HOOK(
 ) {
     if (mInterceptedTextPacketTargets.size() >= 10000) {
         mInterceptedTextPacketTargets.clear();
-        for (auto& player : toolUtils::getAllPlayers())
+        for (auto& player : toolUtils::Mc::getAllPlayers())
             mInterceptedTextPacketTargets.push_back(player->getUuid().asString());
     }
     if (packet.getId() == MinecraftPacketIds::Text) {
@@ -104,7 +105,7 @@ LL_TYPE_INSTANCE_HOOK(
         if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {
             if (mTextPacket.mMessage.find("multiplayer.player.left") == std::string::npos)
                 return origin(packet);
-            Player* player = toolUtils::getPlayerFromName(mTextPacket.mParams.at(0));
+            Player* player = toolUtils::Mc::getPlayerFromName(mTextPacket.mParams.at(0));
             if (player == nullptr) return origin(packet);
             if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), player->getUuid().asString()) != mInterceptedTextPacketTargets.end())
                 return;
@@ -122,7 +123,7 @@ LL_TYPE_INSTANCE_HOOK(
 ) {
     if (mInterceptedGetNameTagTargets.size() >= 10000) {
         mInterceptedGetNameTagTargets.clear();
-        for (auto& player : toolUtils::getAllPlayers())
+        for (auto& player : toolUtils::Mc::getAllPlayers())
             mInterceptedGetNameTagTargets.push_back(player->getUuid().asString());
     }
     if (this->isType(ActorType::Player)) {
@@ -145,7 +146,7 @@ LL_TYPE_INSTANCE_HOOK(
     NetworkIdentifier& identifier,
     TextPacket& packet
 ) {
-    Player* player = toolUtils::getPlayerFromName(packet.mAuthor);
+    Player* player = toolUtils::Mc::getPlayerFromName(packet.mAuthor);
     
     if (player == nullptr) return origin(identifier, packet);
     for (auto& callback : mTextPacketSendEventCallbacks)
@@ -275,13 +276,10 @@ namespace LOICollection::HookPlugin {
     }
 
     void setFakeSeed(const std::string& fakeSeed) {
-        try {
-            if (fakeSeed.empty() || fakeSeed == "random") {
-                mFakeSeed = ll::random_utils::rand<int64_t>();
-                return;
-            }
-            mFakeSeed = std::stoll(fakeSeed);
-        } catch (...) {}
+        if (fakeSeed.empty()) return;
+        if (fakeSeed == "random")
+            mFakeSeed = ll::random_utils::rand<int64_t>();
+        mFakeSeed = toolUtils::System::toInt64t(fakeSeed, 0);
     }
 
     void registery() {

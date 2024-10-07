@@ -49,7 +49,7 @@ namespace LOICollection::Plugins::mute {
 
             ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
             ll::string_utils::replaceAll(mObjectLabel, "${cause}", db->get("OBJECT$" + target, "cause"));
-            ll::string_utils::replaceAll(mObjectLabel, "${time}", toolUtils::formatDataTime(db->get("OBJECT$" + target, "time")));
+            ll::string_utils::replaceAll(mObjectLabel, "${time}", toolUtils::System::formatDataTime(db->get("OBJECT$" + target, "time")));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), mObjectLabel);
             form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [target](Player& pl) {
@@ -77,8 +77,8 @@ namespace LOICollection::Plugins::mute {
                     return;
                 }
                 std::string PlayerInputCause = std::get<std::string>(dt->at("Input1"));
-                int time = toolUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                addMute(toolUtils::getPlayerFromName(target), PlayerInputCause, time);
+                int time = toolUtils::System::toInt(std::get<std::string>(dt->at("Input2")), 0);
+                addMute(toolUtils::Mc::getPlayerFromName(target), PlayerInputCause, time);
                 
                 toolUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::add(player);
@@ -90,7 +90,7 @@ namespace LOICollection::Plugins::mute {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.add.title"), tr(mObjectLanguage, "mute.gui.add.label"));
-            for (auto& mTarget : toolUtils::getAllPlayerName()) {
+            for (auto& mTarget : toolUtils::Mc::getAllPlayerName()) {
                 form.appendButton(mTarget, [mTarget](Player& pl) {
                     MainGui::content(&pl, mTarget);
                 });
@@ -149,7 +149,7 @@ namespace LOICollection::Plugins::mute {
                 throw std::runtime_error("Failed to get command registry.");
             }
             auto& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("mute", "§e§lLOICollection -> §b服务器禁言", CommandPermissionLevel::Admin);
+                .getOrCreateCommand("mute", "§e§lLOICollection -> §b服务器禁言", CommandPermissionLevel::GameDirectors);
             command.overload<MuteOP>().text("add").required("target").execute(MuteCommandADD);
             command.overload<MuteOP>().text("add").required("target").required("time").execute(MuteCommandADD);
             command.overload<MuteOP>().text("add").required("target").required("cause").execute(MuteCommandADD);
@@ -182,7 +182,7 @@ namespace LOICollection::Plugins::mute {
                 std::string mObject = player->getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 if (db->has("OBJECT$" + mObject)) {
-                    if (toolUtils::isReach(db->get("OBJECT$" + mObject, "time"))) {
+                    if (toolUtils::System::isReach(db->get("OBJECT$" + mObject, "time"))) {
                         delMute(player);
                         return false;
                     }
@@ -190,7 +190,7 @@ namespace LOICollection::Plugins::mute {
                     std::string logString = tr(getLanguage(player), "mute.log3");
 
                     ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mObject, "cause"));
-                    ll::string_utils::replaceAll(mObjectTips, "${time}", toolUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
+                    ll::string_utils::replaceAll(mObjectTips, "${time}", toolUtils::System::formatDataTime(db->get("OBJECT$" + mObject, "time")));
                     ll::string_utils::replaceAll(logString, "${message}", message);
 
                     logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
@@ -215,7 +215,7 @@ namespace LOICollection::Plugins::mute {
         if (!db->has("OBJECT$" + mObject)) {
             db->create("OBJECT$" + mObject);
             db->set("OBJECT$" + mObject, "cause", cause);
-            db->set("OBJECT$" + mObject, "time", toolUtils::timeCalculate(time));
+            db->set("OBJECT$" + mObject, "time", toolUtils::System::timeCalculate(time));
         }
         std::string logString = tr(mObjectLanguage, "mute.log1");
         ll::string_utils::replaceAll(logString, "${cause}", cause);

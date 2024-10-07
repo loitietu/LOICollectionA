@@ -42,30 +42,29 @@ namespace LOICollection {
     A& A::getInstance() { return *instance; }
 
     bool A::load() {
-        auto& logger = mSelf.getLogger();
+        auto& logger = this->mSelf.getLogger();
         const auto& dataFilePath = this->mSelf.getDataDir();
         const auto& configDataPath = this->mSelf.getConfigDir();
         const auto& configFilePath = configDataPath / "config.json";
 
         logger.setFile("./logs/LOICollectionA.log", false);
 
-        toolUtils::initialization();
         toolUtils::Config::SynchronousPluginConfigVersion(&this->config);
-        logger.info("Loading LOICollection - A (Version {})", toolUtils::getVersion());
+        logger.info("Loading LOICollection - A (Version {})", toolUtils::Config::getVersion());
         logger.info("Protocol - Mojang Eula (https://account.mojang.com/documents/minecraft_eula)");
         
         if (!std::filesystem::exists(configFilePath)) {
             logger.info("Configurations not found.");
             logger.info("Saving default configurations.");
-            if (!ll::config::saveConfig(config, configFilePath)) {
+            if (!ll::config::saveConfig(this->config, configFilePath)) {
                 logger.error("Failed to save default configurations.");
                 return false;
             }
         }
         toolUtils::Config::SynchronousPluginConfigType(&this->config, configFilePath);
-        if (!ll::config::loadConfig(config, configFilePath)) {
+        if (!ll::config::loadConfig(this->config, configFilePath)) {
             logger.info("Update configurations.");
-            if (!ll::config::saveConfig(config, configFilePath)) {
+            if (!ll::config::saveConfig(this->config, configFilePath)) {
                 logger.error("Failed to save default configurations.");
                 return false;
             }
@@ -85,11 +84,11 @@ namespace LOICollection {
         logger.info("Initialization of database file completed.");
         
         if (this->config.Plugins.language.update) {
-            JsonUtils mObjectLanguage(this->mSelf.getConfigDir() / "language.json");
+            JsonUtils mObjectLanguage(configDataPath / "language.json");
             mObjectLanguage.set("zh_CN", CNLangData);
             mObjectLanguage.save();
         }
-        I18nUtils::load(mSelf.getConfigDir() / "language.json");
+        I18nUtils::load(configDataPath / "language.json");
         logger.info("Initialization of language file completed.");
 
         HookPlugin::setFakeSeed(this->config.Plugins.FakeSeed);

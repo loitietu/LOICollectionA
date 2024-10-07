@@ -257,7 +257,7 @@ namespace LOICollection::Plugins::menu {
                 }
                 data["scores"] = nlohmann::ordered_json::object();
                 if (!mObjectInput4.empty())
-                    data["scores"][mObjectInput4] = toolUtils::toInt((mObjectInput5.empty() ? "100" : mObjectInput5), 0);
+                    data["scores"][mObjectInput4] = toolUtils::System::toInt((mObjectInput5.empty() ? "100" : mObjectInput5), 0);
                 mObjectType == "button" ? data["command"] = mObjectInput6 : data["menu"] = mObjectInput6;
                 data["type"] = mObjectType;
                 data["permission"] = (int) std::get<double>(dt->at("Slider"));
@@ -525,7 +525,7 @@ namespace LOICollection::Plugins::menu {
                             continue;
                         ll::string_utils::replaceAll(result, "{" + key + "}", value.get<std::string>());
                     }
-                    toolUtils::executeCommand(&pl, result);
+                    toolUtils::Mc::executeCommand(&pl, result);
                 }
             });
         }
@@ -651,7 +651,7 @@ namespace LOICollection::Plugins::menu {
                     output.error("Failed to give the MenuItem to player {}", player->getRealName());
                     return;
                 }
-                if (toolUtils::isItemPlayerInventory(player, &itemStack)) {
+                if (toolUtils::Mc::isItemPlayerInventory(player, &itemStack)) {
                     output.error("The MenuItem has already been given to player {}", player->getRealName());
                     return;
                 }
@@ -676,7 +676,7 @@ namespace LOICollection::Plugins::menu {
                     if (event.self().isSimulatedPlayer())
                         return;
                     ItemStack itemStack(mItemId, 1);
-                    if (!itemStack || toolUtils::isItemPlayerInventory(&event.self(), &itemStack))
+                    if (!itemStack || toolUtils::Mc::isItemPlayerInventory(&event.self(), &itemStack))
                         return;
                     event.self().add(itemStack);
                     event.self().refreshInventory();
@@ -714,11 +714,11 @@ namespace LOICollection::Plugins::menu {
                 return;
             }
             if (data.at("command").is_string()) {
-                toolUtils::executeCommand(player, data.at("command").get<std::string>());
+                toolUtils::Mc::executeCommand(player, data.at("command").get<std::string>());
                 return;
             }
             for (auto& command : data.at("command"))
-                toolUtils::executeCommand(player, command.get<std::string>());
+                toolUtils::Mc::executeCommand(player, command.get<std::string>());
         } else if (data.at("type").get<std::string>() == "from") {
             if (!checkModifiedData(player, data)) {
                 player->sendMessage(translateString(original.at("NoScore").get<std::string>(), player));

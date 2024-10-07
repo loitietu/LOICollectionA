@@ -38,7 +38,7 @@ namespace LOICollection::LOICollectionAPI {
         });
         registerVariable("title.time", [](void* player_ptr) {
             Plugins::chat::update(player_ptr);
-            return toolUtils::formatDataTime(Plugins::chat::getTitleTime(player_ptr, Plugins::chat::getTitle(player_ptr)));
+            return toolUtils::System::formatDataTime(Plugins::chat::getTitleTime(player_ptr, Plugins::chat::getTitle(player_ptr)));
         });
         registerVariable("pvp", [](void* player_ptr) { return Plugins::pvp::isEnable(player_ptr) ? "true" : "false"; });
         registerVariable("mute", [](void* player_ptr) { return Plugins::mute::isMute(player_ptr) ? "true" : "false"; });
@@ -50,7 +50,7 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("mspt", [](void* /*unused*/) { 
             return std::to_string((double) ProfilerLite::gProfilerLiteInstance.getServerTickTime().count() / 1000000.0);
         });
-        registerVariable("time", [](void* /*unused*/) { return toolUtils::getNowTime(); });
+        registerVariable("time", [](void* /*unused*/) { return toolUtils::System::getNowTime(); });
         registerVariable("player", [](void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             return player->getName();
@@ -111,7 +111,7 @@ namespace LOICollection::LOICollectionAPI {
         });
         registerVariable("os", [](void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
-            return toolUtils::getDevice(player);
+            return toolUtils::Mc::getDevice(player);
         });
         registerVariable("ip", [](void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);

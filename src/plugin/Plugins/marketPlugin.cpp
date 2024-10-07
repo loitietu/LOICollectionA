@@ -57,7 +57,7 @@ namespace LOICollection::Plugins::market {
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), mIntroduce);
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.buy.button1"), [mItemId](Player& pl) {
                 std::string mObjectScore = mObjectOptions.at("score");
-                int mScore = toolUtils::toInt(db->get(mItemId, "score"), 0);
+                int mScore = toolUtils::System::toInt(db->get(mItemId, "score"), 0);
                 if (toolUtils::scoreboard::getScore(&pl, mObjectScore) >= mScore) {
                     toolUtils::scoreboard::reduceScore(&pl, mObjectScore, mScore);
                     std::string mName = db->get(mItemId, "name");
@@ -66,11 +66,11 @@ namespace LOICollection::Plugins::market {
                     pl.add(mItemStack);
                     pl.refreshInventory();
 
-                    Player* mPlayer = toolUtils::getPlayerFromName(db->get(mItemId, "player"));
+                    Player* mPlayer = toolUtils::Mc::getPlayerFromName(db->get(mItemId, "player"));
                     if (mPlayer == nullptr) {
                         std::string mObject = pl.getUuid().asString();
                         std::replace(mObject.begin(), mObject.end(), '-', '_');
-                        int mPlayerScore = toolUtils::toInt(db->get("OBJECT$" + mObject, "score"), 0) + mScore;
+                        int mPlayerScore = toolUtils::System::toInt(db->get("OBJECT$" + mObject, "score"), 0) + mScore;
                         db->set("OBJECT$" + mObject, "score", std::to_string(mPlayerScore));
                     } else {
                         std::string mTips = tr(getLanguage(&pl), "market.gui.sell.sellItem.tips2");
@@ -168,7 +168,7 @@ namespace LOICollection::Plugins::market {
                     std::string mItemName = std::get<std::string>(dt->at("Input1"));
                     std::string mItemIcon = std::get<std::string>(dt->at("Input2"));
                     std::string mItemIntroduce = std::get<std::string>(dt->at("Input3"));
-                    int mItemScore = toolUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
+                    int mItemScore = toolUtils::System::toInt(std::get<std::string>(dt->at("Input4")), 0);
 
                     std::string mItemId = db->find("OBJECT$" + mObject + "$ITEMS", "Item", 1);
                     std::string mItemListId = "OBJECT$" + mObject + "$ITEMS_$LIST_" + mItemId;
@@ -310,7 +310,7 @@ namespace LOICollection::Plugins::market {
                         db->set("OBJECT$" + mObject, "score", "0");
                         return;
                     }
-                    int mScore = toolUtils::toInt(db->get("OBJECT$" + mObject, "score"), 0);
+                    int mScore = toolUtils::System::toInt(db->get("OBJECT$" + mObject, "score"), 0);
                     if (mScore > 0) {
                         std::string mObjectScore = mObjectOptions.at("score");
                         toolUtils::scoreboard::addScore(&event.self(), mObjectScore, mScore);
@@ -322,7 +322,7 @@ namespace LOICollection::Plugins::market {
     }
 
     void delItem(std::string mItemId) {
-        std::vector<std::string> mIdList = toolUtils::split(mItemId, "_$LIST_");
+        std::vector<std::string> mIdList = toolUtils::System::split(mItemId, "_$LIST_");
         db->del(mIdList.at(0), mIdList.at(1));
         db->del("Item", mItemId);
         db->remove(mItemId);

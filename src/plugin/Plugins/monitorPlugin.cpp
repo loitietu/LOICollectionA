@@ -45,7 +45,7 @@ namespace LOICollection::Plugins::monitor {
                         return;
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("join"));
                     LOICollection::LOICollectionAPI::translateString(mMonitorString, &event.self());
-                    toolUtils::broadcastText(mMonitorString);
+                    toolUtils::Mc::broadcastText(mMonitorString);
                 }
             );
             PlayerLeaveEventListener = eventBus.emplaceListener<ll::event::PlayerLeaveEvent>(
@@ -54,12 +54,12 @@ namespace LOICollection::Plugins::monitor {
                         return;
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("exit"));
                     LOICollection::LOICollectionAPI::translateString(mMonitorString, &event.self());
-                    toolUtils::broadcastText(mMonitorString);
+                    toolUtils::Mc::broadcastText(mMonitorString);
                 }
             );
             ExecuteCommandEvent = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>(
                 [](ll::event::ExecutingCommandEvent& event) {
-                    std::string mCommand = ll::string_utils::replaceAll(toolUtils::split(event.commandContext().mCommand, " ")[0], "/", "");
+                    std::string mCommand = ll::string_utils::replaceAll(toolUtils::System::split(event.commandContext().mCommand, " ")[0], "/", "");
                     if (std::find(mObjectCommands.begin(), mObjectCommands.end(), mCommand) != mObjectCommands.end()) {
                         event.cancel();
 
@@ -87,7 +87,7 @@ namespace LOICollection::Plugins::monitor {
 
             static ll::schedule::GameTickAsyncScheduler scheduler;
             scheduler.add<ll::schedule::RepeatTask>(3_tick, [] {
-                for (auto& player : toolUtils::getAllPlayers()) {
+                for (auto& player : toolUtils::Mc::getAllPlayers()) {
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("show"));
                     LOICollection::LOICollectionAPI::translateString(mMonitorString, player);
                     player->setNameTag(mMonitorString);
