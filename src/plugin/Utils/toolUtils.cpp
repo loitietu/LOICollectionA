@@ -1,4 +1,3 @@
-#include <memory>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -15,6 +14,7 @@
 #include <mc/world/Minecraft.h>
 #include <mc/world/Container.h>
 #include <mc/world/level/Level.h>
+#include <mc/world/level/Command.h>
 #include <mc/world/scores/Objective.h>
 #include <mc/world/scores/ScoreInfo.h>
 #include <mc/world/scores/Scoreboard.h>
@@ -23,11 +23,17 @@
 #include <mc/world/actor/player/PlayerScoreSetFunction.h>
 #include <mc/world/item/registry/ItemStack.h>
 
+#include <mc/enums/CurrentCmdVersion.h>
+#include <mc/enums/BuildPlatform.h>
+
+#include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandContext.h>
-#include <mc/server/commands/PlayerCommandOrigin.h>
+#include <mc/server/commands/CommandVersion.h>
+#include <mc/server/commands/CommandPermissionLevel.h>
+#include <mc/server/commands/ServerCommandOrigin.h>
 #include <mc/server/commands/MinecraftCommands.h>
 #include <mc/network/ConnectionRequest.h>
-#include <mc/enums/BuildPlatform.h>
+#include <mc/_HeaderOutputPredefine.h>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -44,9 +50,19 @@
 
 namespace toolUtils {
     namespace Mc {
-        void executeCommand(Player* player, const std::string& command) {
-            CommandContext context = CommandContext(command, std::make_unique<PlayerCommandOrigin>(PlayerCommandOrigin(*player)));
-            ll::service::getMinecraft()->getCommands().executeCommand(context);
+        void executeCommand(Player* player, std::string cmd) {
+            ll::string_utils::replaceAll(cmd, "${player}", player->getRealName());
+            auto origin = ServerCommandOrigin(
+                "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, player->getDimensionId()
+            );
+            auto command = ll::service::getMinecraft()->getCommands().compileCommand(
+                std::string(cmd), origin, (CurrentCmdVersion)CommandVersion::CurrentVersion,
+                [&](std::string const& /*unused*/) {}
+            );
+            if (command) {
+                CommandOutput output(CommandOutputType::AllOutput);
+                command->run(origin, output);
+            }
         }
 
         void clearItem(Player* player, void* itemStack_ptr) {

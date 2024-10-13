@@ -30,7 +30,7 @@
 #include "Include/acPlugin.h"
 #include "Include/marketPlugin.h"
 
-#include "Include/AntiCheat/RedStone.h"
+#include "Include/ProtableTool/RedStone.h"
 
 #include "LangPlugin.h"
 
@@ -133,7 +133,7 @@ namespace LOICollection {
             Plugins::market::registery(&this->MarketDB, options);
         }
 
-        if (this->config.AntiCheat.RedStone) AntiCheat::RedStone::registery(this->config.AntiCheat.RedStone);
+        if (this->config.ProtableTool.RedStone) ProtableTool::RedStone::registery(this->config.ProtableTool.RedStone);
         return true;
     }
 
@@ -148,7 +148,7 @@ namespace LOICollection {
         if (this->config.Plugins.AnnounCement) Plugins::announcement::unregistery();
         if (this->config.Plugins.Market.Enable) Plugins::market::unregistery();
 
-        if (this->config.AntiCheat.RedStone) AntiCheat::RedStone::unregistery();
+        if (this->config.ProtableTool.RedStone) ProtableTool::RedStone::unregistery();
         return true;
     }
 }

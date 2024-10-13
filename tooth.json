@@ -8,8 +8,8 @@
         "author": "tietu",
         "source": "github.com/loitietu/LOICollectionA",
         "tags": [
-            "levilamina",
-            "plugin",
+            "platform::levilamina",
+            "type::mod",
             "collection",
             "loistudio",
             "loi",

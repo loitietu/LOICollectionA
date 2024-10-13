@@ -14,7 +14,7 @@
 
 namespace toolUtils {
     namespace Mc {
-        void executeCommand(Player* player, const std::string& command);
+        void executeCommand(Player* player, std::string cmd);
         void clearItem(Player* player, void* itemStack_ptr);
         void broadcastText(const std::string& text);
 

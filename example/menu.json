@@ -15,8 +15,8 @@
                     "money": 100
                 },
                 "command": [
-                    "say Button1",
-                    "say Button1 - 1"
+                    "execute as ${player} run say Button1",
+                    "execute as ${player} run say Button1 - 1"
                 ],
                 "type": "button",
                 "permission": 0
@@ -44,7 +44,7 @@
                 "image": "",
                 "id": "Button2",
                 "command": [ 
-                    "say OPButton1"
+                    "execute as ${player} run say OPButton1"
                 ],
                 "type": "button",
                 "permission": 2
@@ -70,7 +70,7 @@
             "title": "Confirm",
             "scores": {},
             "command": [ 
-                "say Confirm"
+                "execute as ${player} run say Confirm"
             ],
             "type": "button",
             "permission": 0
@@ -79,7 +79,7 @@
             "title": "Cancel",
             "scores": {},
             "command": [ 
-                "say Cancel" 
+                "execute as ${player} run say Cancel" 
             ],
             "type": "button",
             "permission": 0
@@ -134,11 +134,11 @@
             }
         ],
         "command": [
-            "say Input: {Input}",
-            "say Dropdown: {Dropdown}",
-            "say Toggle: {Toggle}",
-            "say Slider: {Slider}",
-            "say StepSlider: {StepSlider}"
+            "execute as ${player} run say Input: {Input}",
+            "execute as ${player} run say Dropdown: {Dropdown}",
+            "execute as ${player} run say Toggle: {Toggle}",
+            "execute as ${player} run say Slider: {Slider}",
+            "execute as ${player} run say StepSlider: {StepSlider}"
         ],
         "permission": 0
     }

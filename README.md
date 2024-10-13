@@ -34,7 +34,7 @@ Market | $\color{#00FF00}{√}$
 3. After opening, you will see content similar to the following:
 ```json
 {
-    "version": 147,
+    "version": 148,
     "Plugins": {
         "FakeSeed": "random",
         "language": {
@@ -75,7 +75,7 @@ Market | $\color{#00FF00}{√}$
             "score": "money"
         }
     },
-    "AntiCheat": {
+    "ProtableTool": {
         "RedStone": 0
     }
 }

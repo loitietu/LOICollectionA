@@ -18,7 +18,7 @@
 #include <mc/world/level/dimension/Dimension.h>
 #include <mc/_HeaderOutputPredefine.h>
 
-#include "Include/AntiCheat/RedStone.h"
+#include "Include/ProtableTool/RedStone.h"
 
 using namespace ll::chrono_literals;
 
@@ -93,7 +93,7 @@ BlockSource& getBlockSource(DimensionType mDimensionId) {
     return ll::service::getLevel()->getOrCreateDimension(mDimensionId)->getBlockSourceFromMainChunkSource();
 }
 
-namespace LOICollection::AntiCheat::RedStone {
+namespace LOICollection::ProtableTool::RedStone {
     int mRedStoneTick;
 
     void registery(int mTick) {

@@ -19,7 +19,6 @@ static nlohmann::ordered_json CNLangData = {
     {"blacklist.log1", "已将玩家 {player}({uuid}) 添加进黑名单"},
     {"blacklist.log2", "已将 ${target} 从黑名单中移除"},
     {"blacklist.tips", "§4您已被服务器加入黑名单\n§a请联系管理员解决问题\n§e解除时间: §r${time}\n§b原因: §r${cause}"},
-    {"blacklist.cause", "无"},
     {"blacklist.gui.title", "§e§lLOICollection -> §b服务器黑名单"},
     {"blacklist.gui.label", "§a功能如下:"},
     {"blacklist.gui.addBlacklist", "§c添加黑名单\n§4将玩家添加至黑名单"},

@@ -29,7 +29,11 @@ target("LOICollectionA")
         "/w44738",
         "/w45204"
     )
-    add_defines("NOMINMAX", "UNICODE")
+    add_defines(
+        "NOMINMAX",
+        "UNICODE",
+        "LOICOLLECTION_A_EXPORTS"
+    )
     add_files("src/plugin/**.cpp")
     add_includedirs("src/plugin")
     add_packages(

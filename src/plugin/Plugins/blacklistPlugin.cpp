@@ -80,7 +80,7 @@ namespace LOICollection::Plugins::blacklist {
             ll::form::CustomForm form(tr(mObjectLanguage, "blacklist.gui.add.title"));
             form.appendLabel(tr(mObjectLanguage, "blacklist.gui.label"));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "blacklist.gui.add.dropdown"), { "ip", "uuid" });
-            form.appendInput("Input1", tr(mObjectLanguage, "blacklist.gui.add.input1"), "", tr(mObjectLanguage, "blacklist.cause"));
+            form.appendInput("Input1", tr(mObjectLanguage, "blacklist.gui.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "blacklist.gui.add.input2"), "", "0");
             form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
@@ -254,7 +254,7 @@ namespace LOICollection::Plugins::blacklist {
         if (!type) mObject = toolUtils::System::split(player->getIPAndPort(), ":")[0];
         std::replace(mObject.begin(), mObject.end(), '.', '_');
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (cause.empty()) cause = tr(mObjectLanguage, "blacklist.cause");
+        if (cause.empty()) cause = "None";
         if (!db->has("OBJECT$" + mObject)) {
             db->create("OBJECT$" + mObject);
             db->set("OBJECT$" + mObject, "cause", cause);
