@@ -258,7 +258,7 @@ namespace LOICollection::Plugins::blacklist {
         if (!db->has("OBJECT$" + mObject)) {
             db->create("OBJECT$" + mObject);
             db->set("OBJECT$" + mObject, "cause", cause);
-            db->set("OBJECT$" + mObject, "time", toolUtils::System::timeCalculate(time));
+            db->set("OBJECT$" + mObject, "time", toolUtils::System::timeCalculate(toolUtils::System::getNowTime(), time));
         }
         std::string mObjectTips = tr(mObjectLanguage, "blacklist.tips");
         ll::string_utils::replaceAll(mObjectTips, "${cause}", cause);

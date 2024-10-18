@@ -77,7 +77,8 @@ namespace LOICollection::Plugins::cdk {
                 std::string mObjectCdk = std::get<std::string>(dt->at("Input1"));
                 if (!db->has(mObjectCdk)) {
                     bool mObjectToggle = std::get<uint64>(dt->at("Toggle"));
-                    std::string mObjectTime = toolUtils::System::timeCalculate(toolUtils::System::toInt(std::get<std::string>(dt->at("Input2")), 0));
+                    int time = toolUtils::System::toInt(std::get<std::string>(dt->at("Input2")), 0);
+                    std::string mObjectTime = toolUtils::System::timeCalculate(toolUtils::System::getNowTime(), time);
                     nlohmann::ordered_json mEmptyObject = nlohmann::ordered_json::object();
                     nlohmann::ordered_json mEmptyArray = nlohmann::ordered_json::array();
                     nlohmann::ordered_json dataList = {

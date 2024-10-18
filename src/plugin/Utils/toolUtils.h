@@ -30,7 +30,7 @@ namespace toolUtils {
 
     namespace System {
         std::string getNowTime();
-        std::string timeCalculate(int hours); 
+        std::string timeCalculate(const std::string& timeString, int hours); 
         std::string formatDataTime(const std::string& timeString);
 
         int toInt(const std::string& intString, int defaultValue);

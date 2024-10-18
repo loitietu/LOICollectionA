@@ -269,7 +269,7 @@ namespace LOICollection::Plugins::chat {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (!db->has("OBJECT$" + mObject + "$TITLE"))
             db->create("OBJECT$" + mObject + "$TITLE");
-        db->set("OBJECT$" + mObject + "$TITLE", text, toolUtils::System::timeCalculate(time));
+        db->set("OBJECT$" + mObject + "$TITLE", text, toolUtils::System::timeCalculate(toolUtils::System::getNowTime(), time));
 
         std::string logString = tr(getLanguage(player), "chat.log2");
         ll::string_utils::replaceAll(logString, "${title}", text);

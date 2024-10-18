@@ -215,7 +215,7 @@ namespace LOICollection::Plugins::mute {
         if (!db->has("OBJECT$" + mObject)) {
             db->create("OBJECT$" + mObject);
             db->set("OBJECT$" + mObject, "cause", cause);
-            db->set("OBJECT$" + mObject, "time", toolUtils::System::timeCalculate(time));
+            db->set("OBJECT$" + mObject, "time", toolUtils::System::timeCalculate(toolUtils::System::getNowTime(), time));
         }
         std::string logString = tr(mObjectLanguage, "mute.log1");
         ll::string_utils::replaceAll(logString, "${cause}", cause);

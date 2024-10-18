@@ -1,3 +1,4 @@
+#include <ctime>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -184,27 +185,25 @@ namespace toolUtils {
 
     namespace System {
         std::string getNowTime() {
-            std::time_t currentTime = std::time(nullptr);
-            char formattedTime[20];
             std::tm currentTimeInfo;
+            std::time_t currentTime = std::time(nullptr);
             localtime_s(&currentTimeInfo, &currentTime);
-            std::strftime(formattedTime, sizeof(formattedTime), "%Y-%m-%d %H:%M:%S", &currentTimeInfo);
-            return std::string(formattedTime);
+            std::ostringstream oss;
+            oss << std::put_time(&currentTimeInfo, "%Y-%m-%d %H:%M:%S");
+            return oss.str();
         }
 
-        std::string timeCalculate(int hours) {
-            if (hours <= 0)
+        std::string timeCalculate(const std::string& timeString, int hours) {
+            if (!hours)
                 return "0";
-            std::time_t currentTime = std::time(nullptr);
-            std::tm timeInfo;
-            localtime_s(&timeInfo, &currentTime);
-            timeInfo.tm_hour += hours;
-            std::time_t laterTime = std::mktime(&timeInfo);
-            char formattedTime[15];
-            std::tm laterTimeInfo;
-            localtime_s(&laterTimeInfo, &laterTime);
-            std::strftime(formattedTime, sizeof(formattedTime), "%Y%m%d%H%M%S", &laterTimeInfo);
-            return std::string(formattedTime);
+            std::tm tm = {};
+            std::istringstream iss(timeString);
+            iss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+            tm.tm_hour += hours;
+            std::mktime(&tm);
+            std::ostringstream oss;
+            oss << std::put_time(&tm, "%Y%m%d%H%M%S");
+            return oss.str();
         }
 
         std::string formatDataTime(const std::string& timeString) {
