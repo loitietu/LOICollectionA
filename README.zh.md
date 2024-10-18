@@ -76,7 +76,8 @@ lip install github.com/loitietu/LOICollectionA
         }
     },
     "ProtableTool": {
-        "RedStone": 0
+        "RedStone": 0,
+        "OrderedUI": false
     }
 }
 ```

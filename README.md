@@ -76,7 +76,8 @@ Market | $\color{#00FF00}{√}$
         }
     },
     "ProtableTool": {
-        "RedStone": 0
+        "RedStone": 0,
+        "OrderedUI": false
     }
 }
 ```

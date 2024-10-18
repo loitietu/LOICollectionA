@@ -31,6 +31,7 @@
 #include "Include/marketPlugin.h"
 
 #include "Include/ProtableTool/RedStone.h"
+#include "Include/ProtableTool/OrderedUI.h"
 
 #include "LangPlugin.h"
 
@@ -134,6 +135,7 @@ namespace LOICollection {
         }
 
         if (this->config.ProtableTool.RedStone) ProtableTool::RedStone::registery(this->config.ProtableTool.RedStone);
+        if (this->config.ProtableTool.OrderedUI) ProtableTool::OrderedUI::registery();
         return true;
     }
 
@@ -149,6 +151,7 @@ namespace LOICollection {
         if (this->config.Plugins.Market.Enable) Plugins::market::unregistery();
 
         if (this->config.ProtableTool.RedStone) ProtableTool::RedStone::unregistery();
+        if (this->config.ProtableTool.OrderedUI) ProtableTool::OrderedUI::unregistery();
         return true;
     }
 }

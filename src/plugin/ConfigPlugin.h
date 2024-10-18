@@ -48,6 +48,7 @@ struct C_Config {
     } Plugins;
     struct C_ProtableTool {
         int RedStone = 0;
+        bool OrderedUI = false;
     } ProtableTool;
 };
 
