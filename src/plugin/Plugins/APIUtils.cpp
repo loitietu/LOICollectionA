@@ -170,28 +170,26 @@ namespace LOICollection::LOICollectionAPI {
         if (contentString.empty())
             return contentString;
 
+        size_t mIndex = 0;
         std::smatch mMatchFind;
         std::regex mPatternFind("\\{(.*?)\\}");
-        if (!std::regex_search(contentString, mMatchFind, mPatternFind))
-            return contentString;
-
-        for (auto& [name, callback] : mVariableMap) {
-            if (contentString.find("{" + name + "}") == std::string::npos)
-                continue;
-            try {
-                ll::string_utils::replaceAll(contentString, "{" + name + "}", callback(player_ptr));
-            } catch (...) { ll::string_utils::replaceAll(contentString, "{" + name + "}", "None"); };
-        }
-
-        std::smatch mMatchParameter;
-        for (auto& [name, callback] : mVariableMapParameter) {
-            std::regex mPatternParameter("\\{" + name + "\\((.*?)\\)\\}");
-            while (std::regex_search(contentString, mMatchParameter, mPatternParameter)) {
-                std::string extractedContent = mMatchParameter.str(1);
+        while (std::regex_search(contentString.cbegin() + mIndex, contentString.cend(), mMatchFind, mPatternFind)) {
+            std::string extractedContent = mMatchFind.str(1);
+            if (mVariableMap.find(extractedContent) != mVariableMap.end()) {
                 try {
-                    ll::string_utils::replaceAll(contentString, "{" + name + "(" + extractedContent + ")}", callback(player_ptr, extractedContent));
-                } catch (...) { ll::string_utils::replaceAll(contentString, "{" + name + "(" + extractedContent + ")}", "None"); };
+                    ll::string_utils::replaceAll(contentString, "{" + extractedContent + "}", mVariableMap[extractedContent](player_ptr));
+                } catch (...) { ll::string_utils::replaceAll(contentString, "{" + extractedContent + "}", "None"); };
+                continue;
             }
+            std::regex mPatternParameter("(.*?)\\((.*?)\\)");
+            if (std::regex_match(extractedContent, mMatchFind, mPatternParameter)) {
+                std::string extractedName = mMatchFind.str(1);
+                std::string extractedParameter = mMatchFind.str(2);
+                try {
+                    ll::string_utils::replaceAll(contentString, "{" + extractedContent + "}", mVariableMapParameter[extractedName](player_ptr, extractedParameter));
+                } catch (...) { ll::string_utils::replaceAll(contentString, "{" + extractedContent + "}", "None"); };
+            }
+            mIndex += mMatchFind.position() + mMatchFind.length();
         }
         return contentString;
     }

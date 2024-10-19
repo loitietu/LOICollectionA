@@ -82,11 +82,9 @@ namespace LOICollection::Plugins::shop {
             Player* player = static_cast<Player*>(player_ptr);
 
             std::string mScoreboardListsString;
-            if (!data["scores"].empty()) {
-                for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
-                    mScoreboardListsString += it.key() + ":" + std::to_string(it.value().get<int>()) + ";";
-                mScoreboardListsString.pop_back();
-            } else mScoreboardListsString = "None";
+            for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
+                mScoreboardListsString += it.key() + ":" + std::to_string(it.value().get<int>()) + ",";
+            mScoreboardListsString.empty() ? (void)(mScoreboardListsString = "None") : mScoreboardListsString.pop_back();
             std::string mIntroduce = translateString(data.at("introduce").get<std::string>(), player);
 
             ll::form::CustomForm form(translateString(data.at("title").get<std::string>(), player));
@@ -125,11 +123,9 @@ namespace LOICollection::Plugins::shop {
             Player* player = static_cast<Player*>(player_ptr);
 
             std::string mScoreboardListsString;
-            if (!data["scores"].empty()) {
-                for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
-                    mScoreboardListsString += it.key() + ":" + std::to_string(it.value().get<int>()) + ";";
-                mScoreboardListsString.pop_back();
-            } else mScoreboardListsString = "None";
+            for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
+                mScoreboardListsString += it.key() + ":" + std::to_string(it.value().get<int>()) + ",";
+            mScoreboardListsString.empty() ? (void)(mScoreboardListsString = "None") : mScoreboardListsString.pop_back();
             std::string mIntroduce = translateString(data.at("introduce").get<std::string>(), player);
 
             ll::form::ModalForm form;
@@ -178,9 +174,8 @@ namespace LOICollection::Plugins::shop {
     namespace {
         void registerCommand() {
             auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery) {
+            if (!commandRegistery)
                 throw std::runtime_error("Failed to get command registry.");
-            }
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("shop", "§e§lLOICollection -> §b服务器商店", CommandPermissionLevel::Any);
             command.overload<ShopOP>().text("gui").required("uiName").execute([](CommandOrigin const& origin, CommandOutput& output, ShopOP param) {
@@ -219,9 +214,8 @@ namespace LOICollection::Plugins::shop {
     bool checkModifiedData(void* player_ptr, nlohmann::ordered_json data, int number) {
         Player* player = static_cast<Player*>(player_ptr);
         for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it) {
-            if ((it.value().get<int>() * number) > toolUtils::scoreboard::getScore(player, it.key())) {
+            if ((it.value().get<int>() * number) > toolUtils::scoreboard::getScore(player, it.key()))
                 return false;
-            }
         }
         for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
             toolUtils::scoreboard::reduceScore(player, it.key(), (it.value().get<int>() * number));

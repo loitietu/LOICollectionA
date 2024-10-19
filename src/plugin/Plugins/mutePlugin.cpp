@@ -45,8 +45,8 @@ namespace LOICollection::Plugins::mute {
         void info(void* player_ptr, std::string target) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+            
             std::string mObjectLabel = tr(mObjectLanguage, "mute.gui.info.label");
-
             ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
             ll::string_utils::replaceAll(mObjectLabel, "${cause}", db->get("OBJECT$" + target, "cause"));
             ll::string_utils::replaceAll(mObjectLabel, "${time}", toolUtils::System::formatDataTime(db->get("OBJECT$" + target, "time")));
@@ -67,6 +67,7 @@ namespace LOICollection::Plugins::mute {
         void content(void* player_ptr, std::string target) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::CustomForm form(tr(mObjectLanguage, "mute.gui.add.title"));
             form.appendLabel(tr(mObjectLanguage, "mute.gui.label"));
             form.appendInput("Input1", tr(mObjectLanguage, "mute.gui.add.input1"), "", tr(mObjectLanguage, "mute.cause"));
@@ -89,6 +90,7 @@ namespace LOICollection::Plugins::mute {
         void add(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.add.title"), tr(mObjectLanguage, "mute.gui.add.label"));
             for (auto& mTarget : toolUtils::Mc::getAllPlayerName()) {
                 form.appendButton(mTarget, [mTarget](Player& pl) {
@@ -103,6 +105,7 @@ namespace LOICollection::Plugins::mute {
         void remove(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), tr(mObjectLanguage, "mute.gui.remove.label"));
             for (auto& mItem : db->list()) {
                 ll::string_utils::replaceAll(mItem, "OBJECT$", "");
@@ -118,6 +121,7 @@ namespace LOICollection::Plugins::mute {
         void open(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.title"), tr(mObjectLanguage, "mute.gui.label"));
             form.appendButton(tr(mObjectLanguage, "mute.gui.addMute"), "textures/ui/backup_replace", "path", [](Player& pl) {
                 MainGui::add(&pl);
@@ -145,9 +149,8 @@ namespace LOICollection::Plugins::mute {
 
         void registerCommand() {
             auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery) {
+            if (!commandRegistery)
                 throw std::runtime_error("Failed to get command registry.");
-            }
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("mute", "§e§lLOICollection -> §b服务器禁言", CommandPermissionLevel::GameDirectors);
             command.overload<MuteOP>().text("add").required("target").execute(MuteCommandADD);
@@ -208,10 +211,10 @@ namespace LOICollection::Plugins::mute {
         if ((int) player->getPlayerPermissionLevel() >= 2)
             return;
 
+        cause = cause.empty() ? "None" : cause;
         std::string mObjectLanguage = getLanguage(player);
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (cause.empty()) cause = tr(mObjectLanguage, "mute.cause");
         if (!db->has("OBJECT$" + mObject)) {
             db->create("OBJECT$" + mObject);
             db->set("OBJECT$" + mObject, "cause", cause);
@@ -230,9 +233,8 @@ namespace LOICollection::Plugins::mute {
     }
 
     void delMute(std::string target) {
-        if (db->has("OBJECT$" + target)) {
+        if (db->has("OBJECT$" + target))
             db->remove("OBJECT$" + target);
-        }
         std::string logString = tr(getLanguage(nullptr), "mute.log2");
         logger.info(ll::string_utils::replaceAll(logString, "${target}", target));
     }

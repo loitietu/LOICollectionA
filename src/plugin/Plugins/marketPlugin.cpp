@@ -47,8 +47,8 @@ namespace LOICollection::Plugins::market {
         void buyItem(void* player_ptr, std::string mItemId) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+            
             std::string mIntroduce = tr(mObjectLanguage, "market.gui.sell.introduce");
-
             ll::string_utils::replaceAll(mIntroduce, "${introduce}", db->get(mItemId, "introduce"));
             ll::string_utils::replaceAll(mIntroduce, "${score}", db->get(mItemId, "score"));
             ll::string_utils::replaceAll(mIntroduce, "${nbt}", db->get(mItemId, "nbt"));
@@ -115,8 +115,8 @@ namespace LOICollection::Plugins::market {
         void itemContent(void* player_ptr, std::string mItemId) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
-            std::string mIntroduce = tr(mObjectLanguage, "market.gui.sell.introduce");
 
+            std::string mIntroduce = tr(mObjectLanguage, "market.gui.sell.introduce");
             ll::string_utils::replaceAll(mIntroduce, "${introduce}", db->get(mItemId, "introduce"));
             ll::string_utils::replaceAll(mIntroduce, "${score}", db->get(mItemId, "score"));
             ll::string_utils::replaceAll(mIntroduce, "${nbt}", db->get(mItemId, "nbt"));
@@ -205,8 +205,9 @@ namespace LOICollection::Plugins::market {
         void sellItemContent(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
-            std::string mObject = player->getUuid().asString();
+
             std::vector<std::string> mItems;
+            std::string mObject = player->getUuid().asString();
             std::replace(mObject.begin(), mObject.end(), '-', '_');
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"));
@@ -229,6 +230,7 @@ namespace LOICollection::Plugins::market {
         void sell(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItem"), "textures/items/diamond", "path", [](Player& pl) {
                 MainGui::sellItem(&pl);
@@ -244,8 +246,8 @@ namespace LOICollection::Plugins::market {
         void buy(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
-            std::vector<std::string> mItems;
 
+            std::vector<std::string> mItems;
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"));
             form.setContent(tr(mObjectLanguage, "market.gui.label"));
             for (auto& item : db->list("Item")) {
@@ -267,9 +269,8 @@ namespace LOICollection::Plugins::market {
     namespace {
         void registerCommand() {
             auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery) {
+            if (!commandRegistery)
                 throw std::runtime_error("Failed to get command registry.");
-            }
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("market", "§e§lLOICollection -> §b玩家市场", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {

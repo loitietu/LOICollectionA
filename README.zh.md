@@ -36,7 +36,7 @@ lip install github.com/loitietu/LOICollectionA
 {
     "version": 148,
     "Plugins": {
-        "FakeSeed": "random",
+        "FakeSeed": "$random",
         "language": {
             "update": true
         },
@@ -55,7 +55,7 @@ lip install github.com/loitietu/LOICollectionA
             "join": "{player} 加入了服务器",
             "exit": "{player} 退出了服务器",
             "target": "money",
-            "changed": "§e§l检测到Score发生变化 §e现值: §f${GetScore}",
+            "changed": "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}",
             "tips": "该指令已被禁用" ,
             "command": [],
         },

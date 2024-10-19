@@ -36,7 +36,7 @@ Market | $\color{#00FF00}{√}$
 {
     "version": 148,
     "Plugins": {
-        "FakeSeed": "random",
+        "FakeSeed": "$random",
         "language": {
             "update": true
         },
@@ -55,7 +55,7 @@ Market | $\color{#00FF00}{√}$
             "join": "{player} has joined the server",
             "exit": "{player} has left the server",
             "target": "money",
-            "changed": "§e§lDetected Score Change §eCurrent Value: §f${GetScore}",
+            "changed": "§e§lDetected Score §f${Object}§e Change §bOriginal Value: §f${OriMoney} §aChange: §f${SetMoney} §eCurrent Value: §f${GetScore}",
             "tips": "This command has been disabled",
             "command": [],
         },

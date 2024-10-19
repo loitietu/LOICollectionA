@@ -45,6 +45,7 @@ namespace LOICollection::Plugins::announcement {
         void setting(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::CustomForm form(tr(mObjectLanguage, "announcement.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "announcement.gui.label"));
             form.appendToggle("Toggle1", tr(mObjectLanguage, "announcement.gui.setting.switch1"), isClose(player));
@@ -139,9 +140,8 @@ namespace LOICollection::Plugins::announcement {
     namespace {
         void registerCommand() {
             auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery) {
+            if (!commandRegistery)
                 throw std::runtime_error("Failed to get command registry.");
-            }
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("announcement", "§e§lLOICollection -> §a公告系统", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {

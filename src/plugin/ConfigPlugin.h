@@ -7,7 +7,7 @@
 struct C_Config {
     int version = 0;
     struct C_Plugins {
-        std::string FakeSeed = "random";
+        std::string FakeSeed = "$random";
         struct C_Language{
             bool update = true;
         } language;
@@ -26,7 +26,7 @@ struct C_Config {
             std::string join = "{player} 加入了服务器";
             std::string exit = "{player} 退出了服务器";
             std::string target = "money";
-            std::string changed = "§e§l检测到Score发生变化 §e现值: §f${GetScore}";
+            std::string changed = "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}";
             std::string tips = "该指令已被禁用";
             std::vector<std::string> command = {};
         } Monitor;

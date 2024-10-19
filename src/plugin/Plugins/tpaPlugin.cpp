@@ -43,6 +43,7 @@ namespace LOICollection::Plugins::tpa {
         void setting(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+            
             ll::form::CustomForm form(tr(mObjectLanguage, "tpa.gui.setting.title"));
             form.appendLabel(tr(mObjectLanguage, "tpa.gui.setting.label"));
             form.appendToggle("Toggle1", tr(mObjectLanguage, "tpa.gui.setting.switch1"), isInvite(player));
@@ -70,8 +71,7 @@ namespace LOICollection::Plugins::tpa {
 
             ll::form::ModalForm form;
             form.setTitle(tr(mObjectLanguage, "tpa.gui.title"));
-            if (!type)
-                form.setContent(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player));
+            if (!type) form.setContent(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player));
             else form.setContent(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player));
             form.setUpperButton(tr(mObjectLanguage, "tpa.yes"));
             form.setLowerButton(tr(mObjectLanguage, "tpa.no"));
@@ -97,6 +97,7 @@ namespace LOICollection::Plugins::tpa {
         void content(void* player_ptr, std::string target) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+            
             ll::form::CustomForm form(tr(mObjectLanguage, "tpa.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "tpa.gui.label"));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "tpa.gui.dropdown"), { "tpa", "tphere" });
@@ -122,6 +123,7 @@ namespace LOICollection::Plugins::tpa {
         void open(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.title"), tr(mObjectLanguage, "tpa.gui.label2"));
             for (auto& mTarget : toolUtils::Mc::getAllPlayerName()) {
                 form.appendButton(mTarget, [mTarget](Player& pl) {
@@ -137,9 +139,8 @@ namespace LOICollection::Plugins::tpa {
     namespace {
         void registerCommand() {
             auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery) {
+            if (!commandRegistery)
                 throw std::runtime_error("Failed to get command registry.");
-            }
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("tpa", "§e§lLOICollection -> §b玩家互传", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -185,9 +186,8 @@ namespace LOICollection::Plugins::tpa {
         Player* player = static_cast<Player*>(player_ptr);
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject)) {
+        if (db->has("OBJECT$" + mObject))
             return db->get("OBJECT$" + mObject, "Tpa_Toggle1") == "true";
-        }
         return false;
     }
 

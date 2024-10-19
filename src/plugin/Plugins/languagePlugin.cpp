@@ -40,6 +40,7 @@ namespace LOICollection::Plugins::language {
         void open(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+            
             ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
             form.appendLabel(ll::string_utils::replaceAll(tr(mObjectLanguage, "language.gui.lang"), "${language}", getName(mObjectLanguage)));
@@ -61,9 +62,8 @@ namespace LOICollection::Plugins::language {
     namespace {
         void registerCommand() {
             auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery) {
+            if (!commandRegistery)
                 throw std::runtime_error("Failed to get command registry.");
-            }
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("language", "§e§lLOICollection -> §a语言设置", CommandPermissionLevel::Any);
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -95,7 +95,8 @@ namespace LOICollection::Plugins::language {
     }
 
     std::string getLanguage(void* player_ptr) {
-        if (player_ptr == nullptr) return "zh_CN";
+        if (player_ptr == nullptr)
+            return "zh_CN";
         Player* player = static_cast<class Player*>(player_ptr);
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');

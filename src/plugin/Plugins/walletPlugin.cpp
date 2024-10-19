@@ -39,8 +39,8 @@ namespace LOICollection::Plugins::wallet {
         void content(void* player_ptr, std::string target) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
-            std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
 
+            std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
             ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%%");
             ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, mScore)));
 
@@ -103,8 +103,8 @@ namespace LOICollection::Plugins::wallet {
         void open(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
-            std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
 
+            std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
             ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%%");
             ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, mScore)));
 
@@ -128,9 +128,8 @@ namespace LOICollection::Plugins::wallet {
     namespace {
         void registerCommand() {
             auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery) {
+            if (!commandRegistery)
                 throw std::runtime_error("Failed to get command registry.");
-            }
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("wallet", "§e§lLOICollection -> §b个人钱包", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {

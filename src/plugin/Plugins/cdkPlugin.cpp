@@ -47,6 +47,7 @@ namespace LOICollection::Plugins::cdk {
         void convert(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
             form.appendInput("Input", tr(mObjectLanguage, "cdk.gui.convert.input"), "", "convert");
@@ -56,13 +57,14 @@ namespace LOICollection::Plugins::cdk {
                     return;
                 }
                 std::string convertString = std::get<std::string>(dt->at("Input"));
-                cdkConvert(&pl, convertString);
+                cdkConvert(&pl, convertString.empty() ? "default" : convertString);
             });
         }
 
         void cdkNew(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
             form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.new.input1"), "", "cdk");
@@ -245,6 +247,7 @@ namespace LOICollection::Plugins::cdk {
         void cdkAward(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::SimpleForm form(tr(mObjectLanguage, "cdk.gui.title"), tr(mObjectLanguage, "cdk.gui.label"));
             form.appendButton(tr(mObjectLanguage, "cdk.gui.award.score"), "textures/items/diamond_sword", "path", [](Player& pl) {
                 MainGui::cdkAwardScore(&pl);
@@ -263,6 +266,7 @@ namespace LOICollection::Plugins::cdk {
         void open(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::SimpleForm form(tr(mObjectLanguage, "cdk.gui.title"), tr(mObjectLanguage, "cdk.gui.label"));
             form.appendButton(tr(mObjectLanguage, "cdk.gui.addCdk"), "textures/ui/book_addtextpage_default", "path", [](Player& pl) {
                 MainGui::cdkNew(&pl);
@@ -282,9 +286,8 @@ namespace LOICollection::Plugins::cdk {
     namespace {
         void registerCommand() {
             auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery) {
+            if (!commandRegistery)
                 throw std::runtime_error("Failed to get command registry.");
-            }
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("cdk", "§e§lLOICollection -> §b总换码", CommandPermissionLevel::Any);
             command.overload<CDKOP>().text("convert").required("convertString").execute([](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) {
@@ -321,7 +324,6 @@ namespace LOICollection::Plugins::cdk {
 
     void cdkConvert(void* player_ptr, std::string convertString) {
         Player* player = static_cast<class Player*>(player_ptr);
-        if (convertString.empty()) convertString = "default";
         std::string mObjectLanguage = getLanguage(player);
         if (db->has(convertString)) {
             nlohmann::ordered_json cdkJson = db->toJson(convertString);

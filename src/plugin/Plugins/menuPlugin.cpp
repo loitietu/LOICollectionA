@@ -282,11 +282,11 @@ namespace LOICollection::Plugins::menu {
         void editAwardRemove(void* player_ptr, std::string uiName) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
-            std::vector<std::string> mObjectItems;
 
             nlohmann::ordered_json data = db->toJson(uiName);
             nlohmann::ordered_json mContent = (data.at("type").get<std::string>() == "Custom" ? data.at("customize") : data.at("button"));
-
+            
+            std::vector<std::string> mObjectItems;
             ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), tr(mObjectLanguage, "menu.gui.label"));
             for (auto& item : mContent) {
                 std::string mName = item.at("id").get<std::string>();
@@ -422,6 +422,7 @@ namespace LOICollection::Plugins::menu {
         void editAward(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+            
             ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), tr(mObjectLanguage, "menu.gui.label"));
             for (auto& key : db->keys()) {
                 form.appendButton(key, [key](Player& pl) {
@@ -436,6 +437,7 @@ namespace LOICollection::Plugins::menu {
         void edit(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), tr(mObjectLanguage, "menu.gui.label"));
             form.appendButton(tr(mObjectLanguage, "menu.gui.button1"), "textures/ui/achievements", "path", [](Player& pl) {
                 MainGui::editNew(&pl);
@@ -453,8 +455,8 @@ namespace LOICollection::Plugins::menu {
 
         void custom(void* player_ptr, nlohmann::ordered_json& data) {
             Player* player = static_cast<Player*>(player_ptr);
+
             nlohmann::ordered_json mCustomData;
-            
             ll::form::CustomForm form(translateString(data.at("title").get<std::string>(), player));
             for (auto& customize : data.at("customize")) {
                 switch (ll::hash_utils::doHash(customize.at("type").get<std::string>())) {
@@ -532,8 +534,8 @@ namespace LOICollection::Plugins::menu {
 
         void simple(void* player_ptr, nlohmann::ordered_json& data) {
             Player* player = static_cast<Player*>(player_ptr);
+
             std::vector<nlohmann::ordered_json> mButtonLists;
-            
             ll::form::SimpleForm form(translateString(data.at("title").get<std::string>(), player));
             form.setContent(translateString(data.at("content").get<std::string>(), player));
             for (auto& button : data.at("button")) {
@@ -556,6 +558,7 @@ namespace LOICollection::Plugins::menu {
             if (data.at("confirmButton").empty() || data.at("cancelButton").empty()) return;
 
             Player* player = static_cast<Player*>(player_ptr);
+
             ll::form::ModalForm form;
             form.setTitle(translateString(data.at("title").get<std::string>(), player));
             form.setContent(translateString(data.at("content").get<std::string>(), player));
@@ -606,9 +609,8 @@ namespace LOICollection::Plugins::menu {
     namespace {
         void registerCommand() {
             auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery) {
+            if (!commandRegistery)
                 throw std::runtime_error("Failed to get command registry.");
-            }
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("menu", "§e§lLOICollection -> §b服务器菜单", CommandPermissionLevel::Any);
             command.overload<MenuOP>().text("gui").optional("uiName").execute([](CommandOrigin const& origin, CommandOutput& output, MenuOP param) {
@@ -690,9 +692,8 @@ namespace LOICollection::Plugins::menu {
         if (!data.contains("scores")) 
             return true;
         for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it) {
-            if (it.value().get<int>() > toolUtils::scoreboard::getScore(player, it.key())) {
+            if (it.value().get<int>() > toolUtils::scoreboard::getScore(player, it.key()))
                 return false;
-            }
         }
         for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
             toolUtils::scoreboard::reduceScore(player, it.key(), it.value().get<int>());

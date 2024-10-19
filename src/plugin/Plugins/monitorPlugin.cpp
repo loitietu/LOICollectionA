@@ -75,12 +75,23 @@ namespace LOICollection::Plugins::monitor {
                 LOICollection::HookPlugin::interceptTextPacket(mUuid);
                 LOICollection::HookPlugin::interceptGetNameTag(mUuid);
             });
-            LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([](void* player_ptr, int score, std::string id) {
+            LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([](void* player_ptr, int score, std::string id, int type) {
                 Player* player = static_cast<Player*>(player_ptr);
                 std::string target = std::get<std::string>(mObjectOptions.at("target"));
-                if (id == target) {
+                if (target.empty() || id.empty())
+                    return;
+                if (id == target || target == "$all") {
+                    int mOriScore = toolUtils::scoreboard::getScore(player, id);
                     std::string mChangedString = std::get<std::string>(mObjectOptions.at("changed"));
-                    ll::string_utils::replaceAll(mChangedString, "${GetScore}", std::to_string(score));
+                    ll::string_utils::replaceAll(mChangedString, "${Object}", id);
+                    ll::string_utils::replaceAll(mChangedString, "${OriMoney}", std::to_string(mOriScore));
+                    ll::string_utils::replaceAll(mChangedString, "${SetMoney}", 
+                        (type == SCORECHANGED_ADD ? "+" : (type == SCORECHANGED_REDUCE ? "-" : "")) + std::to_string(score)
+                    );
+                    ll::string_utils::replaceAll(mChangedString, "${GetMoney}", 
+                        (type == SCORECHANGED_ADD ? std::to_string(mOriScore + score) :
+                        (type == SCORECHANGED_REDUCE ? std::to_string(mOriScore - score) : std::to_string(score)))
+                    );
                     player->sendMessage(mChangedString);
                 }
             });

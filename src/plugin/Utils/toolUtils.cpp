@@ -2,7 +2,6 @@
 #include <vector>
 #include <string>
 #include <sstream>
-#include <cstddef>
 #include <filesystem>
 
 #include <ll/api/Mod/Manifest.h>
@@ -146,19 +145,15 @@ namespace toolUtils {
 
         std::vector<std::string> getAllPlayerName() {
             std::vector<std::string> mObjectLists = {};
-            std::vector<Player*> mObjectPlayerLists = getAllPlayers();
-            for (auto& player : mObjectPlayerLists) {
+            for (auto& player : getAllPlayers())
                 mObjectLists.push_back(player->getRealName());
-            }
             return mObjectLists;
         }
 
         Player* getPlayerFromName(const std::string& name) {
-            std::vector<Player*> mObjectPlayerLists = getAllPlayers();
-            for (auto& player : mObjectPlayerLists) {
-                if (player->getRealName() == name) {
+            for (auto& player : getAllPlayers()) {
+                if (player->getRealName() == name)
                     return player;
-                }
             }
             return nullptr;
         }

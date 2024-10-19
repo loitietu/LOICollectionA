@@ -11,12 +11,15 @@
 #include <mc/world/actor/Actor.h>
 #include <mc/world/actor/ActorDamageSource.h>
 #include <mc/world/actor/player/Player.h>
+#include <mc/world/actor/player/PlayerScoreSetFunction.h>
+
 #include <mc/world/scores/Objective.h>
 #include <mc/world/scores/ScoreInfo.h>
+#include <mc/world/scores/Scoreboard.h>
 #include <mc/world/scores/ScoreboardId.h>
-#include <mc/world/scores/ServerScoreboard.h>
-#include <mc/world/level/LevelSeed64.h>
+
 #include <mc/world/level/Level.h>
+#include <mc/world/level/LevelSeed64.h>
 
 #include <mc/deps/core/utility/BinaryStream.h>
 #include <mc/network/packet/StartGamePacket.h>
@@ -42,7 +45,7 @@ std::vector<std::string> mInterceptedTextPacketTargets;
 std::vector<std::string> mInterceptedGetNameTagTargets;
 std::vector<std::function<bool(void*, std::string)>> mTextPacketSendEventCallbacks;
 std::vector<std::function<void(void*, std::string, std::string)>> mLoginPacketSendEventCallbacks;
-std::vector<std::function<void(void*, int, std::string)>> mPlayerScoreChangedEventCallbacks;
+std::vector<std::function<void(void*, int, std::string, int)>> mPlayerScoreChangedEventCallbacks;
 std::vector<std::function<bool(void*, void*, float)>> mPlayerHurtEventCallbacks;
 
 LL_TYPE_INSTANCE_HOOK(
@@ -174,22 +177,26 @@ LL_TYPE_INSTANCE_HOOK(
 LL_TYPE_INSTANCE_HOOK(
     PlayerScoreChangedHook,
     HookPriority::Normal,
-    ServerScoreboard,
-    "?onScoreChanged@ServerScoreboard@@UEAAXAEBUScoreboardId@@AEBVObjective@@@Z",
-    void,
+    Scoreboard,
+    "?modifyPlayerScore@Scoreboard@@QEAAHAEA_NAEBUScoreboardId@@AEAVObjective@@HW4PlayerScoreSetFunction@@@Z",
+    int,
+    bool& success,
     ScoreboardId const& id,
-    Objective const& objective
+    Objective& objective,
+    int scoreValue,
+    PlayerScoreSetFunction action
 ) {
     if (id.getIdentityDef().isPlayerType()) {
         for (auto& callback : mPlayerScoreChangedEventCallbacks) {
             callback(
                 ll::service::getLevel()->getPlayer(ActorUniqueID(id.getIdentityDef().getPlayerId().mActorUniqueId)),
-                objective.getPlayerScore(id).mScore,
-                objective.getName()
+                scoreValue,
+                objective.getName(),
+                (action == PlayerScoreSetFunction::Add ? 0 : (action == PlayerScoreSetFunction::Subtract ? 1 : 2))
             );
         }
     }
-    return origin(id, objective);
+    return origin(success, id, objective, scoreValue, action);
 };
 
 LL_TYPE_INSTANCE_HOOK(
@@ -258,7 +265,7 @@ namespace LOICollection::HookPlugin {
             mLoginPacketSendEventCallbacks.push_back(callback);
         }
 
-        void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string)>& callback) {
+        void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string, int)>& callback) {
             mPlayerScoreChangedEventCallbacks.push_back(callback);
         }
 
@@ -277,7 +284,7 @@ namespace LOICollection::HookPlugin {
 
     void setFakeSeed(const std::string& fakeSeed) {
         if (fakeSeed.empty()) return;
-        if (fakeSeed == "random")
+        if (fakeSeed == "$random")
             mFakeSeed = ll::random_utils::rand<int64_t>();
         mFakeSeed = toolUtils::System::toInt64t(fakeSeed, 0);
     }
