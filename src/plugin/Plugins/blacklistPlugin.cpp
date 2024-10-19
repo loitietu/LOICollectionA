@@ -228,7 +228,7 @@ namespace LOICollection::Plugins::blacklist {
                     );
                     return;
                 }
-                std::string mObjectIP = toolUtils::System::split(mIpAndPort, ":")[0];
+                std::string mObjectIP = std::string(ll::string_utils::splitByPattern(mIpAndPort, ":")[0]);
                 std::replace(mObjectIP.begin(), mObjectIP.end(), '.', '_');
                 if (db->has("OBJECT$" + mObjectIP)) {
                     if (toolUtils::System::isReach(db->get("OBJECT$" + mObjectIP, "time"))) {
@@ -254,7 +254,7 @@ namespace LOICollection::Plugins::blacklist {
 
         cause = cause.empty() ? "None" : cause;
         std::string mObjectLanguage = getLanguage(player);
-        std::string mObject = type ? player->getUuid().asString() : toolUtils::System::split(player->getIPAndPort(), ":")[0];
+        std::string mObject = type ? player->getUuid().asString() : std::string(ll::string_utils::splitByPattern(player->getIPAndPort(), ":")[0]);
         std::replace(mObject.begin(), mObject.end(), '.', '_');
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (!db->has("OBJECT$" + mObject)) {
@@ -282,7 +282,7 @@ namespace LOICollection::Plugins::blacklist {
     bool isBlacklist(void* player_ptr) {
         Player* player = static_cast<Player*>(player_ptr);
         std::string mObjectUuid = player->getUuid().asString();
-        std::string mObjectIP = toolUtils::System::split(player->getIPAndPort(), ":")[0];
+        std::string mObjectIP = std::string(ll::string_utils::splitByPattern(player->getIPAndPort(), ":")[0]);
         std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
         std::replace(mObjectIP.begin(), mObjectIP.end(), '.', '_');
         if (db->has("OBJECT$" + mObjectUuid))

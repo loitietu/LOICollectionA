@@ -35,9 +35,7 @@ namespace toolUtils {
 
         int toInt(const std::string& intString, int defaultValue);
         int64_t toInt64t(const std::string& intString, int defaultValue);
-
-        std::vector<std::string> split(const std::string& s, const std::string& delimiter);
-
+        
         bool isReach(const std::string& timeString);
     }
 

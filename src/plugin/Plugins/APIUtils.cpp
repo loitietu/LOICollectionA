@@ -43,6 +43,7 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("pvp", [](void* player_ptr) { return Plugins::pvp::isEnable(player_ptr) ? "true" : "false"; });
         registerVariable("mute", [](void* player_ptr) { return Plugins::mute::isMute(player_ptr) ? "true" : "false"; });
         registerVariable("language", [](void* player_ptr) { return Plugins::language::getLanguage(player_ptr); });
+        registerVariable("languageName", [](void* player_ptr) { return I18nUtils::getName(Plugins::language::getLanguage(player_ptr)); });
         registerVariable("tps", [](void* /*unused*/) {
             double mMspt = ((double) ProfilerLite::gProfilerLiteInstance.getServerTickTime().count() / 1000000.0);
             return std::to_string(mMspt <= 50.0 ? 20.0 : (double)(1000.0 / mMspt));

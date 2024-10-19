@@ -22,7 +22,7 @@ struct C_Config {
         bool Shop = false;
         struct C_Monitor {
             bool Enable = false;
-            std::string show = "{player}\n称号: {title}";
+            std::string show = "[{title}] §r{player}";
             std::string join = "{player} 加入了服务器";
             std::string exit = "{player} 退出了服务器";
             std::string target = "money";

@@ -51,7 +51,7 @@ Market | $\color{#00FF00}{√}$
         "Shop": false,
         "Monitor": {
             "Enable": false,
-            "show": "{player}\nTitle: {title}",
+            "show": "[{title}] §r{player}",
             "join": "{player} has joined the server",
             "exit": "{player} has left the server",
             "target": "money",

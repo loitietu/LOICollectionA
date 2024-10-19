@@ -323,8 +323,8 @@ namespace LOICollection::Plugins::market {
     }
 
     void delItem(std::string mItemId) {
-        std::vector<std::string> mIdList = toolUtils::System::split(mItemId, "_$LIST_");
-        db->del(mIdList.at(0), mIdList.at(1));
+        auto mIdList = ll::string_utils::splitByPattern(mItemId, "_$LIST_");
+        db->del(mIdList[0], mIdList[1]);
         db->del("Item", mItemId);
         db->remove(mItemId);
     }

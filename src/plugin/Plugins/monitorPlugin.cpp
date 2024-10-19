@@ -59,7 +59,7 @@ namespace LOICollection::Plugins::monitor {
             );
             ExecuteCommandEvent = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>(
                 [](ll::event::ExecutingCommandEvent& event) {
-                    std::string mCommand = ll::string_utils::replaceAll(toolUtils::System::split(event.commandContext().mCommand, " ")[0], "/", "");
+                    std::string mCommand = ll::string_utils::replaceAll(std::string(ll::string_utils::splitByPattern(event.commandContext().mCommand, " ")[0]), "/", "");
                     if (std::find(mObjectCommands.begin(), mObjectCommands.end(), mCommand) != mObjectCommands.end()) {
                         event.cancel();
 

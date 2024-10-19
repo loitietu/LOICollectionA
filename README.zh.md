@@ -51,7 +51,7 @@ lip install github.com/loitietu/LOICollectionA
         "Shop": false,
         "Monitor": {
             "Enable": false,
-            "show": "{player}\n称号: {title}",
+            "show": "[{title}] §r{player}",
             "join": "{player} 加入了服务器",
             "exit": "{player} 退出了服务器",
             "target": "money",

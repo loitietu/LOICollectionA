@@ -88,7 +88,7 @@ namespace toolUtils {
         }
 
         void broadcastText(const std::string& text) {
-            ll::service::getLevel()->forEachPlayer([text](Player& player) -> bool {
+            ll::service::getLevel()->forEachPlayer([text](Player& player) {
                 player.sendMessage(text);
                 return true;
             });
@@ -230,19 +230,6 @@ namespace toolUtils {
             }
         }
 
-        std::vector<std::string> split(const std::string& s, const std::string& delimiter) {
-            std::vector<std::string> tokens;
-            size_t mStratPos = 0;
-            size_t mEndPos = s.find(delimiter);
-            while (mEndPos != std::string::npos) {
-                tokens.push_back(s.substr(mStratPos, mEndPos - mStratPos));
-                mStratPos = mEndPos + delimiter.length();
-                mEndPos = s.find(delimiter, mStratPos);
-            }
-            tokens.push_back(s.substr(mStratPos));
-            return tokens;
-        }
-
         bool isReach(const std::string& timeString) {
             if (timeString == "0") 
                 return false;
@@ -346,7 +333,7 @@ namespace toolUtils {
             C_Config* config = static_cast<C_Config*>(config_ptr);
 
             std::stringstream ss;
-            std::vector<std::string> version = toolUtils::System::split(getVersion(), ".");
+            auto version = ll::string_utils::splitByPattern(getVersion(), ".");
             for (size_t i = 0; i < version.size(); i++) {
                 ss << version[i];
             }
