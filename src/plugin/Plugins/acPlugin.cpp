@@ -22,21 +22,22 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include "Include/APIUtils.h"
-#include "Include/languagePlugin.h"
+#include "include/APIUtils.h"
+#include "include/languagePlugin.h"
 
-#include "Utils/toolUtils.h"
-#include "Utils/I18nUtils.h"
-#include "Utils/JsonUtils.h"
-#include "Utils/SQLiteStorage.h"
+#include "utils/McUtils.h"
+#include "utils/I18nUtils.h"
 
-#include "Include/acPlugin.h"
+#include "data/JsonStorage.h"
+#include "data/SQLiteStorage.h"
+
+#include "include/acPlugin.h"
 
 using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::announcement {
-    std::unique_ptr<JsonUtils> db;
+    std::unique_ptr<JsonStorage> db;
     std::shared_ptr<SQLiteStorage> db2;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - AnnounCement");
@@ -60,7 +61,7 @@ namespace LOICollection::Plugins::announcement {
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 db2->set("OBJECT$" + mObject, "AnnounCement_Toggle1", mObjectToggle1 ? "true" : "false");
 
-                toolUtils::Gui::submission(&pl, [](Player* player) {
+                McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::setting(player);
                 });
             });
@@ -113,7 +114,7 @@ namespace LOICollection::Plugins::announcement {
                 db->set("content", data);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [](Player* player) {
+                McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::edit(player);
                 });
 
@@ -211,7 +212,7 @@ namespace LOICollection::Plugins::announcement {
     }
 
     void registery(void* database, void* database2) {
-        db = std::move(*static_cast<std::unique_ptr<JsonUtils>*>(database));
+        db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         db2 = *static_cast<std::shared_ptr<SQLiteStorage>*>(database2);
         logger.setFile("./logs/LOICollectionA.log");
         if (!db->has("title") || !db->has("content")) {

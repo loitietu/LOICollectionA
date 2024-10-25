@@ -18,15 +18,17 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
 
-#include "Include/APIUtils.h"
-#include "Include/languagePlugin.h"
-#include "Include/HookPlugin.h"
+#include "include/APIUtils.h"
+#include "include/languagePlugin.h"
+#include "include/HookPlugin.h"
 
-#include "Utils/I18nUtils.h"
-#include "Utils/toolUtils.h"
-#include "Utils/SQLiteStorage.h"
+#include "utils/McUtils.h"
+#include "utils/SystemUtils.h"
+#include "utils/I18nUtils.h"
 
-#include "Include/mutePlugin.h"
+#include "data/SQLiteStorage.h"
+
+#include "include/mutePlugin.h"
 
 using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;
@@ -49,13 +51,13 @@ namespace LOICollection::Plugins::mute {
             std::string mObjectLabel = tr(mObjectLanguage, "mute.gui.info.label");
             ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
             ll::string_utils::replaceAll(mObjectLabel, "${cause}", db->get("OBJECT$" + target, "cause"));
-            ll::string_utils::replaceAll(mObjectLabel, "${time}", toolUtils::System::formatDataTime(db->get("OBJECT$" + target, "time")));
+            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "time")));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), mObjectLabel);
             form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [target](Player& pl) {
                 delMute(target);
 
-                toolUtils::Gui::submission(&pl, [](Player* player) {
+                McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::remove(player);
                 });
             });
@@ -78,10 +80,10 @@ namespace LOICollection::Plugins::mute {
                     return;
                 }
                 std::string PlayerInputCause = std::get<std::string>(dt->at("Input1"));
-                int time = toolUtils::System::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                addMute(toolUtils::Mc::getPlayerFromName(target), PlayerInputCause, time);
+                int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+                addMute(McUtils::getPlayerFromName(target), PlayerInputCause, time);
                 
-                toolUtils::Gui::submission(&pl, [](Player* player) {
+                McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::add(player);
                 });
             });
@@ -92,7 +94,7 @@ namespace LOICollection::Plugins::mute {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.add.title"), tr(mObjectLanguage, "mute.gui.add.label"));
-            for (auto& mTarget : toolUtils::Mc::getAllPlayerName()) {
+            for (auto& mTarget : McUtils::getAllPlayerName()) {
                 form.appendButton(mTarget, [mTarget](Player& pl) {
                     MainGui::content(&pl, mTarget);
                 });
@@ -185,7 +187,7 @@ namespace LOICollection::Plugins::mute {
                 std::string mObject = player->getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 if (db->has("OBJECT$" + mObject)) {
-                    if (toolUtils::System::isReach(db->get("OBJECT$" + mObject, "time"))) {
+                    if (SystemUtils::isReach(db->get("OBJECT$" + mObject, "time"))) {
                         delMute(player);
                         return false;
                     }
@@ -193,7 +195,7 @@ namespace LOICollection::Plugins::mute {
                     std::string logString = tr(getLanguage(player), "mute.log3");
 
                     ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mObject, "cause"));
-                    ll::string_utils::replaceAll(mObjectTips, "${time}", toolUtils::System::formatDataTime(db->get("OBJECT$" + mObject, "time")));
+                    ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
                     ll::string_utils::replaceAll(logString, "${message}", message);
 
                     logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
@@ -218,7 +220,7 @@ namespace LOICollection::Plugins::mute {
         if (!db->has("OBJECT$" + mObject)) {
             db->create("OBJECT$" + mObject);
             db->set("OBJECT$" + mObject, "cause", cause);
-            db->set("OBJECT$" + mObject, "time", toolUtils::System::timeCalculate(toolUtils::System::getNowTime(), time));
+            db->set("OBJECT$" + mObject, "time", SystemUtils::timeCalculate(SystemUtils::getNowTime(), time));
         }
         std::string logString = tr(mObjectLanguage, "mute.log1");
         ll::string_utils::replaceAll(logString, "${cause}", cause);

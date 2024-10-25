@@ -2,8 +2,7 @@ add_rules("mode.debug", "mode.release")
 
 add_repositories("liteldev-repo https://github.com/LiteLDev/xmake-repo.git")
 
-add_requires("sqlite3 3.46.0+100", {configs = {shared = true}})
-add_requires("sqlitecpp 3.2.1", {
+add_requires("sqlitecpp 3.3.2", {
     configs = {
         shared = true
     }
@@ -39,7 +38,6 @@ target("LOICollectionA")
     add_packages(
         "levilamina",
         "nlohmann_json",
-        "sqlite3",
         "sqlitecpp"
     )
     add_shflags("/DELAYLOAD:bedrock_server.dll")
@@ -51,7 +49,7 @@ target("LOICollectionA")
     after_build(function (target)
         local plugin_packer = import("scripts.after_build")
 
-        local major, minor, patch = 1, 4, 8
+        local major, minor, patch = 1, 4, 9
         local plugin_define = {
             pluginName = target:name(),
             pluginFile = path.filename(target:targetfile()),

@@ -19,12 +19,12 @@
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandContext.h>
 
-#include "Include/APIUtils.h"
-#include "Include/HookPlugin.h"
+#include "include/APIUtils.h"
+#include "include/HookPlugin.h"
 
-#include "Utils/toolUtils.h"
+#include "utils/McUtils.h"
 
-#include "Include/monitorPlugin.h"
+#include "include/monitorPlugin.h"
 
 using namespace ll::chrono_literals;
 
@@ -45,7 +45,7 @@ namespace LOICollection::Plugins::monitor {
                         return;
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("join"));
                     LOICollection::LOICollectionAPI::translateString(mMonitorString, &event.self());
-                    toolUtils::Mc::broadcastText(mMonitorString);
+                    McUtils::broadcastText(mMonitorString);
                 }
             );
             PlayerLeaveEventListener = eventBus.emplaceListener<ll::event::PlayerLeaveEvent>(
@@ -54,7 +54,7 @@ namespace LOICollection::Plugins::monitor {
                         return;
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("exit"));
                     LOICollection::LOICollectionAPI::translateString(mMonitorString, &event.self());
-                    toolUtils::Mc::broadcastText(mMonitorString);
+                    McUtils::broadcastText(mMonitorString);
                 }
             );
             ExecuteCommandEvent = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>(
@@ -81,7 +81,7 @@ namespace LOICollection::Plugins::monitor {
                 if (target.empty() || id.empty())
                     return;
                 if (id == target || target == "$all") {
-                    int mOriScore = toolUtils::scoreboard::getScore(player, id);
+                    int mOriScore = McUtils::scoreboard::getScore(player, id);
                     std::string mChangedString = std::get<std::string>(mObjectOptions.at("changed"));
                     ll::string_utils::replaceAll(mChangedString, "${Object}", id);
                     ll::string_utils::replaceAll(mChangedString, "${OriMoney}", std::to_string(mOriScore));
@@ -98,7 +98,7 @@ namespace LOICollection::Plugins::monitor {
 
             static ll::schedule::GameTickAsyncScheduler scheduler;
             scheduler.add<ll::schedule::RepeatTask>(3_tick, [] {
-                for (auto& player : toolUtils::Mc::getAllPlayers()) {
+                for (auto& player : McUtils::getAllPlayers()) {
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("show"));
                     LOICollection::LOICollectionAPI::translateString(mMonitorString, player);
                     player->setNameTag(mMonitorString);

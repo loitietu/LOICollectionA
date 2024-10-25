@@ -52,4 +52,11 @@ struct C_Config {
     } ProtableTool;
 };
 
+namespace Config {
+    std::string getVersion();
+    
+    void SynchronousPluginConfigVersion(void* config_ptr);
+    void SynchronousPluginConfigType(void* config_ptr, const std::string& path);
+}
+
 #endif

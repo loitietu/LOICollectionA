@@ -4,6 +4,7 @@
 
 #include <ll/api/memory/Hook.h>
 #include <ll/api/service/Bedrock.h>
+#include <ll/api/utils/StringUtils.h>
 #include <ll/api/utils/RandomUtils.h>
 
 #include <mc/world/ActorUniqueID.h>
@@ -36,9 +37,9 @@
 #include <mc/enums/TextPacketType.h>
 #include <mc/enums/SubClientId.h>
 
-#include "Utils/toolUtils.h"
+#include "utils/McUtils.h"
 
-#include "Include/HookPlugin.h"
+#include "include/HookPlugin.h"
 
 int64_t mFakeSeed = 0;
 std::vector<std::string> mInterceptedTextPacketTargets;
@@ -56,8 +57,7 @@ LL_TYPE_INSTANCE_HOOK(
     void,
     BinaryStream& stream
 ) {
-    if (!mFakeSeed)
-        this->mSettings.setRandomSeed(LevelSeed64(mFakeSeed));
+    if (!mFakeSeed) this->mSettings.setRandomSeed(LevelSeed64(mFakeSeed));
     return origin(stream);
 };
 
@@ -73,7 +73,7 @@ LL_TYPE_INSTANCE_HOOK(
 ) {
     if (mInterceptedTextPacketTargets.size() >= 10000) {
         mInterceptedTextPacketTargets.clear();
-        for (auto& player : toolUtils::Mc::getAllPlayers())
+        for (auto& player : McUtils::getAllPlayers())
             mInterceptedTextPacketTargets.push_back(player->getUuid().asString());
     }
     if (packet.getId() == MinecraftPacketIds::Text) {
@@ -81,7 +81,7 @@ LL_TYPE_INSTANCE_HOOK(
         if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {
             if (mTextPacket.mMessage.find("multiplayer.player.joined") == std::string::npos)
                 return origin(identifier, subId, packet);
-            Player* player = toolUtils::Mc::getPlayerFromName(mTextPacket.mParams.at(0));
+            Player* player = McUtils::getPlayerFromName(mTextPacket.mParams.at(0));
             if (player == nullptr) return origin(identifier, subId, packet);
             if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), player->getUuid().asString()) != mInterceptedTextPacketTargets.end())
                 return;
@@ -100,7 +100,7 @@ LL_TYPE_INSTANCE_HOOK(
 ) {
     if (mInterceptedTextPacketTargets.size() >= 10000) {
         mInterceptedTextPacketTargets.clear();
-        for (auto& player : toolUtils::Mc::getAllPlayers())
+        for (auto& player : McUtils::getAllPlayers())
             mInterceptedTextPacketTargets.push_back(player->getUuid().asString());
     }
     if (packet.getId() == MinecraftPacketIds::Text) {
@@ -108,7 +108,7 @@ LL_TYPE_INSTANCE_HOOK(
         if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {
             if (mTextPacket.mMessage.find("multiplayer.player.left") == std::string::npos)
                 return origin(packet);
-            Player* player = toolUtils::Mc::getPlayerFromName(mTextPacket.mParams.at(0));
+            Player* player = McUtils::getPlayerFromName(mTextPacket.mParams.at(0));
             if (player == nullptr) return origin(packet);
             if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), player->getUuid().asString()) != mInterceptedTextPacketTargets.end())
                 return;
@@ -126,7 +126,7 @@ LL_TYPE_INSTANCE_HOOK(
 ) {
     if (mInterceptedGetNameTagTargets.size() >= 10000) {
         mInterceptedGetNameTagTargets.clear();
-        for (auto& player : toolUtils::Mc::getAllPlayers())
+        for (auto& player : McUtils::getAllPlayers())
             mInterceptedGetNameTagTargets.push_back(player->getUuid().asString());
     }
     if (this->isType(ActorType::Player)) {
@@ -149,7 +149,7 @@ LL_TYPE_INSTANCE_HOOK(
     NetworkIdentifier& identifier,
     TextPacket& packet
 ) {
-    Player* player = toolUtils::Mc::getPlayerFromName(packet.mAuthor);
+    Player* player = McUtils::getPlayerFromName(packet.mAuthor);
     
     if (player == nullptr) return origin(identifier, packet);
     for (auto& callback : mTextPacketSendEventCallbacks)
@@ -283,10 +283,8 @@ namespace LOICollection::HookPlugin {
     }
 
     void setFakeSeed(const std::string& fakeSeed) {
-        if (fakeSeed.empty()) return;
-        if (fakeSeed == "$random")
-            mFakeSeed = ll::random_utils::rand<int64_t>();
-        mFakeSeed = toolUtils::System::toInt64t(fakeSeed, 0);
+        auto result = ll::string_utils::svtoll(fakeSeed);
+        mFakeSeed = result.has_value() ? result.value() : ll::random_utils::rand<int64_t>();
     }
 
     void registery() {

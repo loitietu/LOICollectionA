@@ -24,13 +24,14 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include "Include/APIUtils.h"
-#include "Include/chatPlugin.h"
+#include "include/APIUtils.h"
+#include "include/chatPlugin.h"
 
-#include "Utils/toolUtils.h"
-#include "Utils/JsonUtils.h"
+#include "utils/McUtils.h"
 
-#include "Include/shopPlugin.h"
+#include "data/JsonStorage.h"
+
+#include "include/shopPlugin.h"
 
 using LOICollection::LOICollectionAPI::translateString;
 
@@ -39,7 +40,7 @@ namespace LOICollection::Plugins::shop {
         std::string uiName;
     };
 
-    std::unique_ptr<JsonUtils> db;
+    std::unique_ptr<JsonStorage> db;
     ll::Logger logger("LOICollectionA - Shop");
 
     namespace MainGui {
@@ -107,11 +108,11 @@ namespace LOICollection::Plugins::shop {
                     return;
                 }
                 ItemStack itemStack(data.at("id").get<std::string>(), mNumber);
-                if (toolUtils::Mc::isItemPlayerInventory(&pl, &itemStack)) {
+                if (McUtils::isItemPlayerInventory(&pl, &itemStack)) {
                     nlohmann::ordered_json mScoreboardBase = data.at("scores");
                     for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
-                        toolUtils::scoreboard::addScore(&pl, it.key(), (it.value().get<int>() * mNumber));
-                    toolUtils::Mc::clearItem(&pl, &itemStack);
+                        McUtils::scoreboard::addScore(&pl, it.key(), (it.value().get<int>() * mNumber));
+                    McUtils::clearItem(&pl, &itemStack);
                     pl.refreshInventory();
                     return;
                 }
@@ -149,7 +150,7 @@ namespace LOICollection::Plugins::shop {
                     if (chat::isChat(&pl, id)) {
                         nlohmann::ordered_json mScoreboardBase = data.at("scores");
                         for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
-                            toolUtils::scoreboard::addScore(&pl, it.key(), it.value().get<int>());
+                            McUtils::scoreboard::addScore(&pl, it.key(), it.value().get<int>());
                         chat::delChat(&pl, id);
                         return;
                     }
@@ -214,16 +215,16 @@ namespace LOICollection::Plugins::shop {
     bool checkModifiedData(void* player_ptr, nlohmann::ordered_json data, int number) {
         Player* player = static_cast<Player*>(player_ptr);
         for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it) {
-            if ((it.value().get<int>() * number) > toolUtils::scoreboard::getScore(player, it.key()))
+            if ((it.value().get<int>() * number) > McUtils::scoreboard::getScore(player, it.key()))
                 return false;
         }
         for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
-            toolUtils::scoreboard::reduceScore(player, it.key(), (it.value().get<int>() * number));
+            McUtils::scoreboard::reduceScore(player, it.key(), (it.value().get<int>() * number));
         return true;
     }
 
     void registery(void* database) {
-        db = std::move(*static_cast<std::unique_ptr<JsonUtils>*>(database));
+        db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
         registerCommand();
     }

@@ -6,9 +6,9 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include "JsonUtils.h"
+#include "JsonStorage.h"
 
-JsonUtils::JsonUtils(const std::filesystem::path& path) : d_path(path) {
+JsonStorage::JsonStorage(const std::filesystem::path& path) : d_path(path) {
     if (!std::filesystem::exists(path)) {
         std::ofstream newfile(path);
         newfile << this->d_json.dump();
@@ -21,23 +21,23 @@ JsonUtils::JsonUtils(const std::filesystem::path& path) : d_path(path) {
     }
 }
 
-bool JsonUtils::remove(std::string_view key) {
+bool JsonStorage::remove(std::string_view key) {
     return this->d_json.erase(key) > 0;
 }
 
-bool JsonUtils::has(std::string_view key) const {
+bool JsonStorage::has(std::string_view key) const {
     return this->d_json.contains(key);
 }
 
-bool JsonUtils::isEmpty() const {
+bool JsonStorage::isEmpty() const {
     return this->d_json.empty();
 }
 
-void JsonUtils::write(nlohmann::ordered_json& json) {
+void JsonStorage::write(nlohmann::ordered_json& json) {
     this->d_json = json;
 }
 
-void JsonUtils::save() const {
+void JsonStorage::save() const {
     std::ofstream file(this->d_path);
     if (file.is_open()) {
         file << this->d_json.dump(4);
@@ -45,7 +45,7 @@ void JsonUtils::save() const {
     }
 }
 
-std::vector<std::string> JsonUtils::keys() const {
+std::vector<std::string> JsonStorage::keys() const {
     std::vector<std::string> keyl;
     for (auto& [key, _] : this->d_json.items()) {
         keyl.push_back(key);
@@ -53,16 +53,16 @@ std::vector<std::string> JsonUtils::keys() const {
     return keyl;
 }
 
-std::string JsonUtils::toString(int indent) const {
+std::string JsonStorage::toString(int indent) const {
     return this->d_json.dump(indent);
 }
 
-nlohmann::ordered_json JsonUtils::toJson(std::string_view key) const {
+nlohmann::ordered_json JsonStorage::toJson(std::string_view key) const {
     if (!has(key))
         return nlohmann::ordered_json();
     return this->d_json.at(key);
 }
 
-nlohmann::ordered_json JsonUtils::toJson() const {
+nlohmann::ordered_json JsonStorage::toJson() const {
     return this->d_json;
 }

@@ -113,7 +113,7 @@ function pack_plugin(target,plugin_define)
             os.cp(oripdbfile, pdbfile)
         end
 
-        cpPackage("sqlite3", target, outputdir)
+        cpPackage("sqlitecpp", target, outputdir)
 
         formattedmanifest = string_formatter(manifest, plugin_define)
         io.writefile(manifestfile,formattedmanifest)

@@ -19,13 +19,14 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "Include/APIUtils.h"
-#include "Include/languagePlugin.h"
+#include "include/APIUtils.h"
+#include "include/languagePlugin.h"
 
-#include "Utils/I18nUtils.h"
-#include "Utils/toolUtils.h"
+#include "utils/McUtils.h"
+#include "utils/SystemUtils.h"
+#include "utils/I18nUtils.h"
 
-#include "Include/walletPlugin.h"
+#include "include/walletPlugin.h"
 
 using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;
@@ -42,7 +43,7 @@ namespace LOICollection::Plugins::wallet {
 
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
             ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%%");
-            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, mScore)));
+            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(McUtils::scoreboard::getScore(player, mScore)));
 
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
             form.appendLabel(mLabel);
@@ -52,17 +53,17 @@ namespace LOICollection::Plugins::wallet {
                     MainGui::transfer(&pl);
                     return;
                 }
-                int mMoney = toolUtils::System::toInt(std::get<std::string>(dt->at("Input")), 0);
+                int mMoney = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
                 int mTargetMoney = mMoney - (int)(mMoney * std::get<double>(mObjectOptions.at("tax")));
-                if (toolUtils::scoreboard::getScore(&pl, mScore) < mMoney || mTargetMoney < 0) {
+                if (McUtils::scoreboard::getScore(&pl, mScore) < mMoney || mTargetMoney < 0) {
                     pl.sendMessage(tr(getLanguage(&pl), "wallet.tips"));
                     return;
                 }
 
-                toolUtils::scoreboard::reduceScore(&pl, mScore, mMoney);
-                toolUtils::scoreboard::addScore(toolUtils::Mc::getPlayerFromName(target), mScore, mTargetMoney);
+                McUtils::scoreboard::reduceScore(&pl, mScore, mMoney);
+                McUtils::scoreboard::addScore(McUtils::getPlayerFromName(target), mScore, mTargetMoney);
 
-                toolUtils::Gui::submission(&pl, [](Player* player) {
+                McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::transfer(player);
                 });
 
@@ -78,7 +79,7 @@ namespace LOICollection::Plugins::wallet {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), tr(mObjectLanguage, "wallet.gui.stepslider.label"));
-            for (auto& mTarget : toolUtils::Mc::getAllPlayerName()) {
+            for (auto& mTarget : McUtils::getAllPlayerName()) {
                 form.appendButton(mTarget, [mTarget](Player& pl) {
                     MainGui::content(&pl, mTarget);
                 });
@@ -92,10 +93,10 @@ namespace LOICollection::Plugins::wallet {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mTipsString = tr(getLanguage(player), "wallet.showOff");
             LOICollection::LOICollectionAPI::translateString(mTipsString, player);
-            ll::string_utils::replaceAll(mTipsString, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
-            toolUtils::Mc::broadcastText(mTipsString);
+            ll::string_utils::replaceAll(mTipsString, "${money}", std::to_string(McUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
+            McUtils::broadcastText(mTipsString);
             
-            toolUtils::Gui::submission(player, [](Player* player) {
+            McUtils::Gui::submission(player, [](Player* player) {
                 return MainGui::open(player);
             });
         }
@@ -106,7 +107,7 @@ namespace LOICollection::Plugins::wallet {
 
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
             ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%%");
-            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(toolUtils::scoreboard::getScore(player, mScore)));
+            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(McUtils::scoreboard::getScore(player, mScore)));
 
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
             form.appendLabel(mLabel);

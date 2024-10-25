@@ -21,15 +21,17 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include "Include/APIUtils.h"
-#include "Include/languagePlugin.h"
-#include "Include/chatPlugin.h"
+#include "include/APIUtils.h"
+#include "include/languagePlugin.h"
+#include "include/chatPlugin.h"
 
-#include "Utils/I18nUtils.h"
-#include "Utils/toolUtils.h"
-#include "Utils/JsonUtils.h"
+#include "utils/McUtils.h"
+#include "utils/SystemUtils.h"
+#include "utils/I18nUtils.h"
 
-#include "Include/cdkPlugin.h"
+#include "data/JsonStorage.h"
+
+#include "include/cdkPlugin.h"
 
 using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;
@@ -40,7 +42,7 @@ namespace LOICollection::Plugins::cdk {
         bool setting = false;
     };
 
-    std::unique_ptr<JsonUtils> db;
+    std::unique_ptr<JsonStorage> db;
     ll::Logger logger("LOICollectionA - CDK");
 
     namespace MainGui {
@@ -79,8 +81,8 @@ namespace LOICollection::Plugins::cdk {
                 std::string mObjectCdk = std::get<std::string>(dt->at("Input1"));
                 if (!db->has(mObjectCdk)) {
                     bool mObjectToggle = std::get<uint64>(dt->at("Toggle"));
-                    int time = toolUtils::System::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                    std::string mObjectTime = toolUtils::System::timeCalculate(toolUtils::System::getNowTime(), time);
+                    int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+                    std::string mObjectTime = SystemUtils::timeCalculate(SystemUtils::getNowTime(), time);
                     nlohmann::ordered_json mEmptyObject = nlohmann::ordered_json::object();
                     nlohmann::ordered_json mEmptyArray = nlohmann::ordered_json::array();
                     nlohmann::ordered_json dataList = {
@@ -95,7 +97,7 @@ namespace LOICollection::Plugins::cdk {
                     db->save();
                 }
                 
-                toolUtils::Gui::submission(&pl, [](Player* player) {
+                McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::cdkNew(player);
                 });
 
@@ -126,7 +128,7 @@ namespace LOICollection::Plugins::cdk {
                 db->remove(mObjectCdk);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [](Player* player) {
+                McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::cdkRemove(player);
                 });
 
@@ -155,13 +157,13 @@ namespace LOICollection::Plugins::cdk {
                     return;
                 }
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
-                int mObjectScore = toolUtils::System::toInt(std::get<std::string>(dt->at("Input2")), 0);
+                int mObjectScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
                 mObjectData["scores"][std::get<std::string>(dt->at("Input1"))] = mObjectScore;
                 db->set(mObjectCdk, mObjectData);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [](Player* player) {
+                McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::cdkAwardScore(player);
                 });
             });
@@ -191,8 +193,8 @@ namespace LOICollection::Plugins::cdk {
                 }
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
                 std::string mObjectName = std::get<std::string>(dt->at("Input2"));
-                int mObjectCount = toolUtils::System::toInt(std::get<std::string>(dt->at("Input3")), 1);
-                int mObjectAux = toolUtils::System::toInt(std::get<std::string>(dt->at("Input4")), 0);
+                int mObjectCount = SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 1);
+                int mObjectAux = SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
                 nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
                 mObjectData["item"][std::get<std::string>(dt->at("Input1"))] = {
                     {"name", mObjectName},
@@ -202,7 +204,7 @@ namespace LOICollection::Plugins::cdk {
                 db->set(mObjectCdk, mObjectData);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [](Player* player) {
+                McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::cdkAwardItem(player);
                 });
             });
@@ -230,7 +232,7 @@ namespace LOICollection::Plugins::cdk {
                 }
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
                 std::string mObjectName = std::get<std::string>(dt->at("Input1"));
-                int mObjectTime = toolUtils::System::toInt(std::get<std::string>(dt->at("Input2")), 0);
+                int mObjectTime = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
                 if (!mObjectData.contains("title"))
                     mObjectData["title"] = {};
@@ -238,7 +240,7 @@ namespace LOICollection::Plugins::cdk {
                 db->set(mObjectCdk, mObjectData);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [](Player* player) {
+                McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::cdkAwardTitle(player);
                 });
             });
@@ -328,7 +330,7 @@ namespace LOICollection::Plugins::cdk {
         if (db->has(convertString)) {
             nlohmann::ordered_json cdkJson = db->toJson(convertString);
             if (cdkJson.contains("time")) {
-                if (toolUtils::System::isReach(cdkJson["time"].get<std::string>())) {
+                if (SystemUtils::isReach(cdkJson["time"].get<std::string>())) {
                     player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
                     db->remove(convertString);
                     return;
@@ -347,7 +349,7 @@ namespace LOICollection::Plugins::cdk {
             nlohmann::ordered_json mItemList = cdkJson.at("item");
             nlohmann::ordered_json mScoreboardList = cdkJson.at("scores");
             for (nlohmann::ordered_json::iterator it = mScoreboardList.begin(); it != mScoreboardList.end(); ++it)
-                toolUtils::scoreboard::addScore(player, it.key(), it.value().get<int>());
+                McUtils::scoreboard::addScore(player, it.key(), it.value().get<int>());
             for (nlohmann::ordered_json::iterator it = mItemList.begin(); it != mItemList.end(); ++it) {
                 ItemStack itemStack(it.key(), it.value()["quantity"].get<int>());
                 itemStack.setAuxValue(it.value()["specialvalue"].get<short>());
@@ -372,7 +374,7 @@ namespace LOICollection::Plugins::cdk {
     }
 
     void registery(void* database) {
-        db = std::move(*static_cast<std::unique_ptr<JsonUtils>*>(database));
+        db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
         registerCommand();
     }

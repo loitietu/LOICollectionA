@@ -21,7 +21,6 @@ build_dir = os.path.join(parent_dir, "build")
 bin_dir = os.path.join(build_dir, "bin")
 src_dir = os.path.join(parent_dir, "src")
 plugin_dir = os.path.join(src_dir, "plugin")
-utils_dir = os.path.join(plugin_dir, "Utils")
 
 if os.path.exists(bin_dir):
     package_dir = os.path.join(build_dir, "package")
@@ -33,10 +32,10 @@ if os.path.exists(bin_dir):
         os.makedirs(os.path.join(sdk_dir, "lib"))
     copy(bin_dir, package_dir, "*", True)
     copy(parent_dir, package_dir, ".md")
-    copy(os.path.join(plugin_dir, "Include"), os.path.join(sdk_dir, "include"), ".h", True, False)
+    copy(os.path.join(plugin_dir, "data"), os.path.join(sdk_dir, "include"), ".h", True, False)
+    copy(os.path.join(plugin_dir, "include"), os.path.join(sdk_dir, "include"), ".h", True, False)
     copy(os.path.join(build_dir, "windows"), os.path.join(sdk_dir, "lib"), ".lib", True, False)
     shutil.copy(os.path.join(plugin_dir, "ExportLib.h"), os.path.join(sdk_dir, "include"))
-    shutil.copy(os.path.join(utils_dir, "SQLiteStorage.h"), os.path.join(sdk_dir, "include"))
     shutil.copy(os.path.join(parent_dir, "LICENSE"), package_dir)
     with zipfile.ZipFile(os.path.join(build_dir, "LOICollectionA-windows-x64.zip"), "w", zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(package_dir):

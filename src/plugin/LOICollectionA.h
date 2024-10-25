@@ -4,8 +4,8 @@
 
 #include <ll/api/Mod/NativeMod.h>
 
-#include "Utils/JsonUtils.h"
-#include "Utils/SQLiteStorage.h"
+#include "data/JsonStorage.h"
+#include "data/SQLiteStorage.h"
 
 #include "ConfigPlugin.h"
 
@@ -28,9 +28,9 @@ namespace LOICollection {
         std::unique_ptr<SQLiteStorage> MuteDB;
         std::unique_ptr<SQLiteStorage> ChatDB;
         std::unique_ptr<SQLiteStorage> MarketDB;
-        std::unique_ptr<JsonUtils> AnnounCementDB;
-        std::unique_ptr<JsonUtils> CdkDB;
-        std::unique_ptr<JsonUtils> MenuDB;
-        std::unique_ptr<JsonUtils> ShopDB;
+        std::unique_ptr<JsonStorage> AnnounCementDB;
+        std::unique_ptr<JsonStorage> CdkDB;
+        std::unique_ptr<JsonStorage> MenuDB;
+        std::unique_ptr<JsonStorage> ShopDB;
     };
 }

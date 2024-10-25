@@ -21,14 +21,15 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "Include/APIUtils.h"
-#include "Include/languagePlugin.h"
-#include "Include/HookPlugin.h"
+#include "include/APIUtils.h"
+#include "include/languagePlugin.h"
+#include "include/HookPlugin.h"
 
-#include "Utils/I18nUtils.h"
-#include "Utils/SQLiteStorage.h"
+#include "utils/I18nUtils.h"
 
-#include "Include/pvpPlugin.h"
+#include "data/SQLiteStorage.h"
+
+#include "include/pvpPlugin.h"
 
 using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;

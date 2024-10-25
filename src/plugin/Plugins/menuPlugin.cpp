@@ -28,14 +28,16 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include "Include/APIUtils.h"
-#include "Include/languagePlugin.h"
+#include "include/APIUtils.h"
+#include "include/languagePlugin.h"
 
-#include "Utils/I18nUtils.h"
-#include "Utils/toolUtils.h"
-#include "Utils/JsonUtils.h"
+#include "utils/McUtils.h"
+#include "utils/SystemUtils.h"
+#include "utils/I18nUtils.h"
 
-#include "Include/menuPlugin.h"
+#include "data/JsonStorage.h"
+
+#include "include/menuPlugin.h"
 
 using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;
@@ -47,7 +49,7 @@ namespace LOICollection::Plugins::menu {
     };
 
     std::string mItemId;
-    std::unique_ptr<JsonUtils> db;
+    std::unique_ptr<JsonStorage> db;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::event::ListenerPtr PlayerUseItemEventListener;
     ll::Logger logger("LOICollectionA - Menu");
@@ -123,7 +125,7 @@ namespace LOICollection::Plugins::menu {
                     db->set(mObjectInput1, mData);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [](Player* player) {
+                McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::editNew(player);
                 });
 
@@ -153,7 +155,7 @@ namespace LOICollection::Plugins::menu {
                             ll::string_utils::replaceAll(logString, "${menu}", key);
                             logger.info(translateString(logString, &pl));
                         }
-                        toolUtils::Gui::submission(&pl, [](Player* player) {
+                        McUtils::Gui::submission(&pl, [](Player* player) {
                             return MainGui::editRemove(player);
                         });
                     });
@@ -209,7 +211,7 @@ namespace LOICollection::Plugins::menu {
                 db->set(uiName, data);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [uiName](Player* player) {
+                McUtils::Gui::submission(&pl, [uiName](Player* player) {
                     return MainGui::editAwardContent(player, uiName);
                 });
 
@@ -257,7 +259,7 @@ namespace LOICollection::Plugins::menu {
                 }
                 data["scores"] = nlohmann::ordered_json::object();
                 if (!mObjectInput4.empty())
-                    data["scores"][mObjectInput4] = toolUtils::System::toInt((mObjectInput5.empty() ? "100" : mObjectInput5), 0);
+                    data["scores"][mObjectInput4] = SystemUtils::toInt((mObjectInput5.empty() ? "100" : mObjectInput5), 0);
                 mObjectType == "button" ? data["command"] = mObjectInput6 : data["menu"] = mObjectInput6;
                 data["type"] = mObjectType;
                 data["permission"] = (int) std::get<double>(dt->at("Slider"));
@@ -269,7 +271,7 @@ namespace LOICollection::Plugins::menu {
                 db->set(uiName, mContent);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [uiName](Player* player) {
+                McUtils::Gui::submission(&pl, [uiName](Player* player) {
                     return MainGui::editAwardContent(player, uiName);
                 });
 
@@ -321,7 +323,7 @@ namespace LOICollection::Plugins::menu {
                         ll::string_utils::replaceAll(logString, "${customize}", mId);
                         logger.info(translateString(logString, &pl));
                     }
-                    toolUtils::Gui::submission(&pl, [uiName](Player* player) {
+                    McUtils::Gui::submission(&pl, [uiName](Player* player) {
                         return MainGui::editAwardContent(player, uiName);
                     });
                 });
@@ -374,7 +376,7 @@ namespace LOICollection::Plugins::menu {
                 db->set(uiName, data);
                 db->save();
 
-                toolUtils::Gui::submission(&pl, [uiName](Player* player) {
+                McUtils::Gui::submission(&pl, [uiName](Player* player) {
                     return MainGui::editAwardContent(player, uiName);
                 });
 
@@ -518,7 +520,7 @@ namespace LOICollection::Plugins::menu {
                             mCustom[key] = result;
                     }
                     if (value.is_boolean()) mCustom[key] = std::get<uint64>(dt->at(key)) ? "true" : "false";
-                    if (value.is_number_integer()) mCustom[key] = std::to_string(std::get<double>(dt->at(key)));
+                    if (value.is_number_integer()) mCustom[key] = std::to_string((int) std::get<double>(dt->at(key)));
                 }
                 for (auto c_it = data["command"].begin(); c_it != data["command"].end(); ++c_it) {
                     std::string result = *c_it;
@@ -527,7 +529,7 @@ namespace LOICollection::Plugins::menu {
                             continue;
                         ll::string_utils::replaceAll(result, "{" + key + "}", value.get<std::string>());
                     }
-                    toolUtils::Mc::executeCommand(&pl, result);
+                    McUtils::executeCommand(&pl, result);
                 }
             });
         }
@@ -653,7 +655,7 @@ namespace LOICollection::Plugins::menu {
                     output.error("Failed to give the MenuItem to player {}", player->getRealName());
                     return;
                 }
-                if (toolUtils::Mc::isItemPlayerInventory(player, &itemStack)) {
+                if (McUtils::isItemPlayerInventory(player, &itemStack)) {
                     output.error("The MenuItem has already been given to player {}", player->getRealName());
                     return;
                 }
@@ -678,7 +680,7 @@ namespace LOICollection::Plugins::menu {
                     if (event.self().isSimulatedPlayer())
                         return;
                     ItemStack itemStack(mItemId, 1);
-                    if (!itemStack || toolUtils::Mc::isItemPlayerInventory(&event.self(), &itemStack))
+                    if (!itemStack || McUtils::isItemPlayerInventory(&event.self(), &itemStack))
                         return;
                     event.self().add(itemStack);
                     event.self().refreshInventory();
@@ -692,11 +694,11 @@ namespace LOICollection::Plugins::menu {
         if (!data.contains("scores")) 
             return true;
         for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it) {
-            if (it.value().get<int>() > toolUtils::scoreboard::getScore(player, it.key()))
+            if (it.value().get<int>() > McUtils::scoreboard::getScore(player, it.key()))
                 return false;
         }
         for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
-            toolUtils::scoreboard::reduceScore(player, it.key(), it.value().get<int>());
+            McUtils::scoreboard::reduceScore(player, it.key(), it.value().get<int>());
         return true;
     }
 
@@ -715,11 +717,11 @@ namespace LOICollection::Plugins::menu {
                 return;
             }
             if (data.at("command").is_string()) {
-                toolUtils::Mc::executeCommand(player, data.at("command").get<std::string>());
+                McUtils::executeCommand(player, data.at("command").get<std::string>());
                 return;
             }
             for (auto& command : data.at("command"))
-                toolUtils::Mc::executeCommand(player, command.get<std::string>());
+                McUtils::executeCommand(player, command.get<std::string>());
         } else if (data.at("type").get<std::string>() == "from") {
             if (!checkModifiedData(player, data)) {
                 player->sendMessage(translateString(original.at("NoScore").get<std::string>(), player));
@@ -732,7 +734,7 @@ namespace LOICollection::Plugins::menu {
     void registery(void* database, std::string itemid) {
         mItemId = itemid;
         
-        db = std::move(*static_cast<std::unique_ptr<JsonUtils>*>(database));
+        db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
         registerCommand();
         listenEvent();

@@ -22,14 +22,15 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "Include/APIUtils.h"
-#include "Include/languagePlugin.h"
+#include "include/APIUtils.h"
+#include "include/languagePlugin.h"
 
-#include "Utils/I18nUtils.h"
-#include "Utils/toolUtils.h"
-#include "Utils/SQLiteStorage.h"
+#include "utils/McUtils.h"
+#include "utils/I18nUtils.h"
 
-#include "Include/tpaPlugin.h"
+#include "data/SQLiteStorage.h"
+
+#include "include/tpaPlugin.h"
 
 using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;
@@ -58,7 +59,7 @@ namespace LOICollection::Plugins::tpa {
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 db->set("OBJECT$" + mObject, "Tpa_Toggle1", mObjectToggle1 ? "true" : "false");
 
-                toolUtils::Gui::submission(&pl, [](Player* player) {
+                McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::setting(player);
                 });
             });
@@ -106,7 +107,7 @@ namespace LOICollection::Plugins::tpa {
                     MainGui::open(&pl);
                     return;
                 }
-                Player* pl2 = toolUtils::Mc::getPlayerFromName(target);
+                Player* pl2 = McUtils::getPlayerFromName(target);
                 std::string PlayerSelectType = std::get<std::string>(dt->at("dropdown"));
                 if (!isInvite(pl2)) {
                     if (PlayerSelectType == "tpa") {
@@ -125,7 +126,7 @@ namespace LOICollection::Plugins::tpa {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.title"), tr(mObjectLanguage, "tpa.gui.label2"));
-            for (auto& mTarget : toolUtils::Mc::getAllPlayerName()) {
+            for (auto& mTarget : McUtils::getAllPlayerName()) {
                 form.appendButton(mTarget, [mTarget](Player& pl) {
                     MainGui::content(&pl, mTarget);
                 });

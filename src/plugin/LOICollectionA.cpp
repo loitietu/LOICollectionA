@@ -9,29 +9,29 @@
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/Mod/RegisterHelper.h>
 
-#include "Utils/toolUtils.h"
-#include "Utils/I18nUtils.h"
-#include "Utils/JsonUtils.h"
-#include "Utils/SQLiteStorage.h"
+#include "utils/I18nUtils.h"
 
-#include "Include/APIUtils.h"
-#include "Include/HookPlugin.h"
-#include "Include/languagePlugin.h"
-#include "Include/blacklistPlugin.h"
-#include "Include/mutePlugin.h"
-#include "Include/cdkPlugin.h"
-#include "Include/menuPlugin.h"
-#include "Include/tpaPlugin.h"
-#include "Include/shopPlugin.h"
-#include "Include/monitorPlugin.h"
-#include "Include/pvpPlugin.h"
-#include "Include/walletPlugin.h"
-#include "Include/chatPlugin.h"
-#include "Include/acPlugin.h"
-#include "Include/marketPlugin.h"
+#include "data/JsonStorage.h"
+#include "data/SQLiteStorage.h"
 
-#include "Include/ProtableTool/RedStone.h"
-#include "Include/ProtableTool/OrderedUI.h"
+#include "include/APIUtils.h"
+#include "include/HookPlugin.h"
+#include "include/languagePlugin.h"
+#include "include/blacklistPlugin.h"
+#include "include/mutePlugin.h"
+#include "include/cdkPlugin.h"
+#include "include/menuPlugin.h"
+#include "include/tpaPlugin.h"
+#include "include/shopPlugin.h"
+#include "include/monitorPlugin.h"
+#include "include/pvpPlugin.h"
+#include "include/walletPlugin.h"
+#include "include/chatPlugin.h"
+#include "include/acPlugin.h"
+#include "include/marketPlugin.h"
+
+#include "include/ProtableTool/RedStone.h"
+#include "include/ProtableTool/OrderedUI.h"
 
 #include "LangPlugin.h"
 
@@ -50,8 +50,8 @@ namespace LOICollection {
 
         logger.setFile("./logs/LOICollectionA.log", false);
 
-        toolUtils::Config::SynchronousPluginConfigVersion(&this->config);
-        logger.info("Loading LOICollection - A (Version {})", toolUtils::Config::getVersion());
+        Config::SynchronousPluginConfigVersion(&this->config);
+        logger.info("Loading LOICollection - A (Version {})", Config::getVersion());
         logger.info("Protocol - Mojang Eula (https://account.mojang.com/documents/minecraft_eula)");
         
         if (!std::filesystem::exists(configFilePath)) {
@@ -62,7 +62,7 @@ namespace LOICollection {
                 return false;
             }
         }
-        toolUtils::Config::SynchronousPluginConfigType(&this->config, configFilePath);
+        Config::SynchronousPluginConfigType(&this->config, configFilePath.string());
         if (!ll::config::loadConfig(this->config, configFilePath)) {
             logger.info("Update configurations.");
             if (!ll::config::saveConfig(this->config, configFilePath)) {
@@ -70,22 +70,23 @@ namespace LOICollection {
                 return false;
             }
         }
-
+        std::filesystem::create_directory(this->mSelf.getModDir() / "scripts");
         logger.info("Initialization of configurations completed.");
+
         std::filesystem::create_directory(dataFilePath);
         this->SettingsDB = std::make_unique<SQLiteStorage>(dataFilePath / "settings.db");
         this->BlacklistDB = std::make_unique<SQLiteStorage>(dataFilePath / "blacklist.db");
         this->MuteDB = std::make_unique<SQLiteStorage>(dataFilePath / "mute.db");
         this->ChatDB = std::make_unique<SQLiteStorage>(dataFilePath / "chat.db");
         this->MarketDB = std::make_unique<SQLiteStorage>(dataFilePath / "market.db");
-        this->AnnounCementDB = std::make_unique<JsonUtils>(configDataPath / "announcement.json");
-        this->CdkDB = std::make_unique<JsonUtils>(configDataPath / "cdk.json");
-        this->MenuDB = std::make_unique<JsonUtils>(configDataPath / "menu.json");
-        this->ShopDB = std::make_unique<JsonUtils>(configDataPath / "shop.json");
+        this->AnnounCementDB = std::make_unique<JsonStorage>(configDataPath / "announcement.json");
+        this->CdkDB = std::make_unique<JsonStorage>(configDataPath / "cdk.json");
+        this->MenuDB = std::make_unique<JsonStorage>(configDataPath / "menu.json");
+        this->ShopDB = std::make_unique<JsonStorage>(configDataPath / "shop.json");
         logger.info("Initialization of database file completed.");
         
         if (this->config.Plugins.language.update) {
-            JsonUtils mObjectLanguage(configDataPath / "language.json");
+            JsonStorage mObjectLanguage(configDataPath / "language.json");
             mObjectLanguage.set("zh_CN", CNLangData);
             mObjectLanguage.save();
         }

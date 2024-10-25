@@ -19,10 +19,11 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "Include/APIUtils.h"
+#include "include/APIUtils.h"
 
-#include "Utils/I18nUtils.h"
-#include "Utils/SQLiteStorage.h"
+#include "utils/I18nUtils.h"
+
+#include "data/SQLiteStorage.h"
 
 #include "Include/languagePlugin.h"
 

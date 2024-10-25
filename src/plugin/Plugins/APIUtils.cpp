@@ -4,6 +4,8 @@
 #include <functional>
 #include <unordered_map>
 
+#include <magic_enum.hpp>
+
 #include <ll/api/Versions.h>
 #include <ll/api/memory/Memory.h>
 #include <ll/api/service/Bedrock.h>
@@ -14,15 +16,16 @@
 #include <mc/world/actor/player/Player.h>
 #include <mc/network/ServerNetworkHandler.h>
 
-#include "Include/pvpPlugin.h"
-#include "Include/mutePlugin.h"
-#include "Include/chatPlugin.h"
-#include "Include/languagePlugin.h"
+#include "include/pvpPlugin.h"
+#include "include/mutePlugin.h"
+#include "include/chatPlugin.h"
+#include "include/languagePlugin.h"
 
-#include "Utils/I18nUtils.h"
-#include "Utils/toolUtils.h"
+#include "utils/McUtils.h"
+#include "utils/SystemUtils.h"
+#include "utils/I18nUtils.h"
 
-#include "Include/APIUtils.h"
+#include "include/APIUtils.h"
 
 std::unordered_map<std::string, std::function<std::string(void*)>> mVariableMap;
 std::unordered_map<std::string, std::function<std::string(void*, std::string)>> mVariableMapParameter;
@@ -38,7 +41,7 @@ namespace LOICollection::LOICollectionAPI {
         });
         registerVariable("title.time", [](void* player_ptr) {
             Plugins::chat::update(player_ptr);
-            return toolUtils::System::formatDataTime(Plugins::chat::getTitleTime(player_ptr, Plugins::chat::getTitle(player_ptr)));
+            return SystemUtils::formatDataTime(Plugins::chat::getTitleTime(player_ptr, Plugins::chat::getTitle(player_ptr)));
         });
         registerVariable("pvp", [](void* player_ptr) { return Plugins::pvp::isEnable(player_ptr) ? "true" : "false"; });
         registerVariable("mute", [](void* player_ptr) { return Plugins::mute::isMute(player_ptr) ? "true" : "false"; });
@@ -51,7 +54,7 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("mspt", [](void* /*unused*/) { 
             return std::to_string((double) ProfilerLite::gProfilerLiteInstance.getServerTickTime().count() / 1000000.0);
         });
-        registerVariable("time", [](void* /*unused*/) { return toolUtils::System::getNowTime(); });
+        registerVariable("time", [](void* /*unused*/) { return SystemUtils::getNowTime(); });
         registerVariable("player", [](void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             return player->getName();
@@ -112,7 +115,7 @@ namespace LOICollection::LOICollectionAPI {
         });
         registerVariable("os", [](void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
-            return toolUtils::Mc::getDevice(player);
+            return std::string(magic_enum::enum_name(player->getPlatform()));
         });
         registerVariable("ip", [](void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
@@ -148,7 +151,7 @@ namespace LOICollection::LOICollectionAPI {
         });
         registerVariableParameter("score", [](void* player_ptr, std::string name) {
             Player* player = static_cast<Player*>(player_ptr);
-            return std::to_string(toolUtils::scoreboard::getScore(player, name));
+            return std::to_string(McUtils::scoreboard::getScore(player, name));
         });
         registerVariableParameter("tr", [](void* player_ptr, std::string name) {
             return I18nUtils::tr(Plugins::language::getLanguage(player_ptr), name);
