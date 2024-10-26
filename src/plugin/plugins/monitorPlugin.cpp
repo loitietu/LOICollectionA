@@ -78,7 +78,7 @@ namespace LOICollection::Plugins::monitor {
             LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([](void* player_ptr, int score, std::string id, int type) {
                 Player* player = static_cast<Player*>(player_ptr);
                 std::string target = std::get<std::string>(mObjectOptions.at("target"));
-                if (target.empty() || id.empty())
+                if (id.empty() || player == nullptr)
                     return;
                 if (id == target || target == "$all") {
                     int mOriScore = McUtils::scoreboard::getScore(player, id);

@@ -70,7 +70,6 @@ namespace LOICollection {
                 return false;
             }
         }
-        std::filesystem::create_directory(this->mSelf.getModDir() / "scripts");
         logger.info("Initialization of configurations completed.");
 
         std::filesystem::create_directory(dataFilePath);
