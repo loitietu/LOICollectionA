@@ -29,8 +29,6 @@
 
 using I18nUtils::tr;
 using I18nUtils::keys;
-using I18nUtils::getName;
-using I18nUtils::getLocalFromName;
 
 namespace LOICollection::Plugins::language {
     std::shared_ptr<SQLiteStorage> db;
@@ -44,7 +42,7 @@ namespace LOICollection::Plugins::language {
             
             ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
-            form.appendLabel(ll::string_utils::replaceAll(tr(mObjectLanguage, "language.gui.lang"), "${language}", getName(mObjectLanguage)));
+            form.appendLabel(ll::string_utils::replaceAll(tr(mObjectLanguage, "language.gui.lang"), "${language}", tr(mObjectLanguage, "name")));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys());
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {
@@ -53,7 +51,7 @@ namespace LOICollection::Plugins::language {
                 }
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
-                db->set("OBJECT$" + mObject, "language", getLocalFromName(std::get<std::string>(dt->at("dropdown"))));
+                db->set("OBJECT$" + mObject, "language", std::get<std::string>(dt->at("dropdown")));
                 
                 logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "language.log"), &pl));
             });

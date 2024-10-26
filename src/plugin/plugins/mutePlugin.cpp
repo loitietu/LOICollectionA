@@ -72,7 +72,7 @@ namespace LOICollection::Plugins::mute {
 
             ll::form::CustomForm form(tr(mObjectLanguage, "mute.gui.add.title"));
             form.appendLabel(tr(mObjectLanguage, "mute.gui.label"));
-            form.appendInput("Input1", tr(mObjectLanguage, "mute.gui.add.input1"), "", tr(mObjectLanguage, "mute.cause"));
+            form.appendInput("Input1", tr(mObjectLanguage, "mute.gui.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "mute.gui.add.input2"), "", "0");
             form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) {

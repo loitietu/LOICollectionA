@@ -1,8 +1,9 @@
 #ifndef SQLITESTORAGE_H
 #define SQLITESTORAGE_H
 
-#include <string>
 #include <vector>
+#include <string>
+#include <string_view>
 #include <filesystem>
 
 #include <SQLiteCpp/SQLiteCpp.h>

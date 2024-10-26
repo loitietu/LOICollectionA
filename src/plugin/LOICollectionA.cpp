@@ -6,6 +6,7 @@
 #include <filesystem>
 
 #include <ll/api/Config.h>
+#include <ll/api/Logger.h>
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/Mod/RegisterHelper.h>
 
@@ -45,6 +46,7 @@ namespace LOICollection {
     bool A::load() {
         auto& logger = this->mSelf.getLogger();
         const auto& dataFilePath = this->mSelf.getDataDir();
+        const auto& langFilePath = this->mSelf.getLangDir();
         const auto& configDataPath = this->mSelf.getConfigDir();
         const auto& configFilePath = configDataPath / "config.json";
 
@@ -84,12 +86,13 @@ namespace LOICollection {
         this->ShopDB = std::make_unique<JsonStorage>(configDataPath / "shop.json");
         logger.info("Initialization of database file completed.");
         
+        std::filesystem::create_directory(langFilePath);
         if (this->config.Plugins.language.update) {
-            JsonStorage mObjectLanguage(configDataPath / "language.json");
-            mObjectLanguage.set("zh_CN", CNLangData);
+            JsonStorage mObjectLanguage(langFilePath / "zh_CN.json");
+            mObjectLanguage.write(CNLangData);
             mObjectLanguage.save();
         }
-        I18nUtils::load(configDataPath / "language.json");
+        I18nUtils::load(langFilePath);
         logger.info("Initialization of language file completed.");
 
         HookPlugin::setFakeSeed(this->config.Plugins.FakeSeed);
