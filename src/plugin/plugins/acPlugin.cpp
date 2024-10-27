@@ -51,12 +51,10 @@ namespace LOICollection::Plugins::announcement {
             form.appendLabel(tr(mObjectLanguage, "announcement.gui.label"));
             form.appendToggle("Toggle1", tr(mObjectLanguage, "announcement.gui.setting.switch1"), isClose(player));
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
-                    return;
-                }
+                if (!dt) return pl.sendMessage(tr(getLanguage(&pl), "exit"));
+
                 bool mObjectToggle1 = std::get<uint64>(dt->at("Toggle1"));
-                
+
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 db2->set("OBJECT$" + mObject, "AnnounCement_Toggle1", mObjectToggle1 ? "true" : "false");
@@ -87,10 +85,8 @@ namespace LOICollection::Plugins::announcement {
             form.appendToggle("Toggle1", tr(mObjectLanguage, "announcement.gui.addLine"));
             form.appendToggle("Toggle2", tr(mObjectLanguage, "announcement.gui.removeLine"));
             form.sendTo(*player, [index](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
-                    return;
-                }
+                if (!dt) return pl.sendMessage(tr(getLanguage(&pl), "exit"));
+
                 std::string mTitle = std::get<std::string>(dt->at("Input"));
                 nlohmann::ordered_json data = db->toJson("content");
                 if (std::get<uint64>(dt->at("Toggle1"))) {
@@ -98,15 +94,13 @@ namespace LOICollection::Plugins::announcement {
                     db->set("title", mTitle);
                     db->set("content", data);
                     db->save();
-                    MainGui::edit(&pl);
-                    return;
+                    return MainGui::edit(&pl);
                 } else if (std::get<uint64>(dt->at("Toggle2"))) {
                     data.erase(data.end() - 1);
                     db->set("title", mTitle);
                     db->set("content", data);
                     db->save();
-                    MainGui::edit(&pl);
-                    return;
+                    return MainGui::edit(&pl);
                 }
                 for (int i = 1; i < index; i++)
                     data.at(i - 1) = std::get<std::string>(dt->at("Input" + std::to_string(i)));
@@ -130,10 +124,7 @@ namespace LOICollection::Plugins::announcement {
             for (nlohmann::ordered_json::iterator it = data.begin(); it != data.end(); ++it)
                 form.appendLabel(*it);
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
-                    return;
-                }
+                if (!dt) return pl.sendMessage(tr(getLanguage(&pl), "exit"));
             });
         }
     }
@@ -147,35 +138,28 @@ namespace LOICollection::Plugins::announcement {
                 .getOrCreateCommand("announcement", "§e§lLOICollection -> §a公告系统", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
             });
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::setting(player);
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {
                     output.success("The UI has been opened to player {}", player->getRealName());
-                    MainGui::edit(player);
-                    return;
+                    return MainGui::edit(player);
                 }
                 output.error("No permission to open the ui.");
             });

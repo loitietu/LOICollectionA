@@ -17,10 +17,12 @@ namespace I18nUtils {
             if (entry.is_directory()) continue;
             if (entry.path().extension() != ".json") continue;
 
-            std::ifstream i(entry.path());
-            nlohmann::ordered_json j;
-            i >> j;
-            data[entry.path().stem().string()] = j;
+            std::ifstream filestream(entry.path());
+            nlohmann::ordered_json dataJson;
+            filestream >> dataJson;
+            filestream.close();
+            
+            data[entry.path().stem().string()] = dataJson;
         }
     }
 

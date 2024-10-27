@@ -3,6 +3,9 @@
 #include <unordered_map>
 
 #include <ll/api/memory/Hook.h>
+#include <ll/api/event/EventBus.h>
+#include <ll/api/event/ListenerBase.h>
+#include <ll/api/event/player/PlayerLeaveEvent.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/network/ServerNetworkHandler.h>
@@ -74,13 +77,31 @@ LL_TYPE_INSTANCE_HOOK(
 };
 
 namespace LOICollection::ProtableTool::OrderedUI {
+    ll::event::ListenerPtr PlayerLeaveEventListener;
+
     void registery() {
         ModalFormRequestPacketHook::hook();
         ModalFormResponsePacketHook::hook();
+
+        auto& eventBus = ll::event::EventBus::getInstance();
+        PlayerLeaveEventListener = eventBus.emplaceListener<ll::event::PlayerLeaveEvent>(
+            [](ll::event::PlayerLeaveEvent& event) {
+                if (event.self().isSimulatedPlayer())
+                    return;
+                std::string mUuid = event.self().getUuid().asString();
+                if (mFormResponse.contains(mUuid))
+                    mFormResponse.erase(mUuid);
+                if (mFormLists.contains(mUuid))
+                    mFormLists.erase(mUuid);
+            }
+        );
     }
 
     void unregistery() {
         ModalFormRequestPacketHook::unhook();
         ModalFormResponsePacketHook::unhook();
+
+        auto& eventBus = ll::event::EventBus::getInstance();
+        eventBus.removeListener(PlayerLeaveEventListener);
     }
 }

@@ -54,10 +54,8 @@ namespace LOICollection::Plugins::chat {
             form.appendInput("Input1", tr(mObjectLanguage, "chat.gui.manager.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "chat.gui.manager.add.input2"), "", "0");
             form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::add(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::add(&pl);
+
                 std::string PlayerInputTitle = std::get<std::string>(dt->at("Input1"));
                 int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 addChat(McUtils::getPlayerFromName(target), PlayerInputTitle, time);
@@ -79,10 +77,8 @@ namespace LOICollection::Plugins::chat {
             form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.remove.dropdown"), db->list("OBJECT$" + mObject + "$TITLE"));
             form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::remove(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::remove(&pl);
+
                 std::string PlayerSelectTitle = std::get<std::string>(dt->at("dropdown"));
                 delChat(McUtils::getPlayerFromName(target), PlayerSelectTitle);
 
@@ -131,10 +127,8 @@ namespace LOICollection::Plugins::chat {
             form.appendLabel(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "chat.gui.setTitle.label"), player));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.setTitle.dropdown"), list);
             form.sendTo(*player, [mObject](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::setting(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::setting(&pl);
+
                 std::string PlayerSelectTitle = std::get<std::string>(dt->at("dropdown"));
                 db->set("OBJECT$" + mObject, "title", PlayerSelectTitle);
                 
@@ -185,24 +179,19 @@ namespace LOICollection::Plugins::chat {
                 .getOrCreateCommand("chat", "§e§lLOICollection -> §b个人称号", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {
                     output.success("The UI has been opened to player {}", player->getRealName());
-                    MainGui::open(player);
-                    return;
+                    return MainGui::open(player);
                 }
                 output.error("No permission to open the ui.");
             });
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::setting(player);
@@ -229,11 +218,10 @@ namespace LOICollection::Plugins::chat {
             );
             PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>(
                 [](ll::event::PlayerChatEvent& event) {
-                    if (event.self().isSimulatedPlayer())
-                        return;
-                    if (mute::isMute(&event.self()))
+                    if (event.self().isSimulatedPlayer() || mute::isMute(&event.self()))
                         return;
                     event.cancel();
+                    
                     std::string mChat = mChatString;
                     LOICollection::LOICollectionAPI::translateString(mChat, &event.self());
                     ll::string_utils::replaceAll(mChat, "${chat}", event.message());
@@ -249,8 +237,8 @@ namespace LOICollection::Plugins::chat {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject + "$TITLE")) {
             for (auto& i : db->list("OBJECT$" + mObject + "$TITLE")) {
-                if (i == "None")
-                    continue;
+                if (i == "None") continue;
+                
                 std::string mTimeString = db->get("OBJECT$" + mObject + "$TITLE", i);
                 if (SystemUtils::isReach(mTimeString)) {
                     db->del("OBJECT$" + mObject + "$TITLE", i);

@@ -54,10 +54,8 @@ namespace LOICollection::Plugins::cdk {
             form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
             form.appendInput("Input", tr(mObjectLanguage, "cdk.gui.convert.input"), "", "convert");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
-                    return;
-                }
+                if (!dt) return pl.sendMessage(tr(getLanguage(&pl), "exit"));
+
                 std::string convertString = std::get<std::string>(dt->at("Input"));
                 cdkConvert(&pl, convertString.empty() ? "default" : convertString);
             });
@@ -73,10 +71,8 @@ namespace LOICollection::Plugins::cdk {
             form.appendToggle("Toggle", tr(mObjectLanguage, "cdk.gui.new.switch"));
             form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.new.input2"), "", "0");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::open(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::open(&pl);
+
                 std::string logString = tr(getLanguage(&pl), "cdk.log1");
                 std::string mObjectCdk = std::get<std::string>(dt->at("Input1"));
                 if (!db->has(mObjectCdk)) {
@@ -111,18 +107,15 @@ namespace LOICollection::Plugins::cdk {
 
             if (db->isEmpty()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
-                MainGui::open(player);
-                return;
+                return MainGui::open(player);
             }
 
             ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::open(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::open(&pl);
+
                 std::string logString = tr(getLanguage(&pl), "cdk.log2");
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
                 db->remove(mObjectCdk);
@@ -142,8 +135,7 @@ namespace LOICollection::Plugins::cdk {
 
             if (db->isEmpty()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
-                MainGui::cdkAward(player);
-                return;
+                return MainGui::cdkAward(player);
             }
 
             ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
@@ -152,10 +144,8 @@ namespace LOICollection::Plugins::cdk {
             form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.score.input1"), "", "money");
             form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.score.input2"), "", "100");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::cdkAward(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::cdkAward(&pl);
+
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
                 int mObjectScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
@@ -175,8 +165,7 @@ namespace LOICollection::Plugins::cdk {
 
             if (db->isEmpty()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
-                MainGui::cdkAward(player);
-                return;
+                return MainGui::cdkAward(player);
             }
             
             ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
@@ -187,10 +176,8 @@ namespace LOICollection::Plugins::cdk {
             form.appendInput("Input3", tr(mObjectLanguage, "cdk.gui.award.item.input3"), "", "1");
             form.appendInput("Input4", tr(mObjectLanguage, "cdk.gui.award.item.input4"), "", "0");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::cdkAward(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::cdkAward(&pl);
+
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
                 std::string mObjectName = std::get<std::string>(dt->at("Input2"));
                 int mObjectCount = SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 1);
@@ -216,8 +203,7 @@ namespace LOICollection::Plugins::cdk {
             
             if (db->isEmpty()) {
                 player->sendMessage(tr(mObjectLanguage, "cdk.tips"));
-                MainGui::cdkAward(player);
-                return;
+                return MainGui::cdkAward(player);
             }
 
             ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
@@ -226,10 +212,8 @@ namespace LOICollection::Plugins::cdk {
             form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.title.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.title.input2"), "", "0");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::cdkAward(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::cdkAward(&pl);
+
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
                 std::string mObjectName = std::get<std::string>(dt->at("Input1"));
                 int mObjectTime = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
@@ -294,29 +278,23 @@ namespace LOICollection::Plugins::cdk {
                 .getOrCreateCommand("cdk", "§e§lLOICollection -> §b总换码", CommandPermissionLevel::Any);
             command.overload<CDKOP>().text("convert").required("convertString").execute([](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 cdkConvert(player, param.convertString);
                 output.success("The player {} has been converted to cdk: {}", player->getRealName(), param.convertString);
             });
             command.overload<CDKOP>().text("gui").optional("setting").execute([](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if (param.setting) {
                     if ((int) player->getPlayerPermissionLevel() >= 2) {
                         output.success("The UI has been opened to player {}", player->getRealName());
-                        MainGui::open(player);
-                        return;
+                        return MainGui::open(player);
                     }
-                    output.error("No permission to open the Setting.");
-                    return;
+                    return output.error("No permission to open the Setting.");
                 }
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::convert(player);
@@ -337,10 +315,8 @@ namespace LOICollection::Plugins::cdk {
                 }
             }
             nlohmann::ordered_json mPlayerList = cdkJson.at("player");
-            if (std::find(mPlayerList.begin(), mPlayerList.end(), player->getUuid().asString()) != mPlayerList.end()) {
-                player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips2"));
-                return;
-            }
+            if (std::find(mPlayerList.begin(), mPlayerList.end(), player->getUuid().asString()) != mPlayerList.end())
+                return player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips2"));
             if (cdkJson.contains("title")) {
                 nlohmann::ordered_json mTitleList = cdkJson.at("title");
                 for (nlohmann::ordered_json::iterator it = mTitleList.begin(); it != mTitleList.end(); ++it)

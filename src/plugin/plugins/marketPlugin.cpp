@@ -159,10 +159,8 @@ namespace LOICollection::Plugins::market {
             form.appendInput("Input3", tr(mObjectLanguage, "market.gui.sell.sellItem.input3"), "", "Introduce");
             form.appendInput("Input4", tr(mObjectLanguage, "market.gui.sell.sellItem.input4"), "", "100");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::sell(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::sell(&pl);
+
                 if (pl.getCarriedItem().isValid()) {
                     std::string mObject = pl.getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
@@ -221,10 +219,8 @@ namespace LOICollection::Plugins::market {
                 mItems.push_back(item);
             }
             form.sendTo(*player, [mItems, mObject](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) {
-                    MainGui::sell(&pl);
-                    return;
-                }
+                if (id == -1) return MainGui::sell(&pl);
+                
                 MainGui::itemContent(&pl, ("OBJECT$" + mObject + "$ITEMS_$LIST_" + mItems.at(id)));
             });
         }
@@ -259,10 +255,8 @@ namespace LOICollection::Plugins::market {
                 mItems.push_back(item);
             }
             form.sendTo(*player, [mItems](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
-                    return;
-                }
+                if (id == -1) return pl.sendMessage(tr(getLanguage(&pl), "exit"));
+
                 MainGui::buyItem(&pl, mItems.at(id));
             });
         }
@@ -277,20 +271,16 @@ namespace LOICollection::Plugins::market {
                 .getOrCreateCommand("market", "§e§lLOICollection -> §b玩家市场", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::buy(player);
             });
             command.overload().text("sell").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::sell(player);

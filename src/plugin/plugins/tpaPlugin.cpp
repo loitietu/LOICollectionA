@@ -49,10 +49,8 @@ namespace LOICollection::Plugins::tpa {
             form.appendLabel(tr(mObjectLanguage, "tpa.gui.setting.label"));
             form.appendToggle("Toggle1", tr(mObjectLanguage, "tpa.gui.setting.switch1"), isInvite(player));
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
-                    return;
-                }
+                if (!dt) return pl.sendMessage(tr(getLanguage(&pl), "exit"));
+
                 bool mObjectToggle1 = std::get<uint64>(dt->at("Toggle1"));
 
                 std::string mObject = pl.getUuid().asString();
@@ -72,8 +70,10 @@ namespace LOICollection::Plugins::tpa {
 
             ll::form::ModalForm form;
             form.setTitle(tr(mObjectLanguage, "tpa.gui.title"));
-            if (!type) form.setContent(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player));
-            else form.setContent(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player));
+
+            !type ? form.setContent(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player))
+                : form.setContent(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player));
+                
             form.setUpperButton(tr(mObjectLanguage, "tpa.yes"));
             form.setLowerButton(tr(mObjectLanguage, "tpa.no"));
             form.sendTo(*target, [type, player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
@@ -103,19 +103,14 @@ namespace LOICollection::Plugins::tpa {
             form.appendLabel(tr(mObjectLanguage, "tpa.gui.label"));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "tpa.gui.dropdown"), { "tpa", "tphere" });
             form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::open(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::open(&pl);
+
                 Player* pl2 = McUtils::getPlayerFromName(target);
                 std::string PlayerSelectType = std::get<std::string>(dt->at("dropdown"));
                 if (!isInvite(pl2)) {
-                    if (PlayerSelectType == "tpa") {
-                        MainGui::tpa(&pl, pl2, false);
-                        return;
-                    }
-                    MainGui::tpa(&pl, pl2, true);
-                    return;
+                    if (PlayerSelectType == "tpa")
+                        return MainGui::tpa(&pl, pl2, false);
+                    return MainGui::tpa(&pl, pl2, true);
                 }
                 pl.sendMessage(tr(getLanguage(&pl), "tpa.no.tips"));
             });
@@ -146,20 +141,16 @@ namespace LOICollection::Plugins::tpa {
                 .getOrCreateCommand("tpa", "§e§lLOICollection -> §b玩家互传", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
             });
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::setting(player);

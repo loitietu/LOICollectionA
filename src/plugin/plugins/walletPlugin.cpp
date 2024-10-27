@@ -12,6 +12,7 @@
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
 #include <ll/api/utils/StringUtils.h>
+#include <ll/api/utils/HashUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
@@ -49,16 +50,12 @@ namespace LOICollection::Plugins::wallet {
             form.appendLabel(mLabel);
             form.appendInput("Input", tr(mObjectLanguage, "wallet.gui.stepslider.input"), "", "100");
             form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::transfer(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::transfer(&pl);
+
                 int mMoney = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
                 int mTargetMoney = mMoney - (int)(mMoney * std::get<double>(mObjectOptions.at("tax")));
-                if (McUtils::scoreboard::getScore(&pl, mScore) < mMoney || mTargetMoney < 0) {
-                    pl.sendMessage(tr(getLanguage(&pl), "wallet.tips"));
-                    return;
-                }
+                if (McUtils::scoreboard::getScore(&pl, mScore) < mMoney || mTargetMoney < 0)
+                    return pl.sendMessage(tr(getLanguage(&pl), "wallet.tips"));
 
                 McUtils::scoreboard::reduceScore(&pl, mScore, mMoney);
                 McUtils::scoreboard::addScore(McUtils::getPlayerFromName(target), mScore, mTargetMoney);
@@ -113,15 +110,17 @@ namespace LOICollection::Plugins::wallet {
             form.appendLabel(mLabel);
             form.appendStepSlider("stepslider", tr(mObjectLanguage, "wallet.gui.stepslider"), { "transfer", "wealth" });
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    pl.sendMessage(tr(getLanguage(&pl), "exit"));
-                    return;
-                }
+                if (!dt) return pl.sendMessage(tr(getLanguage(&pl), "exit"));
+
                 std::string mSelectString = std::get<std::string>(dt->at("stepslider"));
-                if (mSelectString == "transfer")
-                    MainGui::transfer(&pl);
-                else if (mSelectString == "wealth")
-                    MainGui::wealth(&pl);
+                switch (ll::hash_utils::doHash(mSelectString)) {
+                    case ll::hash_utils::doHash("wealth"):
+                        MainGui::wealth(&pl);
+                        break;
+                    case ll::hash_utils::doHash("transfer"):
+                        MainGui::transfer(&pl);
+                        break;
+                };
             });
         }
     }
@@ -135,10 +134,8 @@ namespace LOICollection::Plugins::wallet {
                 .getOrCreateCommand("wallet", "§e§lLOICollection -> §b个人钱包", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);

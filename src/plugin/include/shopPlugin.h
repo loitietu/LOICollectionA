@@ -9,8 +9,19 @@
 
 #include "ExportLib.h"
 
+#define SHOP_BUY 1
+#define SHOP_SELL 2
+
 namespace LOICollection::Plugins::shop {
     namespace MainGui {
+        LOICOLLECTION_A_API void editNew(void* player_ptr);
+        LOICOLLECTION_A_API void editRemove(void* player_ptr);
+        LOICOLLECTION_A_API void editAwardSetting(void* player_ptr, std::string uiName, int type);
+        LOICOLLECTION_A_API void editAwardNew(void* player_ptr, std::string uiName, int type);
+        LOICOLLECTION_A_API void editAwardRemove(void* player_ptr, std::string uiName);
+        LOICOLLECTION_A_API void editAwardContent(void* player_ptr, std::string uiName);
+        LOICOLLECTION_A_API void editAward(void* player_ptr);
+        LOICOLLECTION_A_API void edit(void* player_ptr);
         LOICOLLECTION_A_API void menu(void* player_ptr, nlohmann::ordered_json& data, bool type);
         LOICOLLECTION_A_API void commodity(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type);
         LOICOLLECTION_A_API void title(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type);

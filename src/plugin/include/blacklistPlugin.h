@@ -5,6 +5,9 @@
 
 #include "ExportLib.h"
 
+#define BLACKLIST_TYPE_IP 0
+#define BLACKLIST_TYPE_UUID 1
+
 namespace LOICollection::Plugins::blacklist {
     namespace MainGui {
         LOICOLLECTION_A_API void info(void* player_ptr, std::string target);

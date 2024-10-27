@@ -75,10 +75,8 @@ namespace LOICollection::Plugins::mute {
             form.appendInput("Input1", tr(mObjectLanguage, "mute.gui.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "mute.gui.add.input2"), "", "0");
             form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::add(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::add(&pl);
+
                 std::string PlayerInputCause = std::get<std::string>(dt->at("Input1"));
                 int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 addMute(McUtils::getPlayerFromName(target), PlayerInputCause, time);
@@ -171,10 +169,8 @@ namespace LOICollection::Plugins::mute {
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);

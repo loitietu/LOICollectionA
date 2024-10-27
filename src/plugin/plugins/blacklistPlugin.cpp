@@ -11,6 +11,7 @@
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
 #include <ll/api/utils/StringUtils.h>
+#include <ll/api/utils/HashUtils.h>
 
 #include <mc/world/level/Level.h>
 #include <mc/world/actor/player/Player.h>
@@ -86,19 +87,22 @@ namespace LOICollection::Plugins::blacklist {
             form.appendInput("Input1", tr(mObjectLanguage, "blacklist.gui.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "blacklist.gui.add.input2"), "", "0");
             form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    MainGui::add(&pl);
-                    return;
-                }
+                if (!dt) return MainGui::add(&pl);
+
                 std::string PlayerSelectType = std::get<std::string>(dt->at("dropdown"));
                 std::string PlayerInputCause = std::get<std::string>(dt->at("Input1"));
                 int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 Player* pl2 = McUtils::getPlayerFromName(target);
-                if (PlayerSelectType == "ip")
-                    addBlacklist(pl2, PlayerInputCause, time, 0);
-                else if (PlayerSelectType == "uuid")
-                    addBlacklist(pl2, PlayerInputCause, time, 1);
-                
+
+                switch (ll::hash_utils::doHash(PlayerSelectType)) {
+                    case ll::hash_utils::doHash("ip"):
+                        addBlacklist(pl2, PlayerInputCause, time, BLACKLIST_TYPE_IP);
+                        break;
+                    case ll::hash_utils::doHash("uuid"):
+                        addBlacklist(pl2, PlayerInputCause, time, BLACKLIST_TYPE_UUID);
+                        break;
+                };
+
                 McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::add(player);
                 });
@@ -162,10 +166,10 @@ namespace LOICollection::Plugins::blacklist {
                         {}, CommandOutputMessageType::Success);
                     switch (param.selectorType) {
                         case BlacklistOP::ip:
-                            addBlacklist(pl, param.cause, param.time, 0);
+                            addBlacklist(pl, param.cause, param.time, BLACKLIST_TYPE_IP);
                             break;
                         case BlacklistOP::uuid:
-                            addBlacklist(pl, param.cause, param.time, 1);
+                            addBlacklist(pl, param.cause, param.time, BLACKLIST_TYPE_UUID);
                             break;
                         default:
                             logger.error("Unknown selector type: {}", param.selectorType);
@@ -186,27 +190,22 @@ namespace LOICollection::Plugins::blacklist {
             command.overload<BlacklistOP>().text("add").required("selectorType").required("target").required("cause").execute(BlacklistCommandADD);
             command.overload<BlacklistOP>().text("add").required("selectorType").required("target").required("cause").required("time").execute(BlacklistCommandADD);
             command.overload<BlacklistOP>().text("remove").required("targetName").execute([](CommandOrigin const& /*unused*/, CommandOutput& output, BlacklistOP const& param) {
-                if (!db->has("OBJECT$" + param.targetName)) {
-                    output.error("Object {} is not in blacklist.", param.targetName);
-                    return;
-                }
+                if (!db->has("OBJECT$" + param.targetName))
+                    return output.error("Object {} is not in blacklist.", param.targetName);
                 delBlacklist(param.targetName);
                 output.success("Remove object {} from blacklist.", param.targetName);
             });
             command.overload().text("list").execute([](CommandOrigin const& /*unused*/, CommandOutput& output) {
-                std::string content("Blacklist: Add list -\n");
-                for (auto& key : db->list()) {
+                std::string content("Blacklist - Add list:\n");
+                for (auto& key : db->list())
                     content += ll::string_utils::replaceAll(key, "OBJECT$", "") + ",";
-                }
                 content.pop_back();
                 output.success(content);
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player)) {
-                    output.error("No player selected.");
-                    return;
-                }
+                if (entity == nullptr || !entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
@@ -219,10 +218,8 @@ namespace LOICollection::Plugins::blacklist {
                 std::string mObjectTips = tr(getLanguage(ll::service::getLevel()->getPlayer(mUuid)), "blacklist.tips");
                 std::replace(mUuid.begin(), mUuid.end(), '-', '_');
                 if (db->has("OBJECT$" + mUuid)) {
-                    if (SystemUtils::isReach(db->get("OBJECT$" + mUuid, "time"))) {
-                        delBlacklist(mUuid);
-                        return;
-                    }
+                    if (SystemUtils::isReach(db->get("OBJECT$" + mUuid, "time")))
+                        return delBlacklist(mUuid);
                     ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mUuid, "cause"));
                     ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mUuid, "time")));
                     ll::service::getServerNetworkHandler()->disconnectClient(
@@ -233,10 +230,8 @@ namespace LOICollection::Plugins::blacklist {
                 std::string mObjectIP = std::string(ll::string_utils::splitByPattern(mIpAndPort, ":")[0]);
                 std::replace(mObjectIP.begin(), mObjectIP.end(), '.', '_');
                 if (db->has("OBJECT$" + mObjectIP)) {
-                    if (SystemUtils::isReach(db->get("OBJECT$" + mObjectIP, "time"))) {
-                        delBlacklist(mObjectIP);
-                        return;
-                    }
+                    if (SystemUtils::isReach(db->get("OBJECT$" + mObjectIP, "time")))
+                        return delBlacklist(mObjectIP);
                     ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mObjectIP, "cause"));
                     ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObjectIP, "time")));
                     ll::service::getServerNetworkHandler()->disconnectClient(
@@ -256,7 +251,8 @@ namespace LOICollection::Plugins::blacklist {
 
         cause = cause.empty() ? "None" : cause;
         std::string mObjectLanguage = getLanguage(player);
-        std::string mObject = type ? player->getUuid().asString() : std::string(ll::string_utils::splitByPattern(player->getIPAndPort(), ":")[0]);
+        std::string mObject = type == BLACKLIST_TYPE_UUID ? player->getUuid().asString()
+            : std::string(ll::string_utils::splitByPattern(player->getIPAndPort(), ":")[0]);
         std::replace(mObject.begin(), mObject.end(), '.', '_');
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (!db->has("OBJECT$" + mObject)) {
