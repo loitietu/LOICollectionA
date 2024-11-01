@@ -1,5 +1,5 @@
-#include <map>
 #include <memory>
+#include <utility>
 #include <vector>
 #include <string>
 #include <stdexcept>
@@ -60,10 +60,10 @@ namespace LOICollection::Plugins::shop {
             form.appendInput("Input7", tr(mObjectLanguage, "shop.gui.button1.input7"), "", "Shop Example");
             form.appendInput("Input6", tr(mObjectLanguage, "shop.gui.button1.input6"), "", "This is a shop example");
             form.appendDropdown("dropdown", tr(mObjectLanguage, "shop.gui.button1.dropdown"), { "buy", "sell" });
-            form.appendInput("Input2", tr(mObjectLanguage, "shop.gui.button1.input2"), "", "Exit Shop");
-            form.appendInput("Input3", tr(mObjectLanguage, "shop.gui.button1.input3"), "", "You do not have enough title to sell");
-            form.appendInput("Input4", tr(mObjectLanguage, "shop.gui.button1.input4"), "", "You do not have enough item to sell");
-            form.appendInput("Input5", tr(mObjectLanguage, "shop.gui.button1.input5"), "", "You do not have enough score to buy this item");
+            form.appendInput("Input2", tr(mObjectLanguage, "shop.gui.button1.input2"), "", "execute as ${player} run say Exit Shop");
+            form.appendInput("Input3", tr(mObjectLanguage, "shop.gui.button1.input3"), "", "execute as ${player} run say You do not have enough title to sell");
+            form.appendInput("Input4", tr(mObjectLanguage, "shop.gui.button1.input4"), "", "execute as ${player} run say You do not have enough item to sell");
+            form.appendInput("Input5", tr(mObjectLanguage, "shop.gui.button1.input5"), "", "execute as ${player} run say You do not have enough score to buy this item");
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::edit(&pl);
 
@@ -373,23 +373,15 @@ namespace LOICollection::Plugins::shop {
                 mItemLists.push_back(item);
             }
             form.sendTo(*player, [data, mItemLists, type](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) return pl.sendMessage(translateString(data.at("exit").get<std::string>(), &pl));
+                if (id == -1) return McUtils::executeCommand(&pl, data.at("exit").get<std::string>());
                 
-                std::map<std::string, std::string> options;
-                options["exit"] = translateString(data.at("exit").get<std::string>(), &pl);
-                if (type) options["score"] = translateString(data.at("NoScore").get<std::string>(), &pl);
-                else {
-                    options["title"] = translateString(data.at("NoTitle").get<std::string>(), &pl);
-                    options["item"] = translateString(data.at("NoItem").get<std::string>(), &pl);
-                }
-
                 nlohmann::ordered_json mItem = mItemLists.at(id);
                 switch (ll::hash_utils::doHash(mItem["type"].get<std::string>())) {
                     case ll::hash_utils::doHash("commodity"):
-                        MainGui::commodity(&pl, mItem, options, type);
+                        MainGui::commodity(&pl, mItem, data, type);
                         break;
                     case ll::hash_utils::doHash("title"):
-                        MainGui::title(&pl, mItem, options, type);
+                        MainGui::title(&pl, mItem, data, type);
                         break;
                     case ll::hash_utils::doHash("from"):
                         MainGui::open(&pl, mItem.at("menu").get<std::string>());
@@ -401,7 +393,7 @@ namespace LOICollection::Plugins::shop {
             });
         }
 
-        void commodity(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type) {
+        void commodity(void* player_ptr, nlohmann::ordered_json& data, nlohmann::ordered_json original, bool type) {
             Player* player = static_cast<Player*>(player_ptr);
 
             std::string mScoreboardListsString;
@@ -413,8 +405,8 @@ namespace LOICollection::Plugins::shop {
             ll::form::CustomForm form(translateString(data.at("title").get<std::string>(), player));
             form.appendLabel(ll::string_utils::replaceAll(mIntroduce, "${scores}", mScoreboardListsString));
             form.appendInput("Input", translateString(data.at("number").get<std::string>(), player), "", "1");
-            form.sendTo(*player, [data, options, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) return pl.sendMessage(options.at("exit"));
+            form.sendTo(*player, [data, original, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+                if (!dt) return McUtils::executeCommand(&pl, original.at("exit").get<std::string>());
 
                 int mNumber = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
                 if (type) {
@@ -424,7 +416,7 @@ namespace LOICollection::Plugins::shop {
                         pl.refreshInventory();
                         return;
                     }
-                    return pl.sendMessage(options.at("score"));
+                    return McUtils::executeCommand(&pl, data.at("NoScore").get<std::string>());
                 }
                 ItemStack itemStack(data.at("id").get<std::string>(), mNumber);
                 if (McUtils::isItemPlayerInventory(&pl, &itemStack)) {
@@ -435,11 +427,11 @@ namespace LOICollection::Plugins::shop {
                     pl.refreshInventory();
                     return;
                 }
-                pl.sendMessage(options.at("item"));
+                McUtils::executeCommand(&pl, data.at("NoItem").get<std::string>());
             });
         }
 
-        void title(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type) {
+        void title(void* player_ptr, nlohmann::ordered_json& data, nlohmann::ordered_json original, bool type) {
             Player* player = static_cast<Player*>(player_ptr);
 
             std::string mScoreboardListsString;
@@ -453,7 +445,7 @@ namespace LOICollection::Plugins::shop {
             form.setContent(ll::string_utils::replaceAll(mIntroduce, "${scores}", mScoreboardListsString));
             form.setUpperButton(translateString(data.at("confirmButton").get<std::string>(), player));
             form.setLowerButton(translateString(data.at("cancelButton").get<std::string>(), player));
-            form.sendTo(*player, [data, options, type](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
+            form.sendTo(*player, [data, original, type](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
                     std::string id = data.at("id").get<std::string>();
                     if (type) {
@@ -462,7 +454,7 @@ namespace LOICollection::Plugins::shop {
                                 return chat::addChat(&pl, id, data.at("time").get<int>());
                             return chat::addChat(&pl, id, 0);
                         }
-                        return pl.sendMessage(options.at("score"));
+                        return McUtils::executeCommand(&pl, data.at("NoScore").get<std::string>());
                     }
                     if (chat::isChat(&pl, id)) {
                         nlohmann::ordered_json mScoreboardBase = data.at("scores");
@@ -470,7 +462,7 @@ namespace LOICollection::Plugins::shop {
                             McUtils::scoreboard::addScore(&pl, it.key(), it.value().get<int>());
                         return chat::delChat(&pl, id);
                     }
-                    pl.sendMessage(options.at("title"));
+                    McUtils::executeCommand(&pl, data.at("NoTitle").get<std::string>());
                 }
             });
         }

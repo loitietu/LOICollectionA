@@ -1,5 +1,4 @@
 #include <memory>
-#include <vector>
 #include <string>
 #include <stdexcept>
 
@@ -91,6 +90,7 @@ namespace LOICollection::Plugins::chat {
         void add(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+            
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.add.label"));
             for (auto& mTarget : McUtils::getAllPlayerName()) {
                 form.appendButton(mTarget, [mTarget](Player& pl) {
@@ -105,6 +105,7 @@ namespace LOICollection::Plugins::chat {
         void remove(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.remove.label"));
             for (auto& mTarget : McUtils::getAllPlayerName()) {
                 form.appendButton(mTarget, [mTarget](Player& pl) {
@@ -118,14 +119,14 @@ namespace LOICollection::Plugins::chat {
 
         void title(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
-            std::string mObject = player->getUuid().asString();
             std::string mObjectLanguage = getLanguage(player);
+
+            std::string mObject = player->getUuid().asString();
             std::replace(mObject.begin(), mObject.end(), '-', '_');
-            std::vector<std::string> list = db->list("OBJECT$" + mObject + "$TITLE");
             
             ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
             form.appendLabel(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "chat.gui.setTitle.label"), player));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.setTitle.dropdown"), list);
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.setTitle.dropdown"), db->list("OBJECT$" + mObject + "$TITLE"));
             form.sendTo(*player, [mObject](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::setting(&pl);
 
@@ -261,7 +262,7 @@ namespace LOICollection::Plugins::chat {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (!db->has("OBJECT$" + mObject + "$TITLE"))
             db->create("OBJECT$" + mObject + "$TITLE");
-        db->set("OBJECT$" + mObject + "$TITLE", text, SystemUtils::timeCalculate(SystemUtils::getNowTime(), time));
+        db->set("OBJECT$" + mObject + "$TITLE", text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
 
         std::string logString = tr(getLanguage(player), "chat.log2");
         ll::string_utils::replaceAll(logString, "${title}", text);

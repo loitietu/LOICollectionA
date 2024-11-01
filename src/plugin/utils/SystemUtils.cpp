@@ -1,25 +1,23 @@
 #include <ctime>
+#include <cstdlib>
+
 #include <string>
 #include <sstream>
 #include <iomanip>
 
-#include <ll/api/utils/StringUtils.h>
-
 #include "SystemUtils.h"
 
 namespace SystemUtils {
-    std::string getNowTime() {
+    std::string getNowTime(const std::string& format) {
         std::tm currentTimeInfo;
         std::time_t currentTime = std::time(nullptr);
         localtime_s(&currentTimeInfo, &currentTime);
         std::ostringstream oss;
-        oss << std::put_time(&currentTimeInfo, "%Y-%m-%d %H:%M:%S");
+        oss << std::put_time(&currentTimeInfo, format.c_str());
         return oss.str();
     }
 
     std::string timeCalculate(const std::string& timeString, int hours) {
-        if (!hours)
-            return "0";
         std::tm tm = {};
         std::istringstream iss(timeString);
         iss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
@@ -44,17 +42,17 @@ namespace SystemUtils {
     }
 
     int toInt(const std::string& str, int defaultValue) {
-        auto result = ll::string_utils::svtoi(str);
-        return result.has_value() ? result.value() : defaultValue;
+        const char* ptr = str.data();
+        char* endptr{};
+        int value = std::strtol(ptr, &endptr, 10);
+        if (endptr == ptr)
+            return defaultValue;
+        return value;
     }
 
     bool isReach(const std::string& timeString) {
-        if (timeString == "0") 
+        if (timeString == "0")
             return false;
-        std::string formattedTime = getNowTime();
-        ll::string_utils::replaceAll(formattedTime, "-", "");
-        ll::string_utils::replaceAll(formattedTime, ":", "");
-        ll::string_utils::replaceAll(formattedTime, " ", "");
-        return std::stoll(formattedTime) > std::stoll(timeString);
+        return std::stoll(getNowTime("%Y%m%d%H%M%S")) > std::stoll(timeString);
     }
 }

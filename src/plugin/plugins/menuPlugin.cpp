@@ -65,9 +65,9 @@ namespace LOICollection::Plugins::menu {
             form.appendInput("Input6", tr(mObjectLanguage, "menu.gui.button1.input6"), "", "Menu Example");
             form.appendInput("Input5", tr(mObjectLanguage, "menu.gui.button1.input5"), "", "This is a menu example");
             form.appendDropdown("dropdown", tr(mObjectLanguage, "menu.gui.button1.dropdown"), { "Custom", "Simple", "Modal" });
-            form.appendInput("Input2", tr(mObjectLanguage, "menu.gui.button1.input2"), "", "Exit Menu");
-            form.appendInput("Input3", tr(mObjectLanguage, "menu.gui.button1.input3"), "", "You do not have permission to use this button");
-            form.appendInput("Input4", tr(mObjectLanguage, "menu.gui.button1.input4"), "", "You do not have enough score to use this button");
+            form.appendInput("Input2", tr(mObjectLanguage, "menu.gui.button1.input2"), "", "execute as ${player} run say Exit Menu");
+            form.appendInput("Input3", tr(mObjectLanguage, "menu.gui.button1.input3"), "", "execute as ${player} run say You do not have permission to use this button");
+            form.appendInput("Input4", tr(mObjectLanguage, "menu.gui.button1.input4"), "", "execute as ${player} run say You do not have enough score to use this button");
             form.appendSlider("Slider", tr(mObjectLanguage, "menu.gui.button1.slider"), 0, 4, 1, 0);
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::edit(&pl);
@@ -496,10 +496,8 @@ namespace LOICollection::Plugins::menu {
                 }
             }
             form.sendTo(*player, [mCustomData, data](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) {
-                    pl.sendMessage(translateString(data.at("exit").get<std::string>(), &pl));
-                    return;
-                }
+                if (!dt) return McUtils::executeCommand(&pl, data.at("exit").get<std::string>());
+
                 nlohmann::ordered_json mCustom;
                 for (auto& [key, value] : mCustomData.items()) {
                     if (value.is_string()) {
@@ -535,7 +533,7 @@ namespace LOICollection::Plugins::menu {
                 mButtonLists.push_back(button);
             }
             form.sendTo(*player, [data, mButtonLists](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) return pl.sendMessage(translateString(data.at("exit").get<std::string>(), &pl));
+                if (id == -1) return McUtils::executeCommand(&pl, data.at("exit").get<std::string>());
                 
                 nlohmann::ordered_json mButton = mButtonLists.at(id);
                 logicalExecution(&pl, mButton, data);
@@ -570,7 +568,7 @@ namespace LOICollection::Plugins::menu {
                 if (data.empty()) return;
                 if (data.contains("permission")) {
                     if ((int) player->getPlayerPermissionLevel() < data["permission"].get<int>())
-                        return player->sendMessage(translateString(data.at("NoPermission").get<std::string>(), player));
+                        return McUtils::executeCommand(player, data.at("NoPermission").get<std::string>());
                 }
                 
                 switch (ll::hash_utils::doHash(data.at("type").get<std::string>())) {
@@ -606,10 +604,8 @@ namespace LOICollection::Plugins::menu {
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
-                if (param.uiName.empty()) {
-                    MainGui::open(player, "main");
-                    return;
-                }
+                if (param.uiName.empty())
+                    return MainGui::open(player, "main");
                 MainGui::open(player, param.uiName);
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -682,21 +678,19 @@ namespace LOICollection::Plugins::menu {
         Player* player = static_cast<Player*>(player_ptr);
         if (data.empty()) return;
         if (data.contains("permission")) {
-            if ((int) player->getPlayerPermissionLevel() < data["permission"].get<int>()) {
-                player->sendMessage(translateString(original.at("NoPermission").get<std::string>(), player));
-                return;
-            }
+            if ((int) player->getPlayerPermissionLevel() < data["permission"].get<int>())
+                return McUtils::executeCommand(player, original.at("NoPermission").get<std::string>());
         }
         if (data.at("type").get<std::string>() == "button") {
             if (!checkModifiedData(player, data))
-                return player->sendMessage(translateString(original.at("NoScore").get<std::string>(), player));
+                return McUtils::executeCommand(player, original.at("NoScore").get<std::string>());
             if (data.at("command").is_string())
                 return McUtils::executeCommand(player, data.at("command").get<std::string>());
             for (auto& command : data.at("command"))
                 McUtils::executeCommand(player, command.get<std::string>());
         } else if (data.at("type").get<std::string>() == "from") {
             if (!checkModifiedData(player, data))
-                return player->sendMessage(translateString(original.at("NoScore").get<std::string>(), player));
+                return McUtils::executeCommand(player, original.at("NoScore").get<std::string>());
             MainGui::open(player, data.at("menu").get<std::string>());
         }
     }

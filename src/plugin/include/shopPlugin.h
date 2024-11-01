@@ -1,7 +1,6 @@
 #ifndef LOICOLLECTION_A_SHOPPLUGIN_H
 #define LOICOLLECTION_A_SHOPPLUGIN_H
 
-#include <map>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -23,8 +22,8 @@ namespace LOICollection::Plugins::shop {
         LOICOLLECTION_A_API void editAward(void* player_ptr);
         LOICOLLECTION_A_API void edit(void* player_ptr);
         LOICOLLECTION_A_API void menu(void* player_ptr, nlohmann::ordered_json& data, bool type);
-        LOICOLLECTION_A_API void commodity(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type);
-        LOICOLLECTION_A_API void title(void* player_ptr, nlohmann::ordered_json& data, std::map<std::string, std::string> options, bool type);
+        LOICOLLECTION_A_API void commodity(void* player_ptr, nlohmann::ordered_json& data, nlohmann::ordered_json original, bool type);
+        LOICOLLECTION_A_API void title(void* player_ptr, nlohmann::ordered_json& data, nlohmann::ordered_json original, bool type);
         LOICOLLECTION_A_API void open(void* player_ptr, std::string uiName);
     }
 

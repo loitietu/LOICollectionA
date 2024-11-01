@@ -2,9 +2,9 @@
     "main": {
         "title": "Menu Example",
         "content": "This is a menu example",
-        "exit": "Exit Menu",
-        "NoPermission": "You do not have permission to use this button",
-        "NoScore": "You do not have enough score to use this button",
+        "exit": "execute as ${player} run say Exit Menu",
+        "NoPermission": "execute as ${player} run say You do not have permission to use this button",
+        "NoScore": "execute as ${player} run say You do not have enough score to use this button",
         "type": "Simple",
         "button": [
             {
@@ -63,8 +63,8 @@
     "Menu1": {
         "title": "Menu 1",
         "content": "This is a menu 1",
-        "NoPermission": "You do not have permission to use this button",
-        "NoScore": "You do not have enough score to use this button",
+        "NoPermission": "execute as ${player} run say You do not have permission to use this button",
+        "NoScore": "execute as ${player} run say You do not have enough score to use this button",
         "type": "Modal",
         "confirmButton": {
             "title": "Confirm",
@@ -88,7 +88,7 @@
     },
     "Menu2": {
         "title": "Menu2",
-        "exit": "Exit Menu",
+        "exit": "execute as ${player} run say Exit Menu",
         "type": "Custom",
         "customize": [
             {

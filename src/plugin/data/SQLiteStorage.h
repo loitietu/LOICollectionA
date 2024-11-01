@@ -24,7 +24,7 @@ public:
     LOICOLLECTION_A_NDAPI bool has(std::string_view table, std::string_view key);
     LOICOLLECTION_A_NDAPI bool has(std::string_view table);
 
-    LOICOLLECTION_A_NDAPI std::string get(std::string_view table, std::string_view key);
+    LOICOLLECTION_A_NDAPI std::string get(std::string_view table, std::string_view key, std::string_view default_val = "");
     LOICOLLECTION_A_NDAPI std::string find(std::string_view table, std::string_view key, int index);
 
     LOICOLLECTION_A_NDAPI std::vector<std::string> list(std::string_view table);

@@ -2,8 +2,8 @@
     "MainBuy": {
         "title": "Buy Shop Example",
         "content": "This is a shop example",
-        "exit": "Exit Shop",
-        "NoScore": "You do not have enough score to buy this item",
+        "exit": "execute as ${player} run say Exit Shop",
+        "NoScore": "execute as ${player} run say You do not have enough score to buy this item",
         "classiflcation": [
             {
                 "title": "Apple",
@@ -28,8 +28,8 @@
     "titleBuy": {
         "title": "Buy Title Shop",
         "content": "This is a title shop",
-        "exit": "Exit Title Shop",
-        "NoScore": "You do not have enough score to buy this item",
+        "exit": "execute as ${player} run say Exit Title Shop",
+        "NoScore": "execute as ${player} run say You do not have enough score to buy this item",
         "classiflcation": [
             {
                 "title": "Test Title",
@@ -50,9 +50,9 @@
     "MainSell": {
         "title": "Sell Shop Example",
         "content": "This is a shop example",
-        "exit": "Exit Shop",
-        "NoTitle": "You do not have enough title to sell",
-        "NoItem": "You do not have enough item to sell",
+        "exit": "execute as ${player} run say Exit Shop",
+        "NoTitle": "execute as ${player} run say You do not have enough title to sell",
+        "NoItem": "execute as ${player} run say You do not have enough item to sell",
         "classiflcation": [
             {
                 "title": "Apple",
@@ -77,9 +77,9 @@
     "titleSell": {
         "title": "Sell Title Shop",
         "content": "This is a title shop",
-        "exit": "Exit Title Shop",
-        "NoTitle": "You do not have enough title to sell",
-        "NoItem": "You do not have enough item to sell",
+        "exit": "execute as ${player} run say Exit Title Shop",
+        "NoTitle": "execute as ${player} run say You do not have enough title to sell",
+        "NoItem": "execute as ${player} run say You do not have enough item to sell",
         "classiflcation": [
             {
                 "title": "Test Title",

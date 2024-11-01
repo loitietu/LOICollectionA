@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <stdexcept>
+#include <numeric>
 
 #include <ll/api/Logger.h>
 #include <ll/api/form/CustomForm.h>
@@ -196,11 +197,12 @@ namespace LOICollection::Plugins::blacklist {
                 output.success("Remove object {} from blacklist.", param.targetName);
             });
             command.overload().text("list").execute([](CommandOrigin const& /*unused*/, CommandOutput& output) {
-                std::string content("Blacklist - Add list:\n");
-                for (auto& key : db->list())
-                    content += ll::string_utils::replaceAll(key, "OBJECT$", "") + ",";
-                content.pop_back();
-                output.success(content);
+                std::vector<std::string> mObjectList = db->list();
+                std::string result = std::accumulate(mObjectList.begin(), mObjectList.end(), std::string(),
+                    [](const std::string& a, const std::string& b) {
+                    return a + (a.empty() ? "" : ", ") + ll::string_utils::replaceAll(b, "OBJECT$", "");
+                });
+                output.success("Blacklist: {}", result);
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
@@ -258,7 +260,7 @@ namespace LOICollection::Plugins::blacklist {
         if (!db->has("OBJECT$" + mObject)) {
             db->create("OBJECT$" + mObject);
             db->set("OBJECT$" + mObject, "cause", cause);
-            db->set("OBJECT$" + mObject, "time", SystemUtils::timeCalculate(SystemUtils::getNowTime(), time));
+            db->set("OBJECT$" + mObject, "time", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
         }
         std::string mObjectTips = tr(mObjectLanguage, "blacklist.tips");
         ll::string_utils::replaceAll(mObjectTips, "${cause}", cause);

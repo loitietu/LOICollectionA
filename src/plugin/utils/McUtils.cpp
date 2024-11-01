@@ -57,16 +57,13 @@ namespace McUtils {
         Container& mItemInventory = player->getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             auto& mItemObject = mItemInventory.getItem(i);
-            if (mItemObject.isValid()) {
-                if (itemStack->getTypeName() == mItemObject.getTypeName()) {
-                    if (mItemObject.mCount >= mItemStackCount) {
-                        mItemInventory.removeItem(i, mItemStackCount);
-                        return;
-                    } else {
-                        mItemStackCount -= mItemObject.mCount;
-                        mItemInventory.removeItem(i, mItemObject.mCount);
-                    }
+            if (mItemObject.isValid() && itemStack->getTypeName() == mItemObject.getTypeName()) {
+                if (mItemObject.mCount >= mItemStackCount) {
+                    mItemInventory.removeItem(i, mItemStackCount);
+                    return;
                 }
+                mItemStackCount -= mItemObject.mCount;
+                mItemInventory.removeItem(i, mItemObject.mCount);
             }
         }
     }
@@ -109,12 +106,10 @@ namespace McUtils {
         Container& mItemInventory = player->getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             auto& mItemObject = mItemInventory.getItem(i);
-            if (mItemObject.isValid()) {
-                if (itemStack->getTypeName() == mItemObject.getTypeName()) {
-                    if (mItemStackCount <= mItemObject.mCount) {
-                        return true;
-                    } else mItemStackCount -= mItemObject.mCount;
-                }
+            if (mItemObject.isValid() && itemStack->getTypeName() == mItemObject.getTypeName()) {
+                if (mItemStackCount <= mItemObject.mCount)
+                    return true;
+                mItemStackCount -= mItemObject.mCount;
             }
         }
         return false;
