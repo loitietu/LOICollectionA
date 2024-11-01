@@ -17,7 +17,6 @@
 
 #include "include/APIUtils.h"
 #include "include/HookPlugin.h"
-#include "include/BuiltPlugin.h"
 #include "include/languagePlugin.h"
 #include "include/blacklistPlugin.h"
 #include "include/mutePlugin.h"
@@ -96,6 +95,7 @@ namespace LOICollection {
         I18nUtils::load(langFilePath);
         logger.info("Initialization of language file completed.");
 
+        HookPlugin::setColorLog(this->config.ColorLog);
         HookPlugin::setFakeSeed(this->config.Plugins.FakeSeed);
         logger.info("Initialization of Hook completed.");
         return true;
@@ -105,10 +105,6 @@ namespace LOICollection {
         LOICollectionAPI::initialization();
 
         HookPlugin::registery();
-
-        BuiltPlugin::setColorLog(this->config.ColorLog);
-        BuiltPlugin::registery();
-
         Plugins::language::registery(&this->SettingsDB);
         if (this->config.Plugins.Blacklist) Plugins::blacklist::registery(&this->BlacklistDB);
         if (this->config.Plugins.Mute) Plugins::mute::registery(&this->MuteDB);
@@ -149,7 +145,6 @@ namespace LOICollection {
 
     bool A::disable() {
         HookPlugin::unregistery();
-        BuiltPlugin::unregistery();
         Plugins::language::unregistery();
         if (this->config.Plugins.Menu.Enable) Plugins::menu::unregistery();
         if (this->config.Plugins.Tpa) Plugins::tpa::unregistery();

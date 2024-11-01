@@ -1,13 +1,57 @@
 #include <ctime>
-#include <cstdlib>
-
 #include <string>
 #include <sstream>
 #include <iomanip>
 
+#include <ll/api/utils/HashUtils.h>
+#include <ll/api/utils/StringUtils.h>
+
+#include <fmt/core.h>
+#include <fmt/color.h>
+
 #include "SystemUtils.h"
 
 namespace SystemUtils {
+    std::string getColorCode(std::string color) {
+        switch (ll::hash_utils::doHash(color)) {
+            case ll::hash_utils::doHash("0"):
+                return fmt::format(fmt::fg(fmt::color::black), "{}", "");
+            case ll::hash_utils::doHash("1"):
+                return fmt::format(fmt::fg(fmt::color::dark_blue), "{}", "");
+            case ll::hash_utils::doHash("2"):
+                return fmt::format(fmt::fg(fmt::color::dark_green), "{}", "");
+            case ll::hash_utils::doHash("3"):
+                return fmt::format(fmt::fg(fmt::color::alice_blue), "{}", "");
+            case ll::hash_utils::doHash("4"):
+                return fmt::format(fmt::fg(fmt::color::dark_red), "{}", "");
+            case ll::hash_utils::doHash("5"):
+                return fmt::format(fmt::fg(fmt::color::medium_purple), "{}", "");
+            case ll::hash_utils::doHash("6"):
+                return fmt::format(fmt::fg(fmt::color::gold), "{}", "");
+            case ll::hash_utils::doHash("7"):
+                return fmt::format(fmt::fg(fmt::color::gray), "{}", "");
+            case ll::hash_utils::doHash("8"):
+                return fmt::format(fmt::fg(fmt::color::dark_gray), "{}", "");
+            case ll::hash_utils::doHash("9"):
+                return fmt::format(fmt::fg(fmt::color::blue), "{}", "");
+            case ll::hash_utils::doHash("a"):
+                return fmt::format(fmt::fg(fmt::color::green), "{}", "");
+            case ll::hash_utils::doHash("b"):
+                return fmt::format(fmt::fg(fmt::color::aqua), "{}", "");
+            case ll::hash_utils::doHash("c"):
+                return fmt::format(fmt::fg(fmt::color::red), "{}", "");
+            case ll::hash_utils::doHash("d"):
+                return fmt::format(fmt::fg(fmt::color::purple), "{}", "");
+            case ll::hash_utils::doHash("e"):
+                return fmt::format(fmt::fg(fmt::color::yellow), "{}", "");
+            case ll::hash_utils::doHash("f"):
+                return fmt::format(fmt::fg(fmt::color::white), "{}", "");
+            case ll::hash_utils::doHash("g"):
+                return fmt::format(fmt::fg(fmt::color::golden_rod), "{}", "");
+        };
+        return "";
+    }
+
     std::string getNowTime(const std::string& format) {
         std::tm currentTimeInfo;
         std::time_t currentTime = std::time(nullptr);
@@ -42,12 +86,8 @@ namespace SystemUtils {
     }
 
     int toInt(const std::string& str, int defaultValue) {
-        const char* ptr = str.data();
-        char* endptr{};
-        int value = std::strtol(ptr, &endptr, 10);
-        if (endptr == ptr)
-            return defaultValue;
-        return value;
+        auto result = ll::string_utils::svtoi(str);
+        return result.has_value() ? result.value() : defaultValue;
     }
 
     bool isReach(const std::string& timeString) {

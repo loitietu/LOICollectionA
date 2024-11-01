@@ -1,6 +1,9 @@
+#include <regex>
 #include <vector>
 #include <cstdint>
 #include <functional>
+
+#include <Windows.h>
 
 #include <ll/api/memory/Hook.h>
 #include <ll/api/service/Bedrock.h>
@@ -38,6 +41,7 @@
 #include <mc/enums/SubClientId.h>
 
 #include "utils/McUtils.h"
+#include "utils/SystemUtils.h"
 
 #include "include/HookPlugin.h"
 
@@ -48,6 +52,38 @@ std::vector<std::function<bool(void*, std::string)>> mTextPacketSendEventCallbac
 std::vector<std::function<void(void*, std::string, std::string)>> mLoginPacketSendEventCallbacks;
 std::vector<std::function<void(void*, int, std::string, int)>> mPlayerScoreChangedEventCallbacks;
 std::vector<std::function<bool(void*, void*, float)>> mPlayerHurtEventCallbacks;
+
+LL_STATIC_HOOK(
+    WriteConsoleWHook,
+    HookPriority::Highest,
+    GetProcAddress(GetModuleHandle(L"kernel32.dll"), "WriteConsoleW"),
+    BOOL,
+    HANDLE h,
+    const void* x,
+    DWORD d,
+    LPDWORD lpd,
+    LPVOID lpv
+) {
+    if (x != nullptr) {
+        auto wchar = (wchar_t*) x;
+        std::string str = ll::string_utils::wstr2str(wchar);
+
+        size_t mIndex = 0;
+        std::smatch mMatch;
+        std::regex mPattern("§(.*?)");
+        while (std::regex_search(str.cbegin() + mIndex, str.cend(), mMatch, mPattern)) {
+            std::string extractedContent = mMatch.str(1);
+            std::string colorCode = SystemUtils::getColorCode(extractedContent);
+            if (!colorCode.empty())
+                ll::string_utils::replaceAll(str, "§" + extractedContent, colorCode);
+            mIndex = mMatch.position() + mMatch.length();
+        };
+
+        auto wstr = ll::string_utils::str2wstr(str);
+        return origin(h, wstr.c_str(), d, lpd, lpv);
+    }
+    return origin(h, x, d, lpd, lpv);
+};
 
 LL_TYPE_INSTANCE_HOOK(
     FakeSeedHook,
@@ -252,6 +288,8 @@ LL_TYPE_INSTANCE_HOOK(
 };
 
 namespace LOICollection::HookPlugin {
+    bool mColorLog = false;
+
     namespace Event {
         void onTextPacketSendEvent(const std::function<bool(void*, const std::string&)>& callback) {
             mTextPacketSendEventCallbacks.push_back(callback);
@@ -283,7 +321,13 @@ namespace LOICollection::HookPlugin {
         mFakeSeed = result.has_value() ? result.value() : ll::random_utils::rand<int64_t>();
     }
 
+    void setColorLog(bool enable) {
+        mColorLog = enable;
+    }
+
     void registery() {
+        if (mColorLog) WriteConsoleWHook::hook();
+        
         FakeSeedHook::hook();
         InterceptPacketHook1::hook();
         InterceptPacketHook2::hook();
@@ -296,6 +340,8 @@ namespace LOICollection::HookPlugin {
     }
 
     void unregistery() {
+        if (mColorLog) WriteConsoleWHook::unhook();
+
         FakeSeedHook::unhook();
         InterceptPacketHook1::unhook();
         InterceptPacketHook2::unhook();
