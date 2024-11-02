@@ -17,6 +17,17 @@
                 "type": "commodity"
             },
             {
+                "title": "Nbt Apple",
+                "image": "textures/items/apple",
+                "introduce": "A red apple\nscores: ${scores}",
+                "number": "Buy number",
+                "nbt": "{Count:2b,Damage:0s,Name:'minecraft:apple',WasPickedUp:0b}",
+                "scores": {
+                    "money": 100
+                },
+                "type": "commodity"
+            },
+            {
                 "title": "Buy Title Shop",
                 "image": "",
                 "menu": "titleBuy",

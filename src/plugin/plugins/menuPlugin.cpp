@@ -626,9 +626,8 @@ namespace LOICollection::Plugins::menu {
                 Player* player = static_cast<Player*>(entity);
                 ItemStack itemStack(mItemId, 1);
 
-                if (!itemStack)
-                    return output.error("Failed to give the MenuItem to player {}", player->getRealName());
-                if (McUtils::isItemPlayerInventory(player, &itemStack))
+                if (!itemStack) return output.error("Failed to give the MenuItem to player {}", player->getRealName());
+                if (McUtils::isItemPlayerInventory(player, mItemId, 1))
                     return output.error("The MenuItem has already been given to player {}", player->getRealName());
 
                 player->add(itemStack);
@@ -652,7 +651,7 @@ namespace LOICollection::Plugins::menu {
                     if (event.self().isSimulatedPlayer())
                         return;
                     ItemStack itemStack(mItemId, 1);
-                    if (!itemStack || McUtils::isItemPlayerInventory(&event.self(), &itemStack))
+                    if (!itemStack || McUtils::isItemPlayerInventory(&event.self(), mItemId, 1))
                         return;
                     event.self().add(itemStack);
                     event.self().refreshInventory();

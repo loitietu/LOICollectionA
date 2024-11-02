@@ -15,6 +15,8 @@
 #include <ll/api/utils/StringUtils.h>
 #include <ll/api/utils/HashUtils.h>
 
+#include <mc/nbt/Tag.h>
+#include <mc/nbt/CompoundTag.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
 #include <mc/world/item/registry/ItemStack.h>
@@ -409,21 +411,28 @@ namespace LOICollection::Plugins::shop {
                 if (!dt) return McUtils::executeCommand(&pl, original.at("exit").get<std::string>());
 
                 int mNumber = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
+                if (mNumber > 2304) return;
                 if (type) {
                     if (checkModifiedData(&pl, data, mNumber)) {
-                        ItemStack itemStack(data.at("id").get<std::string>(), mNumber);
+                        ItemStack itemStack = data.contains("nbt") ? ItemStack::fromTag(CompoundTag::fromSnbt(data.at("nbt").get<std::string>())->mTags)
+                            : ItemStack(data.at("id").get<std::string>(), 1);
+                        for (int i = 0; i < (int)(mNumber / 64); ++i) {
+                            ItemStack itemStackC = itemStack.clone();
+                            itemStackC.mCount = 64;
+                            pl.add(itemStackC);
+                        }
+                        itemStack.mCount = mNumber % 64;
                         pl.add(itemStack);
                         pl.refreshInventory();
                         return;
                     }
                     return McUtils::executeCommand(&pl, data.at("NoScore").get<std::string>());
                 }
-                ItemStack itemStack(data.at("id").get<std::string>(), mNumber);
-                if (McUtils::isItemPlayerInventory(&pl, &itemStack)) {
+                if (McUtils::isItemPlayerInventory(&pl, data.at("id").get<std::string>(), mNumber)) {
                     nlohmann::ordered_json mScoreboardBase = data.at("scores");
                     for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
                         McUtils::scoreboard::addScore(&pl, it.key(), (it.value().get<int>() * mNumber));
-                    McUtils::clearItem(&pl, &itemStack);
+                    McUtils::clearItem(&pl, data.at("id").get<std::string>(), mNumber);
                     pl.refreshInventory();
                     return;
                 }

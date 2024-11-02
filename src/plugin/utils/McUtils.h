@@ -13,7 +13,7 @@
 
 namespace McUtils {
     void executeCommand(Player* player, std::string cmd);
-    void clearItem(Player* player, void* itemStack_ptr);
+    void clearItem(Player* player, std::string mTypeName, int mNumber);
     void broadcastText(const std::string& text);
 
     std::vector<Player*> getAllPlayers();
@@ -21,7 +21,7 @@ namespace McUtils {
 
     Player* getPlayerFromName(const std::string& name);
         
-    bool isItemPlayerInventory(Player* player, void* itemStack_ptr);
+    bool isItemPlayerInventory(Player* player, std::string mTypeName, int mNumber);
 
     namespace Gui {
         void submission(Player* player, std::function<void(Player*)> callback);

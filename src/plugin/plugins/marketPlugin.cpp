@@ -129,6 +129,7 @@ namespace LOICollection::Plugins::market {
                 std::string mName = db->get(mItemId, "name");
                 std::string mNbt = db->get(mItemId, "nbt");
                 std::string mTips = tr(getLanguage(&pl), "market.gui.sell.sellItem.tips3");
+                
                 ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mNbt)->mTags);
                 pl.sendMessage(ll::string_utils::replaceAll(mTips, "${item}", mName));
                 pl.add(mItemStack);

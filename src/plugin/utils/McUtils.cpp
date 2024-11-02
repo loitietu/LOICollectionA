@@ -49,20 +49,18 @@ namespace McUtils {
         }
     }
 
-    void clearItem(Player* player, void* itemStack_ptr) {
-        ItemStack* itemStack = static_cast<ItemStack*>(itemStack_ptr);
-        if (!itemStack || !player)
-            return;
-        int mItemStackCount = itemStack->mCount;
+    void clearItem(Player* player, std::string mTypeName, int mNumber) {
+        if (!player) return;
+        
         Container& mItemInventory = player->getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             auto& mItemObject = mItemInventory.getItem(i);
-            if (mItemObject.isValid() && itemStack->getTypeName() == mItemObject.getTypeName()) {
-                if (mItemObject.mCount >= mItemStackCount) {
-                    mItemInventory.removeItem(i, mItemStackCount);
+            if (mItemObject.isValid() && mTypeName == mItemObject.getTypeName()) {
+                if (mItemObject.mCount >= mNumber) {
+                    mItemInventory.removeItem(i, mNumber);
                     return;
                 }
-                mItemStackCount -= mItemObject.mCount;
+                mNumber -= mItemObject.mCount;
                 mItemInventory.removeItem(i, mItemObject.mCount);
             }
         }
@@ -98,18 +96,16 @@ namespace McUtils {
         return nullptr;
     }
         
-    bool isItemPlayerInventory(Player* player, void* itemStack_ptr) {
-        ItemStack* itemStack = static_cast<ItemStack*>(itemStack_ptr);
-        if (!itemStack || !player)
-            return false;
-        int mItemStackCount = itemStack->mCount;
+    bool isItemPlayerInventory(Player* player, std::string mTypeName, int mNumber) {
+        if (!player) return false;
+
         Container& mItemInventory = player->getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             auto& mItemObject = mItemInventory.getItem(i);
-            if (mItemObject.isValid() && itemStack->getTypeName() == mItemObject.getTypeName()) {
-                if (mItemStackCount <= mItemObject.mCount)
+            if (mItemObject.isValid() && mTypeName == mItemObject.getTypeName()) {
+                if (mNumber <= mItemObject.mCount)
                     return true;
-                mItemStackCount -= mItemObject.mCount;
+                mNumber -= mItemObject.mCount;
             }
         }
         return false;
