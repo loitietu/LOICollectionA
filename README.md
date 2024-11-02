@@ -4,20 +4,19 @@
 ### [English](README.md) | [简体中文](README.zh.md)
 
 ## Implemented Features
-Feature | Completed
---- | :---:
-Blacklist | $\color{#00FF00}{√}$
-Mute | $\color{#00FF00}{√}$
-Cdk | $\color{#00FF00}{√}$
-Menu | $\color{#00FF00}{√}$
-Tpa | $\color{#00FF00}{√}$
-Shop | $\color{#00FF00}{√}$
-Monitor | $\color{#00FF00}{√}$
-Pvp | $\color{#00FF00}{√}$
-Wallet | $\color{#00FF00}{√}$
-Chat | $\color{#00FF00}{√}$
-Announcement | $\color{#00FF00}{√}$
-Market | $\color{#00FF00}{√}$
+- [x] Blacklist
+- [x] Mute
+- [x] Cdk
+- [x] Menu
+- [x] Tpa
+- [x] Shop
+- [x] Monitor
+- [x] Pvp
+- [x] Wallet
+- [x] Chat
+- [x] Announcement
+- [x] Market
+- ...
 
 ### How to Install the Plugin?
 1. Execute the command in the server directory:

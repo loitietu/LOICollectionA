@@ -18,8 +18,8 @@
 #include <ll/api/utils/StringUtils.h>
 #include <ll/api/utils/HashUtils.h>
 
-#include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
+#include <mc/world/actor/player/Player.h>
 #include <mc/world/item/registry/ItemStack.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>

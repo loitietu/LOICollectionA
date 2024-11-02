@@ -4,20 +4,19 @@
 ### [English](README.md) | [简体中文](README.zh.md)
 
 ## 实现插件
-实现功能 | 完成
---- | :---:
-Blacklist | $\color{#00FF00}{√}$
-Mute | $\color{#00FF00}{√}$
-Cdk | $\color{#00FF00}{√}$
-Menu | $\color{#00FF00}{√}$
-Tpa | $\color{#00FF00}{√}$
-Shop | $\color{#00FF00}{√}$
-Monitor | $\color{#00FF00}{√}$
-Pvp | $\color{#00FF00}{√}$
-Wallet | $\color{#00FF00}{√}$
-Chat | $\color{#00FF00}{√}$
-AnnounCement | $\color{#00FF00}{√}$
-Market | $\color{#00FF00}{√}$
+- [x] Blacklist
+- [x] Mute
+- [x] Cdk
+- [x] Menu
+- [x] Tpa
+- [x] Shop
+- [x] Monitor
+- [x] Pvp
+- [x] Wallet
+- [x] Chat
+- [x] Announcement
+- [x] Market
+- ...
 
 ### 如何安装插件？
 1. 在服务器目录中执行命令

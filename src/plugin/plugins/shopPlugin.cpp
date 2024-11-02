@@ -1,8 +1,8 @@
 #include <memory>
-#include <utility>
 #include <vector>
 #include <string>
 #include <stdexcept>
+#include <utility>
 
 #include <ll/api/Logger.h>
 #include <ll/api/form/ModalForm.h>
@@ -17,8 +17,8 @@
 
 #include <mc/nbt/Tag.h>
 #include <mc/nbt/CompoundTag.h>
-#include <mc/world/actor/player/Player.h>
 #include <mc/entity/utilities/ActorType.h>
+#include <mc/world/actor/player/Player.h>
 #include <mc/world/item/registry/ItemStack.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
