@@ -35,7 +35,6 @@ lip install github.com/loitietu/LOICollectionA
 ```json
 {
     "version": 149,
-    "ColorLog": false,
     "Plugins": {
         "FakeSeed": "$random",
         "language": {

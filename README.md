@@ -35,7 +35,6 @@ Market | $\color{#00FF00}{√}$
 ```json
 {
     "version": 149,
-    "ColorLog": false,
     "Plugins": {
         "FakeSeed": "$random",
         "language": {

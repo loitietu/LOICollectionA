@@ -95,7 +95,6 @@ namespace LOICollection {
         I18nUtils::load(langFilePath);
         logger.info("Initialization of language file completed.");
 
-        HookPlugin::setColorLog(this->config.ColorLog);
         HookPlugin::setFakeSeed(this->config.Plugins.FakeSeed);
         logger.info("Initialization of Hook completed.");
         return true;

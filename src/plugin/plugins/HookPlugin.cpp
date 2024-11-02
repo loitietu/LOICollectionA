@@ -1,9 +1,6 @@
-#include <regex>
 #include <vector>
 #include <cstdint>
 #include <functional>
-
-#include <Windows.h>
 
 #include <ll/api/memory/Hook.h>
 #include <ll/api/service/Bedrock.h>
@@ -26,22 +23,26 @@
 #include <mc/world/level/LevelSeed64.h>
 
 #include <mc/deps/core/utility/BinaryStream.h>
+
 #include <mc/network/packet/StartGamePacket.h>
 #include <mc/network/packet/LoginPacket.h>
 #include <mc/network/packet/TextPacket.h>
 #include <mc/network/ServerNetworkHandler.h>
 #include <mc/network/NetworkIdentifier.h>
+
 #include <mc/certificates/Certificate.h>
 #include <mc/certificates/ExtendedCertificate.h>
+
+#include <mc/server/ServerPlayer.h>
 #include <mc/server/LoopbackPacketSender.h>
 
 #include <mc/entity/utilities/ActorType.h>
+
 #include <mc/enums/MinecraftPacketIds.h>
 #include <mc/enums/TextPacketType.h>
 #include <mc/enums/SubClientId.h>
 
 #include "utils/McUtils.h"
-#include "utils/SystemUtils.h"
 
 #include "include/HookPlugin.h"
 
@@ -50,40 +51,9 @@ std::vector<std::string> mInterceptedTextPacketTargets;
 std::vector<std::string> mInterceptedGetNameTagTargets;
 std::vector<std::function<bool(void*, std::string)>> mTextPacketSendEventCallbacks;
 std::vector<std::function<void(void*, std::string, std::string)>> mLoginPacketSendEventCallbacks;
+std::vector<std::function<void(std::string)>> mPlayerDisconnectBeforeEventCallbacks;
 std::vector<std::function<void(void*, int, std::string, int)>> mPlayerScoreChangedEventCallbacks;
 std::vector<std::function<bool(void*, void*, float)>> mPlayerHurtEventCallbacks;
-
-LL_STATIC_HOOK(
-    WriteConsoleWHook,
-    HookPriority::Highest,
-    GetProcAddress(GetModuleHandle(L"kernel32.dll"), "WriteConsoleW"),
-    BOOL,
-    HANDLE h,
-    const void* x,
-    DWORD d,
-    LPDWORD lpd,
-    LPVOID lpv
-) {
-    if (x != nullptr) {
-        auto wchar = (wchar_t*) x;
-        std::string str = ll::string_utils::wstr2str(wchar);
-
-        size_t mIndex = 0;
-        std::smatch mMatch;
-        std::regex mPattern("§(.*?)");
-        while (std::regex_search(str.cbegin() + mIndex, str.cend(), mMatch, mPattern)) {
-            std::string extractedContent = mMatch.str(1);
-            std::string colorCode = SystemUtils::getColorCode(extractedContent);
-            if (!colorCode.empty())
-                ll::string_utils::replaceAll(str, "§" + extractedContent, colorCode);
-            mIndex = mMatch.position() + mMatch.length();
-        };
-
-        auto wstr = ll::string_utils::str2wstr(str);
-        return origin(h, wstr.c_str(), d, lpd, lpv);
-    }
-    return origin(h, x, d, lpd, lpv);
-};
 
 LL_TYPE_INSTANCE_HOOK(
     FakeSeedHook,
@@ -107,11 +77,6 @@ LL_TYPE_INSTANCE_HOOK(
     SubClientId subId,
     Packet const& packet
 ) {
-    if (mInterceptedTextPacketTargets.size() >= 10000) {
-        mInterceptedTextPacketTargets.clear();
-        for (auto& player : McUtils::getAllPlayers())
-            mInterceptedTextPacketTargets.push_back(player->getUuid().asString());
-    }
     if (packet.getId() == MinecraftPacketIds::Text) {
         auto mTextPacket = static_cast<TextPacket const&>(packet);
         if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {
@@ -134,11 +99,6 @@ LL_TYPE_INSTANCE_HOOK(
     void,
     Packet const& packet
 ) {
-    if (mInterceptedTextPacketTargets.size() >= 10000) {
-        mInterceptedTextPacketTargets.clear();
-        for (auto& player : McUtils::getAllPlayers())
-            mInterceptedTextPacketTargets.push_back(player->getUuid().asString());
-    }
     if (packet.getId() == MinecraftPacketIds::Text) {
         auto mTextPacket = static_cast<TextPacket const&>(packet);
         if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {
@@ -160,11 +120,6 @@ LL_TYPE_INSTANCE_HOOK(
     &Actor::getNameTag,
     std::string const&
 ) {
-    if (mInterceptedGetNameTagTargets.size() >= 10000) {
-        mInterceptedGetNameTagTargets.clear();
-        for (auto& player : McUtils::getAllPlayers())
-            mInterceptedGetNameTagTargets.push_back(player->getUuid().asString());
-    }
     if (this->isType(ActorType::Player)) {
         Player* player = (Player*) this;
         if (std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), player->getUuid().asString()) != mInterceptedGetNameTagTargets.end()) {
@@ -180,14 +135,14 @@ LL_TYPE_INSTANCE_HOOK(
     TextPacketSendHook,
     HookPriority::High,
     ServerNetworkHandler,
-    "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVTextPacket@@@Z",
+    &ServerNetworkHandler::handle,
     void,
-    NetworkIdentifier& identifier,
-    TextPacket& packet
+    NetworkIdentifier const& identifier,
+    TextPacket const& packet
 ) {
-    Player* player = McUtils::getPlayerFromName(packet.mAuthor);
+    Player* player = this->getServerPlayer(identifier, packet.mClientSubId);
     
-    if (player == nullptr) return origin(identifier, packet);
+    if (!player) return origin(identifier, packet);
     for (auto& callback : mTextPacketSendEventCallbacks)
         if (callback(player, packet.mMessage)) return;
     return origin(identifier, packet);
@@ -197,24 +152,38 @@ LL_TYPE_INSTANCE_HOOK(
     LoginPacketSendHook,
     HookPriority::Normal,
     ServerNetworkHandler,
-    "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVLoginPacket@@@Z",
+    &ServerNetworkHandler::handle,
     void,
-    NetworkIdentifier& identifier,
-    LoginPacket& packet
+    NetworkIdentifier const& identifier,
+    LoginPacket const& packet
 ) {
     origin(identifier, packet);
     auto certificate = packet.mConnectionRequest->getCertificate();
     auto uuid = ExtendedCertificate::getIdentity(*certificate).asString();
-    auto ipAndPort = identifier.getIPAndPort();
+    auto ipAndPort = identifier.getIPAndPort();    
     for (auto& callback : mLoginPacketSendEventCallbacks)
-        callback(&identifier, uuid, ipAndPort);
+        callback(&const_cast<NetworkIdentifier&>(identifier), uuid, ipAndPort);
+};
+
+LL_TYPE_INSTANCE_HOOK(
+    PlayerDisconnectBeforeHook,
+    HookPriority::Normal,
+    ServerPlayer,
+    &ServerPlayer::disconnect,
+    void
+) {
+    std::string mUuid = this->getUuid().asString();
+    
+    origin();
+    for (auto& callback : mPlayerDisconnectBeforeEventCallbacks)
+        callback(mUuid);
 };
 
 LL_TYPE_INSTANCE_HOOK(
     PlayerScoreChangedHook,
     HookPriority::Normal,
     Scoreboard,
-    "?modifyPlayerScore@Scoreboard@@QEAAHAEA_NAEBUScoreboardId@@AEAVObjective@@HW4PlayerScoreSetFunction@@@Z",
+    &Scoreboard::modifyPlayerScore,
     int,
     bool& success,
     ScoreboardId const& id,
@@ -288,15 +257,17 @@ LL_TYPE_INSTANCE_HOOK(
 };
 
 namespace LOICollection::HookPlugin {
-    bool mColorLog = false;
-
     namespace Event {
-        void onTextPacketSendEvent(const std::function<bool(void*, const std::string&)>& callback) {
+        void onTextPacketSendEvent(const std::function<bool(void*, std::string)>& callback) {
             mTextPacketSendEventCallbacks.push_back(callback);
         }
 
         void onLoginPacketSendEvent(const std::function<void(void*, std::string, std::string)>& callback) {
             mLoginPacketSendEventCallbacks.push_back(callback);
+        }
+
+        void onPlayerDisconnectBeforeEvent(const std::function<void(std::string)>& callback) {
+            mPlayerDisconnectBeforeEventCallbacks.push_back(callback);
         }
 
         void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string, int)>& callback) {
@@ -309,10 +280,18 @@ namespace LOICollection::HookPlugin {
     }
 
     void interceptTextPacket(const std::string& uuid) {
+        if (auto it = std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), uuid);it != mInterceptedTextPacketTargets.end()) {
+            mInterceptedTextPacketTargets.erase(it);
+            return;
+        }
         mInterceptedTextPacketTargets.push_back(uuid);
     }
 
     void interceptGetNameTag(const std::string& uuid) {
+        if (auto it = std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), uuid);it != mInterceptedGetNameTagTargets.end()) {
+            mInterceptedGetNameTagTargets.erase(it);
+            return;
+        }
         mInterceptedGetNameTagTargets.push_back(uuid);
     }
 
@@ -321,33 +300,27 @@ namespace LOICollection::HookPlugin {
         mFakeSeed = result.has_value() ? result.value() : ll::random_utils::rand<int64_t>();
     }
 
-    void setColorLog(bool enable) {
-        mColorLog = enable;
-    }
-
     void registery() {
-        if (mColorLog) WriteConsoleWHook::hook();
-        
         FakeSeedHook::hook();
         InterceptPacketHook1::hook();
         InterceptPacketHook2::hook();
         InterceptGetNameTagHook::hook();
         TextPacketSendHook::hook();
         LoginPacketSendHook::hook();
+        PlayerDisconnectBeforeHook::hook();
         PlayerScoreChangedHook::hook();
         PlayerHurtHook1::hook();
         PlayerHurtHook2::hook();
     }
 
     void unregistery() {
-        if (mColorLog) WriteConsoleWHook::unhook();
-
         FakeSeedHook::unhook();
         InterceptPacketHook1::unhook();
         InterceptPacketHook2::unhook();
         InterceptGetNameTagHook::unhook();
         TextPacketSendHook::unhook();
         LoginPacketSendHook::unhook();
+        PlayerDisconnectBeforeHook::unhook();
         PlayerScoreChangedHook::unhook();
         PlayerHurtHook1::unhook();
         PlayerHurtHook2::unhook();

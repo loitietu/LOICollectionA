@@ -6,7 +6,6 @@
 
 struct C_Config {
     int version = 0;
-    bool ColorLog = false;
     struct C_Plugins {
         std::string FakeSeed = "$random";
         struct C_Language{

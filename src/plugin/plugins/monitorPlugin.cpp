@@ -75,6 +75,10 @@ namespace LOICollection::Plugins::monitor {
                 LOICollection::HookPlugin::interceptTextPacket(mUuid);
                 LOICollection::HookPlugin::interceptGetNameTag(mUuid);
             });
+            LOICollection::HookPlugin::Event::onPlayerDisconnectBeforeEvent([](std::string mUuid) {
+                LOICollection::HookPlugin::interceptTextPacket(mUuid);
+                LOICollection::HookPlugin::interceptGetNameTag(mUuid);
+            });
             LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([](void* player_ptr, int score, std::string id, int type) {
                 Player* player = static_cast<Player*>(player_ptr);
                 std::string target = std::get<std::string>(mObjectOptions.at("target"));
