@@ -16,7 +16,6 @@
 - [x] Chat
 - [x] Announcement
 - [x] Market
-- ...
 
 ### 如何安装插件？
 1. 在服务器目录中执行命令

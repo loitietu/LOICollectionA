@@ -16,7 +16,6 @@
 - [x] Chat
 - [x] Announcement
 - [x] Market
-- ...
 
 ### How to Install the Plugin?
 1. Execute the command in the server directory:
@@ -68,7 +67,7 @@
             "Enable": false,
             "chat": "<{player}> ${chat}"
         },
-        "Announcement": false,
+        "AnnounCement": false,
         "Market": {
             "Enable": false,
             "score": "money"

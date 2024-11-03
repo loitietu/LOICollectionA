@@ -39,7 +39,6 @@ using LOICollection::Plugins::language::getLanguage;
 namespace LOICollection::Plugins::cdk {
     struct CDKOP {
         std::string convertString;
-        bool setting = false;
     };
 
     std::unique_ptr<JsonStorage> db;
@@ -284,20 +283,24 @@ namespace LOICollection::Plugins::cdk {
                 cdkConvert(player, param.convertString);
                 output.success("The player {} has been converted to cdk: {}", player->getRealName(), param.convertString);
             });
-            command.overload<CDKOP>().text("gui").optional("setting").execute([](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) {
+            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isType(ActorType::Player))
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                if (param.setting) {
-                    if ((int) player->getPlayerPermissionLevel() >= 2) {
-                        output.success("The UI has been opened to player {}", player->getRealName());
-                        return MainGui::open(player);
-                    }
-                    return output.error("No permission to open the Setting.");
-                }
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::convert(player);
+            });
+            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
+                auto* entity = origin.getEntity();
+                if (entity == nullptr ||!entity->isType(ActorType::Player))
+                    return output.error("No player selected.");
+                Player* player = static_cast<Player*>(entity);
+                if ((int) player->getPlayerPermissionLevel() >= 2) {
+                    output.success("The UI has been opened to player {}", player->getRealName());
+                    return MainGui::open(player);
+                }
+                output.error("No permission to open the Setting.");
             });
         }
     }
