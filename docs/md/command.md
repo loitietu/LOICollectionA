@@ -115,14 +115,20 @@
 ## Tpa
 ```log
 ? tpa
-11:57:37.933 INFO [Server] tpa:
-11:57:37.933 INFO [Server] LOICollection -> 玩家互传
-11:57:37.936 INFO [Server] Usage:
-11:57:37.936 INFO [Server] - /tpa gui
-11:57:37.936 INFO [Server] - /tpa setting
+10:36:58.505 INFO [Server] tpa:
+10:36:58.506 INFO [Server] LOICollection -> 玩家互传
+10:36:58.508 INFO [Server] Usage:
+10:36:58.509 INFO [Server] - /tpa gui
+10:36:58.510 INFO [Server] - /tpa invite <tpa|tphere> <target: target>
+10:36:58.511 INFO [Server] - /tpa setting
 ```
 
 ?> 其中 `tpa` 为 Tpa 的顶层命令（权限等级: Any）。
+
+- `tpa invite <tpa|tphere> <target: target>`
+  - 向目标发送传送请求。
+  - 其中 `<tpa|tphere>` 为传送类型。
+  - 其中 `<target: target>` 为目标选择器。
 
 - `/tpa gui`
   - 打开 Tpa GUI。
@@ -188,14 +194,31 @@
 ## Chat
 ```log
 ? chat
-12:02:08.795 INFO [Server] chat:
-12:02:08.795 INFO [Server] LOICollection -> 个人称号
-12:02:08.795 INFO [Server] Usage:
-12:02:08.795 INFO [Server] - /chat gui
-12:02:08.795 INFO [Server] - /chat setting
+22:21:38.303 INFO [Server] chat:
+22:21:38.303 INFO [Server] LOICollection -> 个人称号
+22:21:38.303 INFO [Server] Usage:
+22:21:38.303 INFO [Server] - /chat add <target: target> <titleName: string> [time: int]
+22:21:38.303 INFO [Server] - /chat gui
+22:21:38.303 INFO [Server] - /chat list
+22:21:38.303 INFO [Server] - /chat remove <target: target> <titleName: string>
+22:21:38.303 INFO [Server] - /chat setting
 ```
 
 ?> 其中 `chat` 为 Chat 的顶层命令（权限等级: Any）。
+
+- `/chat add <target: target> <titleName: string> [time: int]`
+  - 为目标添加指定称号（权限等级: GameDirectors）。
+  - 其中 `<target: target>` 为目标选择器。
+  - 其中 `<titleName: string>` 为称号名称。
+  - 其中 `[time: int]` 为称号时间（单位：小时）。
+
+- `/chat remove <target: target> <titleName: string>`
+  - 为目标移除指定称号（权限等级: GameDirectors）。
+  - 其中 `<target: target>` 为目标选择器。
+  - 其中 `<titleName: string>` 为称号名称。
+
+- `/chat list`
+  - 列出个人的所有称号。
 
 - `/chat gui`
   - 打开管理称号 GUI（权限等级: GameDirectors）。

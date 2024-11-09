@@ -19,7 +19,6 @@
 #include <mc/nbt/Tag.h>
 #include <mc/nbt/CompoundTag.h>
 #include <mc/world/actor/player/Player.h>
-#include <mc/entity/utilities/ActorType.h>
 #include <mc/world/item/registry/ItemStack.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
@@ -272,7 +271,7 @@ namespace LOICollection::Plugins::market {
                 .getOrCreateCommand("market", "§e§lLOICollection -> §b玩家市场", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
@@ -280,7 +279,7 @@ namespace LOICollection::Plugins::market {
             });
             command.overload().text("sell").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());

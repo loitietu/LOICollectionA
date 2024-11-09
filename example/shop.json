@@ -8,7 +8,7 @@
             {
                 "title": "Apple",
                 "image": "textures/items/apple",
-                "introduce": "A red apple\nscores: ${scores}",
+                "introduce": "A red apple\nscores: 100",
                 "number": "Buy number",
                 "id": "minecraft:apple",
                 "scores": {
@@ -19,7 +19,7 @@
             {
                 "title": "Nbt Apple",
                 "image": "textures/items/apple",
-                "introduce": "A red apple\nscores: ${scores}",
+                "introduce": "A red apple\nscores: 100",
                 "number": "Buy number",
                 "nbt": "{Count:2b,Damage:0s,Name:'minecraft:apple',WasPickedUp:0b}",
                 "scores": {
@@ -45,7 +45,7 @@
             {
                 "title": "Test Title",
                 "image": "",
-                "introduce": "This is a test title\nscores: ${scores}",
+                "introduce": "This is a test title\nscores: 100",
                 "confirmButton": "Confirm",
                 "cancelButton": "Cancel",
                 "id": "Test Title",
@@ -68,7 +68,7 @@
             {
                 "title": "Apple",
                 "image": "textures/items/apple",
-                "introduce": "A red apple\nscores: ${scores}",
+                "introduce": "A red apple\nscores: 100",
                 "number": "Sell number",
                 "id": "minecraft:apple",
                 "scores": {
@@ -95,7 +95,7 @@
             {
                 "title": "Test Title",
                 "image": "",
-                "introduce": "This is a test title\nscores: ${scores}",
+                "introduce": "This is a test title\nscores: 100",
                 "confirmButton": "Confirm",
                 "cancelButton": "Cancel",
                 "id": "Test Title",

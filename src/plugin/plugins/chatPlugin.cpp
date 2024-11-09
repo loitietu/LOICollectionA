@@ -1,4 +1,5 @@
 #include <memory>
+#include <numeric>
 #include <string>
 #include <stdexcept>
 
@@ -16,10 +17,12 @@
 #include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
-#include <mc/entity/utilities/ActorType.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
+#include <mc/server/commands/CommandSelector.h>
+#include <mc/server/commands/CommandOriginType.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
+#include <mc/server/commands/CommandOutputMessageType.h>
 
 #include "include/APIUtils.h"
 #include "include/languagePlugin.h"
@@ -36,7 +39,23 @@
 using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;
 
+bool isPermissionFormCommandOrigin(CommandOrigin const& origin, int permissionLevel) {
+    if (origin.getOriginType() == CommandOriginType::DedicatedServer) {
+        return ((int) origin.getPermissionsLevel()) >= permissionLevel;
+    } else {
+        auto* entity = origin.getEntity();
+        return ((entity != nullptr && entity->isPlayer()) && (int)(static_cast
+            <Player*>(entity)->getPlayerPermissionLevel()) >= permissionLevel);
+    }
+}
+
 namespace LOICollection::Plugins::chat {
+    struct ChatOP {
+        CommandSelector<Player> target;
+        std::string titleName;
+        int time = 0;
+    };
+
     std::string mChatString;
     std::unique_ptr<SQLiteStorage> db;
     ll::event::ListenerPtr PlayerChatEventListener;
@@ -178,9 +197,41 @@ namespace LOICollection::Plugins::chat {
                 throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("chat", "§e§lLOICollection -> §b个人称号", CommandPermissionLevel::Any);
+            command.overload<ChatOP>().text("add").required("target").required("titleName").optional("time").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
+                if (!isPermissionFormCommandOrigin(origin, 2))
+                    return output.error("No permission to add chat.");
+                for (auto& pl : param.target.results(origin)) {
+                    output.addMessage(fmt::format("Add Chat for Player {}.", 
+                        pl->getRealName()), {}, CommandOutputMessageType::Success);
+                    addChat(pl, param.titleName, param.time);
+                }
+            });
+            command.overload<ChatOP>().text("remove").required("target").required("titleName").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
+                if (!isPermissionFormCommandOrigin(origin, 2))
+                    return output.error("No permission to remove chat.");
+                for (auto& pl : param.target.results(origin)) {
+                    output.addMessage(fmt::format("Remove Chat for Player {}.",
+                        pl->getRealName()), {}, CommandOutputMessageType::Success);
+                    delChat(pl, param.titleName);
+                }
+            });
+            command.overload().text("list").execute([](CommandOrigin const& origin, CommandOutput& output) {
+                auto* entity = origin.getEntity();
+                if (entity == nullptr ||!entity->isPlayer())
+                    return output.error("No player selected.");
+                std::string mObject = static_cast<Player*>(entity)->getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+                std::vector<std::string> mObjectList = db->list("OBJECT$" + mObject + "$TITLE");
+                std::string result = std::accumulate(mObjectList.begin(), mObjectList.end(), std::string(),
+                    [](const std::string& a, const std::string& b) {
+                    return a + (a.empty() ? "" : ", ") + ll::string_utils::replaceAll(b, "OBJECT$", "");
+                });
+                output.success("Chat: {}", result);
+            });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {
@@ -191,7 +242,7 @@ namespace LOICollection::Plugins::chat {
             });
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());

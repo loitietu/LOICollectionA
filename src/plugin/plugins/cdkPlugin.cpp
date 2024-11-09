@@ -12,7 +12,6 @@
 #include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
-#include <mc/entity/utilities/ActorType.h>
 #include <mc/world/item/registry/ItemStack.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
@@ -277,7 +276,7 @@ namespace LOICollection::Plugins::cdk {
                 .getOrCreateCommand("cdk", "§e§lLOICollection -> §b总换码", CommandPermissionLevel::Any);
             command.overload<CDKOP>().text("convert").required("convertString").execute([](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 cdkConvert(player, param.convertString);
@@ -285,7 +284,7 @@ namespace LOICollection::Plugins::cdk {
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
@@ -293,7 +292,7 @@ namespace LOICollection::Plugins::cdk {
             });
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr ||!entity->isType(ActorType::Player))
+                if (entity == nullptr ||!entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {

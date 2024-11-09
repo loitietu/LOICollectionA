@@ -14,9 +14,7 @@
 
 #include <mc/world/level/Level.h>
 #include <mc/world/actor/Actor.h>
-#include <mc/world/actor/ActorDamageSource.h>
 #include <mc/world/actor/player/Player.h>
-#include <mc/entity/utilities/ActorType.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
@@ -66,7 +64,7 @@ namespace LOICollection::Plugins::pvp {
                 .getOrCreateCommand("pvp", "§e§lLOICollection -> §b服务器PVP", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
@@ -74,7 +72,7 @@ namespace LOICollection::Plugins::pvp {
             });
             command.overload().text("off").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The PVP has been disabled");
@@ -82,7 +80,7 @@ namespace LOICollection::Plugins::pvp {
             });
             command.overload().text("on").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The PVP has been enabled");
@@ -107,6 +105,7 @@ namespace LOICollection::Plugins::pvp {
             LOICollection::HookPlugin::Event::onPlayerHurtEvent([](void* target_ptr, void* source_ptr, float /*unused*/) {
                 Player* target = static_cast<Player*>(target_ptr);
                 Player* source = static_cast<Player*>(source_ptr);
+
                 if (!isEnable(target) && !target->isSimulatedPlayer()) {
                     source->sendMessage(tr(getLanguage(source), "pvp.off1"));
                     return true;

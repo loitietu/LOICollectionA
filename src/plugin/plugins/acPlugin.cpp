@@ -14,7 +14,6 @@
 #include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
-#include <mc/entity/utilities/ActorType.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
@@ -138,7 +137,7 @@ namespace LOICollection::Plugins::announcement {
                 .getOrCreateCommand("announcement", "§e§lLOICollection -> §a公告系统", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
@@ -146,7 +145,7 @@ namespace LOICollection::Plugins::announcement {
             });
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
@@ -154,7 +153,7 @@ namespace LOICollection::Plugins::announcement {
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {

@@ -24,70 +24,50 @@ using namespace ll::chrono_literals;
 
 std::unordered_map<DimensionType, std::unordered_map<BlockPos, int>> mRedStoneMap;
 
-#define RedStoneUpdateHookMacro(NAME, TYPE, SYMBOL)                                         \
-    LL_TYPE_INSTANCE_HOOK(                                                                  \
-        NAME,                                                                               \
-        HookPriority::Normal,                                                               \
-        TYPE,                                                                               \
-        SYMBOL,                                                                             \
-        void,                                                                               \
-        BlockSource& region,                                                                \
-        BlockPos const& pos,                                                                \
-        int strength,                                                                       \
-        bool isFirstTime                                                                    \
-    ) {                                                                                     \
+#define RedStoneUpdateHookMacro(NAME, TYPE, SYMBOL, VAL, ...)                               \
+    LL_TYPE_INSTANCE_HOOK(NAME, HookPriority::Normal, TYPE, SYMBOL, void, __VA_ARGS__) {    \
         int mDimensionId = region.getDimensionId();                                         \
         if (mRedStoneMap.find(mDimensionId) == mRedStoneMap.end())                          \
             mRedStoneMap[mDimensionId] = std::unordered_map<BlockPos, int>();               \
         if (mRedStoneMap[mDimensionId].find(pos) == mRedStoneMap[mDimensionId].end())       \
             mRedStoneMap[mDimensionId][pos] = 1;                                            \
         else mRedStoneMap[mDimensionId][pos]++;                                             \
-        return origin(region, pos, strength, isFirstTime);                                  \
+        return origin VAL;                                                                  \
     };                                                                                      \
 
-RedStoneUpdateHookMacro(
-    RedStoneWireBlockHook,
-    RedStoneWireBlock,
-    "?onRedstoneUpdate@RedStoneWireBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z"
+RedStoneUpdateHookMacro(RedStoneWireBlockHook, RedStoneWireBlock,
+    "?onRedstoneUpdate@RedStoneWireBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z",
+    (region, pos, strength, isFirstTime),
+    BlockSource& region, BlockPos const& pos,
+    int strength, bool isFirstTime
 )
 
-RedStoneUpdateHookMacro(
-    RedStoneTorchBlockHook,
-    RedstoneTorchBlock,
-    "?onRedstoneUpdate@RedstoneTorchBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z"
+RedStoneUpdateHookMacro(RedStoneTorchBlockHook, RedstoneTorchBlock,
+    "?onRedstoneUpdate@RedstoneTorchBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z",
+    (region, pos, strength, isFirstTime),
+    BlockSource& region, BlockPos const& pos,
+    int strength, bool isFirstTime
 )
 
-RedStoneUpdateHookMacro(
-    DiodeBlockHook,
-    DiodeBlock,
-    "?onRedstoneUpdate@DiodeBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z"
+RedStoneUpdateHookMacro(DiodeBlockHook, DiodeBlock,
+    "?onRedstoneUpdate@DiodeBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z",
+    (region, pos, strength, isFirstTime),
+    BlockSource& region, BlockPos const& pos,
+    int strength, bool isFirstTime
 )
 
-RedStoneUpdateHookMacro(
-    ComparatorBlockHook,
-    ComparatorBlock,
-    "?onRedstoneUpdate@ComparatorBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z"
+RedStoneUpdateHookMacro(ComparatorBlockHook, ComparatorBlock,
+    "?onRedstoneUpdate@ComparatorBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z",
+    (region, pos, strength, isFirstTime),
+    BlockSource& region, BlockPos const& pos,
+    int strength, bool isFirstTime
 )
 
-LL_TYPE_INSTANCE_HOOK(
-    ObserverBlockHook,
-    HookPriority::Normal,
-    ObserverBlock,
-    &ObserverBlock::_updateState,
-    void,
-    BlockSource& region,
-    BlockPos const& pos, 
-    PulseCapacitor& component,
-    bool turnOn
-) {
-    int mDimensionId = region.getDimensionId(); 
-    if (mRedStoneMap.find(mDimensionId) == mRedStoneMap.end()) 
-        mRedStoneMap[mDimensionId] = std::unordered_map<BlockPos, int>();
-    if (mRedStoneMap[mDimensionId].find(pos) == mRedStoneMap[mDimensionId].end())
-        mRedStoneMap[mDimensionId][pos] = 1;
-    else mRedStoneMap[mDimensionId][pos]++; 
-    return origin(region, pos, component, turnOn);
-};
+RedStoneUpdateHookMacro(ObserverBlockHook, ObserverBlock, &ObserverBlock::_updateState,
+    (region, pos, component, turnOn),
+    BlockSource& region, BlockPos const& pos, 
+    PulseCapacitor& component, bool turnOn
+)
 
 BlockSource& getBlockSource(DimensionType mDimensionId) {
     return ll::service::getLevel()->getOrCreateDimension(mDimensionId)->getBlockSourceFromMainChunkSource();

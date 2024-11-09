@@ -18,7 +18,6 @@
 #include <ll/api/utils/StringUtils.h>
 #include <ll/api/utils/HashUtils.h>
 
-#include <mc/entity/utilities/ActorType.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/world/item/registry/ItemStack.h>
 #include <mc/server/commands/CommandOrigin.h>
@@ -545,11 +544,10 @@ namespace LOICollection::Plugins::menu {
 
             Player* player = static_cast<Player*>(player_ptr);
 
-            ll::form::ModalForm form;
-            form.setTitle(translateString(data.at("title").get<std::string>(), player));
-            form.setContent(translateString(data.at("content").get<std::string>(), player));
-            form.setUpperButton(translateString(data.at("confirmButton").at("title").get<std::string>(), player));
-            form.setLowerButton(translateString(data.at("cancelButton").at("title").get<std::string>(), player));
+            ll::form::ModalForm form(translateString(data.at("title").get<std::string>(), player),
+                translateString(data.at("content").get<std::string>(), player),
+                translateString(data.at("confirmButton").at("title").get<std::string>(), player),
+                translateString(data.at("cancelButton").at("title").get<std::string>(), player));
             form.sendTo(*player, [data](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
                     nlohmann::ordered_json mButton = data.at("confirmButton");
@@ -600,7 +598,7 @@ namespace LOICollection::Plugins::menu {
                 .getOrCreateCommand("menu", "§e§lLOICollection -> §b服务器菜单", CommandPermissionLevel::Any);
             command.overload<MenuOP>().text("gui").optional("uiName").execute([](CommandOrigin const& origin, CommandOutput& output, MenuOP param) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
@@ -610,7 +608,7 @@ namespace LOICollection::Plugins::menu {
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {
@@ -621,7 +619,7 @@ namespace LOICollection::Plugins::menu {
             });
             command.overload().text("clock").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 ItemStack itemStack(mItemId, 1);

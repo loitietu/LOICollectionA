@@ -16,7 +16,6 @@
 
 #include <mc/world/level/Level.h>
 #include <mc/world/actor/player/Player.h>
-#include <mc/entity/utilities/ActorType.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandSelector.h>
@@ -162,9 +161,8 @@ namespace LOICollection::Plugins::blacklist {
         const auto BlacklistCommandADD = [](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param) {
             for (auto& pl : param.target.results(origin)) {
                 if (!isBlacklist(pl) && (int) pl->getPlayerPermissionLevel() < 2 && !pl->isSimulatedPlayer()) {
-                    output.addMessage(fmt::format("Add player {}({}) to blacklist.", 
-                        pl->getRealName(), pl->getUuid().asString()), 
-                        {}, CommandOutputMessageType::Success);
+                    output.addMessage(fmt::format("Add player {} to blacklist.", 
+                        pl->getRealName()), {}, CommandOutputMessageType::Success);
                     switch (param.selectorType) {
                         case BlacklistOP::ip:
                             addBlacklist(pl, param.cause, param.time, BLACKLIST_TYPE_IP);
@@ -206,7 +204,7 @@ namespace LOICollection::Plugins::blacklist {
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());

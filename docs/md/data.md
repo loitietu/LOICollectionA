@@ -161,7 +161,7 @@
 ```
 
 ## shop.json
-> 以下是为 LOICollectionA 1.4.9 的 `shop.json` 结构，对于后续版本的 `shop.json` 结构可能会有所不同。
+> 以下是为 LOICollectionA 1.5.0 的 `shop.json` 结构，对于后续版本的 `shop.json` 结构可能会有所不同。
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `shop.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#shop) 进行编辑
@@ -177,7 +177,7 @@
             {
                 "title": "Apple", // 组件标题
                 "image": "textures/items/apple", // 组件图标（可选，只支持 path 类型）
-                "introduce": "A red apple\nscores: ${scores}", // 组件介绍（其中 ${scores} 代表当前组件需要 Score 的总和）
+                "introduce": "A red apple\nscores: 100", // 组件介绍
                 "number": "Buy number", // 购买组件时输入框标题
                 "id": "minecraft:apple", // 物品 ID
                 "scores": { // 组件所需的 Score（可选）
@@ -188,7 +188,7 @@
             {
                 "title": "Nbt Apple",
                 "image": "textures/items/apple",
-                "introduce": "A red apple\nscores: ${scores}",
+                "introduce": "A red apple\nscores: 100",
                 "number": "Buy number",
                 "nbt": "{Count:2b,Damage:0s,Name:'minecraft:apple',WasPickedUp:0b}", // 对于使用自定义物品，可用 nbt 代替 id 配置
                 "scores": {
@@ -214,7 +214,7 @@
             {
                 "title": "Test Title",
                 "image": "",
-                "introduce": "This is a test title\nscores: ${scores}",
+                "introduce": "This is a test title\nscores: 100",
                 "confirmButton": "Confirm", // 确认按钮标题
                 "cancelButton": "Cancel", // 取消按钮标题
                 "id": "Test Title", // 称号 ID
@@ -237,7 +237,7 @@
             {
                 "title": "Apple",
                 "image": "textures/items/apple",
-                "introduce": "A red apple\nscores: ${scores}",
+                "introduce": "A red apple\nscores: 100",
                 "number": "Sell number",
                 "id": "minecraft:apple",
                 "scores": {
@@ -264,7 +264,7 @@
             {
                 "title": "Test Title",
                 "image": "",
-                "introduce": "This is a test title\nscores: ${scores}",
+                "introduce": "This is a test title\nscores: 100",
                 "confirmButton": "Confirm",
                 "cancelButton": "Cancel",
                 "id": "Test Title",

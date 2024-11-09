@@ -17,10 +17,11 @@
 #include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/actor/player/Player.h>
-#include <mc/entity/utilities/ActorType.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
+#include <mc/server/commands/CommandSelector.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
+#include <mc/server/commands/CommandOutputMessageType.h>
 
 #include "include/APIUtils.h"
 #include "include/languagePlugin.h"
@@ -36,6 +37,13 @@ using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::tpa {
+    struct TpaOP {
+        enum SelectorType {
+            tpa, tphere
+        } selectorType;
+        CommandSelector<Player> target;
+    };
+
     std::shared_ptr<SQLiteStorage> db;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - TPA");
@@ -51,11 +59,11 @@ namespace LOICollection::Plugins::tpa {
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return pl.sendMessage(tr(getLanguage(&pl), "exit"));
 
-                bool mObjectToggle1 = std::get<uint64>(dt->at("Toggle1"));
-
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
-                db->set("OBJECT$" + mObject, "Tpa_Toggle1", mObjectToggle1 ? "true" : "false");
+                db->set("OBJECT$" + mObject, "Tpa_Toggle1",
+                    std::get<uint64>(dt->at("Toggle1")) ? "true" : "false"
+                );
 
                 McUtils::Gui::submission(&pl, [](Player* player) {
                     return MainGui::setting(player);
@@ -63,23 +71,27 @@ namespace LOICollection::Plugins::tpa {
             });
         }
 
-        void tpa(void* player_ptr, void* target_ptr, bool type) {
+        void tpa(void* player_ptr, void* target_ptr, int type) {
             Player* player = static_cast<Player*>(player_ptr);
             Player* target = static_cast<Player*>(target_ptr);
             std::string mObjectLanguage = getLanguage(target);
 
-            ll::form::ModalForm form;
-            form.setTitle(tr(mObjectLanguage, "tpa.gui.title"));
+            if (isInvite(target_ptr)) {
+                player->sendMessage(ll::string_utils::replaceAll(
+                    tr(getLanguage(player), "tpa.no.tips"),
+                    "${player}", target->getRealName()
+                ));
+                return;
+            }
 
-            !type ? form.setContent(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player))
-                : form.setContent(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player));
-                
-            form.setUpperButton(tr(mObjectLanguage, "tpa.yes"));
-            form.setLowerButton(tr(mObjectLanguage, "tpa.no"));
+            ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"), (type == TPA_TYPE_TPA)
+                ? LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player)
+                : LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player),
+                tr(mObjectLanguage, "tpa.yes"), tr(mObjectLanguage, "tpa.no"));
             form.sendTo(*target, [type, player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
                     std::string logString = tr(getLanguage(&pl), "tpa.log");
-                    if (!type) {
+                    if (type == TPA_TYPE_TPA) {
                         player->teleport(pl.getPosition(), pl.getDimensionId());
                         ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
                         ll::string_utils::replaceAll(logString, "${player2}", player->getRealName());
@@ -91,7 +103,10 @@ namespace LOICollection::Plugins::tpa {
                     logger.info(logString);
                     return;
                 }
-                player->sendMessage(tr(getLanguage(player), "tpa.no.tips"));
+                player->sendMessage(ll::string_utils::replaceAll(
+                    tr(getLanguage(player), "tpa.no.tips"),
+                    "${player}", pl.getRealName()
+                ));
             });
         }
 
@@ -106,13 +121,13 @@ namespace LOICollection::Plugins::tpa {
                 if (!dt) return MainGui::open(&pl);
 
                 Player* pl2 = McUtils::getPlayerFromName(target);
-                std::string PlayerSelectType = std::get<std::string>(dt->at("dropdown"));
-                if (!isInvite(pl2)) {
-                    if (PlayerSelectType == "tpa")
-                        return MainGui::tpa(&pl, pl2, false);
-                    return MainGui::tpa(&pl, pl2, true);
-                }
-                pl.sendMessage(tr(getLanguage(&pl), "tpa.no.tips"));
+                if (std::get<std::string>(dt->at("dropdown")) == "tpa")
+                    return MainGui::tpa(&pl, pl2, TPA_TYPE_TPA);
+                MainGui::tpa(&pl, pl2, TPA_TYPE_HERE);
+
+                McUtils::Gui::submission(&pl, [target](Player* player) {
+                    return MainGui::content(player, target);
+                });
             });
         }
 
@@ -139,9 +154,22 @@ namespace LOICollection::Plugins::tpa {
                 throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("tpa", "§e§lLOICollection -> §b玩家互传", CommandPermissionLevel::Any);
+            command.overload<TpaOP>().text("invite").required("selectorType").required("target").execute([](CommandOrigin const& origin, CommandOutput& output, TpaOP const& param) {
+                auto* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error("No player selected.");
+                Player* player = static_cast<Player*>(entity);
+                for (auto& pl : param.target.results(origin)) {
+                    output.addMessage(fmt::format("{} has been invited.", 
+                        pl->getRealName()), {}, CommandOutputMessageType::Success);
+                    MainGui::tpa(player, pl, param.selectorType == TpaOP::tpa
+                        ? TPA_TYPE_TPA : TPA_TYPE_HERE
+                    );
+                }
+            });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
@@ -149,7 +177,7 @@ namespace LOICollection::Plugins::tpa {
             });
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());

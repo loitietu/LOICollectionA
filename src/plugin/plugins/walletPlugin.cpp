@@ -15,7 +15,6 @@
 #include <ll/api/utils/HashUtils.h>
 
 #include <mc/world/actor/player/Player.h>
-#include <mc/entity/utilities/ActorType.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
@@ -88,8 +87,7 @@ namespace LOICollection::Plugins::wallet {
 
         void wealth(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
-            std::string mTipsString = tr(getLanguage(player), "wallet.showOff");
-            LOICollection::LOICollectionAPI::translateString(mTipsString, player);
+            std::string mTipsString = LOICollection::LOICollectionAPI::translateString(tr(getLanguage(player), "wallet.showOff"), player);
             ll::string_utils::replaceAll(mTipsString, "${money}", std::to_string(McUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
             McUtils::broadcastText(mTipsString);
             
@@ -134,7 +132,7 @@ namespace LOICollection::Plugins::wallet {
                 .getOrCreateCommand("wallet", "§e§lLOICollection -> §b个人钱包", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());

@@ -17,7 +17,6 @@
 
 #include <mc/nbt/Tag.h>
 #include <mc/nbt/CompoundTag.h>
-#include <mc/entity/utilities/ActorType.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/world/item/registry/ItemStack.h>
 #include <mc/server/commands/CommandOrigin.h>
@@ -398,14 +397,8 @@ namespace LOICollection::Plugins::shop {
         void commodity(void* player_ptr, nlohmann::ordered_json& data, nlohmann::ordered_json original, bool type) {
             Player* player = static_cast<Player*>(player_ptr);
 
-            std::string mScoreboardListsString;
-            for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
-                mScoreboardListsString += it.key() + ":" + std::to_string(it.value().get<int>()) + ",";
-            mScoreboardListsString.empty() ? (void)(mScoreboardListsString = "None") : mScoreboardListsString.pop_back();
-            std::string mIntroduce = translateString(data.at("introduce").get<std::string>(), player);
-
             ll::form::CustomForm form(translateString(data.at("title").get<std::string>(), player));
-            form.appendLabel(ll::string_utils::replaceAll(mIntroduce, "${scores}", mScoreboardListsString));
+            form.appendLabel(translateString(data.at("introduce").get<std::string>(), player));
             form.appendInput("Input", translateString(data.at("number").get<std::string>(), player), "", "1");
             form.sendTo(*player, [data, original, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return McUtils::executeCommand(&pl, original.at("exit").get<std::string>());
@@ -443,17 +436,10 @@ namespace LOICollection::Plugins::shop {
         void title(void* player_ptr, nlohmann::ordered_json& data, nlohmann::ordered_json original, bool type) {
             Player* player = static_cast<Player*>(player_ptr);
 
-            std::string mScoreboardListsString;
-            for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
-                mScoreboardListsString += it.key() + ":" + std::to_string(it.value().get<int>()) + ",";
-            mScoreboardListsString.empty() ? (void)(mScoreboardListsString = "None") : mScoreboardListsString.pop_back();
-            std::string mIntroduce = translateString(data.at("introduce").get<std::string>(), player);
-
-            ll::form::ModalForm form;
-            form.setTitle(translateString(data.at("title").get<std::string>(), player));
-            form.setContent(ll::string_utils::replaceAll(mIntroduce, "${scores}", mScoreboardListsString));
-            form.setUpperButton(translateString(data.at("confirmButton").get<std::string>(), player));
-            form.setLowerButton(translateString(data.at("cancelButton").get<std::string>(), player));
+            ll::form::ModalForm form(translateString(data.at("title").get<std::string>(), player),
+                translateString(data.at("introduce").get<std::string>(), player),
+                translateString(data.at("confirmButton").get<std::string>(), player),
+                translateString(data.at("cancelButton").get<std::string>(), player));
             form.sendTo(*player, [data, original, type](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
                     std::string id = data.at("id").get<std::string>();
@@ -507,7 +493,7 @@ namespace LOICollection::Plugins::shop {
                 .getOrCreateCommand("shop", "§e§lLOICollection -> §b服务器商店", CommandPermissionLevel::Any);
             command.overload<ShopOP>().text("gui").required("uiName").execute([](CommandOrigin const& origin, CommandOutput& output, ShopOP param) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isType(ActorType::Player))
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 output.success("The UI has been opened to player {}", player->getRealName());
@@ -515,7 +501,7 @@ namespace LOICollection::Plugins::shop {
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr ||!entity->isType(ActorType::Player))
+                if (entity == nullptr ||!entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {

@@ -1,10 +1,10 @@
 #include <vector>
 #include <cstdint>
+#include <cstdlib>
 #include <functional>
 
 #include <ll/api/memory/Hook.h>
 #include <ll/api/service/Bedrock.h>
-#include <ll/api/utils/StringUtils.h>
 #include <ll/api/utils/RandomUtils.h>
 
 #include <mc/world/ActorUniqueID.h>
@@ -36,8 +36,6 @@
 #include <mc/server/ServerPlayer.h>
 #include <mc/server/LoopbackPacketSender.h>
 
-#include <mc/entity/utilities/ActorType.h>
-
 #include <mc/enums/MinecraftPacketIds.h>
 #include <mc/enums/TextPacketType.h>
 #include <mc/enums/SubClientId.h>
@@ -56,7 +54,7 @@ std::vector<std::function<void(void*, int, std::string, int)>> mPlayerScoreChang
 std::vector<std::function<bool(void*, void*, float)>> mPlayerHurtEventCallbacks;
 
 LL_TYPE_INSTANCE_HOOK(
-    FakeSeedHook,
+    ServerStartGamePacketHook,
     HookPriority::Normal,
     StartGamePacket,
     "?write@StartGamePacket@@UEBAXAEAVBinaryStream@@@Z",
@@ -67,51 +65,34 @@ LL_TYPE_INSTANCE_HOOK(
     return origin(stream);
 };
 
-LL_TYPE_INSTANCE_HOOK(
-    InterceptPacketHook1,
-    HookPriority::Normal,
-    LoopbackPacketSender,
-    "?sendBroadcast@LoopbackPacketSender@@UEAAXAEBVNetworkIdentifier@@W4SubClientId@@AEBVPacket@@@Z",
-    void,
-    NetworkIdentifier const& identifier,
-    SubClientId subId,
-    Packet const& packet
-) {
-    if (packet.getId() == MinecraftPacketIds::Text) {
-        auto mTextPacket = static_cast<TextPacket const&>(packet);
-        if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {
-            if (mTextPacket.mMessage.find("multiplayer.player.joined") == std::string::npos)
-                return origin(identifier, subId, packet);
-            Player* player = McUtils::getPlayerFromName(mTextPacket.mParams.at(0));
-            if (player == nullptr) return origin(identifier, subId, packet);
-            if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), player->getUuid().asString()) != mInterceptedTextPacketTargets.end())
-                return;
-        }
-    }
-    return origin(identifier, subId, packet);
-};
+#define InterceptPacketHookMacro(NAME, TYPE, SYMBOL, LIMIT, VAL, ...)                                       \
+    LL_TYPE_INSTANCE_HOOK(NAME, HookPriority::Normal, TYPE, SYMBOL, void,  __VA_ARGS__) {                   \
+        if (packet.getId() == MinecraftPacketIds::Text) {                                                   \
+            auto mTextPacket = static_cast<TextPacket const&>(packet);                                      \
+            if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {        \
+                if (mTextPacket.mMessage.find(LIMIT) == std::string::npos)                                  \
+                    return origin VAL;                                                                      \
+                Player* player = McUtils::getPlayerFromName(mTextPacket.mParams.at(0));                     \
+                if (player == nullptr) return origin VAL;                                                   \
+                if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(),   \
+                    player->getUuid().asString()) != mInterceptedTextPacketTargets.end())                   \
+                    return;                                                                                 \
+            }                                                                                               \
+        }                                                                                                   \
+        return origin VAL;                                                                                  \
+    };                                                                                                      \
 
-LL_TYPE_INSTANCE_HOOK(
-    InterceptPacketHook2,
-    HookPriority::Normal,
-    LoopbackPacketSender,
+InterceptPacketHookMacro(InterceptPacketHook1, LoopbackPacketSender, 
+    "?sendBroadcast@LoopbackPacketSender@@UEAAXAEBVNetworkIdentifier@@W4SubClientId@@AEBVPacket@@@Z",
+    "multiplayer.player.joined", (identifier, subId, packet),
+    NetworkIdentifier const& identifier, SubClientId subId, Packet const& packet
+)
+
+InterceptPacketHookMacro(InterceptPacketHook2, LoopbackPacketSender,
     "?sendBroadcast@LoopbackPacketSender@@UEAAXAEBVPacket@@@Z",
-    void,
+    "multiplayer.player.left", (packet),
     Packet const& packet
-) {
-    if (packet.getId() == MinecraftPacketIds::Text) {
-        auto mTextPacket = static_cast<TextPacket const&>(packet);
-        if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {
-            if (mTextPacket.mMessage.find("multiplayer.player.left") == std::string::npos)
-                return origin(packet);
-            Player* player = McUtils::getPlayerFromName(mTextPacket.mParams.at(0));
-            if (player == nullptr) return origin(packet);
-            if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), player->getUuid().asString()) != mInterceptedTextPacketTargets.end())
-                return;
-        }
-    }
-    return origin(packet);
-};
+)
 
 LL_TYPE_INSTANCE_HOOK(
     InterceptGetNameTagHook,
@@ -120,13 +101,11 @@ LL_TYPE_INSTANCE_HOOK(
     &Actor::getNameTag,
     std::string const&
 ) {
-    if (this->isType(ActorType::Player)) {
-        Player* player = (Player*) this;
-        if (std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), player->getUuid().asString()) != mInterceptedGetNameTagTargets.end()) {
-            static std::string mName;
-            mName = player->getRealName();
-            return mName;
-        }
+    if (this->isPlayer() && std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(),
+        ((Player*)this)->getUuid().asString()) != mInterceptedGetNameTagTargets.end()) {
+        static std::string mName;
+        mName = ((Player*) this)->getRealName();
+        return mName;
     }
     return origin();
 };
@@ -204,57 +183,37 @@ LL_TYPE_INSTANCE_HOOK(
     return origin(success, id, objective, scoreValue, action);
 };
 
-LL_TYPE_INSTANCE_HOOK(
-    PlayerHurtHook1,
-    HookPriority::Normal,
-    Mob,
-    &Mob::getDamageAfterResistanceEffect,
-    float,
+#define PlayerHurtHookMacro(NAME, TYPE, SYMBOL, RET, VAL, ...)                                                                                  \
+    LL_TYPE_INSTANCE_HOOK(NAME, HookPriority::Normal, TYPE, SYMBOL, RET, __VA_ARGS__) {                                                         \
+        if (this->isPlayer()) {                                                                                                                 \
+            if (!source.isEntitySource())                                                                                                       \
+                return origin VAL;                                                                                                              \
+            Actor* damgeSource = nullptr;                                                                                                       \
+            source.isChildEntitySource() ? damgeSource = ll::service::getLevel()->fetchEntity(source.getEntityUniqueID())                       \
+                : damgeSource = ll::service::getLevel()->fetchEntity(source.getDamagingEntityUniqueID());                                       \
+            if (damgeSource == nullptr || !damgeSource->isPlayer() || damgeSource->getOrCreateUniqueID().id == this->getOrCreateUniqueID().id)  \
+                return origin VAL;                                                                                                              \
+            for (auto& callback : mPlayerHurtEventCallbacks)                                                                                    \
+                if (callback(this, damgeSource, damage)) return false;                                                                          \
+        }                                                                                                                                       \
+        return origin VAL;                                                                                                                      \
+    };                                                                                                                                          \
+
+PlayerHurtHookMacro(PlayerHurtHook1, Mob, &Mob::getDamageAfterResistanceEffect,
+    float, (source, damage),
     ActorDamageSource const& source,
     float damage
-) {
-    if (!this->isType(ActorType::Player))
-        return origin(source, damage);
-    if (source.getCause() == ActorDamageCause::Magic || source.getCause() == ActorDamageCause::Wither) {
-        Actor* damgeSource = nullptr;
-        if (source.isEntitySource()) {
-            if (source.isChildEntitySource())
-                damgeSource = ll::service::getLevel()->fetchEntity(source.getEntityUniqueID());
-            else damgeSource = ll::service::getLevel()->fetchEntity(source.getDamagingEntityUniqueID());
-        }
-        if (damgeSource == nullptr || !damgeSource->isType(ActorType::Player) || damgeSource->getOrCreateUniqueID().id == this->getOrCreateUniqueID().id)
-            return origin(source, damage);
-        for (auto& callback : mPlayerHurtEventCallbacks)
-            if (callback(this, damgeSource, damage)) return 0.0f;
-    }
-    return origin(source, damage);
-};
-
-LL_TYPE_INSTANCE_HOOK(
-    PlayerHurtHook2,
-    HookPriority::Normal,
-    Actor,
-    &Actor::hurt,
-    bool,
+)
+PlayerHurtHookMacro(PlayerHurtHook2, Mob, "?_hurt@Mob@@MEAA_NAEBVActorDamageSource@@M_N1@Z",
+    bool, (source, damage, knock, ignite),
     ActorDamageSource const& source,
-    float damage,
-    bool knock,
-    bool ignite
-) {
-    if (this->isType(ActorType::Player)) {
-        Actor* damgeSource = nullptr;
-        if (source.isEntitySource()) {
-            if (source.isChildEntitySource())
-                damgeSource = ll::service::getLevel()->fetchEntity(source.getEntityUniqueID());
-            else damgeSource = ll::service::getLevel()->fetchEntity(source.getDamagingEntityUniqueID());
-        }
-        if (damgeSource == nullptr || !damgeSource->isType(ActorType::Player) || damgeSource->getOrCreateUniqueID().id == this->getOrCreateUniqueID().id)
-            return origin(source, damage, knock, ignite);
-        for (auto& callback : mPlayerHurtEventCallbacks)
-            if (callback(this, damgeSource, damage)) return false;
-    }
-    return origin(source, damage, knock, ignite);
-};
+    float damage, bool knock, bool ignite
+)
+PlayerHurtHookMacro(PlayerHurtHook3, Mob, "?hurtEffects@Mob@@UEAAXAEBVActorDamageSource@@M_N1@Z",
+    bool, (source, damage, knock, ignite),
+    ActorDamageSource const& source,
+    float damage, bool knock, bool ignite
+)
 
 namespace LOICollection::HookPlugin {
     namespace Event {
@@ -295,13 +254,15 @@ namespace LOICollection::HookPlugin {
         mInterceptedGetNameTagTargets.push_back(uuid);
     }
 
-    void setFakeSeed(const std::string& fakeSeed) {
-        auto result = ll::string_utils::svtoll(fakeSeed);
-        mFakeSeed = result.has_value() ? result.value() : ll::random_utils::rand<int64_t>();
+    void setFakeSeed(const std::string& str) {
+        const char* ptr = str.data();
+        char* endpt{};
+        auto result = std::strtoll(ptr, &endpt, 10);
+        ptr == endpt ? mFakeSeed = ll::random_utils::rand<int64_t>() : mFakeSeed = result;
     }
 
     void registery() {
-        FakeSeedHook::hook();
+        ServerStartGamePacketHook::hook();
         InterceptPacketHook1::hook();
         InterceptPacketHook2::hook();
         InterceptGetNameTagHook::hook();
@@ -311,10 +272,11 @@ namespace LOICollection::HookPlugin {
         PlayerScoreChangedHook::hook();
         PlayerHurtHook1::hook();
         PlayerHurtHook2::hook();
+        PlayerHurtHook3::hook();
     }
 
     void unregistery() {
-        FakeSeedHook::unhook();
+        ServerStartGamePacketHook::unhook();
         InterceptPacketHook1::unhook();
         InterceptPacketHook2::unhook();
         InterceptGetNameTagHook::unhook();
@@ -324,5 +286,6 @@ namespace LOICollection::HookPlugin {
         PlayerScoreChangedHook::unhook();
         PlayerHurtHook1::unhook();
         PlayerHurtHook2::unhook();
+        PlayerHurtHook3::unhook();
     }
 }

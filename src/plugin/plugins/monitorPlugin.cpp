@@ -15,7 +15,6 @@
 #include <ll/api/event/command/ExecuteCommandEvent.h>
 
 #include <mc/world/actor/player/Player.h>
-#include <mc/entity/utilities/ActorType.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandContext.h>
 
@@ -64,7 +63,7 @@ namespace LOICollection::Plugins::monitor {
                         event.cancel();
 
                         auto* entity = event.commandContext().getCommandOrigin().getEntity();
-                        if (entity == nullptr || !entity->isType(ActorType::Player))
+                        if (entity == nullptr || !entity->isPlayer())
                             return;
                         Player* player = static_cast<Player*>(entity);
                         player->sendMessage(std::get<std::string>(mObjectOptions.at("tips")));
