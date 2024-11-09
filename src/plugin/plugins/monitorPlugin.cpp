@@ -75,8 +75,8 @@ namespace LOICollection::Plugins::monitor {
                 LOICollection::HookPlugin::interceptGetNameTag(mUuid);
             });
             LOICollection::HookPlugin::Event::onPlayerDisconnectBeforeEvent([](std::string mUuid) {
-                LOICollection::HookPlugin::interceptTextPacket(mUuid);
-                LOICollection::HookPlugin::interceptGetNameTag(mUuid);
+                LOICollection::HookPlugin::uninterceptTextPacket(mUuid);
+                LOICollection::HookPlugin::uninterceptGetNameTag(mUuid);
             });
             LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([](void* player_ptr, int score, std::string id, int type) {
                 Player* player = static_cast<Player*>(player_ptr);
@@ -101,7 +101,9 @@ namespace LOICollection::Plugins::monitor {
 
             static ll::schedule::GameTickAsyncScheduler scheduler;
             scheduler.add<ll::schedule::RepeatTask>(3_tick, [] {
-                for (auto& player : McUtils::getAllPlayers()) {
+                for (auto& player_ptr : McUtils::getAllPlayers()) {
+                    Player* player = static_cast<Player*>(player_ptr);
+                    
                     std::string mMonitorString = std::get<std::string>(mObjectOptions.at("show"));
                     LOICollection::LOICollectionAPI::translateString(mMonitorString, player);
                     player->setNameTag(mMonitorString);

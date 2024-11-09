@@ -9,13 +9,14 @@
 
 namespace SystemUtils {
     std::string getNowTime(const std::string& format) {
-        std::tm currentTimeInfo;
         std::time_t currentTime = std::time(nullptr);
+        std::tm currentTimeInfo;
         localtime_s(&currentTimeInfo, &currentTime);
-        std::ostringstream oss;
-        oss << std::put_time(&currentTimeInfo, format.c_str());
-        return oss.str();
+        char buffer[80];
+        std::strftime(buffer, sizeof(buffer), format.c_str(), &currentTimeInfo);
+        return std::string(buffer);
     }
+
 
     std::string timeCalculate(const std::string& timeString, int hours) {
         std::tm tm = {};
@@ -23,10 +24,11 @@ namespace SystemUtils {
         iss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
         tm.tm_hour += hours;
         std::mktime(&tm);
-        std::ostringstream oss;
-        oss << std::put_time(&tm, "%Y%m%d%H%M%S");
-        return oss.str();
+        char buffer[20];
+        std::strftime(buffer, sizeof(buffer), "%Y%m%d%H%M%S", &tm);
+        return std::string(buffer);
     }
+
 
     std::string formatDataTime(const std::string& timeString) {
         if (timeString.size() != 14) 

@@ -101,8 +101,8 @@ namespace LOICollection::Plugins::shop {
                     db->set(mObjectInput1, mData);
                 db->save();
 
-                McUtils::Gui::submission(&pl, [](Player* player) {
-                    return MainGui::editNew(player);
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::editNew(player_ptr);
                 });
 
                 std::string logString = tr(getLanguage(&pl), "shop.log1");
@@ -133,8 +133,8 @@ namespace LOICollection::Plugins::shop {
                             ll::string_utils::replaceAll(logString, "${menu}", key);
                             logger.info(translateString(logString, &pl));
                         }
-                        McUtils::Gui::submission(&pl, [](Player* player) {
-                            return MainGui::editRemove(player);
+                        McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                            return MainGui::editRemove(player_ptr);
                         });
                     });
                 });
@@ -179,8 +179,8 @@ namespace LOICollection::Plugins::shop {
                 db->set(uiName, data);
                 db->save();
 
-                McUtils::Gui::submission(&pl, [uiName](Player* player) {
-                    return MainGui::editAwardContent(player, uiName);
+                McUtils::Gui::submission(&pl, [uiName](void* player_ptr) {
+                    return MainGui::editAwardContent(player_ptr, uiName);
                 });
 
                 std::string logString = tr(getLanguage(&pl), "shop.log4");
@@ -224,7 +224,7 @@ namespace LOICollection::Plugins::shop {
                         data["cancelButton"] = std::get<std::string>(dt->at("Input8"));
                     } else data["number"] = std::get<std::string>(dt->at("Input7"));
                 }
-                mObjectType == "from" ? data["menu"] = std::get<std::string>(dt->at("Input6")) : data["id"] = std::get<std::string>(dt->at("Input6"));
+                (mObjectType == "from" ? data["menu"] : data["id"]) = std::get<std::string>(dt->at("Input6"));
                 if (type == SHOP_BUY && mObjectType == "title")
                     data["time"] = SystemUtils::toInt((mObjectInput9.empty() ? "24" : mObjectInput9), 0);
                 data["scores"] = nlohmann::ordered_json::object();
@@ -237,8 +237,8 @@ namespace LOICollection::Plugins::shop {
                 db->set(uiName, mContent);
                 db->save();
 
-                McUtils::Gui::submission(&pl, [uiName](Player* player) {
-                    return MainGui::editAwardContent(player, uiName);
+                McUtils::Gui::submission(&pl, [uiName](void* player_ptr) {
+                    return MainGui::editAwardContent(player_ptr, uiName);
                 });
 
                 std::string logString = tr(getLanguage(&pl), "menu.log5");
@@ -284,8 +284,8 @@ namespace LOICollection::Plugins::shop {
                         ll::string_utils::replaceAll(logString, "${customize}", mId);
                         logger.info(translateString(logString, &pl));
                     }
-                    McUtils::Gui::submission(&pl, [uiName](Player* player) {
-                        return MainGui::editAwardContent(player, uiName);
+                    McUtils::Gui::submission(&pl, [uiName](void* player_ptr) {
+                        return MainGui::editAwardContent(player_ptr, uiName);
                     });
                 });
             });

@@ -1,8 +1,8 @@
 #include <string>
-#include <sstream>
 
 #include <ll/api/Mod/Manifest.h>
 #include <ll/api/Mod/NativeMod.h>
+#include <ll/api/utils/StringUtils.h>
 #include <ll/api/reflection/Serialization.h>
 
 #include <nlohmann/json.hpp>
@@ -11,6 +11,7 @@
 #include "data/JsonStorage.h"
 
 #include "LOICollectionA.h"
+#include "ll/api/utils/StringUtils.h"
 
 #include "ConfigPlugin.h"
 
@@ -35,14 +36,9 @@ namespace Config {
 
     void SynchronousPluginConfigVersion(void* config_ptr) {
         C_Config* config = static_cast<C_Config*>(config_ptr);
-
-        std::stringstream ss;
-        auto version = ll::string_utils::splitByPattern(getVersion(), ".");
-        for (size_t i = 0; i < version.size(); i++) {
-            ss << version[i];
-        }
-        config->version = std::stoi(ss.str());
-        ss.clear();
+        config->version = std::stoi(ll::string_utils::replaceAll(
+            getVersion(), ".", ""
+        ));
     }
 
     void SynchronousPluginConfigType(void* config_ptr, const std::string& path) {

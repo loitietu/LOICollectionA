@@ -20,7 +20,7 @@ target("LOICollectionA")
     add_cxflags(
         "/EHa",
         "/utf-8",
-        "/W4",
+        "/WX",
         "/w44265",
         "/w44289",
         "/w44296",

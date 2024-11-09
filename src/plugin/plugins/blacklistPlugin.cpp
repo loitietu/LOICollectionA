@@ -68,8 +68,8 @@ namespace LOICollection::Plugins::blacklist {
             form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [target](Player& pl) {
                 delBlacklist(target);
 
-                McUtils::Gui::submission(&pl, [](Player* player) {
-                    return MainGui::remove(player);
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::remove(player_ptr);
                 });
             });
             form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
@@ -92,7 +92,7 @@ namespace LOICollection::Plugins::blacklist {
                 std::string PlayerSelectType = std::get<std::string>(dt->at("dropdown"));
                 std::string PlayerInputCause = std::get<std::string>(dt->at("Input1"));
                 int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                Player* pl2 = McUtils::getPlayerFromName(target);
+                Player* pl2 = static_cast<Player*>(McUtils::getPlayerFromName(target));
 
                 switch (ll::hash_utils::doHash(PlayerSelectType)) {
                     case ll::hash_utils::doHash("ip"):
@@ -103,8 +103,8 @@ namespace LOICollection::Plugins::blacklist {
                         break;
                 };
 
-                McUtils::Gui::submission(&pl, [](Player* player) {
-                    return MainGui::add(player);
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::add(player_ptr);
                 });
             });
         }
@@ -196,6 +196,10 @@ namespace LOICollection::Plugins::blacklist {
             });
             command.overload().text("list").execute([](CommandOrigin const& /*unused*/, CommandOutput& output) {
                 std::vector<std::string> mObjectList = db->list();
+                
+                if (mObjectList.empty())
+                    return output.success("Blacklist is empty.");
+                
                 std::string result = std::accumulate(mObjectList.begin(), mObjectList.end(), std::string(),
                     [](const std::string& a, const std::string& b) {
                     return a + (a.empty() ? "" : ", ") + ll::string_utils::replaceAll(b, "OBJECT$", "");

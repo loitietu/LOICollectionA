@@ -65,8 +65,8 @@ namespace LOICollection::Plugins::tpa {
                     std::get<uint64>(dt->at("Toggle1")) ? "true" : "false"
                 );
 
-                McUtils::Gui::submission(&pl, [](Player* player) {
-                    return MainGui::setting(player);
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::setting(player_ptr);
                 });
             });
         }
@@ -120,13 +120,13 @@ namespace LOICollection::Plugins::tpa {
             form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::open(&pl);
 
-                Player* pl2 = McUtils::getPlayerFromName(target);
+                Player* pl2 = static_cast<Player*>(McUtils::getPlayerFromName(target));
                 if (std::get<std::string>(dt->at("dropdown")) == "tpa")
                     return MainGui::tpa(&pl, pl2, TPA_TYPE_TPA);
                 MainGui::tpa(&pl, pl2, TPA_TYPE_HERE);
 
-                McUtils::Gui::submission(&pl, [target](Player* player) {
-                    return MainGui::content(player, target);
+                McUtils::Gui::submission(&pl, [target](void* player_ptr) {
+                    return MainGui::content(player_ptr, target);
                 });
             });
         }

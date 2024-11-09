@@ -67,7 +67,7 @@ namespace LOICollection::Plugins::market {
                     pl.add(mItemStack);
                     pl.refreshInventory();
 
-                    Player* mPlayer = McUtils::getPlayerFromName(db->get(mItemId, "player"));
+                    Player* mPlayer = static_cast<Player*>(McUtils::getPlayerFromName(db->get(mItemId, "player")));
                     if (mPlayer == nullptr) {
                         std::string mObject = pl.getUuid().asString();
                         std::replace(mObject.begin(), mObject.end(), '-', '_');
@@ -80,8 +80,8 @@ namespace LOICollection::Plugins::market {
                     }
                     delItem(mItemId);
                     
-                    McUtils::Gui::submission(&pl, [](Player* player) {
-                        return MainGui::buy(player);
+                    McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                        return MainGui::buy(player_ptr);
                     });
 
                     std::string logString = tr(getLanguage(&pl), "market.log1");
@@ -99,8 +99,8 @@ namespace LOICollection::Plugins::market {
                     pl.sendMessage(ll::string_utils::replaceAll(mTips, "${item}", mName));
                     delItem(mItemId);
 
-                    McUtils::Gui::submission(&pl, [](Player* player) {
-                        return MainGui::buy(player);
+                    McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                        return MainGui::buy(player_ptr);
                     });
 
                     std::string logString = tr(getLanguage(&pl), "market.log3");
@@ -135,8 +135,8 @@ namespace LOICollection::Plugins::market {
                 pl.refreshInventory();
                 delItem(mItemId);
 
-                McUtils::Gui::submission(&pl, [](Player* player) {
-                    return MainGui::sellItemContent(player);
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::sellItemContent(player_ptr);
                 });
 
                 std::string logString = tr(getLanguage(&pl), "market.log3");
@@ -188,8 +188,8 @@ namespace LOICollection::Plugins::market {
                     pl.setCarriedItem(mItemStack);
                     pl.refreshInventory();
 
-                    McUtils::Gui::submission(&pl, [](Player* player) {
-                        return MainGui::sellItem(player);
+                    McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                        return MainGui::sellItem(player_ptr);
                     });
 
                     std::string logString = tr(getLanguage(&pl), "market.log2");

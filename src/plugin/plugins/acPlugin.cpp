@@ -52,14 +52,14 @@ namespace LOICollection::Plugins::announcement {
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return pl.sendMessage(tr(getLanguage(&pl), "exit"));
 
-                bool mObjectToggle1 = std::get<uint64>(dt->at("Toggle1"));
-
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
-                db2->set("OBJECT$" + mObject, "AnnounCement_Toggle1", mObjectToggle1 ? "true" : "false");
+                db2->set("OBJECT$" + mObject, "AnnounCement_Toggle1", 
+                    std::get<uint64>(dt->at("Toggle1")) ? "true" : "false"
+                );
 
-                McUtils::Gui::submission(&pl, [](Player* player) {
-                    return MainGui::setting(player);
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::setting(player_ptr);
                 });
             });
         }
@@ -107,8 +107,8 @@ namespace LOICollection::Plugins::announcement {
                 db->set("content", data);
                 db->save();
 
-                McUtils::Gui::submission(&pl, [](Player* player) {
-                    return MainGui::edit(player);
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::edit(player_ptr);
                 });
 
                 logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "announcement.log"), &pl));

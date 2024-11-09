@@ -9,7 +9,6 @@
 #include <ll/api/Versions.h>
 #include <ll/api/memory/Memory.h>
 #include <ll/api/service/Bedrock.h>
-#include <ll/api/utils/StringUtils.h>
 
 #include <mc/util/ProfilerLite.h>
 #include <mc/world/level/Level.h>
@@ -179,19 +178,21 @@ namespace LOICollection::LOICollectionAPI {
         std::regex mPatternFind("\\{(.*?)\\}");
         while (std::regex_search(contentString.cbegin() + mIndex, contentString.cend(), mMatchFind, mPatternFind)) {
             std::string extractedContent = mMatchFind.str(1);
-            if (mVariableMap.find(extractedContent) != mVariableMap.end()) {
+            if (auto it = mVariableMap.find(extractedContent); it != mVariableMap.end()) {
                 try {
-                    ll::string_utils::replaceAll(contentString, "{" + extractedContent + "}", mVariableMap[extractedContent](player_ptr));
-                } catch (...) { ll::string_utils::replaceAll(contentString, "{" + extractedContent + "}", "None"); };
+                    contentString.replace(mMatchFind.position(), mMatchFind.length(), it->second(player_ptr));
+                } catch (...) { contentString.replace(mMatchFind.position(), mMatchFind.length(), "None"); };
                 continue;
             }
             std::regex mPatternParameter("(.*?)\\((.*?)\\)");
             if (std::regex_match(extractedContent, mMatchFind, mPatternParameter)) {
                 std::string extractedName = mMatchFind.str(1);
                 std::string extractedParameter = mMatchFind.str(2);
-                try {
-                    ll::string_utils::replaceAll(contentString, "{" + extractedContent + "}", mVariableMapParameter[extractedName](player_ptr, extractedParameter));
-                } catch (...) { ll::string_utils::replaceAll(contentString, "{" + extractedContent + "}", "None"); };
+                if (auto it = mVariableMapParameter.find(extractedName); it!= mVariableMapParameter.end()) {
+                    try {
+                        contentString.replace(mMatchFind.position(), mMatchFind.length(), it->second(player_ptr, extractedParameter));
+                    } catch (...) { contentString.replace(mMatchFind.position(), mMatchFind.length(), "None"); };
+                }
             }
             mIndex += mMatchFind.position() + mMatchFind.length();
         }

@@ -27,13 +27,10 @@ std::unordered_map<DimensionType, std::unordered_map<BlockPos, int>> mRedStoneMa
 #define RedStoneUpdateHookMacro(NAME, TYPE, SYMBOL, VAL, ...)                               \
     LL_TYPE_INSTANCE_HOOK(NAME, HookPriority::Normal, TYPE, SYMBOL, void, __VA_ARGS__) {    \
         int mDimensionId = region.getDimensionId();                                         \
-        if (mRedStoneMap.find(mDimensionId) == mRedStoneMap.end())                          \
-            mRedStoneMap[mDimensionId] = std::unordered_map<BlockPos, int>();               \
-        if (mRedStoneMap[mDimensionId].find(pos) == mRedStoneMap[mDimensionId].end())       \
-            mRedStoneMap[mDimensionId][pos] = 1;                                            \
-        else mRedStoneMap[mDimensionId][pos]++;                                             \
+        auto& dimMap = mRedStoneMap[mDimensionId];                                          \
+        dimMap[pos]++;                                                                      \
         return origin VAL;                                                                  \
-    };                                                                                      \
+    };                                                                                     \
 
 RedStoneUpdateHookMacro(RedStoneWireBlockHook, RedStoneWireBlock,
     "?onRedstoneUpdate@RedStoneWireBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z",

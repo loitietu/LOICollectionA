@@ -13,9 +13,8 @@ namespace I18nUtils {
     std::unordered_map<std::string, nlohmann::ordered_json> data;
 
     void load(const std::filesystem::path& path) {
-        for (auto& entry : std::filesystem::directory_iterator(path)) {
-            if (entry.is_directory()) continue;
-            if (entry.path().extension() != ".json") continue;
+        for (const auto& entry : std::filesystem::directory_iterator(path)) {
+            if (!entry.is_regular_file() || entry.path().extension()!= ".json") continue;
 
             std::ifstream filestream(entry.path());
             nlohmann::ordered_json dataJson;
@@ -27,8 +26,8 @@ namespace I18nUtils {
     }
 
     std::string tr(const std::string& local, const std::string& key) {
-        if (data.contains(local)) {
-            nlohmann::ordered_json localJson = data.at(local);
+        if (auto it = data.find(local); it != data.end()) {
+            const nlohmann::ordered_json& localJson = it->second;
             if (localJson.contains(key))
                 return localJson[key];
         }
@@ -37,7 +36,7 @@ namespace I18nUtils {
 
     std::vector<std::string> keys() {
         std::vector<std::string> keyl;
-        for (auto& [entry, _] : data)
+        for (const auto& [entry, _] : data)
             keyl.push_back(entry);
         return keyl;
     }

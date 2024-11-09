@@ -91,8 +91,8 @@ namespace LOICollection::Plugins::cdk {
                     db->save();
                 }
                 
-                McUtils::Gui::submission(&pl, [](Player* player) {
-                    return MainGui::cdkNew(player);
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::cdkNew(player_ptr);
                 });
 
                 logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
@@ -119,8 +119,8 @@ namespace LOICollection::Plugins::cdk {
                 db->remove(mObjectCdk);
                 db->save();
 
-                McUtils::Gui::submission(&pl, [](Player* player) {
-                    return MainGui::cdkRemove(player);
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::cdkRemove(player_ptr);
                 });
 
                 logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
@@ -151,8 +151,8 @@ namespace LOICollection::Plugins::cdk {
                 db->set(mObjectCdk, mObjectData);
                 db->save();
 
-                McUtils::Gui::submission(&pl, [](Player* player) {
-                    return MainGui::cdkAwardScore(player);
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::cdkAwardScore(player_ptr);
                 });
             });
         }
@@ -189,8 +189,8 @@ namespace LOICollection::Plugins::cdk {
                 db->set(mObjectCdk, mObjectData);
                 db->save();
 
-                McUtils::Gui::submission(&pl, [](Player* player) {
-                    return MainGui::cdkAwardItem(player);
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::cdkAwardItem(player_ptr);
                 });
             });
         }
@@ -222,8 +222,8 @@ namespace LOICollection::Plugins::cdk {
                 db->set(mObjectCdk, mObjectData);
                 db->save();
 
-                McUtils::Gui::submission(&pl, [](Player* player) {
-                    return MainGui::cdkAwardTitle(player);
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::cdkAwardTitle(player_ptr);
                 });
             });
         }

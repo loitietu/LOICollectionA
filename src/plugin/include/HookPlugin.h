@@ -21,6 +21,8 @@ namespace LOICollection::HookPlugin {
 
     LOICOLLECTION_A_API void interceptTextPacket(const std::string& uuid);
     LOICOLLECTION_A_API void interceptGetNameTag(const std::string& uuid);
+    LOICOLLECTION_A_API void uninterceptTextPacket(const std::string& uuid);
+    LOICOLLECTION_A_API void uninterceptGetNameTag(const std::string& uuid);
     LOICOLLECTION_A_API void setFakeSeed(const std::string& str);
     
     LOICOLLECTION_A_API void registery();

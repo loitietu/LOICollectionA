@@ -65,22 +65,22 @@ LL_TYPE_INSTANCE_HOOK(
     return origin(stream);
 };
 
-#define InterceptPacketHookMacro(NAME, TYPE, SYMBOL, LIMIT, VAL, ...)                                       \
-    LL_TYPE_INSTANCE_HOOK(NAME, HookPriority::Normal, TYPE, SYMBOL, void,  __VA_ARGS__) {                   \
-        if (packet.getId() == MinecraftPacketIds::Text) {                                                   \
-            auto mTextPacket = static_cast<TextPacket const&>(packet);                                      \
-            if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {        \
-                if (mTextPacket.mMessage.find(LIMIT) == std::string::npos)                                  \
-                    return origin VAL;                                                                      \
-                Player* player = McUtils::getPlayerFromName(mTextPacket.mParams.at(0));                     \
-                if (player == nullptr) return origin VAL;                                                   \
-                if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(),   \
-                    player->getUuid().asString()) != mInterceptedTextPacketTargets.end())                   \
-                    return;                                                                                 \
-            }                                                                                               \
-        }                                                                                                   \
-        return origin VAL;                                                                                  \
-    };                                                                                                      \
+#define InterceptPacketHookMacro(NAME, TYPE, SYMBOL, LIMIT, VAL, ...)                                           \
+    LL_TYPE_INSTANCE_HOOK(NAME, HookPriority::Normal, TYPE, SYMBOL, void,  __VA_ARGS__) {                       \
+        if (packet.getId() == MinecraftPacketIds::Text) {                                                       \
+            auto mTextPacket = static_cast<TextPacket const&>(packet);                                          \
+            if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {            \
+                if (mTextPacket.mMessage.find(LIMIT) == std::string::npos)                                      \
+                    return origin VAL;                                                                          \
+                Player* player = static_cast<Player*>(McUtils::getPlayerFromName(mTextPacket.mParams.at(0)));   \
+                if (player == nullptr) return origin VAL;                                                       \
+                if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(),       \
+                    player->getUuid().asString()) != mInterceptedTextPacketTargets.end())                       \
+                    return;                                                                                     \
+            }                                                                                                   \
+        }                                                                                                       \
+        return origin VAL;                                                                                      \
+    };                                                                                                          \
 
 InterceptPacketHookMacro(InterceptPacketHook1, LoopbackPacketSender, 
     "?sendBroadcast@LoopbackPacketSender@@UEAAXAEBVNetworkIdentifier@@W4SubClientId@@AEBVPacket@@@Z",
@@ -101,10 +101,11 @@ LL_TYPE_INSTANCE_HOOK(
     &Actor::getNameTag,
     std::string const&
 ) {
+    Player* player = (Player*) this;
     if (this->isPlayer() && std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(),
-        ((Player*)this)->getUuid().asString()) != mInterceptedGetNameTagTargets.end()) {
+        player->getUuid().asString()) != mInterceptedGetNameTagTargets.end()) {
         static std::string mName;
-        mName = ((Player*) this)->getRealName();
+        mName = player->getRealName();
         return mName;
     }
     return origin();
@@ -239,19 +240,27 @@ namespace LOICollection::HookPlugin {
     }
 
     void interceptTextPacket(const std::string& uuid) {
-        if (auto it = std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), uuid);it != mInterceptedTextPacketTargets.end()) {
-            mInterceptedTextPacketTargets.erase(it);
+        if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), uuid) != mInterceptedTextPacketTargets.end())
             return;
-        }
         mInterceptedTextPacketTargets.push_back(uuid);
     }
 
     void interceptGetNameTag(const std::string& uuid) {
-        if (auto it = std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), uuid);it != mInterceptedGetNameTagTargets.end()) {
-            mInterceptedGetNameTagTargets.erase(it);
+        if (std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), uuid) != mInterceptedGetNameTagTargets.end())
             return;
-        }
         mInterceptedGetNameTagTargets.push_back(uuid);
+    }
+
+    void uninterceptTextPacket(const std::string& uuid) {
+        auto it = std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), uuid);
+        if (it != mInterceptedTextPacketTargets.end())
+            mInterceptedTextPacketTargets.erase(it);
+    }
+
+    void uninterceptGetNameTag(const std::string& uuid) {
+        auto it = std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), uuid);
+        if (it!= mInterceptedGetNameTagTargets.end())
+            mInterceptedGetNameTagTargets.erase(it);
     }
 
     void setFakeSeed(const std::string& str) {

@@ -8,6 +8,7 @@
 #include <ll/api/event/player/PlayerLeaveEvent.h>
 
 #include <mc/world/actor/player/Player.h>
+
 #include <mc/network/ServerNetworkHandler.h>
 #include <mc/network/PacketHandlerDispatcherInstance.h>
 #include <mc/network/packet/ModalFormRequestPacket.h>
@@ -28,8 +29,7 @@ LL_TYPE_INSTANCE_HOOK(
     void,
     Player const& player
 ) {
-    if (!this->mFormId) return origin(player);
-    if (this->mFormJSON.empty()) return origin(player);
+    if (!this->mFormId || this->mFormJSON.empty()) return origin(player);
 
     std::string mUuid = player.getUuid().asString();
     if (mFormResponse.contains(mUuid)) {
