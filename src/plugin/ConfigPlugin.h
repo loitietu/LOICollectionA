@@ -6,6 +6,7 @@
 
 struct C_Config {
     int version = 0;
+    std::string ConsoleLanguage = "system";
     struct C_Plugins {
         std::string FakeSeed = "$random";
         struct C_Language{

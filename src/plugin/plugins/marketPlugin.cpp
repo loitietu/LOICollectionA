@@ -84,8 +84,7 @@ namespace LOICollection::Plugins::market {
                         return MainGui::buy(player_ptr);
                     });
 
-                    std::string logString = tr(getLanguage(&pl), "market.log1");
-                    ll::string_utils::replaceAll(logString, "${item}", mName);
+                    std::string logString = ll::string_utils::replaceAll(tr({}, "market.log1"), "${item}", mName);
                     logger.info(LOICollection::LOICollectionAPI::translateString(logString, &pl));
                     return;
                 }
@@ -103,8 +102,7 @@ namespace LOICollection::Plugins::market {
                         return MainGui::buy(player_ptr);
                     });
 
-                    std::string logString = tr(getLanguage(&pl), "market.log3");
-                    ll::string_utils::replaceAll(logString, "${item}", mName);
+                    std::string logString = ll::string_utils::replaceAll(tr({}, "market.log3"), "${item}", mName);
                     logger.info(LOICollection::LOICollectionAPI::translateString(logString, &pl));
                 });
             }
@@ -139,8 +137,7 @@ namespace LOICollection::Plugins::market {
                     return MainGui::sellItemContent(player_ptr);
                 });
 
-                std::string logString = tr(getLanguage(&pl), "market.log3");
-                ll::string_utils::replaceAll(logString, "${item}", mName);
+                std::string logString = ll::string_utils::replaceAll(tr({}, "market.log3"), "${item}", mName);
                 logger.info(LOICollection::LOICollectionAPI::translateString(logString, &pl));
             });
             form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
@@ -192,8 +189,7 @@ namespace LOICollection::Plugins::market {
                         return MainGui::sellItem(player_ptr);
                     });
 
-                    std::string logString = tr(getLanguage(&pl), "market.log2");
-                    ll::string_utils::replaceAll(logString, "${item}", mItemName);
+                    std::string logString = ll::string_utils::replaceAll(tr({}, "market.log2"), "${item}", mItemName);
                     logger.info(LOICollection::LOICollectionAPI::translateString(logString, &pl));
                     return;
                 }

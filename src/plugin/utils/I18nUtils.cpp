@@ -10,27 +10,29 @@
 #include "I18nUtils.h"
 
 namespace I18nUtils {
-    std::unordered_map<std::string, nlohmann::ordered_json> data;
+    std::string defaultLocal{};
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> data;
 
     void load(const std::filesystem::path& path) {
         for (const auto& entry : std::filesystem::directory_iterator(path)) {
-            if (!entry.is_regular_file() || entry.path().extension()!= ".json") continue;
+            if (!entry.is_regular_file() || entry.path().extension() != ".json")
+                continue;
 
-            std::ifstream filestream(entry.path());
             nlohmann::ordered_json dataJson;
-            filestream >> dataJson;
-            filestream.close();
-            
-            data[entry.path().stem().string()] = dataJson;
+            std::ifstream(entry.path()) >> dataJson;
+            for (const auto& [key, value] : dataJson.items())
+                data[entry.path().stem().string()][key] = value;
         }
     }
 
-    std::string tr(const std::string& local, const std::string& key) {
-        if (auto it = data.find(local); it != data.end()) {
-            const nlohmann::ordered_json& localJson = it->second;
-            if (localJson.contains(key))
-                return localJson[key];
-        }
+    void setDefaultLocal(const std::string& local) {
+        defaultLocal = local;
+    }
+
+    std::string tr(std::string local, std::string key) {
+        if (local.empty()) local = defaultLocal;
+        if (data.find(local) != data.end() && data[local].find(key) != data[local].end())
+            return data[local][key];
         return key;
     }
 

@@ -79,7 +79,7 @@ namespace McUtils {
     }
 
     std::vector<void*> getAllPlayers() {
-        std::vector<void*> mObjectLists = {};
+        std::vector<void*> mObjectLists{};
         ll::service::getLevel()->forEachPlayer([&](Player& player) {
             if (!player.isSimulatedPlayer())
                 mObjectLists.push_back(&player);
@@ -89,7 +89,7 @@ namespace McUtils {
     }
 
     std::vector<std::string> getAllPlayerName() {
-        std::vector<std::string> mObjectLists = {};
+        std::vector<std::string> mObjectLists{};
         for (auto& player_ptr : getAllPlayers()) {
             Player* player = static_cast<Player*>(player_ptr);
             mObjectLists.push_back(player->getRealName());

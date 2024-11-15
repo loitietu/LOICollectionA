@@ -26,11 +26,9 @@ namespace Config {
                 target[it.key()] = it.value();
                 continue;
             }
-            if (it.value().is_object() && target[it.key()].is_object()) {
+            if (it.value().is_object() && target[it.key()].is_object())
                 mergeJson(it.value(), target[it.key()]);
-            } else if (it->type() != target[it.key()].type()) {
-                target[it.key()] = it.value();
-            }
+            else if (it->type() != target[it.key()].type()) target[it.key()] = it.value();
         }
     }
 

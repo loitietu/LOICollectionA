@@ -196,15 +196,11 @@ namespace LOICollection::Plugins::blacklist {
             });
             command.overload().text("list").execute([](CommandOrigin const& /*unused*/, CommandOutput& output) {
                 std::vector<std::string> mObjectList = db->list();
-                
-                if (mObjectList.empty())
-                    return output.success("Blacklist is empty.");
-                
-                std::string result = std::accumulate(mObjectList.begin(), mObjectList.end(), std::string(),
-                    [](const std::string& a, const std::string& b) {
+                std::string result = std::accumulate(mObjectList.begin(), mObjectList.end(), 
+                    std::string(""), [](const std::string& a, const std::string& b) {
                     return a + (a.empty() ? "" : ", ") + ll::string_utils::replaceAll(b, "OBJECT$", "");
                 });
-                output.success("Blacklist: {}", result);
+                mObjectList.empty() ? output.success("Blacklist is empty.") : output.success("Blacklist: {}", result);
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
@@ -254,7 +250,6 @@ namespace LOICollection::Plugins::blacklist {
             return;
 
         cause = cause.empty() ? "None" : cause;
-        std::string mObjectLanguage = getLanguage(player);
         std::string mObject = type == BLACKLIST_TYPE_UUID ? player->getUuid().asString()
             : std::string(ll::string_utils::splitByPattern(player->getIPAndPort(), ":")[0]);
         std::replace(mObject.begin(), mObject.end(), '.', '_');
@@ -264,21 +259,19 @@ namespace LOICollection::Plugins::blacklist {
             db->set("OBJECT$" + mObject, "cause", cause);
             db->set("OBJECT$" + mObject, "time", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
         }
-        std::string mObjectTips = tr(mObjectLanguage, "blacklist.tips");
+        std::string mObjectTips = tr(getLanguage(player), "blacklist.tips");
         ll::string_utils::replaceAll(mObjectTips, "${cause}", cause);
         ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
         ll::service::getServerNetworkHandler()->disconnectClient(
             player->getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked, mObjectTips, false
         );
-        std::string logString = tr(mObjectLanguage, "blacklist.log1");
-        logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
+        logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "blacklist.log1"), player));
     }
 
     void delBlacklist(std::string target) {
         if (db->has("OBJECT$" + target))
             db->remove("OBJECT$" + target);
-        std::string logString = tr(getLanguage(nullptr), "blacklist.log2");
-        logger.info(ll::string_utils::replaceAll(logString, "${target}", target));
+        logger.info(ll::string_utils::replaceAll(tr({}, "blacklist.log2"), "${target}", target));
     }
 
     bool isBlacklist(void* player_ptr) {

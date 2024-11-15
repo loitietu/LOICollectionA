@@ -90,7 +90,7 @@ namespace LOICollection::Plugins::tpa {
                 tr(mObjectLanguage, "tpa.yes"), tr(mObjectLanguage, "tpa.no"));
             form.sendTo(*target, [type, player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
-                    std::string logString = tr(getLanguage(&pl), "tpa.log");
+                    std::string logString = tr({}, "tpa.log");
                     if (type == TPA_TYPE_TPA) {
                         player->teleport(pl.getPosition(), pl.getDimensionId());
                         ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());

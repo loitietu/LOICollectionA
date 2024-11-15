@@ -71,7 +71,6 @@ namespace LOICollection::Plugins::cdk {
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::open(&pl);
 
-                std::string logString = tr(getLanguage(&pl), "cdk.log1");
                 std::string mObjectCdk = std::get<std::string>(dt->at("Input1"));
                 if (!db->has(mObjectCdk)) {
                     bool mObjectToggle = std::get<uint64>(dt->at("Toggle"));
@@ -95,7 +94,7 @@ namespace LOICollection::Plugins::cdk {
                     return MainGui::cdkNew(player_ptr);
                 });
 
-                logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
+                logger.info(ll::string_utils::replaceAll(tr({}, "cdk.log1"), "${cdk}", mObjectCdk));
             });
         }
 
@@ -114,7 +113,6 @@ namespace LOICollection::Plugins::cdk {
             form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::open(&pl);
 
-                std::string logString = tr(getLanguage(&pl), "cdk.log2");
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
                 db->remove(mObjectCdk);
                 db->save();
@@ -123,7 +121,7 @@ namespace LOICollection::Plugins::cdk {
                     return MainGui::cdkRemove(player_ptr);
                 });
 
-                logger.info(ll::string_utils::replaceAll(logString, "${cdk}", mObjectCdk));
+                logger.info(ll::string_utils::replaceAll(tr({}, "cdk.log2"), "${cdk}", mObjectCdk));
             });
         }
 
@@ -341,8 +339,7 @@ namespace LOICollection::Plugins::cdk {
                 cdkJson["player"] = mPlayerList;
                 db->set(convertString, cdkJson);
             }
-            std::string logString = tr(mObjectLanguage, "cdk.log3");
-            ll::string_utils::replaceAll(logString, "${cdk}", convertString);
+            std::string logString = ll::string_utils::replaceAll(tr({}, "cdk.log3"), "${cdk}", convertString);
             logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
             player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
             db->save();

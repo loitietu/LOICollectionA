@@ -188,14 +188,12 @@ namespace LOICollection::Plugins::mute {
                         return false;
                     }
                     std::string mObjectTips = tr(getLanguage(player), "mute.tips");
-                    std::string logString = tr(getLanguage(player), "mute.log3");
-
                     ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mObject, "cause"));
                     ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
-                    ll::string_utils::replaceAll(logString, "${message}", message);
-
-                    logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
                     player->sendMessage(mObjectTips);
+
+                    std::string logString = ll::string_utils::replaceAll(tr({}, "mute.log3"), "${message}", message);
+                    logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
                     return true;
                 }
                 return false;
@@ -210,7 +208,6 @@ namespace LOICollection::Plugins::mute {
             return;
 
         cause = cause.empty() ? "None" : cause;
-        std::string mObjectLanguage = getLanguage(player);
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (!db->has("OBJECT$" + mObject)) {
@@ -218,8 +215,7 @@ namespace LOICollection::Plugins::mute {
             db->set("OBJECT$" + mObject, "cause", cause);
             db->set("OBJECT$" + mObject, "time", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
         }
-        std::string logString = tr(mObjectLanguage, "mute.log1");
-        ll::string_utils::replaceAll(logString, "${cause}", cause);
+        std::string logString = ll::string_utils::replaceAll(tr({}, "mute.log1"), "${cause}", cause);
         logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
     }
 
@@ -233,8 +229,7 @@ namespace LOICollection::Plugins::mute {
     void delMute(std::string target) {
         if (db->has("OBJECT$" + target))
             db->remove("OBJECT$" + target);
-        std::string logString = tr(getLanguage(nullptr), "mute.log2");
-        logger.info(ll::string_utils::replaceAll(logString, "${target}", target));
+        logger.info(ll::string_utils::replaceAll(tr({}, "mute.log2"), "${target}", target));
     }
 
     bool isMute(void* player_ptr) {

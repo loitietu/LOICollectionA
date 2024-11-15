@@ -63,7 +63,7 @@ namespace LOICollection::Plugins::wallet {
                     return MainGui::transfer(player_ptr);
                 });
 
-                std::string logString = tr(getLanguage(&pl), "wallet.log");
+                std::string logString = tr({}, "wallet.log");
                 ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
                 ll::string_utils::replaceAll(logString, "${player2}", target);
                 ll::string_utils::replaceAll(logString, "${money}", std::to_string(mMoney));

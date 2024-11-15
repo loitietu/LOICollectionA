@@ -155,7 +155,7 @@ namespace LOICollection::Plugins::chat {
                     return MainGui::title(player_ptr);
                 });
 
-                logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "chat.log1"), &pl));
+                logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "chat.log1"), &pl));
             });
         }
 
@@ -222,15 +222,11 @@ namespace LOICollection::Plugins::chat {
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
 
                 std::vector<std::string> mObjectList = db->list("OBJECT$" + mObject + "$TITLE");
-                
-                if (mObjectList.empty())
-                    return output.success("Chat is empty.");
-                
-                std::string result = std::accumulate(mObjectList.begin(), mObjectList.end(), std::string(),
-                    [](const std::string& a, const std::string& b) {
+                std::string result = std::accumulate(mObjectList.begin(), mObjectList.end(), 
+                    std::string(""), [](const std::string& a, const std::string& b) {
                     return a + (a.empty() ? "" : ", ") + b;
                 });
-                output.success("Chat: {}", result);
+                mObjectList.empty() ? output.success("Chat is empty.") : output.success("Chat: {}", result);
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
@@ -297,8 +293,7 @@ namespace LOICollection::Plugins::chat {
                 std::string mTimeString = db->get("OBJECT$" + mObject + "$TITLE", i);
                 if (SystemUtils::isReach(mTimeString)) {
                     db->del("OBJECT$" + mObject + "$TITLE", i);
-                    std::string logString = tr(getLanguage(player), "chat.log4");
-                    ll::string_utils::replaceAll(logString, "${title}", i);
+                    std::string logString = ll::string_utils::replaceAll(tr({}, "chat.log4"), "${title}", i);
                     logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
                 }
             }
@@ -318,8 +313,7 @@ namespace LOICollection::Plugins::chat {
             db->create("OBJECT$" + mObject + "$TITLE");
         db->set("OBJECT$" + mObject + "$TITLE", text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
 
-        std::string logString = tr(getLanguage(player), "chat.log2");
-        ll::string_utils::replaceAll(logString, "${title}", text);
+        std::string logString = ll::string_utils::replaceAll(tr({}, "chat.log2"), "${title}", text);
         logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
     }
 
@@ -331,8 +325,7 @@ namespace LOICollection::Plugins::chat {
             db->del("OBJECT$" + mObject + "$TITLE", text);
             update(player);
         }
-        std::string logString = tr(getLanguage(player), "chat.log3");
-        ll::string_utils::replaceAll(logString, "${title}", text);
+        std::string logString = ll::string_utils::replaceAll(tr({}, "chat.log3"), "${title}", text);
         logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
     }
 

@@ -50,7 +50,7 @@ namespace LOICollection::Plugins::language {
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 db->set("OBJECT$" + mObject, "language", std::get<std::string>(dt->at("dropdown")));
                 
-                logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "language.log"), &pl));
+                logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "language.log"), &pl));
             });
         }
     }

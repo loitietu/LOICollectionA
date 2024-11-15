@@ -119,8 +119,7 @@ namespace LOICollection::Plugins::menu {
                     return MainGui::editNew(player_ptr);
                 });
 
-                std::string logString = tr(getLanguage(&pl), "menu.log1");
-                ll::string_utils::replaceAll(logString, "${menu}", mObjectInput1);
+                std::string logString = ll::string_utils::replaceAll(tr({}, "menu.log1"), "${menu}", mObjectInput1);
                 logger.info(translateString(logString, &pl));
             });
         }
@@ -143,8 +142,7 @@ namespace LOICollection::Plugins::menu {
                             db->remove(key);
                             db->save();
 
-                            std::string logString = tr(getLanguage(&pl), "menu.log2");
-                            ll::string_utils::replaceAll(logString, "${menu}", key);
+                            std::string logString = ll::string_utils::replaceAll(tr({}, "menu.log2"), "${menu}", key);
                             logger.info(translateString(logString, &pl));
                         }
                         McUtils::Gui::submission(&pl, [](void* player_ptr) {
@@ -203,8 +201,7 @@ namespace LOICollection::Plugins::menu {
                     return MainGui::editAwardContent(player_ptr, uiName);
                 });
 
-                std::string logString = tr(getLanguage(&pl), "menu.log5");
-                ll::string_utils::replaceAll(logString, "${menu}", uiName);
+                std::string logString = ll::string_utils::replaceAll(tr({}, "menu.log5"), "${menu}", uiName);
                 logger.info(translateString(logString, &pl));
             });
         }
@@ -258,8 +255,7 @@ namespace LOICollection::Plugins::menu {
                     return MainGui::editAwardContent(player_ptr, uiName);
                 });
 
-                std::string logString = tr(getLanguage(&pl), "menu.log6");
-                ll::string_utils::replaceAll(logString, "${menu}", uiName);
+                std::string logString = ll::string_utils::replaceAll(tr({}, "menu.log6"), "${menu}", uiName);
                 logger.info(translateString(logString, &pl));
             });
         }
@@ -299,7 +295,7 @@ namespace LOICollection::Plugins::menu {
                         db->set(uiName, data);
                         db->save();
 
-                        std::string logString = tr(getLanguage(&pl), "menu.log3");
+                        std::string logString = tr({}, "menu.log3");
                         ll::string_utils::replaceAll(logString, "${menu}", uiName);
                         ll::string_utils::replaceAll(logString, "${customize}", mId);
                         logger.info(translateString(logString, &pl));
@@ -357,8 +353,7 @@ namespace LOICollection::Plugins::menu {
                     return MainGui::editAwardContent(player_ptr, uiName);
                 });
 
-                std::string logString = tr(getLanguage(&pl), "menu.log4");
-                ll::string_utils::replaceAll(logString, "${menu}", uiName);
+                std::string logString = ll::string_utils::replaceAll(tr({}, "menu.log4"), "${menu}", uiName);
                 logger.info(translateString(logString, &pl));
             });
         }

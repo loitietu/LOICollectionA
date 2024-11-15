@@ -11,6 +11,7 @@
 #include <ll/api/Mod/RegisterHelper.h>
 
 #include "utils/I18nUtils.h"
+#include "utils/SystemUtils.h"
 
 #include "data/JsonStorage.h"
 #include "data/SQLiteStorage.h"
@@ -93,6 +94,8 @@ namespace LOICollection {
             mObjectLanguage.save();
         }
         I18nUtils::load(langFilePath);
+        I18nUtils::setDefaultLocal(this->config.ConsoleLanguage == "system" ?
+            SystemUtils::getSystemLocaleCode() : this->config.ConsoleLanguage);
         logger.info("Initialization of language file completed.");
 
         HookPlugin::setFakeSeed(this->config.Plugins.FakeSeed);

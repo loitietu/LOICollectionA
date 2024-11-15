@@ -111,7 +111,7 @@ namespace LOICollection::Plugins::announcement {
                     return MainGui::edit(player_ptr);
                 });
 
-                logger.info(LOICollection::LOICollectionAPI::translateString(tr(getLanguage(&pl), "announcement.log"), &pl));
+                logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "announcement.log"), &pl));
             });
         }
 
