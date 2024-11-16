@@ -8,16 +8,18 @@
 
 #include "ExportLib.h"
 
-#define SIMPLE_TYPE 1
-#define MODAL_TYPE 2
-#define CUSTOM_TYPE 3
+enum class MenuType {
+    Simple,
+    Modal,
+    Custom
+};
 
 namespace LOICollection::Plugins::menu {
     namespace MainGui {
         LOICOLLECTION_A_API void editNew(void* player_ptr);
         LOICOLLECTION_A_API void editRemove(void* player_ptr);
-        LOICOLLECTION_A_API void editAwardSetting(void* player_ptr, std::string uiName, int type);
-        LOICOLLECTION_A_API void editAwardNew(void* player_ptr, std::string uiName, int type);
+        LOICOLLECTION_A_API void editAwardSetting(void* player_ptr, std::string uiName, MenuType type);
+        LOICOLLECTION_A_API void editAwardNew(void* player_ptr, std::string uiName, MenuType type);
         LOICOLLECTION_A_API void editAwardRemove(void* player_ptr, std::string uiName);
         LOICOLLECTION_A_API void editAwardCommand(void* player_ptr, std::string uiName);
         LOICOLLECTION_A_API void editAwardContent(void* player_ptr, std::string uiName);

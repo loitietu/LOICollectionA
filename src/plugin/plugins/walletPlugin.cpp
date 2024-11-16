@@ -37,7 +37,7 @@ namespace LOICollection::Plugins::wallet {
     ll::Logger logger("LOICollectionA - Wallet");
 
     namespace MainGui {
-        void content(void* player_ptr, std::string target) {
+        void content(void* player_ptr, void* target_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
@@ -48,7 +48,7 @@ namespace LOICollection::Plugins::wallet {
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
             form.appendLabel(mLabel);
             form.appendInput("Input", tr(mObjectLanguage, "wallet.gui.stepslider.input"), "", "100");
-            form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(*player, [target_ptr](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::transfer(&pl);
 
                 int mMoney = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
@@ -57,7 +57,7 @@ namespace LOICollection::Plugins::wallet {
                     return pl.sendMessage(tr(getLanguage(&pl), "wallet.tips"));
 
                 McUtils::scoreboard::reduceScore(&pl, mScore, mMoney);
-                McUtils::scoreboard::addScore(McUtils::getPlayerFromName(target), mScore, mTargetMoney);
+                McUtils::scoreboard::addScore(target_ptr, mScore, mTargetMoney);
 
                 McUtils::Gui::submission(&pl, [](void* player_ptr) {
                     return MainGui::transfer(player_ptr);
@@ -65,7 +65,7 @@ namespace LOICollection::Plugins::wallet {
 
                 std::string logString = tr({}, "wallet.log");
                 ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
-                ll::string_utils::replaceAll(logString, "${player2}", target);
+                ll::string_utils::replaceAll(logString, "${player2}", static_cast<Player*>(target_ptr)->getRealName());
                 ll::string_utils::replaceAll(logString, "${money}", std::to_string(mMoney));
                 logger.info(logString);
             });
@@ -75,8 +75,8 @@ namespace LOICollection::Plugins::wallet {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), tr(mObjectLanguage, "wallet.gui.stepslider.label"));
-            for (auto& mTarget : McUtils::getAllPlayerName()) {
-                form.appendButton(mTarget, [mTarget](Player& pl) {
+            for (auto& mTarget : McUtils::getAllPlayers()) {
+                form.appendButton(static_cast<Player*>(mTarget)->getRealName(), [mTarget](Player& pl) {
                     MainGui::content(&pl, mTarget);
                 });
             }

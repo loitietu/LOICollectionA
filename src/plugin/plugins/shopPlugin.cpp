@@ -142,7 +142,7 @@ namespace LOICollection::Plugins::shop {
             });
         }
 
-        void editAwardSetting(void* player_ptr, std::string uiName, int type) {
+        void editAwardSetting(void* player_ptr, std::string uiName, ShopType type) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
@@ -152,9 +152,9 @@ namespace LOICollection::Plugins::shop {
             form.appendInput("Input7", tr(mObjectLanguage, "shop.gui.button1.input7"), "", data.at("title"));
             form.appendInput("Input6", tr(mObjectLanguage, "shop.gui.button1.input6"), "", data.at("content"));
             form.appendInput("Input2", tr(mObjectLanguage, "shop.gui.button1.input2"), "", data.at("exit"));
-            if (type == SHOP_BUY)
+            if (type == ShopType::buy)
                 form.appendInput("Input5", tr(mObjectLanguage, "shop.gui.button1.input5"), "", data.at("NoScore"));
-            if (type == SHOP_SELL) {
+            if (type == ShopType::sell) {
                 form.appendInput("Input3", tr(mObjectLanguage, "shop.gui.button1.input3"), "", data.at("NoTitle"));
                 form.appendInput("Input4", tr(mObjectLanguage, "shop.gui.button1.input4"), "", data.at("NoItem"));
             }
@@ -166,10 +166,10 @@ namespace LOICollection::Plugins::shop {
                 data["content"] = std::get<std::string>(dt->at("Input7"));
                 data["exit"] = std::get<std::string>(dt->at("Input2"));
                 switch (type) {
-                    case SHOP_BUY:
+                    case ShopType::buy:
                         data["NoScore"] = std::get<std::string>(dt->at("Input5"));
                         break;
-                    case SHOP_SELL:
+                    case ShopType::sell:
                         data["NoTitle"] = std::get<std::string>(dt->at("Input3"));
                         data["NoItem"] = std::get<std::string>(dt->at("Input4"));
                         break;
@@ -186,7 +186,7 @@ namespace LOICollection::Plugins::shop {
             });
         }
 
-        void editAwardNew(void* player_ptr, std::string uiName, int type) {
+        void editAwardNew(void* player_ptr, std::string uiName, ShopType type) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
@@ -201,7 +201,7 @@ namespace LOICollection::Plugins::shop {
             form.appendInput("Input6", tr(mObjectLanguage, "shop.gui.button3.new.input6"), "", "");
             form.appendInput("Input7", tr(mObjectLanguage, "shop.gui.button3.new.input7"), "", "Confirm");
             form.appendInput("Input8", tr(mObjectLanguage, "shop.gui.button3.new.input8"), "", "Cancel");
-            if (type == SHOP_BUY)
+            if (type == ShopType::buy)
                 form.appendInput("Input9", tr(mObjectLanguage, "shop.gui.button3.new.input9"), "", "24");
             form.sendTo(*player, [uiName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::editAwardContent(&pl, uiName);
@@ -222,7 +222,7 @@ namespace LOICollection::Plugins::shop {
                     } else data["number"] = std::get<std::string>(dt->at("Input7"));
                 }
                 (mObjectType == "from" ? data["menu"] : data["id"]) = std::get<std::string>(dt->at("Input6"));
-                if (type == SHOP_BUY && mObjectType == "title")
+                if (type == ShopType::buy && mObjectType == "title")
                     data["time"] = SystemUtils::toInt((mObjectInput9.empty() ? "24" : mObjectInput9), 0);
                 data["scores"] = nlohmann::ordered_json::object();
                 if (!mObjectInput4.empty())
@@ -298,20 +298,20 @@ namespace LOICollection::Plugins::shop {
             form.appendButton(tr(mObjectLanguage, "shop.gui.button3.setting"), "textures/ui/icon_setting", "path", [uiName, mObjectType](Player& pl) {
                 switch (ll::hash_utils::doHash(mObjectType)) {
                     case ll::hash_utils::doHash("buy"):
-                        MainGui::editAwardSetting(&pl, uiName, SHOP_BUY);
+                        MainGui::editAwardSetting(&pl, uiName, ShopType::buy);
                         break;
                     case ll::hash_utils::doHash("sell"):
-                        MainGui::editAwardSetting(&pl, uiName, SHOP_SELL);
+                        MainGui::editAwardSetting(&pl, uiName, ShopType::sell);
                         break;
                 };
             });
             form.appendButton(tr(mObjectLanguage, "shop.gui.button3.new"), "textures/ui/icon_sign", "path", [uiName, mObjectType](Player& pl) {
                 switch (ll::hash_utils::doHash(mObjectType)) {
                     case ll::hash_utils::doHash("buy"):
-                        MainGui::editAwardNew(&pl, uiName, SHOP_BUY);
+                        MainGui::editAwardNew(&pl, uiName, ShopType::buy);
                         break;
                     case ll::hash_utils::doHash("sell"):
-                        MainGui::editAwardNew(&pl, uiName, SHOP_SELL);
+                        MainGui::editAwardNew(&pl, uiName, ShopType::sell);
                         break;
                 };
             });
@@ -357,40 +357,37 @@ namespace LOICollection::Plugins::shop {
             });
         }
 
-        void menu(void* player_ptr, nlohmann::ordered_json& data, bool type) {
+        void menu(void* player_ptr, nlohmann::ordered_json& data, ShopType type) {
             Player* player = static_cast<Player*>(player_ptr);
 
-            std::vector<nlohmann::ordered_json> mItemLists;
             ll::form::SimpleForm form(translateString(data.at("title").get<std::string>(), player));
             form.setContent(translateString(data.at("content").get<std::string>(), player));
             for (auto& item : data.at("classiflcation")) {
-                std::string mTitle = translateString(item.at("title").get<std::string>(), player);
-                std::string mImage = item.at("image").get<std::string>();
-                form.appendButton(mTitle, mImage, "path");
-                mItemLists.push_back(item);
+                form.appendButton(translateString(item.at("title").get<std::string>(), player), 
+                    item.at("image").get<std::string>(), "path", [item, data, type](Player& pl) {
+                    nlohmann::ordered_json mItem = item;
+                    switch (ll::hash_utils::doHash(mItem["type"].get<std::string>())) {
+                        case ll::hash_utils::doHash("commodity"):
+                            MainGui::commodity(&pl, mItem, data, type);
+                            break;
+                        case ll::hash_utils::doHash("title"):
+                            MainGui::title(&pl, mItem, data, type);
+                            break;
+                        case ll::hash_utils::doHash("from"):
+                            MainGui::open(&pl, mItem.at("menu").get<std::string>());
+                            break;
+                        default:
+                            logger.error("Unknown UI type {}.", mItem["type"].get<std::string>());
+                            break;
+                    };
+                });
             }
-            form.sendTo(*player, [data, mItemLists, type](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(*player, [data](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) return McUtils::executeCommand(&pl, data.at("exit").get<std::string>());
-                
-                nlohmann::ordered_json mItem = mItemLists.at(id);
-                switch (ll::hash_utils::doHash(mItem["type"].get<std::string>())) {
-                    case ll::hash_utils::doHash("commodity"):
-                        MainGui::commodity(&pl, mItem, data, type);
-                        break;
-                    case ll::hash_utils::doHash("title"):
-                        MainGui::title(&pl, mItem, data, type);
-                        break;
-                    case ll::hash_utils::doHash("from"):
-                        MainGui::open(&pl, mItem.at("menu").get<std::string>());
-                        break;
-                    default:
-                        logger.error("Unknown UI type {}.", mItem["type"].get<std::string>());
-                        break;
-                };
             });
         }
 
-        void commodity(void* player_ptr, nlohmann::ordered_json& data, nlohmann::ordered_json original, bool type) {
+        void commodity(void* player_ptr, nlohmann::ordered_json& data, nlohmann::ordered_json original, ShopType type) {
             Player* player = static_cast<Player*>(player_ptr);
 
             ll::form::CustomForm form(translateString(data.at("title").get<std::string>(), player));
@@ -401,7 +398,7 @@ namespace LOICollection::Plugins::shop {
 
                 int mNumber = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
                 if (mNumber > 2304) return;
-                if (type) {
+                if (type == ShopType::buy) {
                     if (checkModifiedData(&pl, data, mNumber)) {
                         ItemStack itemStack = data.contains("nbt") ? ItemStack::fromTag(CompoundTag::fromSnbt(data.at("nbt").get<std::string>())->mTags)
                             : ItemStack(data.at("id").get<std::string>(), 1);
@@ -429,7 +426,7 @@ namespace LOICollection::Plugins::shop {
             });
         }
 
-        void title(void* player_ptr, nlohmann::ordered_json& data, nlohmann::ordered_json original, bool type) {
+        void title(void* player_ptr, nlohmann::ordered_json& data, nlohmann::ordered_json original, ShopType type) {
             Player* player = static_cast<Player*>(player_ptr);
 
             ll::form::ModalForm form(translateString(data.at("title").get<std::string>(), player),
@@ -439,7 +436,7 @@ namespace LOICollection::Plugins::shop {
             form.sendTo(*player, [data, original, type](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
                     std::string id = data.at("id").get<std::string>();
-                    if (type) {
+                    if (type == ShopType::buy) {
                         if (checkModifiedData(&pl, data, 1)) {
                             if (data.contains("time"))
                                 return chat::addChat(&pl, id, data.at("time").get<int>());
@@ -465,10 +462,10 @@ namespace LOICollection::Plugins::shop {
                 
                 switch (ll::hash_utils::doHash(data.at("type").get<std::string>())) {
                     case ll::hash_utils::doHash("buy"):
-                        MainGui::menu(player_ptr, data, true);
+                        MainGui::menu(player_ptr, data, ShopType::buy);
                         break;
                     case ll::hash_utils::doHash("sell"):
-                        MainGui::menu(player_ptr, data, false);
+                        MainGui::menu(player_ptr, data, ShopType::sell);
                         break;
                     default:
                         logger.error("Unknown UI type {}.", data.at("type").get<std::string>());

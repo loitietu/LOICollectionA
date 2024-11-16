@@ -18,6 +18,7 @@
 
 #include <mc/nbt/Tag.h>
 #include <mc/nbt/CompoundTag.h>
+#include <mc/world/level/Level.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/world/item/registry/ItemStack.h>
 #include <mc/server/commands/CommandOrigin.h>
@@ -67,12 +68,11 @@ namespace LOICollection::Plugins::market {
                     pl.add(mItemStack);
                     pl.refreshInventory();
 
-                    Player* mPlayer = static_cast<Player*>(McUtils::getPlayerFromName(db->get(mItemId, "player")));
-                    if (mPlayer == nullptr) {
-                        std::string mObject = pl.getUuid().asString();
-                        std::replace(mObject.begin(), mObject.end(), '-', '_');
-                        int mPlayerScore = SystemUtils::toInt(db->get("OBJECT$" + mObject, "score"), 0) + mScore;
-                        db->set("OBJECT$" + mObject, "score", std::to_string(mPlayerScore));
+                    Player* mPlayer = ll::service::getLevel()->getPlayer(db->get(mItemId, "player"));
+                    if (!mPlayer) {
+                        std::string mObject = mItemId.substr(0, mItemId.find("$ITEMS"));
+                        int mPlayerScore = SystemUtils::toInt(db->get(mObject, "score"), 0) + mScore;
+                        db->set(mObject, "score", std::to_string(mPlayerScore));
                     } else {
                         std::string mTips = tr(getLanguage(&pl), "market.gui.sell.sellItem.tips2");
                         mPlayer->sendMessage(ll::string_utils::replaceAll(mTips, "${item}", mName));
@@ -201,8 +201,6 @@ namespace LOICollection::Plugins::market {
         void sellItemContent(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
-
-            std::vector<std::string> mItems;
             std::string mObject = player->getUuid().asString();
             std::replace(mObject.begin(), mObject.end(), '-', '_');
 
@@ -211,13 +209,12 @@ namespace LOICollection::Plugins::market {
             for (auto& item : db->list("OBJECT$" + mObject + "$ITEMS")) {
                 std::string mName = db->get("OBJECT$" + mObject + "$ITEMS_$LIST_" + item, "name");
                 std::string mIcon = db->get("OBJECT$" + mObject + "$ITEMS_$LIST_" + item, "icon");
-                form.appendButton(mName, mIcon, "path");
-                mItems.push_back(item);
+                form.appendButton(mName, mIcon, "path", [mName](Player& pl) {
+                    MainGui::itemContent(&pl, mName);
+                });
             }
-            form.sendTo(*player, [mItems, mObject](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) return MainGui::sell(&pl);
-                
-                MainGui::itemContent(&pl, ("OBJECT$" + mObject + "$ITEMS_$LIST_" + mItems.at(id)));
             });
         }
 
@@ -241,19 +238,17 @@ namespace LOICollection::Plugins::market {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
-            std::vector<std::string> mItems;
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"));
             form.setContent(tr(mObjectLanguage, "market.gui.label"));
             for (auto& item : db->list("Item")) {
                 std::string mName = db->get(item, "name");
                 std::string mIcon = db->get(item, "icon");
-                form.appendButton(mName, mIcon, "path");
-                mItems.push_back(item);
+                form.appendButton(mName, mIcon, "path", [item](Player& pl) {
+                    MainGui::buyItem(&pl, item);
+                });
             }
-            form.sendTo(*player, [mItems](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) return pl.sendMessage(tr(getLanguage(&pl), "exit"));
-
-                MainGui::buyItem(&pl, mItems.at(id));
             });
         }
     }

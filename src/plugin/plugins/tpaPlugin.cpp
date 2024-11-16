@@ -71,7 +71,7 @@ namespace LOICollection::Plugins::tpa {
             });
         }
 
-        void tpa(void* player_ptr, void* target_ptr, int type) {
+        void tpa(void* player_ptr, void* target_ptr, TpaType type) {
             Player* player = static_cast<Player*>(player_ptr);
             Player* target = static_cast<Player*>(target_ptr);
             std::string mObjectLanguage = getLanguage(target);
@@ -84,14 +84,14 @@ namespace LOICollection::Plugins::tpa {
                 return;
             }
 
-            ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"), (type == TPA_TYPE_TPA)
+            ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"), (type == TpaType::tpa)
                 ? LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player)
                 : LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player),
                 tr(mObjectLanguage, "tpa.yes"), tr(mObjectLanguage, "tpa.no"));
             form.sendTo(*target, [type, player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
                     std::string logString = tr({}, "tpa.log");
-                    if (type == TPA_TYPE_TPA) {
+                    if (type == TpaType::tpa) {
                         player->teleport(pl.getPosition(), pl.getDimensionId());
                         ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
                         ll::string_utils::replaceAll(logString, "${player2}", player->getRealName());
@@ -110,23 +110,23 @@ namespace LOICollection::Plugins::tpa {
             });
         }
 
-        void content(void* player_ptr, std::string target) {
+        void content(void* player_ptr, void* target_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             
             ll::form::CustomForm form(tr(mObjectLanguage, "tpa.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "tpa.gui.label"));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "tpa.gui.dropdown"), { "tpa", "tphere" });
-            form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(*player, [target_ptr](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::open(&pl);
 
-                Player* pl2 = static_cast<Player*>(McUtils::getPlayerFromName(target));
+                Player* pl2 = static_cast<Player*>(target_ptr);
                 if (std::get<std::string>(dt->at("dropdown")) == "tpa")
-                    return MainGui::tpa(&pl, pl2, TPA_TYPE_TPA);
-                MainGui::tpa(&pl, pl2, TPA_TYPE_HERE);
+                    return MainGui::tpa(&pl, pl2, TpaType::tpa);
+                MainGui::tpa(&pl, pl2, TpaType::tphere);
 
-                McUtils::Gui::submission(&pl, [target](void* player_ptr) {
-                    return MainGui::content(player_ptr, target);
+                McUtils::Gui::submission(&pl, [target_ptr](void* player_ptr) {
+                    return MainGui::content(player_ptr, target_ptr);
                 });
             });
         }
@@ -136,8 +136,8 @@ namespace LOICollection::Plugins::tpa {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.title"), tr(mObjectLanguage, "tpa.gui.label2"));
-            for (auto& mTarget : McUtils::getAllPlayerName()) {
-                form.appendButton(mTarget, [mTarget](Player& pl) {
+            for (auto& mTarget : McUtils::getAllPlayers()) {
+                form.appendButton(static_cast<Player*>(mTarget)->getRealName(), [mTarget](Player& pl) {
                     MainGui::content(&pl, mTarget);
                 });
             }
@@ -162,8 +162,8 @@ namespace LOICollection::Plugins::tpa {
                 for (auto& pl : param.target.results(origin)) {
                     output.addMessage(fmt::format("{} has been invited.", 
                         pl->getRealName()), {}, CommandOutputMessageType::Success);
-                    MainGui::tpa(player, pl, param.selectorType == TpaOP::tpa
-                        ? TPA_TYPE_TPA : TPA_TYPE_HERE
+                    MainGui::tpa(player, pl, 
+                        param.selectorType == TpaOP::tpa ? TpaType::tpa : TpaType::tphere
                     );
                 }
             });

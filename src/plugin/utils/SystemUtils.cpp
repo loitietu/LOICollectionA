@@ -16,13 +16,13 @@ namespace SystemUtils {
         GetUserDefaultLocaleName(buf, LOCALE_NAME_MAX_LENGTH);
 
         std::string locale;
-        int mSize = WideCharToMultiByte(65001, 0, buf, wcslen(buf), NULL, 0, NULL, NULL);
+        int mSize = WideCharToMultiByte(65001, 0, buf, (int)wcslen(buf), NULL, 0, NULL, NULL);
 
         if (mSize == 0)
             return locale;
 
         locale.resize(mSize);
-        WideCharToMultiByte(65001, 0, buf, wcslen(buf), locale.data(), mSize, NULL, NULL);
+        WideCharToMultiByte(65001, 0, buf, (int)wcslen(buf), locale.data(), mSize, NULL, NULL);
         std::replace(locale.begin(), locale.end(), '-', '_');
         return locale;
     }

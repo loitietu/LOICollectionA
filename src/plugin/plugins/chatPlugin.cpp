@@ -1,7 +1,6 @@
 #include <memory>
 #include <string>
 #include <stdexcept>
-#include <numeric>
 
 #include <ll/api/Logger.h>
 #include <ll/api/form/CustomForm.h>
@@ -63,7 +62,7 @@ namespace LOICollection::Plugins::chat {
     ll::Logger logger("LOICollectionA - Chat");
 
     namespace MainGui {
-        void contentAdd(void* player_ptr, std::string target) {
+        void contentAdd(void* player_ptr, void* target_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
@@ -71,12 +70,12 @@ namespace LOICollection::Plugins::chat {
             form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
             form.appendInput("Input1", tr(mObjectLanguage, "chat.gui.manager.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "chat.gui.manager.add.input2"), "", "0");
-            form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(*player, [target_ptr](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::add(&pl);
 
                 std::string PlayerInputTitle = std::get<std::string>(dt->at("Input1"));
                 int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                addChat(McUtils::getPlayerFromName(target), PlayerInputTitle, time);
+                addChat(target_ptr, PlayerInputTitle, time);
 
                 McUtils::Gui::submission(&pl, [](void* player_ptr) {
                     return MainGui::add(player_ptr);
@@ -84,11 +83,12 @@ namespace LOICollection::Plugins::chat {
             });
         }
         
-        void contentRemove(void* player_ptr, std::string target) {
+        void contentRemove(void* player_ptr, void* target_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
+            Player* target = static_cast<Player*>(target_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
-            std::string mObject = static_cast<Player*>(McUtils::getPlayerFromName(target))->getUuid().asString();
+            std::string mObject = target->getUuid().asString();
             std::replace(mObject.begin(), mObject.end(), '-', '_');
 
             ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
@@ -98,7 +98,7 @@ namespace LOICollection::Plugins::chat {
                 if (!dt) return MainGui::remove(&pl);
 
                 std::string PlayerSelectTitle = std::get<std::string>(dt->at("dropdown"));
-                delChat(McUtils::getPlayerFromName(target), PlayerSelectTitle);
+                delChat(target, PlayerSelectTitle);
 
                 McUtils::Gui::submission(&pl, [](void* player_ptr) {
                     return MainGui::remove(player_ptr);
@@ -111,8 +111,8 @@ namespace LOICollection::Plugins::chat {
             std::string mObjectLanguage = getLanguage(player);
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.add.label"));
-            for (auto& mTarget : McUtils::getAllPlayerName()) {
-                form.appendButton(mTarget, [mTarget](Player& pl) {
+            for (auto& mTarget : McUtils::getAllPlayers()) {
+                form.appendButton(static_cast<Player*>(mTarget)->getRealName(), [mTarget](Player& pl) {
                     MainGui::contentAdd(&pl, mTarget);
                 });
             }
@@ -126,8 +126,8 @@ namespace LOICollection::Plugins::chat {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.remove.label"));
-            for (auto& mTarget : McUtils::getAllPlayerName()) {
-                form.appendButton(mTarget, [mTarget](Player& pl) {
+            for (auto& mTarget : McUtils::getAllPlayers()) {
+                form.appendButton(static_cast<Player*>(mTarget)->getRealName(), [mTarget](Player& pl) {
                     MainGui::contentRemove(&pl, mTarget);
                 });
             }
@@ -213,20 +213,6 @@ namespace LOICollection::Plugins::chat {
                         pl->getRealName()), {}, CommandOutputMessageType::Success);
                     delChat(pl, param.titleName);
                 }
-            });
-            command.overload().text("list").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
-                if (entity == nullptr ||!entity->isPlayer())
-                    return output.error("No player selected.");
-                std::string mObject = static_cast<Player*>(entity)->getUuid().asString();
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-                std::vector<std::string> mObjectList = db->list("OBJECT$" + mObject + "$TITLE");
-                std::string result = std::accumulate(mObjectList.begin(), mObjectList.end(), 
-                    std::string(""), [](const std::string& a, const std::string& b) {
-                    return a + (a.empty() ? "" : ", ") + b;
-                });
-                mObjectList.empty() ? output.success("Chat is empty.") : output.success("Chat: {}", result);
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();

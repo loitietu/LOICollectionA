@@ -6,16 +6,18 @@
 
 #include "ExportLib.h"
 
-#define SCORECHANGED_ADD 0
-#define SCORECHANGED_REDUCE 1
-#define SCORECHANGED_SET 2
+enum class ScoreChangedType {
+    add,
+    reduce,
+    set
+};
 
 namespace LOICollection::HookPlugin {
     namespace Event {
         LOICOLLECTION_A_API void onTextPacketSendEvent(const std::function<bool(void*, std::string)>& callback);
         LOICOLLECTION_A_API void onLoginPacketSendEvent(const std::function<void(void*, std::string, std::string)>& callback);
         LOICOLLECTION_A_API void onPlayerDisconnectBeforeEvent(const std::function<void(std::string)>& callback);
-        LOICOLLECTION_A_API void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string, int)>& callback);
+        LOICOLLECTION_A_API void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string, ScoreChangedType)>& callback);
         LOICOLLECTION_A_API void onPlayerHurtEvent(const std::function<bool(void*, void*, float)>& callback);
     }
 

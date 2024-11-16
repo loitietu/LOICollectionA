@@ -339,10 +339,11 @@ namespace LOICollection::Plugins::cdk {
                 cdkJson["player"] = mPlayerList;
                 db->set(convertString, cdkJson);
             }
+            db->save();
+            player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
+
             std::string logString = ll::string_utils::replaceAll(tr({}, "cdk.log3"), "${cdk}", convertString);
             logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
-            player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
-            db->save();
             return;
         }
         player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));

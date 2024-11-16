@@ -198,9 +198,8 @@
 22:21:38.303 INFO [Server] LOICollection -> 个人称号
 22:21:38.303 INFO [Server] Usage:
 22:21:38.303 INFO [Server] - /chat add <target: target> <titleName: string> [time: int]
-22:21:38.303 INFO [Server] - /chat gui
-22:21:38.303 INFO [Server] - /chat list
 22:21:38.303 INFO [Server] - /chat remove <target: target> <titleName: string>
+22:21:38.303 INFO [Server] - /chat gui
 22:21:38.303 INFO [Server] - /chat setting
 ```
 
@@ -216,9 +215,6 @@
   - 为目标移除指定称号（权限等级: GameDirectors）。
   - 其中 `<target: target>` 为目标选择器。
   - 其中 `<titleName: string>` 为称号名称。
-
-- `/chat list`
-  - 列出个人的所有称号。
 
 - `/chat gui`
   - 打开管理称号 GUI（权限等级: GameDirectors）。

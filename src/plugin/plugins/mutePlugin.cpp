@@ -66,7 +66,7 @@ namespace LOICollection::Plugins::mute {
             });
         }
 
-        void content(void* player_ptr, std::string target) {
+        void content(void* player_ptr, void* target_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
@@ -74,12 +74,12 @@ namespace LOICollection::Plugins::mute {
             form.appendLabel(tr(mObjectLanguage, "mute.gui.label"));
             form.appendInput("Input1", tr(mObjectLanguage, "mute.gui.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "mute.gui.add.input2"), "", "0");
-            form.sendTo(*player, [target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(*player, [target_ptr](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::add(&pl);
 
                 std::string PlayerInputCause = std::get<std::string>(dt->at("Input1"));
                 int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                addMute(McUtils::getPlayerFromName(target), PlayerInputCause, time);
+                addMute(target_ptr, PlayerInputCause, time);
                 
                 McUtils::Gui::submission(&pl, [](void* player_ptr) {
                     return MainGui::add(player_ptr);
@@ -92,8 +92,8 @@ namespace LOICollection::Plugins::mute {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.add.title"), tr(mObjectLanguage, "mute.gui.add.label"));
-            for (auto& mTarget : McUtils::getAllPlayerName()) {
-                form.appendButton(mTarget, [mTarget](Player& pl) {
+            for (auto& mTarget : McUtils::getAllPlayers()) {
+                form.appendButton(static_cast<Player*>(mTarget)->getRealName(), [mTarget](Player& pl) {
                     MainGui::content(&pl, mTarget);
                 });
             }

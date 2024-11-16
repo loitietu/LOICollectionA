@@ -5,19 +5,21 @@
 
 #include "ExportLib.h"
 
-#define BLACKLIST_TYPE_IP 0
-#define BLACKLIST_TYPE_UUID 1
+enum class BlacklistType {
+    ip,
+    uuid
+};
 
 namespace LOICollection::Plugins::blacklist {
     namespace MainGui {
         LOICOLLECTION_A_API void info(void* player_ptr, std::string target);
-        LOICOLLECTION_A_API void content(void* player_ptr, std::string target);
+        LOICOLLECTION_A_API void content(void* player_ptr, void* target_ptr);
         LOICOLLECTION_A_API void add(void* player_ptr);
         LOICOLLECTION_A_API void remove(void* player_ptr);
         LOICOLLECTION_A_API void open(void* player_ptr);
     }
 
-    LOICOLLECTION_A_API   void addBlacklist(void* player_ptr, std::string cause, int time, int type);
+    LOICOLLECTION_A_API   void addBlacklist(void* player_ptr, std::string cause, int time, BlacklistType type);
     LOICOLLECTION_A_API   void delBlacklist(std::string target);
     LOICOLLECTION_A_NDAPI bool isBlacklist(void* player_ptr);
 

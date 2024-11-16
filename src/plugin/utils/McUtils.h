@@ -14,9 +14,6 @@ namespace McUtils {
     void broadcastText(const std::string& text);
 
     std::vector<void*> getAllPlayers();
-    std::vector<std::string> getAllPlayerName();
-
-    void* getPlayerFromName(const std::string& name);
         
     bool isItemPlayerInventory(void* player_ptr, std::string mTypeName, int mNumber);
 

@@ -87,24 +87,6 @@ namespace McUtils {
         });
         return mObjectLists;
     }
-
-    std::vector<std::string> getAllPlayerName() {
-        std::vector<std::string> mObjectLists{};
-        for (auto& player_ptr : getAllPlayers()) {
-            Player* player = static_cast<Player*>(player_ptr);
-            mObjectLists.push_back(player->getRealName());
-        }
-        return mObjectLists;
-    }
-
-    void* getPlayerFromName(const std::string& name) {
-        for (auto& player_ptr : getAllPlayers()) {
-            Player* player = static_cast<Player*>(player_ptr);
-            if (player->getRealName() == name)
-                return player;
-        }
-        return nullptr;
-    }
         
     bool isItemPlayerInventory(void* player_ptr, std::string mTypeName, int mNumber) {
         Player* player = static_cast<Player*>(player_ptr);

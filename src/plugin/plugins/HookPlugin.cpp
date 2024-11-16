@@ -40,8 +40,6 @@
 #include <mc/enums/TextPacketType.h>
 #include <mc/enums/SubClientId.h>
 
-#include "utils/McUtils.h"
-
 #include "include/HookPlugin.h"
 
 int64_t mFakeSeed = 0;
@@ -50,7 +48,7 @@ std::vector<std::string> mInterceptedGetNameTagTargets;
 std::vector<std::function<bool(void*, std::string)>> mTextPacketSendEventCallbacks;
 std::vector<std::function<void(void*, std::string, std::string)>> mLoginPacketSendEventCallbacks;
 std::vector<std::function<void(std::string)>> mPlayerDisconnectBeforeEventCallbacks;
-std::vector<std::function<void(void*, int, std::string, int)>> mPlayerScoreChangedEventCallbacks;
+std::vector<std::function<void(void*, int, std::string, ScoreChangedType)>> mPlayerScoreChangedEventCallbacks;
 std::vector<std::function<bool(void*, void*, float)>> mPlayerHurtEventCallbacks;
 
 LL_TYPE_INSTANCE_HOOK(
@@ -72,7 +70,7 @@ LL_TYPE_INSTANCE_HOOK(
             if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {            \
                 if (mTextPacket.mMessage.find(LIMIT) == std::string::npos)                                      \
                     return origin VAL;                                                                          \
-                Player* player = static_cast<Player*>(McUtils::getPlayerFromName(mTextPacket.mParams.at(0)));   \
+                Player* player = ll::service::getLevel()->getPlayer(mTextPacket.mParams.at(0));                 \
                 if (player == nullptr) return origin VAL;                                                       \
                 if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(),       \
                     player->getUuid().asString()) != mInterceptedTextPacketTargets.end())                       \
@@ -177,7 +175,9 @@ LL_TYPE_INSTANCE_HOOK(
                 ll::service::getLevel()->getPlayer(ActorUniqueID(id.getIdentityDef().getPlayerId().mActorUniqueId)),
                 scoreValue,
                 objective.getName(),
-                (action == PlayerScoreSetFunction::Add ? 0 : (action == PlayerScoreSetFunction::Subtract ? 1 : 2))
+                (action == PlayerScoreSetFunction::Add ? ScoreChangedType::add : 
+                    (action == PlayerScoreSetFunction::Subtract ? ScoreChangedType::reduce : ScoreChangedType::set)
+                )
             );
         }
     }
@@ -230,7 +230,7 @@ namespace LOICollection::HookPlugin {
             mPlayerDisconnectBeforeEventCallbacks.push_back(callback);
         }
 
-        void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string, int)>& callback) {
+        void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string, ScoreChangedType)>& callback) {
             mPlayerScoreChangedEventCallbacks.push_back(callback);
         }
 
