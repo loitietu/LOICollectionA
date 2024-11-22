@@ -197,16 +197,12 @@ namespace LOICollection::Plugins::blacklist {
             });
             command.overload().text("list").execute([](CommandOrigin const& /*unused*/, CommandOutput& output) {
                 std::vector<std::string> mObjectList = db->list();
-
-                if (mObjectList.empty())
-                    return output.success("Blacklist is empty.");
-
-                std::string result = std::accumulate(mObjectList.begin(), mObjectList.end(), 
-                    std::string(""), [](const std::string& a, const std::string& b) {
+                std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), 
+                    [](const std::string& a, const std::string& b) {
                     return a + (a.empty() ? "" : ", ") + b;
                 });
                 ll::string_utils::replaceAll(result, "OBJECT$", "");
-                output.success("Blacklist: {}", result);
+                output.success("Blacklist: {}", result.empty() ? "None" : result);
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
