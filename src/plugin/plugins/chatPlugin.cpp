@@ -1,6 +1,7 @@
 #include <memory>
 #include <string>
 #include <stdexcept>
+#include <numeric>
 
 #include <ll/api/Logger.h>
 #include <ll/api/form/CustomForm.h>
@@ -212,6 +213,22 @@ namespace LOICollection::Plugins::chat {
                     output.addMessage(fmt::format("Remove Chat for Player {}.",
                         pl->getRealName()), {}, CommandOutputMessageType::Success);
                     delChat(pl, param.titleName);
+                }
+            });
+            command.overload<ChatOP>().text("list").required("target").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
+                if (!isPermissionFormCommandOrigin(origin, 2))
+                    return output.error("No permission to list chat.");
+                for (auto& player : param.target.results(origin)) {
+                    std::string mObject = player->getUuid().asString();
+                    std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+                    std::vector<std::string> mObjectList = db->list("OBJECT$" + mObject + "$TITLE");
+                    std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), 
+                        [](const std::string& a, const std::string& b) {
+                        return a + (a.empty() ? "" : ", ") + b;
+                    });
+                    output.addMessage(fmt::format("Player {}'s Chat List: {}", player->getRealName(),
+                        result.empty() ? "None" : result), {}, CommandOutputMessageType::Success);
                 }
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {

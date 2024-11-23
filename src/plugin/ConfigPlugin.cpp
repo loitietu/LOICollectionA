@@ -32,6 +32,10 @@ namespace Config {
     }
 
     void mergeJson(nlohmann::ordered_json& source, nlohmann::ordered_json& target) {
+        for (auto it = target.begin(); it != target.end(); ++it) {
+            if (!source.contains(it.key()))
+                target.erase(it.key());
+        }
         for (auto it = source.begin(); it != source.end(); ++it) {
             if (!target.contains(it.key())) {
                 insertJson((int)std::distance(source.begin(), it), it, target);

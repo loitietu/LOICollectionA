@@ -186,11 +186,9 @@ namespace LOICollection::LOICollectionAPI {
             }
             std::regex mPatternParameter("(.*?)\\((.*?)\\)");
             if (std::regex_match(extractedContent, mMatchFind, mPatternParameter)) {
-                std::string extractedName = mMatchFind.str(1);
-                std::string extractedParameter = mMatchFind.str(2);
-                if (auto it = mVariableMapParameter.find(extractedName); it!= mVariableMapParameter.end()) {
+                if (auto it = mVariableMapParameter.find(mMatchFind.str(1)); it != mVariableMapParameter.end()) {
                     try {
-                        contentString.replace(mMatchFind.position(), mMatchFind.length(), it->second(player_ptr, extractedParameter));
+                        contentString.replace(mMatchFind.position(), mMatchFind.length(), it->second(player_ptr, mMatchFind.str(2)));
                     } catch (...) { contentString.replace(mMatchFind.position(), mMatchFind.length(), "None"); };
                 }
             }
