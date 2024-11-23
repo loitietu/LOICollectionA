@@ -37,7 +37,7 @@ namespace LOICollection::Plugins::mute {
     struct MuteOP {
         CommandSelector<Player> target;
         std::string cause;
-        int time = -1;
+        int time = 0;
     };
 
     std::unique_ptr<SQLiteStorage> db;
@@ -50,8 +50,10 @@ namespace LOICollection::Plugins::mute {
             
             std::string mObjectLabel = tr(mObjectLanguage, "mute.gui.info.label");
             ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
-            ll::string_utils::replaceAll(mObjectLabel, "${cause}", db->get("OBJECT$" + target, "cause"));
-            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "time")));
+            ll::string_utils::replaceAll(mObjectLabel, "${player}", db->get("OBJECT$" + target, "player", "None"));
+            ll::string_utils::replaceAll(mObjectLabel, "${cause}", db->get("OBJECT$" + target, "cause", "None"));
+            ll::string_utils::replaceAll(mObjectLabel, "${subtime}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "subtime", "None")));
+            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "time", "None")));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), mObjectLabel);
             form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [target](Player& pl) {
@@ -212,8 +214,10 @@ namespace LOICollection::Plugins::mute {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (!db->has("OBJECT$" + mObject)) {
             db->create("OBJECT$" + mObject);
+            db->set("OBJECT$" + mObject, "player", player->getRealName());
             db->set("OBJECT$" + mObject, "cause", cause);
             db->set("OBJECT$" + mObject, "time", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
+            db->set("OBJECT$" + mObject, "subtime", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         }
         std::string logString = ll::string_utils::replaceAll(tr({}, "mute.log1"), "${cause}", cause);
         logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));

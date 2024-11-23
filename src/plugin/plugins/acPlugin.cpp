@@ -70,12 +70,11 @@ namespace LOICollection::Plugins::announcement {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
             std::string mObjectLineString = tr(mObjectLanguage, "announcement.gui.line");
-            nlohmann::ordered_json data = db->toJson("content");
 
             ll::form::CustomForm form(tr(mObjectLanguage, "announcement.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "announcement.gui.label"));
             form.appendInput("Input", tr(mObjectLanguage, "announcement.gui.setTitle"), "", db->get<std::string>("title"));
-            for (auto& item : data) {
+            for (auto& item : db->toJson("content")) {
                 std::string mLineString = mObjectLineString;
                 std::string mLine = ll::string_utils::replaceAll(mLineString, "${index}", std::to_string(index));
                 form.appendInput("Input" + std::to_string(index), mLine, "", item);

@@ -71,11 +71,13 @@ namespace LOICollection::Plugins::market {
                     Player* mPlayer = ll::service::getLevel()->getPlayer(db->get(mItemId, "player"));
                     if (!mPlayer) {
                         std::string mObject = mItemId.substr(0, mItemId.find("$ITEMS"));
-                        int mPlayerScore = SystemUtils::toInt(db->get(mObject, "score"), 0) + mScore;
-                        db->set(mObject, "score", std::to_string(mPlayerScore));
+                        db->set(mObject, "score", std::to_string(
+                            SystemUtils::toInt(db->get(mObject, "score"), 0) + mScore
+                        ));
                     } else {
-                        std::string mTips = tr(getLanguage(&pl), "market.gui.sell.sellItem.tips2");
-                        mPlayer->sendMessage(ll::string_utils::replaceAll(mTips, "${item}", mName));
+                        mPlayer->sendMessage(ll::string_utils::replaceAll(
+                            tr(getLanguage(&pl), "market.gui.sell.sellItem.tips2"), 
+                        "${item}", mName));
                         McUtils::scoreboard::addScore(mPlayer, mObjectScore, mScore);
                     }
                     delItem(mItemId);
@@ -89,13 +91,17 @@ namespace LOICollection::Plugins::market {
                     return;
                 }
                 pl.sendMessage(tr(getLanguage(&pl), "market.gui.sell.sellItem.tips4"));
-                MainGui::buy(&pl);
+
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::buy(player_ptr);
+                });
             });
             if ((int) player->getPlayerPermissionLevel() >= 2) {
                 form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) {
                     std::string mName = db->get(mItemId, "name");
-                    std::string mTips = tr(getLanguage(&pl), "market.gui.sell.sellItem.tips3");
-                    pl.sendMessage(ll::string_utils::replaceAll(mTips, "${item}", mName));
+                    pl.sendMessage(ll::string_utils::replaceAll(
+                        tr(getLanguage(&pl), "market.gui.sell.sellItem.tips3"), 
+                    "${item}", mName));
                     delItem(mItemId);
 
                     McUtils::Gui::submission(&pl, [](void* player_ptr) {
@@ -125,10 +131,12 @@ namespace LOICollection::Plugins::market {
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) {
                 std::string mName = db->get(mItemId, "name");
                 std::string mNbt = db->get(mItemId, "nbt");
-                std::string mTips = tr(getLanguage(&pl), "market.gui.sell.sellItem.tips3");
+
+                pl.sendMessage(ll::string_utils::replaceAll(
+                    tr(getLanguage(&pl), "market.gui.sell.sellItem.tips3"), 
+                "${item}", mName));
                 
                 ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mNbt)->mTags);
-                pl.sendMessage(ll::string_utils::replaceAll(mTips, "${item}", mName));
                 pl.add(mItemStack);
                 pl.refreshInventory();
                 delItem(mItemId);
@@ -165,24 +173,23 @@ namespace LOICollection::Plugins::market {
                     std::string mItemName = std::get<std::string>(dt->at("Input1"));
                     std::string mItemIcon = std::get<std::string>(dt->at("Input2"));
                     std::string mItemIntroduce = std::get<std::string>(dt->at("Input3"));
-                    int mItemScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
 
                     std::string mItemId = db->find("OBJECT$" + mObject + "$ITEMS", "Item", 1);
                     std::string mItemListId = "OBJECT$" + mObject + "$ITEMS_$LIST_" + mItemId;
 
-                    ItemStack mItemStack = pl.getCarriedItem();
-                    std::unique_ptr<CompoundTag> mNbt = mItemStack.save();
+                    std::unique_ptr<CompoundTag> mNbt = pl.getCarriedItem().save();
                     db->set("OBJECT$" + mObject + "$ITEMS", mItemId, "LIST");
                     db->create(mItemListId);
                     db->set(mItemListId, "name", mItemName);
                     db->set(mItemListId, "icon", mItemIcon);
                     db->set(mItemListId, "introduce", mItemIntroduce);
-                    db->set(mItemListId, "score", std::to_string(mItemScore));
+                    db->set(mItemListId, "score", std::to_string(
+                        SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0)
+                    ));
                     db->set(mItemListId, "nbt", mNbt->toSnbt(SnbtFormat::Minimize, 0));
                     db->set(mItemListId, "player", pl.getRealName());
                     db->set("Item", mItemListId, mObject);
-                    mItemStack.remove(mItemStack.mCount);
-                    pl.setCarriedItem(mItemStack);
+                    pl.setCarriedItem(ItemStack::EMPTY_ITEM);
                     pl.refreshInventory();
 
                     McUtils::Gui::submission(&pl, [](void* player_ptr) {
@@ -194,7 +201,10 @@ namespace LOICollection::Plugins::market {
                     return;
                 }
                 pl.sendMessage(tr(getLanguage(&pl), "market.gui.sell.sellItem.tips1"));
-                MainGui::sellItem(&pl);
+                
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::sellItem(player_ptr);
+                });
             });
         }
 
@@ -296,8 +306,7 @@ namespace LOICollection::Plugins::market {
                     }
                     int mScore = SystemUtils::toInt(db->get("OBJECT$" + mObject, "score"), 0);
                     if (mScore > 0) {
-                        std::string mObjectScore = mObjectOptions.at("score");
-                        McUtils::scoreboard::addScore(&event.self(), mObjectScore, mScore);
+                        McUtils::scoreboard::addScore(&event.self(), mObjectOptions.at("score"), mScore);
                         db->set("OBJECT$" + mObject, "score", "0");
                     }
                 }

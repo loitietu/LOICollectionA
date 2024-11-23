@@ -118,7 +118,7 @@ namespace McUtils {
             form.appendButton(tr(mObjectLanguage, "exit.gui.button2"), [](Player& pl) {
                 pl.sendMessage(tr(getLanguage(&pl), "exit"));
             });
-            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
             });
         }
