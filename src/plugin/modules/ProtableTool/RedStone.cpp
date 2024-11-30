@@ -20,8 +20,6 @@
 
 #include "include/ProtableTool/RedStone.h"
 
-using namespace ll::chrono_literals;
-
 std::unordered_map<DimensionType, std::unordered_map<BlockPos, int>> mRedStoneMap;
 
 #define RedStoneUpdateHookMacro(NAME, TYPE, SYMBOL, VAL, ...)                               \
@@ -30,7 +28,7 @@ std::unordered_map<DimensionType, std::unordered_map<BlockPos, int>> mRedStoneMa
         auto& dimMap = mRedStoneMap[mDimensionId];                                          \
         dimMap[pos]++;                                                                      \
         return origin VAL;                                                                  \
-    };                                                                                     \
+    };                                                                                      \
 
 RedStoneUpdateHookMacro(RedStoneWireBlockHook, RedStoneWireBlock,
     "?onRedstoneUpdate@RedStoneWireBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z",
@@ -83,7 +81,7 @@ namespace LOICollection::ProtableTool::RedStone {
         ObserverBlockHook::hook();
 
         static ll::schedule::ServerTimeScheduler scheduler;
-        scheduler.add<ll::schedule::RepeatTask>(1s, [] {
+        scheduler.add<ll::schedule::RepeatTask>(ll::chrono::ticks(20), [] {
             if (mRedStoneMap.empty()) return;
             for (auto it = mRedStoneMap.begin(); it != mRedStoneMap.end(); ++it) {
                 for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)

@@ -32,46 +32,61 @@ lip install github.com/loitietu/LOICollectionA
 3. 打开后，您会看到类似以下内容的内容：
 ```json
 {
-    "version": 150,
+    "version": 151,
     "ConsoleLanguage": "system",
     "Plugins": {
         "FakeSeed": "$random",
         "language": {
-            "update": true
+            "FileUpdate": true
         },
         "Blacklist": false,
         "Mute": false, 
         "Cdk": false,
         "Menu": {
-            "Enable": false,
-            "ItemId": "minecraft:clock" 
+            "ModuleEnabled": false,
+            "MenuItemId": "minecraft:clock" 
         },
         "Tpa": false,
         "Shop": false,
         "Monitor": {
-            "Enable": false,
-            "show": "[{title}] §r{player}",
-            "join": "{player} 加入了服务器",
-            "exit": "{player} 退出了服务器",
-            "target": "money",
-            "changed": "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}",
-            "tips": "该指令已被禁用" ,
-            "command": [],
+            "ModuleEnabled": false,
+            "BelowName": {
+                "ModuleEnabled": true,
+                "RefreshInterval": 20,
+                "FormatText": "[{title}] §r{player}"
+            },
+            "ServerToast": {
+                "ModuleEnabled": true,
+                "FormatText": {
+                    "join": "{player} 加入了服务器",
+                    "exit": "{player} 退出了服务器"
+                }
+            },
+            "ChangeScore": {
+                "ModuleEnabled": true,
+                "TargetScoreboard": "money",
+                "FormatText": "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}"
+            },
+            "DisableCommand": {
+                "ModuleEnabled": true,
+                "FormatText": "§c该指令已被禁用",
+                "CommandLists": []
+            }
         },
         "Pvp": false,
         "Wallet": {
-            "Enable": false,
-            "score": "money",
-            "tax": 0.1 
+            "ModuleEnabled": false,
+            "TargetScoreboard": "money",
+            "ExchangeRate": 0.1 
         },
         "Chat": {
-            "Enable": false,
-            "chat": "<{player}> ${chat}"
+            "ModuleEnabled": false,
+            "FormatText": "<{player}> ${chat}",
         },
         "AnnounCement": false,
         "Market": {
-            "Enable": false,
-            "score": "money"
+            "ModuleEnabled": false,
+            "TargetScoreboard": "money"
         }
     },
     "ProtableTool": {

@@ -8,49 +8,64 @@
 请勿使用记事本等不支持 `.json` 格式的文本编辑器进行编辑，以免导致配置文件结构损坏。
 
 ## 配置文件结构
-> 以下为 LOICollectionA 1.5.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以下为 LOICollectionA 1.5.1 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 ```json
 {
-    "version": 150, // 配置文件版本号，请勿修改
+    "version": 151, // 配置文件版本号，请勿修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
         "FakeSeed": "$random", // 假种子配置，其中 $random 为随机数，其余为数字时是固定值（为 0 时不启用）
         "language": { // 多语言配置
-            "update": true // 是否启用语言更新（即每次启动服务器时向内置语言文件进行重写）
+            "FileUpdate": true // 是否启用语言更新（即每次启动服务器时向内置语言文件进行重写）
         },
         "Blacklist": false, // 是否启用黑名单
         "Mute": false,   // 是否启用禁言
         "Cdk": false, // 是否启用 CDK
         "Menu": { // 菜单配置
-            "Enable": false, // 是否启用菜单
-            "ItemId": "minecraft:clock"  // 打开菜单物品 ID
+            "ModuleEnabled": false, // 是否启用菜单
+            "MenuItemId": "minecraft:clock"  // 打开菜单物品 ID
         },
         "Tpa": false, // 是否启用 TPA
         "Shop": false, // 是否启用商店
         "Monitor": { // 消息强化配置
-            "Enable": false, // 是否启用消息强化
-            "show": "[{title}] §r{player}", // 玩家名称显示格式，支持 LOICollectionA API 变量
-            "join": "{player} 加入了服务器", // 玩家加入服务器提示，支持 LOICollectionA API 变量
-            "exit": "{player} 退出了服务器", // 玩家退出服务器提示，支持 LOICollectionA API 变量
-            "target": "money", // 检测 Score 变化的对象（为 $all 时会检测所有 Score 的变更）
-            "changed": "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}", // Score 变化提示
-            "tips": "该指令已被禁用" , // 指令禁用提示
-            "command": [], // 禁用指令列表
+            "ModuleEnabled": false, // 是否启用消息强化
+            "BelowName": {
+                "ModuleEnabled": true, // 是否启用玩家名称显示
+                "RefreshInterval": 20, // 刷新间隔，单位为 tick（20 tick = 1 秒）
+                "FormatText": "[{title}] §r{player}" // 玩家名称显示格式，支持 LOICollectionA API 变量
+            },
+            "ServerToast": {
+                "ModuleEnabled": true, // 是否启用服务器提示
+                "FormatText": {
+                    "join": "{player} 加入了服务器", // 玩家加入服务器提示，支持 LOICollectionA API 变量
+                    "exit": "{player} 退出了服务器" // 玩家退出服务器提示，支持 LOICollectionA API 变量
+                }
+            },
+            "ChangeScore": {
+                "ModuleEnabled": true, // 是否启用 Score 变化检测
+                "TargetScoreboard": "money", // 检测 Score 变化的对象（为 $all 时会检测所有 Score 的变更）
+                "FormatText": "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}" // Score 变化提示
+            },
+            "DisableCommand": {
+                "ModuleEnabled": true, // 是否启用指令禁用检测
+                "FormatText": "该指令已被禁用", // 指令禁用提示
+                "CommandLists": [] // 被禁用的指令列表
+            }
         },
         "Pvp": false, // 是否启用 PVP
         "Wallet": { // 钱包配置
-            "Enable": false, // 是否启用钱包
-            "score": "money", // 钱包指定使用 Score 对象
-            "tax": 0.1  // 钱包汇率
+            "ModuleEnabled": false, // 是否启用钱包
+            "TargetScoreboard": "money", // 钱包指定使用 Score 对象
+            "ExchangeRate": 0.1  // 钱包汇率
         },
         "Chat": { // 聊天强化配置
-            "Enable": false, // 是否启用聊天强化
-            "chat": "<{player}> ${chat}" // 聊天消息格式，支持 LOICollectionA API 变量
+            "ModuleEnabled": false, // 是否启用聊天强化
+            "FormatText": "<{player}> ${chat}" // 聊天消息格式，支持 LOICollectionA API 变量
         },
         "AnnounCement": false, // 是否启用公告栏
         "Market": { // 玩家市场配置
-            "Enable": false, // 是否启用玩家市场
-            "score": "money" // 玩家市场指定使用 Score 对象
+            "ModuleEnabled": false, // 是否启用玩家市场
+            "TargetScoreboard": "money" // 玩家市场指定使用 Score 对象
         }
     },
     "ProtableTool": { // 便携工具配置

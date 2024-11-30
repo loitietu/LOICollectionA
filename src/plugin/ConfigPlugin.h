@@ -10,41 +10,56 @@ struct C_Config {
     struct C_Plugins {
         std::string FakeSeed = "$random";
         struct C_Language{
-            bool update = true;
+            bool FileUpdate = true;
         } language;
         bool Blacklist = false;
         bool Mute = false;
         bool Cdk = false;
         struct C_Menu {
-            bool Enable = false;
-            std::string ItemId = "minecraft:clock";
+            bool ModuleEnabled = false;
+            std::string MenuItemId = "minecraft:clock";
         } Menu;
         bool Tpa = false;
         bool Shop = false;
         struct C_Monitor {
-            bool Enable = false;
-            std::string show = "[{title}] §r{player}";
-            std::string join = "{player} 加入了服务器";
-            std::string exit = "{player} 退出了服务器";
-            std::string target = "money";
-            std::string changed = "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}";
-            std::string tips = "该指令已被禁用";
-            std::vector<std::string> command = {};
+            bool ModuleEnabled = false;
+            struct C_BelowName {
+                bool ModuleEnabled = true;
+                int RefreshInterval = 20;
+                std::string FormatText = "[{title}] §r{player}";
+            } BelowName;
+            struct C_ServerToast {
+                bool ModuleEnabled = true;
+                struct C_FormatText {
+                    std::string join = "{player} 加入了服务器";
+                    std::string exit = "{player} 离开了服务器";
+                } FormatText;
+            } ServerToast;
+            struct C_ChangeScore {
+                bool ModuleEnabled = true;
+                std::string TargetScoreboard = "money";
+                std::string FormatText = "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}";
+            } ChangeScore;
+            struct C_DisableCommand {
+                bool ModuleEnabled = true;
+                std::string FormatText = "该指令已被禁用";
+                std::vector<std::string> CommandLists = {};
+            } DisableCommand;
         } Monitor;
         bool Pvp = false;
         struct C_Wallet {
-            bool Enable = false;
-            std::string score = "money";
-            double tax = 0.1;
+            bool ModuleEnabled = false;
+            std::string TargetScoreboard = "money";
+            double ExchangeRate = 0.1;
         } Wallet;
         struct C_Chat {
-            bool Enable = false;
-            std::string chat = "<{player}> ${chat}";
+            bool ModuleEnabled = false;
+            std::string FormatText = "<{player}> ${chat}";
         } Chat;
         bool AnnounCement = false;
         struct C_Market {
-            bool Enable = false;
-            std::string score = "money";
+            bool ModuleEnabled = false;
+            std::string TargetScoreboard = "money";
         } Market;
     } Plugins;
     struct C_ProtableTool {

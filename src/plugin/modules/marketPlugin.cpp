@@ -296,8 +296,7 @@ namespace LOICollection::Plugins::market {
                         return;
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (!db->has("Item")) 
-                        db->create("Item");
+                    if (!db->has("Item")) db->create("Item");
                     if (!db->has("OBJECT$" + mObject)) {
                         db->create("OBJECT$" + mObject);
                         db->create("OBJECT$" + mObject + "$ITEMS");

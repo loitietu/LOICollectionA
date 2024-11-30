@@ -2,12 +2,12 @@
 #include <string>
 #include <stdexcept>
 #include <variant>
-#include <vector>
 
 #include <ll/api/Logger.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/service/Bedrock.h>
+#include <ll/api/service/PlayerInfo.h>
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
@@ -17,7 +17,9 @@
 #include <mc/world/actor/player/Player.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
+#include <mc/server/commands/CommandSelector.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
+#include <mc/server/commands/CommandOutputMessageType.h>
 
 #include "include/APIUtils.h"
 #include "include/languagePlugin.h"
@@ -32,7 +34,11 @@ using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::wallet {
-    std::string mScore;
+    struct WalletOP {
+        CommandSelector<Player> target;
+        int score = 0;
+    };
+
     std::map<std::string, std::variant<std::string, double>> mObjectOptions;
     ll::Logger logger("LOICollectionA - Wallet");
 
@@ -40,6 +46,7 @@ namespace LOICollection::Plugins::wallet {
         void content(void* player_ptr, void* target_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
+            std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
 
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
             ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%%");
@@ -47,8 +54,8 @@ namespace LOICollection::Plugins::wallet {
 
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
             form.appendLabel(mLabel);
-            form.appendInput("Input", tr(mObjectLanguage, "wallet.gui.stepslider.input"), "", "100");
-            form.sendTo(*player, [target_ptr](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.appendInput("Input", tr(mObjectLanguage, "wallet.gui.transfer.input"), "", "100");
+            form.sendTo(*player, [target_ptr, mScore](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::transfer(&pl);
 
                 int mMoney = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
@@ -74,7 +81,7 @@ namespace LOICollection::Plugins::wallet {
         void transfer(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
-            ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), tr(mObjectLanguage, "wallet.gui.stepslider.label"));
+            ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), tr(mObjectLanguage, "wallet.gui.transfer.label"));
             for (auto& mTarget : McUtils::getAllPlayers()) {
                 form.appendButton(static_cast<Player*>(mTarget)->getRealName(), [mTarget](Player& pl) {
                     MainGui::content(&pl, mTarget);
@@ -90,10 +97,6 @@ namespace LOICollection::Plugins::wallet {
             std::string mTipsString = LOICollection::LOICollectionAPI::translateString(tr(getLanguage(player), "wallet.showOff"), player);
             ll::string_utils::replaceAll(mTipsString, "${money}", std::to_string(McUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
             McUtils::broadcastText(mTipsString);
-            
-            McUtils::Gui::submission(player, [](void* player_ptr) {
-                return MainGui::open(player_ptr);
-            });
         }
 
         void open(void* player_ptr) {
@@ -102,23 +105,21 @@ namespace LOICollection::Plugins::wallet {
 
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
             ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%%");
-            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(McUtils::scoreboard::getScore(player, mScore)));
+            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(McUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
 
-            ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
-            form.appendLabel(mLabel);
-            form.appendStepSlider("stepslider", tr(mObjectLanguage, "wallet.gui.stepslider"), { "transfer", "wealth" });
-            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) return pl.sendMessage(tr(getLanguage(&pl), "exit"));
+            ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), mLabel);
+            form.appendButton(tr(mObjectLanguage, "wallet.gui.transfer"), "textures/ui/MCoin", "path", [](Player& pl) {
+                return MainGui::transfer(&pl);
+            });
+            form.appendButton(tr(mObjectLanguage, "wallet.gui.wealth"), "textures/ui/creative_icon", "path", [](Player& pl) {
+                MainGui::wealth(&pl);
 
-                std::string mSelectString = std::get<std::string>(dt->at("stepslider"));
-                switch (ll::hash_utils::doHash(mSelectString)) {
-                    case ll::hash_utils::doHash("wealth"):
-                        MainGui::wealth(&pl);
-                        break;
-                    case ll::hash_utils::doHash("transfer"):
-                        MainGui::transfer(&pl);
-                        break;
-                };
+                McUtils::Gui::submission(&pl, [](void* player_ptr) {
+                    return MainGui::open(player_ptr);
+                });
+            });
+            form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
             });
         }
     }
@@ -138,11 +139,34 @@ namespace LOICollection::Plugins::wallet {
                 output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
             });
+            command.overload<WalletOP>().text("transfer").required("target").required("score").execute([](CommandOrigin const& origin, CommandOutput& output, WalletOP const& param) {
+                auto* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error("No player selected.");
+                Player* player = static_cast<Player*>(entity);
+
+                std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
+                auto mTargetLists = param.target.results(origin);
+                if (McUtils::scoreboard::getScore(player, mScore) < (int)(mTargetLists.size() * param.score))
+                    return output.error("You don't have enough score.");
+                int mMoney = (param.score - (int)(param.score * std::get<double>(mObjectOptions.at("tax"))));
+                for (auto& target : mTargetLists)
+                    McUtils::scoreboard::addScore(target, mScore, mMoney);
+                McUtils::scoreboard::reduceScore(player, mScore, (int)(mTargetLists.size() * param.score));
+                output.success("You have transferred {} to {} players.", param.score, mTargetLists.size());
+            });
+            command.overload().text("wealth").execute([](CommandOrigin const& origin, CommandOutput& output) {
+                auto* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error("No player selected.");
+                Player* player = static_cast<Player*>(entity);
+                output.success("The UI has been opened to player {}", player->getRealName());
+                MainGui::wealth(player);
+            });
         }
     }
 
     void registery(std::map<std::string, std::variant<std::string, double>>& options) {
-        mScore = std::get<std::string>(options.at("score"));
         mObjectOptions = options;
 
         logger.setFile("./logs/LOICollectionA.log");

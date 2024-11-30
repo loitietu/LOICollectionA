@@ -30,6 +30,7 @@ target("LOICollectionA")
         "/w45204"
     )
     add_defines(
+        "_HAS_CXX23=1",
         "NOMINMAX",
         "UNICODE",
         "LOICOLLECTION_A_EXPORTS"
@@ -47,10 +48,16 @@ target("LOICollectionA")
     set_languages("c++20")
     set_symbols("debug")
 
+    if is_mode("debug") then
+        add_defines("DEBUG")
+    elseif is_mode("release") then
+        add_defines("NDEBUG")
+    end
+
     after_build(function (target)
         local plugin_packer = import("scripts.after_build")
 
-        local major, minor, patch = 1, 5, 0
+        local major, minor, patch = 1, 5, 1
         local plugin_define = {
             pluginName = target:name(),
             pluginFile = path.filename(target:targetfile()),

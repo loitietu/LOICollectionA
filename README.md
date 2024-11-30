@@ -32,46 +32,61 @@
 3. After opening, you will see content similar to the following:
 ```json
 {
-    "version": 150,
+    "version": 151,
     "ConsoleLanguage": "system",
     "Plugins": {
         "FakeSeed": "$random",
         "language": {
-            "update": true
+            "FileUpdate": true
         },
         "Blacklist": false,
         "Mute": false, 
         "Cdk": false,
         "Menu": {
-            "Enable": false,
-            "ItemId": "minecraft:clock" 
+            "ModuleEnabled": false,
+            "MenuItemId": "minecraft:clock" 
         },
         "Tpa": false,
         "Shop": false,
         "Monitor": {
-            "Enable": false,
-            "show": "[{title}] §r{player}",
-            "join": "{player} has joined the server",
-            "exit": "{player} has left the server",
-            "target": "money",
-            "changed": "§e§lDetected Score §f${Object}§e Change §bOriginal Value: §f${OriMoney} §aChange: §f${SetMoney} §eCurrent Value: §f${GetScore}",
-            "tips": "This command has been disabled",
-            "command": [],
+            "ModuleEnabled": false,
+            "BelowName": {
+                "ModuleEnabled": true,
+                "RefreshInterval": 20,
+                "FormatText": "[{title}] §r{player}"
+            },
+            "ServerToast": {
+                "ModuleEnabled": true,
+                "FormatText": {
+                    "join": "{player} has joined the server",
+                    "exit": "{player} has left the server"
+                }
+            },
+            "ChangeScore": {
+                "ModuleEnabled": true,
+                "TargetScoreboard": "money",
+                "FormatText": "§e§lDetected Score §f${Object}§e Change §bOriginal Value: §f${OriMoney} §aChange: §f${SetMoney} §eCurrent Value: §f${GetScore}"
+            },
+            "DisableCommand": {
+                "ModuleEnabled": true,
+                "FormatText": "This command has been disabled",
+                "CommandLists": []
+            }
         },
         "Pvp": false,
         "Wallet": {
-            "Enable": false,
-            "score": "money",
-            "tax": 0.1 
+            "ModuleEnabled": false,
+            "TargetScoreboard": "money",
+            "ExchangeRate": 0.1 
         },
         "Chat": {
-            "Enable": false,
-            "chat": "<{player}> ${chat}"
+            "ModuleEnabled": false,
+            "FormatText": "<{player}> ${chat}",
         },
         "AnnounCement": false,
         "Market": {
-            "Enable": false,
-            "score": "money"
+            "ModuleEnabled": false,
+            "TargetScoreboard": "money"
         }
     },
     "ProtableTool": {

@@ -180,16 +180,26 @@
 ## Wallet
 ```log
 ? wallet
-12:00:01.392 INFO [Server] wallet:
-12:00:01.393 INFO [Server] LOICollection -> 个人钱包
-12:00:01.398 INFO [Server] Usage:
-12:00:01.401 INFO [Server] - /wallet gui
+15:33:39.440 INFO [Server] wallet:
+15:33:39.440 INFO [Server] LOICollection -> 个人钱包
+15:33:39.440 INFO [Server] Usage:
+15:33:39.440 INFO [Server] - /wallet gui
+15:33:39.440 INFO [Server] - /wallet transfer <target: target> <score: int>
+15:33:39.440 INFO [Server] - /wallet wealth
 ```
 
 ?> 其中 `wallet` 为 Wallet 的顶层命令（权限等级: Any）。
 
 - `/wallet gui`
   - 打开个人钱包 GUI。
+
+- `/wallet transfer <target: target> <score: int>`
+  - 向目标转账。
+  - 其中 `<target: target>` 为目标选择器。
+  - 其中 `<score: int>` 为转账金额。
+
+- `/wallet wealth`
+  - 查看个人钱包余额。
 
 ## Chat
 ```log

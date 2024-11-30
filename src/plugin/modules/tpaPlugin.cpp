@@ -193,8 +193,7 @@ namespace LOICollection::Plugins::tpa {
                         return;
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (!db->has("OBJECT$" + mObject))
-                        db->create("OBJECT$" + mObject);
+                    if (!db->has("OBJECT$" + mObject)) db->create("OBJECT$" + mObject);
                     if (!db->has("OBJECT$" + mObject, "Tpa_Toggle1"))
                         db->set("OBJECT$" + mObject, "Tpa_Toggle1", "false");
                 }

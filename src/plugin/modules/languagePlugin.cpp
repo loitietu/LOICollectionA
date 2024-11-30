@@ -79,8 +79,7 @@ namespace LOICollection::Plugins::language {
                         return;
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (!db->has("OBJECT$" + mObject))
-                        db->create("OBJECT$" + mObject);
+                    if (!db->has("OBJECT$" + mObject)) db->create("OBJECT$" + mObject);
                     if (!db->has("OBJECT$" + mObject, "language"))
                         db->set("OBJECT$" + mObject, "language", "zh_CN");
                 }

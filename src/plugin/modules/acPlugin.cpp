@@ -171,8 +171,7 @@ namespace LOICollection::Plugins::announcement {
                         return;
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (!db2->has("OBJECT$" + mObject))
-                        db2->create("OBJECT$" + mObject);
+                    if (!db2->has("OBJECT$" + mObject)) db2->create("OBJECT$" + mObject);
                     if (!db2->has("OBJECT$" + mObject, "AnnounCement_Toggle1"))
                         db2->set("OBJECT$" + mObject, "AnnounCement_Toggle1", "false");
                     

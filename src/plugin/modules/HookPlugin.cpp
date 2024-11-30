@@ -36,7 +36,6 @@
 #include <mc/server/ServerPlayer.h>
 #include <mc/server/LoopbackPacketSender.h>
 
-#include <mc/enums/MinecraftPacketIds.h>
 #include <mc/enums/TextPacketType.h>
 #include <mc/enums/SubClientId.h>
 

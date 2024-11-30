@@ -169,6 +169,24 @@ namespace LOICollection::LOICollectionAPI {
         mVariableMapParameter[name] = callback;
     }
 
+    std::string getValueForVariable(const std::string& name, void* player_ptr) {
+        if (auto it = mVariableMap.find(name); it != mVariableMap.end()) {
+            try {
+                return it->second(player_ptr);
+            } catch (...) {};
+        }
+        return "None";
+    }
+
+    std::string getValueForVariable(const std::string& name, void* player_ptr, const std::string& parameter) {
+        if (auto it = mVariableMapParameter.find(name); it != mVariableMapParameter.end()) {
+            try {
+                return it->second(player_ptr, parameter);
+            } catch (...) {};
+        }
+        return "None";
+    }
+
     std::string& translateString(std::string& contentString, void* player_ptr) {
         if (contentString.empty())
             return contentString;
@@ -176,23 +194,19 @@ namespace LOICollection::LOICollectionAPI {
         size_t mIndex = 0;
         std::smatch mMatchFind;
         std::regex mPatternFind("\\{(.*?)\\}");
+        std::regex mPatternParameter("(.*?)\\((.*?)\\)");
         while (std::regex_search(contentString.cbegin() + mIndex, contentString.cend(), mMatchFind, mPatternFind)) {
             std::string extractedContent = mMatchFind.str(1);
             if (auto it = mVariableMap.find(extractedContent); it != mVariableMap.end()) {
-                try {
-                    contentString.replace(mMatchFind.position(), mMatchFind.length(), it->second(player_ptr));
-                } catch (...) { contentString.replace(mMatchFind.position(), mMatchFind.length(), "None"); };
+                contentString.replace(mMatchFind.position(), mMatchFind.length(), getValueForVariable(extractedContent, player_ptr));
                 continue;
             }
-            std::regex mPatternParameter("(.*?)\\((.*?)\\)");
-            if (std::regex_match(extractedContent, mMatchFind, mPatternParameter)) {
-                if (auto it = mVariableMapParameter.find(mMatchFind.str(1)); it != mVariableMapParameter.end()) {
-                    try {
-                        contentString.replace(mMatchFind.position(), mMatchFind.length(), it->second(player_ptr, mMatchFind.str(2)));
-                    } catch (...) { contentString.replace(mMatchFind.position(), mMatchFind.length(), "None"); };
-                }
+            if (!std::regex_match(extractedContent, mMatchFind, mPatternParameter)) {
+                mIndex += mMatchFind.position() + mMatchFind.length();
+                continue;
             }
-            mIndex += mMatchFind.position() + mMatchFind.length();
+            if (auto it = mVariableMapParameter.find(mMatchFind.str(1)); it != mVariableMapParameter.end())
+                contentString.replace(mMatchFind.position(), mMatchFind.length(), getValueForVariable(mMatchFind.str(1), player_ptr, mMatchFind.str(2)));
         }
         return contentString;
     }

@@ -88,7 +88,7 @@ namespace LOICollection {
         logger.info("Initialization of database file completed.");
         
         std::filesystem::create_directory(langFilePath);
-        if (this->config.Plugins.language.update) {
+        if (this->config.Plugins.language.FileUpdate) {
             JsonStorage mObjectLanguage(langFilePath / "zh_CN.json");
             mObjectLanguage.write(CNLangData);
             mObjectLanguage.save();
@@ -111,32 +111,37 @@ namespace LOICollection {
         if (this->config.Plugins.Blacklist) Plugins::blacklist::registery(&this->BlacklistDB);
         if (this->config.Plugins.Mute) Plugins::mute::registery(&this->MuteDB);
         if (this->config.Plugins.Cdk) Plugins::cdk::registery(&this->CdkDB);
-        if (this->config.Plugins.Menu.Enable) Plugins::menu::registery(&this->MenuDB, this->config.Plugins.Menu.ItemId);
+        if (this->config.Plugins.Menu.ModuleEnabled) Plugins::menu::registery(&this->MenuDB, this->config.Plugins.Menu.MenuItemId);
         if (this->config.Plugins.Tpa) Plugins::tpa::registery(&this->SettingsDB);
         if (this->config.Plugins.Shop) Plugins::shop::registery(&this->ShopDB);
-        if (this->config.Plugins.Monitor.Enable) {
-            std::map<std::string, std::variant<std::string, std::vector<std::string>>> options;
-            options["show"] = this->config.Plugins.Monitor.show;
-            options["join"] = this->config.Plugins.Monitor.join;
-            options["exit"] = this->config.Plugins.Monitor.exit;
-            options["target"] = this->config.Plugins.Monitor.target;
-            options["changed"] = this->config.Plugins.Monitor.changed;
-            options["tips"] = this->config.Plugins.Monitor.tips;
-            options["command"] = this->config.Plugins.Monitor.command;
+        if (this->config.Plugins.Monitor.ModuleEnabled) {
+            std::map<std::string, std::variant<std::string, std::vector<std::string>, int, bool>> options;
+            options["BelowName_Enabled"] = this->config.Plugins.Monitor.BelowName.ModuleEnabled;
+            options["BelowName_RefreshInterval"] = this->config.Plugins.Monitor.BelowName.RefreshInterval;
+            options["BelowName_Text"] = this->config.Plugins.Monitor.BelowName.FormatText;
+            options["ServerToast_Enabled"] = this->config.Plugins.Monitor.ServerToast.ModuleEnabled;
+            options["ServerToast_JoinText"] = this->config.Plugins.Monitor.ServerToast.FormatText.join;
+            options["ServerToast_ExitText"] = this->config.Plugins.Monitor.ServerToast.FormatText.exit;
+            options["ChangeScore_Enabled"] = this->config.Plugins.Monitor.ChangeScore.ModuleEnabled;
+            options["ChangeScore_Score"] = this->config.Plugins.Monitor.ChangeScore.TargetScoreboard;
+            options["ChangeScore_Text"] = this->config.Plugins.Monitor.ChangeScore.FormatText;
+            options["DisableCommand_Enabled"] = this->config.Plugins.Monitor.DisableCommand.ModuleEnabled;
+            options["DisableCommand_Text"] = this->config.Plugins.Monitor.DisableCommand.FormatText;
+            options["DisableCommand_List"] = this->config.Plugins.Monitor.DisableCommand.CommandLists;
             Plugins::monitor::registery(options);
         }
         if (this->config.Plugins.Pvp) Plugins::pvp::registery(&this->SettingsDB);
-        if (this->config.Plugins.Wallet.Enable) {
+        if (this->config.Plugins.Wallet.ModuleEnabled) {
             std::map<std::string, std::variant<std::string, double>> options;
-            options["score"] = this->config.Plugins.Wallet.score;
-            options["tax"] = this->config.Plugins.Wallet.tax;
+            options["score"] = this->config.Plugins.Wallet.TargetScoreboard;
+            options["tax"] = this->config.Plugins.Wallet.ExchangeRate;
             Plugins::wallet::registery(options);
         }
-        if (this->config.Plugins.Chat.Enable) Plugins::chat::registery(&this->ChatDB, this->config.Plugins.Chat.chat);
+        if (this->config.Plugins.Chat.ModuleEnabled) Plugins::chat::registery(&this->ChatDB, this->config.Plugins.Chat.FormatText);
         if (this->config.Plugins.AnnounCement) Plugins::announcement::registery(&this->AnnounCementDB, &this->SettingsDB);
-        if (this->config.Plugins.Market.Enable) {
+        if (this->config.Plugins.Market.ModuleEnabled) {
             std::map<std::string, std::string> options;
-            options["score"] = this->config.Plugins.Market.score;
+            options["score"] = this->config.Plugins.Market.TargetScoreboard;
             Plugins::market::registery(&this->MarketDB, options);
         }
 
@@ -148,13 +153,13 @@ namespace LOICollection {
     bool A::disable() {
         HookPlugin::unregistery();
         Plugins::language::unregistery();
-        if (this->config.Plugins.Menu.Enable) Plugins::menu::unregistery();
         if (this->config.Plugins.Tpa) Plugins::tpa::unregistery();
-        if (this->config.Plugins.Monitor.Enable) Plugins::monitor::unregistery();
         if (this->config.Plugins.Pvp) Plugins::pvp::unregistery();
-        if (this->config.Plugins.Chat.Enable) Plugins::chat::unregistery();
         if (this->config.Plugins.AnnounCement) Plugins::announcement::unregistery();
-        if (this->config.Plugins.Market.Enable) Plugins::market::unregistery();
+        if (this->config.Plugins.Menu.ModuleEnabled) Plugins::menu::unregistery();
+        if (this->config.Plugins.Monitor.ModuleEnabled) Plugins::monitor::unregistery();
+        if (this->config.Plugins.Chat.ModuleEnabled) Plugins::chat::unregistery();
+        if (this->config.Plugins.Market.ModuleEnabled) Plugins::market::unregistery();
 
         if (this->config.ProtableTool.RedStone) ProtableTool::RedStone::unregistery();
         if (this->config.ProtableTool.OrderedUI) ProtableTool::OrderedUI::unregistery();

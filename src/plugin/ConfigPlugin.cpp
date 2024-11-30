@@ -1,4 +1,5 @@
 #include <string>
+#include <vector>
 
 #include <ll/api/Mod/Manifest.h>
 #include <ll/api/Mod/NativeMod.h>
@@ -32,18 +33,22 @@ namespace Config {
     }
 
     void mergeJson(nlohmann::ordered_json& source, nlohmann::ordered_json& target) {
+        std::vector<std::string> mRemoveKeys;
         for (auto it = target.begin(); it != target.end(); ++it) {
             if (!source.contains(it.key()))
-                target.erase(it.key());
+                mRemoveKeys.push_back(it.key());
         }
+        for (const std::string& key : mRemoveKeys) target.erase(key);
         for (auto it = source.begin(); it != source.end(); ++it) {
             if (!target.contains(it.key())) {
                 insertJson((int)std::distance(source.begin(), it), it, target);
                 continue;
             }
-            if (it.value().is_object() && target[it.key()].is_object())
+            if (it.value().is_object() && target[it.key()].is_object()) {
                 mergeJson(it.value(), target[it.key()]);
-            else if (it->type() != target[it.key()].type()) target[it.key()] = it.value();
+                continue;
+            }
+            if (it->type() != target[it.key()].type()) target[it.key()] = it.value();
         }
     }
 
@@ -56,8 +61,9 @@ namespace Config {
 
     void SynchronousPluginConfigType(void* config_ptr, const std::string& path) {
         JsonStorage mConfigObject(path);
-        auto patch = ll::reflection::serialize<nlohmann::ordered_json>(*static_cast<C_Config*>(config_ptr));
-        nlohmann::ordered_json mPatchJson = nlohmann::ordered_json::parse(patch->dump());
+        nlohmann::ordered_json mPatchJson = nlohmann::ordered_json::parse(
+            ll::reflection::serialize<nlohmann::ordered_json>(*static_cast<C_Config*>(config_ptr))->dump()
+        );
         nlohmann::ordered_json mConfigJson = mConfigObject.toJson();
         mergeJson(mPatchJson, mConfigJson);
         mConfigObject.write(mConfigJson);

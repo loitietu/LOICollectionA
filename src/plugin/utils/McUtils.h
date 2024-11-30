@@ -23,15 +23,9 @@ namespace McUtils {
 
     namespace scoreboard {
         int getScore(void* player_ptr, const std::string& name);
-        void modifyScore(void* player_ptr, const std::string& name, int score, int action);
-
-        inline void addScore(void* player_ptr, const std::string &name, int score) {
-            modifyScore(player_ptr, name, score, 0x1);
-        }
-
-        inline void reduceScore(void* player_ptr, const std::string &name, int score) {
-            modifyScore(player_ptr, name, score, 0x2);
-        }
+        void modifyScore(void* identity_ptr, const std::string& name, int score, int action);
+        void addScore(void* player_ptr, const std::string &name, int score); 
+        void reduceScore(void* player_ptr, const std::string &name, int score);
     }
 }
 
