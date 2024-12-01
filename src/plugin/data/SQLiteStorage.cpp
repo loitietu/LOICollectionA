@@ -61,16 +61,6 @@ std::string SQLiteStorage::get(std::string_view table, std::string_view key, std
     return std::string(default_val);
 }
 
-std::string SQLiteStorage::find(std::string_view table, std::string_view key, int index) {
-    std::string mTarget = std::string(key);
-    for (auto& item : list(table)) {
-        if (mTarget + std::to_string(index) != item)
-            break;
-        index++;
-    }
-    return mTarget + std::to_string(index);
-}
-
 std::vector<std::string> SQLiteStorage::list(std::string_view table) {
     std::vector<std::string> keys;
     SQLite::Statement query(database, "SELECT key FROM " + std::string(table) + ";");

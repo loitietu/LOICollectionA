@@ -140,8 +140,9 @@ namespace LOICollection {
         if (this->config.Plugins.Chat.ModuleEnabled) Plugins::chat::registery(&this->ChatDB, this->config.Plugins.Chat.FormatText);
         if (this->config.Plugins.AnnounCement) Plugins::announcement::registery(&this->AnnounCementDB, &this->SettingsDB);
         if (this->config.Plugins.Market.ModuleEnabled) {
-            std::map<std::string, std::string> options;
+            std::map<std::string, std::variant<std::string, int>> options;
             options["score"] = this->config.Plugins.Market.TargetScoreboard;
+            options["upload"] = this->config.Plugins.Market.MaximumUpload;
             Plugins::market::registery(&this->MarketDB, options);
         }
 

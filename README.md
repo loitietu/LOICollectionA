@@ -86,7 +86,8 @@
         "AnnounCement": false,
         "Market": {
             "ModuleEnabled": false,
-            "TargetScoreboard": "money"
+            "TargetScoreboard": "money",
+            "MaximumUpload": 20
         }
     },
     "ProtableTool": {

@@ -1,6 +1,8 @@
 #include <map>
 #include <memory>
 #include <vector>
+#include <variant>
+
 #include <string>
 #include <stdexcept>
 
@@ -40,7 +42,8 @@ using I18nUtils::tr;
 using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::market {
-    std::map<std::string, std::string> mObjectOptions;
+    std::map<std::string, std::variant<std::string, int>> mObjectOptions;
+
     std::unique_ptr<SQLiteStorage> db;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::Logger logger("LOICollectionA - Market");
@@ -58,7 +61,7 @@ namespace LOICollection::Plugins::market {
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), mIntroduce);
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.buy.button1"), [mItemId](Player& pl) {
-                std::string mObjectScore = mObjectOptions.at("score");
+                std::string mObjectScore = std::get<std::string>(mObjectOptions.at("score"));
                 int mScore = SystemUtils::toInt(db->get(mItemId, "score"), 0);
                 if (McUtils::scoreboard::getScore(&pl, mObjectScore) >= mScore) {
                     McUtils::scoreboard::reduceScore(&pl, mObjectScore, mScore);
@@ -157,6 +160,15 @@ namespace LOICollection::Plugins::market {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
+            std::string mObject = player->getUuid().asString();
+            std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+            int mSize = std::get<int>(mObjectOptions.at("upload"));
+            if (((int) db->list("OBJECT$" + mObject + "$ITEMS").size()) >= mSize) {
+                return player->sendMessage(ll::string_utils::replaceAll(tr(mObjectLanguage, 
+                    "market.gui.sell.sellItem.tips5"), "${size}", std::to_string(mSize)));
+            }
+
             ll::form::CustomForm form(tr(mObjectLanguage, "market.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "market.gui.label"));
             form.appendInput("Input1", tr(mObjectLanguage, "market.gui.sell.sellItem.input1"), "", "Item");
@@ -174,7 +186,10 @@ namespace LOICollection::Plugins::market {
                     std::string mItemIcon = std::get<std::string>(dt->at("Input2"));
                     std::string mItemIntroduce = std::get<std::string>(dt->at("Input3"));
 
-                    std::string mItemId = db->find("OBJECT$" + mObject + "$ITEMS", "Item", 1);
+                    std::string mItemId = SystemUtils::nest<std::string>([mObject](std::string& val, int loop) {
+                        val = val + std::to_string(loop);
+                        return db->has("OBJECT$" + mObject + "$ITEMS", val);
+                    }, "Item", 1);
                     std::string mItemListId = "OBJECT$" + mObject + "$ITEMS_$LIST_" + mItemId;
 
                     std::unique_ptr<CompoundTag> mNbt = pl.getCarriedItem().save();
@@ -219,8 +234,8 @@ namespace LOICollection::Plugins::market {
             for (auto& item : db->list("OBJECT$" + mObject + "$ITEMS")) {
                 std::string mName = db->get("OBJECT$" + mObject + "$ITEMS_$LIST_" + item, "name");
                 std::string mIcon = db->get("OBJECT$" + mObject + "$ITEMS_$LIST_" + item, "icon");
-                form.appendButton(mName, mIcon, "path", [mName](Player& pl) {
-                    MainGui::itemContent(&pl, mName);
+                form.appendButton(mName, mIcon, "path", [mObject, item](Player& pl) {
+                    MainGui::itemContent(&pl, ("OBJECT$" + mObject + "$ITEMS_$LIST_" + item));
                 });
             }
             form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
@@ -305,7 +320,7 @@ namespace LOICollection::Plugins::market {
                     }
                     int mScore = SystemUtils::toInt(db->get("OBJECT$" + mObject, "score"), 0);
                     if (mScore > 0) {
-                        McUtils::scoreboard::addScore(&event.self(), mObjectOptions.at("score"), mScore);
+                        McUtils::scoreboard::addScore(&event.self(), std::get<std::string>(mObjectOptions.at("score")), mScore);
                         db->set("OBJECT$" + mObject, "score", "0");
                     }
                 }
@@ -320,7 +335,7 @@ namespace LOICollection::Plugins::market {
         db->remove(mItemId);
     }
 
-    void registery(void* database, std::map<std::string, std::string>& options) {
+    void registery(void* database, std::map<std::string, std::variant<std::string, int>>& options) {
         mObjectOptions = options;
 
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));

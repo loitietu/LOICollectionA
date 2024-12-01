@@ -86,7 +86,8 @@ lip install github.com/loitietu/LOICollectionA
         "AnnounCement": false,
         "Market": {
             "ModuleEnabled": false,
-            "TargetScoreboard": "money"
+            "TargetScoreboard": "money",
+            "MaximumUpload": 20
         }
     },
     "ProtableTool": {

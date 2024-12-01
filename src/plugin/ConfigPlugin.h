@@ -60,6 +60,7 @@ struct C_Config {
         struct C_Market {
             bool ModuleEnabled = false;
             std::string TargetScoreboard = "money";
+            int MaximumUpload = 20;
         } Market;
     } Plugins;
     struct C_ProtableTool {
