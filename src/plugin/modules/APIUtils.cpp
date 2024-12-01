@@ -193,20 +193,24 @@ namespace LOICollection::LOICollectionAPI {
 
         size_t mIndex = 0;
         std::smatch mMatchFind;
+        std::smatch mMatchParameter;
         std::regex mPatternFind("\\{(.*?)\\}");
         std::regex mPatternParameter("(.*?)\\((.*?)\\)");
         while (std::regex_search(contentString.cbegin() + mIndex, contentString.cend(), mMatchFind, mPatternFind)) {
             std::string extractedContent = mMatchFind.str(1);
             if (auto it = mVariableMap.find(extractedContent); it != mVariableMap.end()) {
-                contentString.replace(mMatchFind.position(), mMatchFind.length(), getValueForVariable(extractedContent, player_ptr));
+                std::string val = getValueForVariable(extractedContent, player_ptr);
+                contentString.replace(mMatchFind.position(), mMatchFind.length(), val);
                 continue;
             }
-            if (!std::regex_match(extractedContent, mMatchFind, mPatternParameter)) {
+            if (!std::regex_match(extractedContent, mMatchParameter, mPatternParameter)) {
                 mIndex += mMatchFind.position() + mMatchFind.length();
                 continue;
             }
-            if (auto it = mVariableMapParameter.find(mMatchFind.str(1)); it != mVariableMapParameter.end())
-                contentString.replace(mMatchFind.position(), mMatchFind.length(), getValueForVariable(mMatchFind.str(1), player_ptr, mMatchFind.str(2)));
+            if (auto it = mVariableMapParameter.find(mMatchParameter.str(1)); it != mVariableMapParameter.end()) {
+                std::string val = getValueForVariable(mMatchParameter.str(1), player_ptr, mMatchParameter.str(2));
+                contentString.replace(mMatchFind.position(), mMatchFind.length(), val);
+            }
         }
         return contentString;
     }
