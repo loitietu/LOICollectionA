@@ -94,9 +94,10 @@ namespace LOICollection::Plugins::wallet {
 
         void wealth(void* player_ptr) {
             Player* player = static_cast<Player*>(player_ptr);
-            std::string mTipsString = LOICollection::LOICollectionAPI::translateString(tr(getLanguage(player), "wallet.showOff"), player);
-            ll::string_utils::replaceAll(mTipsString, "${money}", std::to_string(McUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
-            McUtils::broadcastText(mTipsString);
+            std::string mTipsString = ll::string_utils::replaceAll(tr(getLanguage(player), "wallet.showOff"), 
+                "${money}", std::to_string(McUtils::scoreboard::getScore(player,
+                std::get<std::string>(mObjectOptions.at("score")))));
+            McUtils::broadcastText(LOICollection::LOICollectionAPI::translateString(mTipsString, player));
         }
 
         void open(void* player_ptr) {

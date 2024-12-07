@@ -194,8 +194,8 @@ namespace LOICollection::Plugins::mute {
                     ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
                     player->sendMessage(mObjectTips);
 
-                    std::string logString = ll::string_utils::replaceAll(tr({}, "mute.log3"), "${message}", message);
-                    logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
+                    logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                        tr({}, "mute.log3"), "${message}", message), player));
                     return true;
                 }
                 return false;
@@ -219,8 +219,8 @@ namespace LOICollection::Plugins::mute {
             db->set("OBJECT$" + mObject, "time", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
             db->set("OBJECT$" + mObject, "subtime", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         }
-        std::string logString = ll::string_utils::replaceAll(tr({}, "mute.log1"), "${cause}", cause);
-        logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
+        logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+            tr({}, "mute.log1"), "${cause}", cause), player));
     }
 
     void delMute(void* player_ptr) {

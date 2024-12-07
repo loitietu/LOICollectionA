@@ -277,8 +277,8 @@ namespace LOICollection::Plugins::chat {
                     event.cancel();
                     
                     std::string mChat = mChatString;
-                    LOICollection::LOICollectionAPI::translateString(mChat, &event.self());
                     ll::string_utils::replaceAll(mChat, "${chat}", event.message());
+                    LOICollection::LOICollectionAPI::translateString(mChat, &event.self());
                     McUtils::broadcastText(mChat);
                 }
             );
@@ -296,8 +296,8 @@ namespace LOICollection::Plugins::chat {
                 std::string mTimeString = db->get("OBJECT$" + mObject + "$TITLE", i);
                 if (SystemUtils::isReach(mTimeString)) {
                     db->del("OBJECT$" + mObject + "$TITLE", i);
-                    std::string logString = ll::string_utils::replaceAll(tr({}, "chat.log4"), "${title}", i);
-                    logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
+                    logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                        tr({}, "chat.log4"), "${title}", i), player));
                 }
             }
         }
@@ -316,8 +316,8 @@ namespace LOICollection::Plugins::chat {
             db->create("OBJECT$" + mObject + "$TITLE");
         db->set("OBJECT$" + mObject + "$TITLE", text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
 
-        std::string logString = ll::string_utils::replaceAll(tr({}, "chat.log2"), "${title}", text);
-        logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
+        logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+            tr({}, "chat.log2"), "${title}", text), player));
     }
 
     void delChat(void* player_ptr, std::string text) {
@@ -328,8 +328,8 @@ namespace LOICollection::Plugins::chat {
             db->del("OBJECT$" + mObject + "$TITLE", text);
             update(player);
         }
-        std::string logString = ll::string_utils::replaceAll(tr({}, "chat.log3"), "${title}", text);
-        logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
+        logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+            tr({}, "chat.log3"), "${title}", text), player));
     }
 
     bool isChat(void* player_ptr, std::string text) {

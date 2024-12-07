@@ -191,26 +191,28 @@ namespace LOICollection::LOICollectionAPI {
         if (contentString.empty())
             return contentString;
 
-        size_t mIndex = 0;
-        std::smatch mMatchFind;
+        std::smatch mMatchVariable;
         std::smatch mMatchParameter;
-        std::regex mPatternFind("\\{(.*?)\\}");
-        std::regex mPatternParameter("(.*?)\\((.*?)\\)");
-        while (std::regex_search(contentString.cbegin() + mIndex, contentString.cend(), mMatchFind, mPatternFind)) {
-            std::string extractedContent = mMatchFind.str(1);
-            if (auto it = mVariableMap.find(extractedContent); it != mVariableMap.end()) {
-                std::string val = getValueForVariable(extractedContent, player_ptr);
-                contentString.replace(mMatchFind.position(), mMatchFind.length(), val);
+        std::regex mMatchVariableRegex("\\{(.*?)\\}");
+        std::regex mMatchParameterRegex("(.*?)\\((.*?)\\)");
+
+        while (std::regex_search(contentString, mMatchVariable, mMatchVariableRegex)) {
+            std::string mVariableName = mMatchVariable.str(1);
+            if (auto it = mVariableMap.find(mVariableName); it != mVariableMap.end()) {
+                std::string mValue = getValueForVariable(mVariableName, player_ptr);
+                contentString.replace(mMatchVariable.position(), mMatchVariable.length(), mValue);
                 continue;
             }
-            if (!std::regex_match(extractedContent, mMatchParameter, mPatternParameter)) {
-                mIndex += mMatchFind.position() + mMatchFind.length();
-                continue;
+            if (std::regex_match(mVariableName, mMatchParameter, mMatchParameterRegex)) {
+                std::string mVariableParameterName = mMatchParameter.str(1);
+                std::string mVariableParameterValue = mMatchParameter.str(2);
+                if (auto it = mVariableMapParameter.find(mVariableParameterName); it != mVariableMapParameter.end()) {
+                    std::string mValue = getValueForVariable(mVariableParameterName, player_ptr, mVariableParameterValue);
+                    contentString.replace(mMatchVariable.position(), mMatchVariable.length(), mValue);
+                    continue;
+                }
             }
-            if (auto it = mVariableMapParameter.find(mMatchParameter.str(1)); it != mVariableMapParameter.end()) {
-                std::string val = getValueForVariable(mMatchParameter.str(1), player_ptr, mMatchParameter.str(2));
-                contentString.replace(mMatchFind.position(), mMatchFind.length(), val);
-            }
+            contentString.replace(mMatchVariable.position(), mMatchVariable.length(), mVariableName);
         }
         return contentString;
     }

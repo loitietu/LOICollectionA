@@ -78,22 +78,17 @@ namespace LOICollection::Plugins::market {
                             SystemUtils::toInt(db->get(mObject, "score"), 0) + mScore
                         ));
                     } else {
-                        mPlayer->sendMessage(ll::string_utils::replaceAll(
-                            tr(getLanguage(&pl), "market.gui.sell.sellItem.tips2"), 
-                        "${item}", mName));
+                        mPlayer->sendMessage(ll::string_utils::replaceAll(tr(getLanguage(&pl),
+                            "market.gui.sell.sellItem.tips1"), "${item}", mName));
                         McUtils::scoreboard::addScore(mPlayer, mObjectScore, mScore);
                     }
                     delItem(mItemId);
-                    
-                    McUtils::Gui::submission(&pl, [](void* player_ptr) {
-                        return MainGui::buy(player_ptr);
-                    });
 
-                    std::string logString = ll::string_utils::replaceAll(tr({}, "market.log1"), "${item}", mName);
-                    logger.info(LOICollection::LOICollectionAPI::translateString(logString, &pl));
-                    return;
+                    logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                        tr({}, "market.log1"), "${item}", mName), &pl));
+                } else {
+                    pl.sendMessage(tr(getLanguage(&pl), "market.gui.sell.sellItem.tips3"));
                 }
-                pl.sendMessage(tr(getLanguage(&pl), "market.gui.sell.sellItem.tips4"));
 
                 McUtils::Gui::submission(&pl, [](void* player_ptr) {
                     return MainGui::buy(player_ptr);
@@ -102,17 +97,16 @@ namespace LOICollection::Plugins::market {
             if ((int) player->getPlayerPermissionLevel() >= 2) {
                 form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) {
                     std::string mName = db->get(mItemId, "name");
-                    pl.sendMessage(ll::string_utils::replaceAll(
-                        tr(getLanguage(&pl), "market.gui.sell.sellItem.tips3"), 
-                    "${item}", mName));
+                    pl.sendMessage(ll::string_utils::replaceAll(tr(getLanguage(&pl), 
+                        "market.gui.sell.sellItem.tips2"), "${item}", mName));
                     delItem(mItemId);
 
                     McUtils::Gui::submission(&pl, [](void* player_ptr) {
                         return MainGui::buy(player_ptr);
                     });
 
-                    std::string logString = ll::string_utils::replaceAll(tr({}, "market.log3"), "${item}", mName);
-                    logger.info(LOICollection::LOICollectionAPI::translateString(logString, &pl));
+                    logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                        tr({}, "market.log3"), "${item}", mName), &pl));
                 });
             }
             form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
@@ -135,9 +129,8 @@ namespace LOICollection::Plugins::market {
                 std::string mName = db->get(mItemId, "name");
                 std::string mNbt = db->get(mItemId, "nbt");
 
-                pl.sendMessage(ll::string_utils::replaceAll(
-                    tr(getLanguage(&pl), "market.gui.sell.sellItem.tips3"), 
-                "${item}", mName));
+                pl.sendMessage(ll::string_utils::replaceAll(tr(getLanguage(&pl),
+                    "market.gui.sell.sellItem.tips2"), "${item}", mName));
                 
                 ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mNbt)->mTags);
                 pl.add(mItemStack);
@@ -148,15 +141,15 @@ namespace LOICollection::Plugins::market {
                     return MainGui::sellItemContent(player_ptr);
                 });
 
-                std::string logString = ll::string_utils::replaceAll(tr({}, "market.log3"), "${item}", mName);
-                logger.info(LOICollection::LOICollectionAPI::translateString(logString, &pl));
+                logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                    tr({}, "market.log3"), "${item}", mName), &pl));
             });
             form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) MainGui::sellItemContent(&pl);
             });
         }
 
-        void sellItem(void* player_ptr) {
+        void sellItem(void* player_ptr, std::string mNbt, int mSlot) {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
@@ -166,7 +159,7 @@ namespace LOICollection::Plugins::market {
             int mSize = std::get<int>(mObjectOptions.at("upload"));
             if (((int) db->list("OBJECT$" + mObject + "$ITEMS").size()) >= mSize) {
                 return player->sendMessage(ll::string_utils::replaceAll(tr(mObjectLanguage, 
-                    "market.gui.sell.sellItem.tips5"), "${size}", std::to_string(mSize)));
+                    "market.gui.sell.sellItem.tips4"), "${size}", std::to_string(mSize)));
             }
 
             ll::form::CustomForm form(tr(mObjectLanguage, "market.gui.title"));
@@ -175,51 +168,69 @@ namespace LOICollection::Plugins::market {
             form.appendInput("Input2", tr(mObjectLanguage, "market.gui.sell.sellItem.input2"), "", "textures/items/diamond");
             form.appendInput("Input3", tr(mObjectLanguage, "market.gui.sell.sellItem.input3"), "", "Introduce");
             form.appendInput("Input4", tr(mObjectLanguage, "market.gui.sell.sellItem.input4"), "", "100");
-            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) return MainGui::sell(&pl);
+            form.sendTo(*player, [mNbt, mSlot](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+                if (!dt) return MainGui::sellItemInventory(&pl);
 
-                if (pl.getCarriedItem().isValid()) {
-                    std::string mObject = pl.getUuid().asString();
-                    std::replace(mObject.begin(), mObject.end(), '-', '_');
+                std::string mObject = pl.getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-                    std::string mItemName = std::get<std::string>(dt->at("Input1"));
-                    std::string mItemIcon = std::get<std::string>(dt->at("Input2"));
-                    std::string mItemIntroduce = std::get<std::string>(dt->at("Input3"));
+                std::string mItemName = std::get<std::string>(dt->at("Input1"));
+                std::string mItemIcon = std::get<std::string>(dt->at("Input2"));
+                std::string mItemIntroduce = std::get<std::string>(dt->at("Input3"));
 
-                    std::string mItemId = SystemUtils::nest<std::string>([mObject](std::string& val, int loop) {
-                        val = val + std::to_string(loop);
-                        return db->has("OBJECT$" + mObject + "$ITEMS", val);
-                    }, "Item", 1);
-                    std::string mItemListId = "OBJECT$" + mObject + "$ITEMS_$LIST_" + mItemId;
+                std::string mItemId = SystemUtils::nest<std::string>([mObject](std::string& val, int loop) {
+                    val = val + std::to_string(loop);
+                    return db->has("OBJECT$" + mObject + "$ITEMS", val);
+                }, "Item", 1);
+                std::string mItemListId = "OBJECT$" + mObject + "$ITEMS_$LIST_" + mItemId;
 
-                    std::unique_ptr<CompoundTag> mNbt = pl.getCarriedItem().save();
-                    db->set("OBJECT$" + mObject + "$ITEMS", mItemId, "LIST");
-                    db->create(mItemListId);
-                    db->set(mItemListId, "name", mItemName);
-                    db->set(mItemListId, "icon", mItemIcon);
-                    db->set(mItemListId, "introduce", mItemIntroduce);
-                    db->set(mItemListId, "score", std::to_string(
-                        SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0)
-                    ));
-                    db->set(mItemListId, "nbt", mNbt->toSnbt(SnbtFormat::Minimize, 0));
-                    db->set(mItemListId, "player", pl.getRealName());
-                    db->set("Item", mItemListId, mObject);
-                    pl.setCarriedItem(ItemStack::EMPTY_ITEM);
-                    pl.refreshInventory();
+                db->set("OBJECT$" + mObject + "$ITEMS", mItemId, "LIST");
+                db->create(mItemListId);
+                db->set(mItemListId, "name", mItemName);
+                db->set(mItemListId, "icon", mItemIcon);
+                db->set(mItemListId, "introduce", mItemIntroduce);
+                db->set(mItemListId, "score", std::to_string(
+                    SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0)
+                ));
+                db->set(mItemListId, "nbt", mNbt);
+                db->set(mItemListId, "player", pl.getRealName());
+                db->set("Item", mItemListId, mObject);
+                pl.getInventory().removeItem(mSlot, 64);
+                pl.refreshInventory();
 
-                    McUtils::Gui::submission(&pl, [](void* player_ptr) {
-                        return MainGui::sellItem(player_ptr);
-                    });
-
-                    std::string logString = ll::string_utils::replaceAll(tr({}, "market.log2"), "${item}", mItemName);
-                    logger.info(LOICollection::LOICollectionAPI::translateString(logString, &pl));
-                    return;
-                }
-                pl.sendMessage(tr(getLanguage(&pl), "market.gui.sell.sellItem.tips1"));
+                logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                    tr({}, "market.log2"), "${item}", mItemName), &pl));
                 
                 McUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::sellItem(player_ptr);
+                    return MainGui::sellItemInventory(player_ptr);
                 });
+            });
+        }
+
+        void sellItemInventory(void* player_ptr) {
+            Player* player = static_cast<Player*>(player_ptr);
+            std::string mObjectLanguage = getLanguage(player);
+
+            Container& mItemInventory = player->getInventory();
+
+            ll::form::SimpleForm form(tr(mObjectLanguage,"market.gui.title"),
+                tr(mObjectLanguage, "market.gui.sell.sellItem.dropdown"));
+            for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
+                ItemStack mItemStack = mItemInventory.getItem(i);
+                
+                if (!mItemStack.isValid())
+                    continue;
+
+                std::string mItemName = tr(mObjectLanguage, "market.gui.sell.sellItem.dropdown.text");
+                ll::string_utils::replaceAll(mItemName, "${item}", mItemStack.getName());
+                ll::string_utils::replaceAll(mItemName, "${count}", std::to_string(mItemStack.mCount));
+                form.appendButton(mItemName, [mItemStack, i](Player& pl) {
+                    MainGui::sellItem(&pl, mItemStack.save()->toSnbt(
+                        SnbtFormat::Minimize, 0), i);
+                });
+            }
+            form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) return MainGui::sell(&pl);
             });
         }
 
@@ -229,8 +240,8 @@ namespace LOICollection::Plugins::market {
             std::string mObject = player->getUuid().asString();
             std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-            ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"));
-            form.setContent(tr(mObjectLanguage, "market.gui.label"));
+            ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"),
+                tr(mObjectLanguage, "market.gui.label"));
             for (auto& item : db->list("OBJECT$" + mObject + "$ITEMS")) {
                 std::string mName = db->get("OBJECT$" + mObject + "$ITEMS_$LIST_" + item, "name");
                 std::string mIcon = db->get("OBJECT$" + mObject + "$ITEMS_$LIST_" + item, "icon");
@@ -249,7 +260,7 @@ namespace LOICollection::Plugins::market {
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItem"), "textures/items/diamond", "path", [](Player& pl) {
-                MainGui::sellItem(&pl);
+                MainGui::sellItemInventory(&pl);
             });
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent"), "textures/items/diamond_axe", "path", [](Player& pl) {
                 MainGui::sellItemContent(&pl);
@@ -263,8 +274,8 @@ namespace LOICollection::Plugins::market {
             Player* player = static_cast<Player*>(player_ptr);
             std::string mObjectLanguage = getLanguage(player);
 
-            ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"));
-            form.setContent(tr(mObjectLanguage, "market.gui.label"));
+            ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"),
+                tr(mObjectLanguage, "market.gui.label"));
             for (auto& item : db->list("Item")) {
                 std::string mName = db->get(item, "name");
                 std::string mIcon = db->get(item, "icon");

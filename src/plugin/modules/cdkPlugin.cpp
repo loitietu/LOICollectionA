@@ -73,18 +73,15 @@ namespace LOICollection::Plugins::cdk {
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("Input1"));
                 if (!db->has(mObjectCdk)) {
-                    bool mObjectToggle = std::get<uint64>(dt->at("Toggle"));
                     int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                     std::string mObjectTime = time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0";
-                    nlohmann::ordered_json mEmptyObject = nlohmann::ordered_json::object();
-                    nlohmann::ordered_json mEmptyArray = nlohmann::ordered_json::array();
                     nlohmann::ordered_json dataList = {
-                        {"personal", mObjectToggle},
-                        {"player", mEmptyArray},
-                        {"scores", mEmptyObject},
-                        {"item", mEmptyObject},
-                        {"title", mEmptyObject},
-                        {"time", mObjectTime}
+                        { "personal", (bool)std::get<uint64>(dt->at("Toggle")) },
+                        { "player", nlohmann::ordered_json::array() },
+                        { "scores", nlohmann::ordered_json::object() },
+                        { "item", nlohmann::ordered_json::object() },
+                        { "title", nlohmann::ordered_json::object() },
+                        { "time", mObjectTime }
                     };
                     db->set(mObjectCdk, dataList);
                     db->save();
@@ -94,7 +91,8 @@ namespace LOICollection::Plugins::cdk {
                     return MainGui::cdkNew(player_ptr);
                 });
 
-                logger.info(ll::string_utils::replaceAll(tr({}, "cdk.log1"), "${cdk}", mObjectCdk));
+                logger.info(ll::string_utils::replaceAll(tr({},
+                    "cdk.log1"), "${cdk}", mObjectCdk));
             });
         }
 
@@ -121,7 +119,8 @@ namespace LOICollection::Plugins::cdk {
                     return MainGui::cdkRemove(player_ptr);
                 });
 
-                logger.info(ll::string_utils::replaceAll(tr({}, "cdk.log2"), "${cdk}", mObjectCdk));
+                logger.info(ll::string_utils::replaceAll(tr({},
+                    "cdk.log2"), "${cdk}", mObjectCdk));
             });
         }
 
@@ -143,9 +142,10 @@ namespace LOICollection::Plugins::cdk {
                 if (!dt) return MainGui::cdkAward(&pl);
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
-                int mObjectScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+
                 nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
-                mObjectData["scores"][std::get<std::string>(dt->at("Input1"))] = mObjectScore;
+                mObjectData["scores"][std::get<std::string>(dt->at("Input1"))] = 
+                    SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 db->set(mObjectCdk, mObjectData);
                 db->save();
 
@@ -175,14 +175,12 @@ namespace LOICollection::Plugins::cdk {
                 if (!dt) return MainGui::cdkAward(&pl);
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
-                std::string mObjectName = std::get<std::string>(dt->at("Input2"));
-                int mObjectCount = SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 1);
-                int mObjectAux = SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
+
                 nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
                 mObjectData["item"][std::get<std::string>(dt->at("Input1"))] = {
-                    {"name", mObjectName},
-                    {"quantity", mObjectCount},
-                    {"specialvalue", mObjectAux}
+                    { "name", std::get<std::string>(dt->at("Input2")) },
+                    { "quantity", SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 1) },
+                    { "specialvalue", SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0) }
                 };
                 db->set(mObjectCdk, mObjectData);
                 db->save();
@@ -211,12 +209,11 @@ namespace LOICollection::Plugins::cdk {
                 if (!dt) return MainGui::cdkAward(&pl);
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
-                std::string mObjectName = std::get<std::string>(dt->at("Input1"));
-                int mObjectTime = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+
                 nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
-                if (!mObjectData.contains("title"))
-                    mObjectData["title"] = {};
-                mObjectData["title"][mObjectName] = mObjectTime;
+                !mObjectData.contains("title") ? mObjectData["title"] = {} : nullptr;
+                mObjectData["title"][std::get<std::string>(dt->at("Input1"))] =
+                    SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 db->set(mObjectCdk, mObjectData);
                 db->save();
 
@@ -342,8 +339,8 @@ namespace LOICollection::Plugins::cdk {
             db->save();
             player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
 
-            std::string logString = ll::string_utils::replaceAll(tr({}, "cdk.log3"), "${cdk}", convertString);
-            logger.info(LOICollection::LOICollectionAPI::translateString(logString, player));
+            logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                tr({}, "cdk.log3"), "${cdk}", convertString), player));
             return;
         }
         player->sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));

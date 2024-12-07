@@ -105,8 +105,8 @@ namespace LOICollection::Plugins::shop {
                     return MainGui::editNew(player_ptr);
                 });
 
-                std::string logString = ll::string_utils::replaceAll(tr({}, "shop.log1"), "${menu}", mObjectInput1);
-                logger.info(translateString(logString, &pl));
+                logger.info(translateString(ll::string_utils::replaceAll(tr({},
+                    "shop.log1"), "${menu}", mObjectInput1), &pl));
             });
         }
 
@@ -128,8 +128,8 @@ namespace LOICollection::Plugins::shop {
                             db->remove(key);
                             db->save();
 
-                            std::string logString = ll::string_utils::replaceAll(tr({}, "shop.log2"), "${menu}", key);
-                            logger.info(translateString(logString, &pl));
+                            logger.info(translateString(ll::string_utils::replaceAll(tr({},
+                                "shop.log2"), "${menu}", key), &pl));
                         }
                         McUtils::Gui::submission(&pl, [](void* player_ptr) {
                             return MainGui::editRemove(player_ptr);
@@ -181,8 +181,8 @@ namespace LOICollection::Plugins::shop {
                     return MainGui::editAwardContent(player_ptr, uiName);
                 });
 
-                std::string logString = ll::string_utils::replaceAll(tr({}, "shop.log4"), "${menu}", uiName);
-                logger.info(translateString(logString, &pl));
+                logger.info(translateString(ll::string_utils::replaceAll(tr({},
+                    "shop.log4"), "${menu}", uiName), &pl));
             });
         }
 
@@ -238,8 +238,8 @@ namespace LOICollection::Plugins::shop {
                     return MainGui::editAwardContent(player_ptr, uiName);
                 });
 
-                std::string logString = ll::string_utils::replaceAll(tr({}, "menu.log5"), "${menu}", uiName);
-                logger.info(translateString(logString, &pl));
+                logger.info(translateString(ll::string_utils::replaceAll(tr({},
+                    "menu.log5"), "${menu}", uiName), &pl));
             });
         }
 

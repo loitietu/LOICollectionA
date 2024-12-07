@@ -86,9 +86,9 @@ namespace LOICollection::Plugins::blacklist {
 
             ll::form::CustomForm form(tr(mObjectLanguage, "blacklist.gui.add.title"));
             form.appendLabel(tr(mObjectLanguage, "blacklist.gui.label"));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "blacklist.gui.add.dropdown"), { "ip", "uuid" });
             form.appendInput("Input1", tr(mObjectLanguage, "blacklist.gui.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "blacklist.gui.add.input2"), "", "0");
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "blacklist.gui.add.dropdown"), { "ip", "uuid" });
             form.sendTo(*player, [target_ptr](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return MainGui::add(&pl);
 
@@ -277,7 +277,8 @@ namespace LOICollection::Plugins::blacklist {
     void delBlacklist(std::string target) {
         if (db->has("OBJECT$" + target))
             db->remove("OBJECT$" + target);
-        logger.info(ll::string_utils::replaceAll(tr({}, "blacklist.log2"), "${target}", target));
+        logger.info(ll::string_utils::replaceAll(tr({},
+            "blacklist.log2"), "${target}", target));
     }
 
     bool isBlacklist(void* player_ptr) {

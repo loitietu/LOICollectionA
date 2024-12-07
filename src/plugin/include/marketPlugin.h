@@ -11,7 +11,8 @@ namespace LOICollection::Plugins::market {
     namespace MainGui {
         LOICOLLECTION_A_API void buyItem(void* player_ptr, std::string mItemId);
         LOICOLLECTION_A_API void itemContent(void* player_ptr, std::string mItemId);
-        LOICOLLECTION_A_API void sellItem(void* player_ptr);
+        LOICOLLECTION_A_API void sellItem(void* player_ptr, std::string mNbt, int mSlot);
+        LOICOLLECTION_A_API void sellItemInventory(void* player_ptr);
         LOICOLLECTION_A_API void sellItemContent(void* player_ptr);
         LOICOLLECTION_A_API void sell(void* player_ptr);
         LOICOLLECTION_A_API void buy(void* player_ptr);

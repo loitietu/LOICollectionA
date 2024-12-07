@@ -87,7 +87,7 @@ namespace McUtils {
         });
         return mObjectLists;
     }
-        
+
     bool isItemPlayerInventory(void* player_ptr, std::string mTypeName, int mNumber) {
         Player* player = static_cast<Player*>(player_ptr);
 
