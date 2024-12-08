@@ -360,8 +360,8 @@ namespace LOICollection::Plugins::shop {
         void menu(void* player_ptr, nlohmann::ordered_json& data, ShopType type) {
             Player* player = static_cast<Player*>(player_ptr);
 
-            ll::form::SimpleForm form(translateString(data.at("title").get<std::string>(), player));
-            form.setContent(translateString(data.at("content").get<std::string>(), player));
+            ll::form::SimpleForm form(translateString(data.at("title").get<std::string>(), player),
+                translateString(data.at("content").get<std::string>(), player));
             for (auto& item : data.at("classiflcation")) {
                 form.appendButton(translateString(item.at("title").get<std::string>(), player), 
                     item.at("image").get<std::string>(), "path", [item, data, type](Player& pl) {
@@ -489,8 +489,9 @@ namespace LOICollection::Plugins::shop {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player, param.uiName);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
@@ -498,9 +499,10 @@ namespace LOICollection::Plugins::shop {
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {
-                    output.success("The UI has been opened to player {}", player->getRealName());
-                    return MainGui::edit(player);
+                    MainGui::edit(player);
+                    return output.success("The UI has been opened to player {}", player->getRealName());
                 }
+
                 output.error("No permission to open the ui.");
             });
         }
@@ -520,6 +522,7 @@ namespace LOICollection::Plugins::shop {
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
+        
         registerCommand();
     }
 }

@@ -301,16 +301,18 @@ namespace LOICollection::Plugins::market {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::buy(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
             command.overload().text("sell").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::sell(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
         }
 
@@ -351,6 +353,7 @@ namespace LOICollection::Plugins::market {
 
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
+        
         registerCommand();
         listenEvent();
     }

@@ -68,6 +68,8 @@ namespace LOICollection::Plugins::language {
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 MainGui::open(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
         }
 
@@ -88,8 +90,6 @@ namespace LOICollection::Plugins::language {
     }
 
     std::string getLanguage(void* player_ptr) {
-        if (player_ptr == nullptr)
-            return "zh_CN";
         Player* player = static_cast<class Player*>(player_ptr);
         std::string mObject = player->getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
@@ -99,6 +99,7 @@ namespace LOICollection::Plugins::language {
     void registery(void* database) {
         db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
         logger.setFile("./logs/LOICollectionA.log");
+        
         registerCommand();
         listenEvent();
     }

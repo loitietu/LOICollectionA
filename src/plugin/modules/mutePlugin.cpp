@@ -140,12 +140,12 @@ namespace LOICollection::Plugins::mute {
     namespace {
         const auto MuteCommandADD = [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) {
             for (auto& pl : param.target.results(origin)) {
-                if (!isMute(pl) && (int) pl->getPlayerPermissionLevel() < 2 && !pl->isSimulatedPlayer()) {
-                    output.addMessage(fmt::format("Add player {}({}) to mute.", 
-                        pl->getRealName(), pl->getUuid().asString()), 
-                        {}, CommandOutputMessageType::Success);
-                    addMute(pl, param.cause, param.time);
-                }
+                if (isMute(pl) || (int) pl->getPlayerPermissionLevel() >= 2 || pl->isSimulatedPlayer())
+                    continue;
+                addMute(pl, param.cause, param.time);
+
+                output.addMessage(fmt::format("Add player {}({}) to mute.", pl->getRealName(),
+                    pl->getUuid().asString()), {}, CommandOutputMessageType::Success);
             }
         };
 
@@ -161,12 +161,12 @@ namespace LOICollection::Plugins::mute {
             command.overload<MuteOP>().text("add").required("target").required("cause").required("time").execute(MuteCommandADD);
             command.overload<MuteOP>().text("remove").required("target").execute([](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) {
                 for (auto& pl : param.target.results(origin)) {
-                    if (isMute(pl)) {
-                        output.addMessage(fmt::format("Remove player {}({}) form mute.", 
-                            pl->getRealName(), pl->getUuid().asString()), 
-                            {}, CommandOutputMessageType::Success);
-                        delMute(pl);
-                    }
+                    if (!isMute(pl)) 
+                        continue;
+                    delMute(pl);
+
+                    output.addMessage(fmt::format("Remove player {}({}) form mute.", pl->getRealName(),
+                        pl->getUuid().asString()), {}, CommandOutputMessageType::Success);
                 }
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -174,8 +174,9 @@ namespace LOICollection::Plugins::mute {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
         }
 
@@ -246,6 +247,7 @@ namespace LOICollection::Plugins::mute {
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
+        
         registerCommand();
         listenEvent();
     }

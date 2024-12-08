@@ -67,24 +67,27 @@ namespace LOICollection::Plugins::pvp {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
             command.overload().text("off").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The PVP has been disabled");
                 enable(player, false);
+
+                output.success("The PVP has been disabled");
             });
             command.overload().text("on").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The PVP has been enabled");
                 enable(player, true);
+
+                output.success("The PVP has been enabled");
             });
         }
 
@@ -117,6 +120,15 @@ namespace LOICollection::Plugins::pvp {
         }
     }
 
+    bool isEnable(void* player_ptr) {
+        Player* player = static_cast<Player*>(player_ptr);
+        std::string mObject = player->getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        if (db->has("OBJECT$" + mObject))
+            return db->get("OBJECT$" + mObject, "Pvp_Enable") == "true";
+        return false;
+    }
+
     void enable(void* player_ptr, bool value) {
         Player* player = static_cast<Player*>(player_ptr);
         std::string mObject = player->getUuid().asString();
@@ -132,18 +144,10 @@ namespace LOICollection::Plugins::pvp {
         logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "pvp.log2"), player));
     }
 
-    bool isEnable(void* player_ptr) {
-        Player* player = static_cast<Player*>(player_ptr);
-        std::string mObject = player->getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject))
-            return db->get("OBJECT$" + mObject, "Pvp_Enable") == "true";
-        return false;
-    }
-
     void registery(void* database) {
         db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
         logger.setFile("./logs/LOICollectionA.log");
+        
         registerCommand();
         listenEvent();
     }

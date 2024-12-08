@@ -275,6 +275,7 @@ namespace LOICollection::Plugins::cdk {
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 cdkConvert(player, param.convertString);
+                
                 output.success("The player {} has been converted to cdk: {}", player->getRealName(), param.convertString);
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -282,8 +283,9 @@ namespace LOICollection::Plugins::cdk {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::convert(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
@@ -291,9 +293,10 @@ namespace LOICollection::Plugins::cdk {
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {
-                    output.success("The UI has been opened to player {}", player->getRealName());
-                    return MainGui::open(player);
+                    MainGui::open(player);
+                    return output.success("The UI has been opened to player {}", player->getRealName());
                 }
+
                 output.error("No permission to open the Setting.");
             });
         }
@@ -349,6 +352,7 @@ namespace LOICollection::Plugins::cdk {
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
+        
         registerCommand();
     }
 }

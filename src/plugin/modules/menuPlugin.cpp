@@ -515,8 +515,8 @@ namespace LOICollection::Plugins::menu {
         void simple(void* player_ptr, nlohmann::ordered_json& data) {
             Player* player = static_cast<Player*>(player_ptr);
 
-            ll::form::SimpleForm form(translateString(data.at("title").get<std::string>(), player));
-            form.setContent(translateString(data.at("content").get<std::string>(), player));
+            ll::form::SimpleForm form(translateString(data.at("title").get<std::string>(), player),
+                translateString(data.at("content").get<std::string>(), player));
             for (auto& button : data.at("button")) {
                 form.appendButton(translateString(button.at("title").get<std::string>(), player), 
                     button.at("image").get<std::string>(), "path", [data, button](Player& pl) {
@@ -591,10 +591,9 @@ namespace LOICollection::Plugins::menu {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
+                MainGui::open(player, param.uiName.empty() ? "main" : param.uiName);
+                
                 output.success("The UI has been opened to player {}", player->getRealName());
-                if (param.uiName.empty())
-                    return MainGui::open(player, "main");
-                MainGui::open(player, param.uiName);
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
@@ -602,9 +601,10 @@ namespace LOICollection::Plugins::menu {
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {
-                    output.success("The UI has been opened to player {}", player->getRealName());
-                    return MainGui::edit(player);
+                    MainGui::edit(player);
+                    return output.success("The UI has been opened to player {}", player->getRealName());
                 }
+
                 output.error("No permission to open the ui.");
             });
             command.overload().text("clock").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -614,12 +614,14 @@ namespace LOICollection::Plugins::menu {
                 Player* player = static_cast<Player*>(entity);
                 ItemStack itemStack(mItemId, 1);
 
-                if (!itemStack) return output.error("Failed to give the MenuItem to player {}", player->getRealName());
+                if (!itemStack)
+                    return output.error("Failed to give the MenuItem to player {}", player->getRealName());
                 if (McUtils::isItemPlayerInventory(player, mItemId, 1))
                     return output.error("The MenuItem has already been given to player {}", player->getRealName());
 
                 player->add(itemStack);
                 player->refreshInventory();
+
                 output.success("The MenuItem has been given to player {}", player->getRealName());
             });
         }
@@ -687,6 +689,7 @@ namespace LOICollection::Plugins::menu {
         
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
+        
         registerCommand();
         listenEvent();
     }

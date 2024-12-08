@@ -163,21 +163,22 @@ namespace LOICollection::Plugins::blacklist {
     namespace {
         const auto BlacklistCommandADD = [](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param) {
             for (auto& pl : param.target.results(origin)) {
-                if (!isBlacklist(pl) && (int) pl->getPlayerPermissionLevel() < 2 && !pl->isSimulatedPlayer()) {
-                    output.addMessage(fmt::format("Add player {} to blacklist.", 
-                        pl->getRealName()), {}, CommandOutputMessageType::Success);
-                    switch (param.selectorType) {
-                        case BlacklistOP::ip:
-                            addBlacklist(pl, param.cause, param.time, BlacklistType::ip);
-                            break;
-                        case BlacklistOP::uuid:
-                            addBlacklist(pl, param.cause, param.time, BlacklistType::uuid);
-                            break;
-                        default:
-                            logger.error("Unknown selector type: {}", param.selectorType);
-                            break;
-                    }
+                if (isBlacklist(pl) || (int) pl->getPlayerPermissionLevel() >= 2 || pl->isSimulatedPlayer())
+                    continue;
+                switch (param.selectorType) {
+                    case BlacklistOP::ip:
+                        addBlacklist(pl, param.cause, param.time, BlacklistType::ip);
+                        break;
+                    case BlacklistOP::uuid:
+                        addBlacklist(pl, param.cause, param.time, BlacklistType::uuid);
+                        break;
+                    default:
+                        logger.error("Unknown selector type: {}", param.selectorType);
+                        return;
                 }
+
+                output.addMessage(fmt::format("Add player {} to blacklist.", 
+                    pl->getRealName()), {}, CommandOutputMessageType::Success);
             }
         };
 
@@ -195,6 +196,7 @@ namespace LOICollection::Plugins::blacklist {
                 if (!db->has("OBJECT$" + param.targetName))
                     return output.error("Object {} is not in blacklist.", param.targetName);
                 delBlacklist(param.targetName);
+
                 output.success("Remove object {} from blacklist.", param.targetName);
             });
             command.overload().text("list").execute([](CommandOrigin const& /*unused*/, CommandOutput& output) {
@@ -204,6 +206,7 @@ namespace LOICollection::Plugins::blacklist {
                     return a + (a.empty() ? "" : ", ") + b;
                 });
                 ll::string_utils::replaceAll(result, "OBJECT$", "");
+
                 output.success("Blacklist: {}", result.empty() ? "None" : result);
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -211,8 +214,9 @@ namespace LOICollection::Plugins::blacklist {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
         }
 
@@ -295,6 +299,7 @@ namespace LOICollection::Plugins::blacklist {
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
+        
         registerCommand();
         listenEvent();
     }

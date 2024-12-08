@@ -201,18 +201,20 @@ namespace LOICollection::Plugins::chat {
                 if (!isPermissionFormCommandOrigin(origin, 2))
                     return output.error("No permission to add chat.");
                 for (auto& pl : param.target.results(origin)) {
+                    addChat(pl, param.titleName, param.time);
+
                     output.addMessage(fmt::format("Add Chat for Player {}.", 
                         pl->getRealName()), {}, CommandOutputMessageType::Success);
-                    addChat(pl, param.titleName, param.time);
                 }
             });
             command.overload<ChatOP>().text("remove").required("target").required("titleName").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
                 if (!isPermissionFormCommandOrigin(origin, 2))
                     return output.error("No permission to remove chat.");
                 for (auto& pl : param.target.results(origin)) {
+                    delChat(pl, param.titleName);
+
                     output.addMessage(fmt::format("Remove Chat for Player {}.",
                         pl->getRealName()), {}, CommandOutputMessageType::Success);
-                    delChat(pl, param.titleName);
                 }
             });
             command.overload<ChatOP>().text("list").required("target").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
@@ -227,6 +229,7 @@ namespace LOICollection::Plugins::chat {
                         [](const std::string& a, const std::string& b) {
                         return a + (a.empty() ? "" : ", ") + b;
                     });
+
                     output.addMessage(fmt::format("Player {}'s Chat List: {}", player->getRealName(),
                         result.empty() ? "None" : result), {}, CommandOutputMessageType::Success);
                 }
@@ -237,9 +240,10 @@ namespace LOICollection::Plugins::chat {
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {
-                    output.success("The UI has been opened to player {}", player->getRealName());
-                    return MainGui::open(player);
+                    MainGui::open(player);
+                    return output.success("The UI has been opened to player {}", player->getRealName());
                 }
+
                 output.error("No permission to open the ui.");
             });
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -247,8 +251,9 @@ namespace LOICollection::Plugins::chat {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::setting(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
         }
 
@@ -367,6 +372,7 @@ namespace LOICollection::Plugins::chat {
 
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger.setFile("./logs/LOICollectionA.log");
+        
         registerCommand();
         listenEvent();
     }

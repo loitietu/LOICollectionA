@@ -21,6 +21,7 @@ namespace LOICollection::Plugins::blacklist {
 
     LOICOLLECTION_A_API   void addBlacklist(void* player_ptr, std::string cause, int time, BlacklistType type);
     LOICOLLECTION_A_API   void delBlacklist(std::string target);
+    
     LOICOLLECTION_A_NDAPI bool isBlacklist(void* player_ptr);
 
     LOICOLLECTION_A_API   void registery(void* database);

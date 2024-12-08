@@ -137,8 +137,9 @@ namespace LOICollection::Plugins::wallet {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
             command.overload<WalletOP>().text("transfer").required("target").required("score").execute([](CommandOrigin const& origin, CommandOutput& output, WalletOP const& param) {
                 auto* entity = origin.getEntity();
@@ -154,6 +155,7 @@ namespace LOICollection::Plugins::wallet {
                 for (auto& target : mTargetLists)
                     McUtils::scoreboard::addScore(target, mScore, mMoney);
                 McUtils::scoreboard::reduceScore(player, mScore, (int)(mTargetLists.size() * param.score));
+
                 output.success("You have transferred {} to {} players.", param.score, mTargetLists.size());
             });
             command.overload().text("wealth").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -161,8 +163,9 @@ namespace LOICollection::Plugins::wallet {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::wealth(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
         }
     }
@@ -171,6 +174,7 @@ namespace LOICollection::Plugins::wallet {
         mObjectOptions = options;
 
         logger.setFile("./logs/LOICollectionA.log");
+        
         registerCommand();
     }
 }

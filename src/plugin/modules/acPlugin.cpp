@@ -139,16 +139,18 @@ namespace LOICollection::Plugins::announcement {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::setting(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
@@ -156,9 +158,10 @@ namespace LOICollection::Plugins::announcement {
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 if ((int) player->getPlayerPermissionLevel() >= 2) {
-                    output.success("The UI has been opened to player {}", player->getRealName());
-                    return MainGui::edit(player);
+                    MainGui::edit(player);
+                    return output.success("The UI has been opened to player {}", player->getRealName());
                 }
+
                 output.error("No permission to open the ui.");
             });
         }
@@ -201,6 +204,7 @@ namespace LOICollection::Plugins::announcement {
             db->set("content", nlohmann::ordered_json::array({"这是一条测试公告，欢迎使用本插件！"}));
             db->save();
         }
+        
         registerCommand();
         listenEvent();
     }

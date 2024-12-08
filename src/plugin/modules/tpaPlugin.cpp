@@ -160,11 +160,12 @@ namespace LOICollection::Plugins::tpa {
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
                 for (auto& pl : param.target.results(origin)) {
-                    output.addMessage(fmt::format("{} has been invited.", 
-                        pl->getRealName()), {}, CommandOutputMessageType::Success);
                     MainGui::tpa(player, pl, 
                         param.selectorType == TpaOP::tpa ? TpaType::tpa : TpaType::tphere
                     );
+
+                    output.addMessage(fmt::format("{} has been invited.", 
+                        pl->getRealName()), {}, CommandOutputMessageType::Success);
                 }
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -172,16 +173,18 @@ namespace LOICollection::Plugins::tpa {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::open(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player* player = static_cast<Player*>(entity);
-                output.success("The UI has been opened to player {}", player->getRealName());
                 MainGui::setting(player);
+
+                output.success("The UI has been opened to player {}", player->getRealName());
             });
         }
 
@@ -213,6 +216,7 @@ namespace LOICollection::Plugins::tpa {
     void registery(void* database) {
         db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
         logger.setFile("./logs/LOICollectionA.log");
+        
         registerCommand();
         listenEvent();
     }
