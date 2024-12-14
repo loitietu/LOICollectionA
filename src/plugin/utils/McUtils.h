@@ -8,24 +8,27 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
+class Player;
+class ScoreboardId;
+
 namespace McUtils {
-    void executeCommand(void* player_ptr, std::string cmd);
-    void clearItem(void* player_ptr, std::string mTypeName, int mNumber);
+    void executeCommand(Player& player, std::string cmd);
+    void clearItem(Player& player, std::string mTypeName, int mNumber);
     void broadcastText(const std::string& text);
 
-    std::vector<void*> getAllPlayers();
+    std::vector<Player*> getAllPlayers();
         
-    bool isItemPlayerInventory(void* player_ptr, std::string mTypeName, int mNumber);
+    bool isItemPlayerInventory(Player& player, std::string mTypeName, int mNumber);
 
     namespace Gui {
-        void submission(void* player_ptr, std::function<void(void*)> callback);
+        void submission(Player& player, std::function<void(Player&)> callback);
     }
 
     namespace scoreboard {
-        int getScore(void* player_ptr, const std::string& name);
-        void modifyScore(void* identity_ptr, const std::string& name, int score, int action);
-        void addScore(void* player_ptr, const std::string &name, int score); 
-        void reduceScore(void* player_ptr, const std::string &name, int score);
+        int getScore(Player& player, const std::string& name);
+        void modifyScore(ScoreboardId& identity, const std::string& name, int score, int action);
+        void addScore(Player& player, const std::string &name, int score); 
+        void reduceScore(Player& player, const std::string &name, int score);
     }
 }
 

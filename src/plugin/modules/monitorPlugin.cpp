@@ -35,11 +35,9 @@ namespace LOICollection::Plugins::monitor {
     void registery(std::map<std::string, std::variant<std::string, std::vector<std::string>, int, bool>>& options) {
         if (std::get<bool>(options.at("BelowName_Enabled"))) {
             scheduler.add<ll::schedule::RepeatTask>(ll::chrono_literals::operator""_tick(std::get<int>(options.at("BelowName_RefreshInterval"))), [options] {
-                for (auto& player_ptr : McUtils::getAllPlayers()) {
-                    Player* player = static_cast<Player*>(player_ptr);
-                    
+                for (Player*& player : McUtils::getAllPlayers()) {
                     std::string mMonitorString = std::get<std::string>(options.at("BelowName_Text"));
-                    LOICollection::LOICollectionAPI::translateString(mMonitorString, player);
+                    LOICollection::LOICollectionAPI::translateString(mMonitorString, *player);
                     player->setNameTag(mMonitorString);
                 }
             });
@@ -51,7 +49,7 @@ namespace LOICollection::Plugins::monitor {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mMonitorString = std::get<std::string>(options.at("ServerToast_JoinText"));
-                    LOICollection::LOICollectionAPI::translateString(mMonitorString, &event.self());
+                    LOICollection::LOICollectionAPI::translateString(mMonitorString, event.self());
                     McUtils::broadcastText(mMonitorString);
                 }
             );
@@ -60,20 +58,19 @@ namespace LOICollection::Plugins::monitor {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mMonitorString = std::get<std::string>(options.at("ServerToast_ExitText"));
-                    LOICollection::LOICollectionAPI::translateString(mMonitorString, &event.self());
+                    LOICollection::LOICollectionAPI::translateString(mMonitorString, event.self());
                     McUtils::broadcastText(mMonitorString);
                 }
             );
         }
         if (std::get<bool>(options.at("ChangeScore_Enabled"))) {
-            LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([options](void* player_ptr, int score, std::string id, ScoreChangedType type) {
-                Player* player = static_cast<Player*>(player_ptr);
+            LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([options](Player* player, int score, std::string id, ScoreChangedType type) {
                 if (id.empty() || player == nullptr)
                     return;
 
                 std::string target = std::get<std::string>(options.at("ChangeScore_Score"));
                 if (id == target || target == "$all") {
-                    int mOriScore = McUtils::scoreboard::getScore(player, id);
+                    int mOriScore = McUtils::scoreboard::getScore(*player, id);
                     std::string mChangedString = std::get<std::string>(options.at("ChangeScore_Text"));
                     ll::string_utils::replaceAll(mChangedString, "${Object}", id);
                     ll::string_utils::replaceAll(mChangedString, "${OriMoney}", std::to_string(mOriScore));

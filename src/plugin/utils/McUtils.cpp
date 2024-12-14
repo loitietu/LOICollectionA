@@ -37,12 +37,10 @@
 #include "McUtils.h"
 
 namespace McUtils {
-    void executeCommand(void* player_ptr, std::string cmd) {
-        Player* player = static_cast<Player*>(player_ptr);
-
-        ll::string_utils::replaceAll(cmd, "${player}", player->getRealName());
+    void executeCommand(Player& player, std::string cmd) {
+        ll::string_utils::replaceAll(cmd, "${player}", player.getRealName());
         auto origin = ServerCommandOrigin(
-            "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, player->getDimensionId()
+            "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, player.getDimensionId()
         );
         auto command = ll::service::getMinecraft()->getCommands().compileCommand(
             std::string(cmd), origin, (CurrentCmdVersion)CommandVersion::CurrentVersion,
@@ -54,10 +52,8 @@ namespace McUtils {
         }
     }
 
-    void clearItem(void* player_ptr, std::string mTypeName, int mNumber) {
-        Player* player = static_cast<Player*>(player_ptr);
-        
-        Container& mItemInventory = player->getInventory();
+    void clearItem(Player& player, std::string mTypeName, int mNumber) {
+        Container& mItemInventory = player.getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             auto& mItemObject = mItemInventory.getItem(i);
             if (mItemObject.isValid() && mTypeName == mItemObject.getTypeName()) {
@@ -78,8 +74,8 @@ namespace McUtils {
         });
     }
 
-    std::vector<void*> getAllPlayers() {
-        std::vector<void*> mObjectLists{};
+    std::vector<Player*> getAllPlayers() {
+        std::vector<Player*> mObjectLists{};
         ll::service::getLevel()->forEachPlayer([&](Player& player) {
             if (!player.isSimulatedPlayer())
                 mObjectLists.push_back(&player);
@@ -88,10 +84,8 @@ namespace McUtils {
         return mObjectLists;
     }
 
-    bool isItemPlayerInventory(void* player_ptr, std::string mTypeName, int mNumber) {
-        Player* player = static_cast<Player*>(player_ptr);
-
-        Container& mItemInventory = player->getInventory();
+    bool isItemPlayerInventory(Player& player, std::string mTypeName, int mNumber) {
+        Container& mItemInventory = player.getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             auto& mItemObject = mItemInventory.getItem(i);
             if (mItemObject.isValid() && mTypeName == mItemObject.getTypeName()) {
@@ -107,63 +101,62 @@ namespace McUtils {
         using I18nUtils::tr;
         using LOICollection::Plugins::language::getLanguage;
 
-        void submission(void* player_ptr, std::function<void(void*)> callback) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void submission(Player& player, std::function<void(Player&)> callback) {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "exit.gui.title"), tr(mObjectLanguage, "exit.gui.label"));
             form.appendButton(tr(mObjectLanguage, "exit.gui.button1"), [callback](Player& pl) {
-                callback(&pl);
+                callback(pl);
             });
             form.appendButton(tr(mObjectLanguage, "exit.gui.button2"), [](Player& pl) {
-                pl.sendMessage(tr(getLanguage(&pl), "exit"));
+                pl.sendMessage(tr(getLanguage(pl), "exit"));
             });
-            form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
             });
         }
     }
 
     namespace scoreboard {
-        int getScore(void* player_ptr, const std::string& name) {
-            Player* player = static_cast<Player*>(player_ptr);
-
+        int getScore(Player& player, const std::string& name) {
             auto level = ll::service::getLevel();
-            auto identity = level->getScoreboard().getScoreboardId(*player);
+            auto identity = level->getScoreboard().getScoreboardId(player);
             if (!identity.isValid())
                 return 0;
             auto obj = level->getScoreboard().getObjective(name);
             return !obj ? 0 : obj->getPlayerScore(identity).mScore;
         }
 
-        void modifyScore(void* identity_ptr, const std::string& name, int score, int action) {
-            ScoreboardId* identity = static_cast<ScoreboardId*>(identity_ptr);
-
+        void modifyScore(ScoreboardId& identity, const std::string& name, int score, int action) {
             auto level = ll::service::getLevel();
             auto obj = level->getScoreboard().getObjective(name);
+            
             if (!obj) {
-                obj = static_cast<Objective*>(ll::service::getLevel()->getScoreboard().addObjective(
-                    name, name, *ll::service::getLevel()->getScoreboard().getCriteria("dummy")
+                obj = static_cast<Objective*>(level->getScoreboard().addObjective(
+                    name, name, *level->getScoreboard().getCriteria("dummy")
                 ));
             }
 
             bool succes;
-            level->getScoreboard().modifyPlayerScore(succes, *identity, *obj, score, 
-                action == 0x0 ? PlayerScoreSetFunction::Set : action == 0x1
-                    ? PlayerScoreSetFunction::Add : PlayerScoreSetFunction::Subtract
+            level->getScoreboard().modifyPlayerScore(succes, identity, *obj, score, 
+                action == 0x0 ? PlayerScoreSetFunction::Set : action == 0x1 ? PlayerScoreSetFunction::Add : PlayerScoreSetFunction::Subtract
             );
         }
 
-        void addScore(void* player_ptr, const std::string &name, int score) {
-            ScoreboardId identity = ll::service::getLevel()->getScoreboard()
-                .getScoreboardId(*static_cast<Player*>(player_ptr));
-            modifyScore(&identity, name, score, 0x1);
+        void addScore(Player& player, const std::string &name, int score) {
+            ScoreboardId identity = ll::service::getLevel()->getScoreboard().getScoreboardId(player);
+            if (!identity.isValid()) 
+                identity = ll::service::getLevel()->getScoreboard().createScoreboardId(player);
+            
+            modifyScore(identity, name, score, 0x1);
         }
 
-        void reduceScore(void* player_ptr, const std::string &name, int score) {
-            ScoreboardId identity = ll::service::getLevel()->getScoreboard()
-                .getScoreboardId(*static_cast<Player*>(player_ptr));
-            modifyScore(&identity, name, score, 0x2);
+        void reduceScore(Player& player, const std::string &name, int score) {
+            ScoreboardId identity = ll::service::getLevel()->getScoreboard().getScoreboardId(player);
+            if (!identity.isValid())
+                identity = ll::service::getLevel()->getScoreboard().createScoreboardId(player);
+
+            modifyScore(identity, name, score, 0x2);
         }
     }
 }

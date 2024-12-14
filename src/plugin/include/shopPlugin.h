@@ -8,6 +8,8 @@
 
 #include "ExportLib.h"
 
+class Player;
+
 enum class ShopType {
     buy,
     sell
@@ -15,21 +17,21 @@ enum class ShopType {
 
 namespace LOICollection::Plugins::shop {
     namespace MainGui {
-        LOICOLLECTION_A_API void editNew(void* player_ptr);
-        LOICOLLECTION_A_API void editRemove(void* player_ptr);
-        LOICOLLECTION_A_API void editAwardSetting(void* player_ptr, std::string uiName, ShopType type);
-        LOICOLLECTION_A_API void editAwardNew(void* player_ptr, std::string uiName, ShopType type);
-        LOICOLLECTION_A_API void editAwardRemove(void* player_ptr, std::string uiName);
-        LOICOLLECTION_A_API void editAwardContent(void* player_ptr, std::string uiName);
-        LOICOLLECTION_A_API void editAward(void* player_ptr);
-        LOICOLLECTION_A_API void edit(void* player_ptr);
-        LOICOLLECTION_A_API void menu(void* player_ptr, nlohmann::ordered_json& data, ShopType type);
-        LOICOLLECTION_A_API void commodity(void* player_ptr, nlohmann::ordered_json& data, nlohmann::ordered_json original, ShopType type);
-        LOICOLLECTION_A_API void title(void* player_ptr, nlohmann::ordered_json& data, nlohmann::ordered_json original, ShopType type);
-        LOICOLLECTION_A_API void open(void* player_ptr, std::string uiName);
+        LOICOLLECTION_A_API void editNew(Player& player);
+        LOICOLLECTION_A_API void editRemove(Player& player);
+        LOICOLLECTION_A_API void editAwardSetting(Player& player, std::string uiName, ShopType type);
+        LOICOLLECTION_A_API void editAwardNew(Player& player, std::string uiName, ShopType type);
+        LOICOLLECTION_A_API void editAwardRemove(Player& player, std::string uiName);
+        LOICOLLECTION_A_API void editAwardContent(Player& player, std::string uiName);
+        LOICOLLECTION_A_API void editAward(Player& player);
+        LOICOLLECTION_A_API void edit(Player& player);
+        LOICOLLECTION_A_API void menu(Player& player, nlohmann::ordered_json& data, ShopType type);
+        LOICOLLECTION_A_API void commodity(Player& player, nlohmann::ordered_json& data, nlohmann::ordered_json original, ShopType type);
+        LOICOLLECTION_A_API void title(Player& player, nlohmann::ordered_json& data, nlohmann::ordered_json original, ShopType type);
+        LOICOLLECTION_A_API void open(Player& player, std::string uiName);
     }
 
-    LOICOLLECTION_A_NDAPI bool checkModifiedData(void* player_ptr, nlohmann::ordered_json data, int number);
+    LOICOLLECTION_A_NDAPI bool checkModifiedData(Player& player, nlohmann::ordered_json data, int number);
 
     LOICOLLECTION_A_API   void registery(void* database);
 }

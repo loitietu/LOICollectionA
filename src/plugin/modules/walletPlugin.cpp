@@ -43,8 +43,7 @@ namespace LOICollection::Plugins::wallet {
     ll::Logger logger("LOICollectionA - Wallet");
 
     namespace MainGui {
-        void content(void* player_ptr, void* target_ptr) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void content(Player& player, Player& target) {
             std::string mObjectLanguage = getLanguage(player);
             std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
 
@@ -55,53 +54,50 @@ namespace LOICollection::Plugins::wallet {
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
             form.appendLabel(mLabel);
             form.appendInput("Input", tr(mObjectLanguage, "wallet.gui.transfer.input"), "", "100");
-            form.sendTo(*player, [target_ptr, mScore](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) return MainGui::transfer(&pl);
+            form.sendTo(player, [&target, mScore](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+                if (!dt) return MainGui::transfer(pl);
 
                 int mMoney = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
                 int mTargetMoney = mMoney - (int)(mMoney * std::get<double>(mObjectOptions.at("tax")));
-                if (McUtils::scoreboard::getScore(&pl, mScore) < mMoney || mTargetMoney < 0)
-                    return pl.sendMessage(tr(getLanguage(&pl), "wallet.tips"));
+                if (McUtils::scoreboard::getScore(pl, mScore) < mMoney || mTargetMoney < 0)
+                    return pl.sendMessage(tr(getLanguage(pl), "wallet.tips"));
 
-                McUtils::scoreboard::reduceScore(&pl, mScore, mMoney);
-                McUtils::scoreboard::addScore(target_ptr, mScore, mTargetMoney);
+                McUtils::scoreboard::reduceScore(pl, mScore, mMoney);
+                McUtils::scoreboard::addScore(target, mScore, mTargetMoney);
 
-                McUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::transfer(player_ptr);
+                McUtils::Gui::submission(pl, [](Player& player) {
+                    return MainGui::transfer(player);
                 });
 
                 std::string logString = tr({}, "wallet.log");
                 ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
-                ll::string_utils::replaceAll(logString, "${player2}", static_cast<Player*>(target_ptr)->getRealName());
+                ll::string_utils::replaceAll(logString, "${player2}", target.getRealName());
                 ll::string_utils::replaceAll(logString, "${money}", std::to_string(mMoney));
                 logger.info(logString);
             });
         }
 
-        void transfer(void* player_ptr) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void transfer(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), tr(mObjectLanguage, "wallet.gui.transfer.label"));
-            for (auto& mTarget : McUtils::getAllPlayers()) {
-                form.appendButton(static_cast<Player*>(mTarget)->getRealName(), [mTarget](Player& pl) {
-                    MainGui::content(&pl, mTarget);
+            for (Player*& mTarget : McUtils::getAllPlayers()) {
+                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) {
+                    MainGui::content(pl, *mTarget);
                 });
             }
-            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) MainGui::open(&pl);
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) MainGui::open(pl);
             });
         }
 
-        void wealth(void* player_ptr) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void wealth(Player& player) {
             std::string mTipsString = ll::string_utils::replaceAll(tr(getLanguage(player), "wallet.showOff"), 
                 "${money}", std::to_string(McUtils::scoreboard::getScore(player,
                 std::get<std::string>(mObjectOptions.at("score")))));
             McUtils::broadcastText(LOICollection::LOICollectionAPI::translateString(mTipsString, player));
         }
 
-        void open(void* player_ptr) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void open(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
@@ -110,17 +106,17 @@ namespace LOICollection::Plugins::wallet {
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), mLabel);
             form.appendButton(tr(mObjectLanguage, "wallet.gui.transfer"), "textures/ui/MCoin", "path", [](Player& pl) {
-                return MainGui::transfer(&pl);
+                return MainGui::transfer(pl);
             });
             form.appendButton(tr(mObjectLanguage, "wallet.gui.wealth"), "textures/ui/creative_icon", "path", [](Player& pl) {
-                MainGui::wealth(&pl);
+                MainGui::wealth(pl);
 
-                McUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::open(player_ptr);
+                McUtils::Gui::submission(pl, [](Player& player) {
+                    return MainGui::open(player);
                 });
             });
-            form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
             });
         }
     }
@@ -136,24 +132,24 @@ namespace LOICollection::Plugins::wallet {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
-                Player* player = static_cast<Player*>(entity);
+                Player& player = *static_cast<Player*>(entity);
                 MainGui::open(player);
 
-                output.success("The UI has been opened to player {}", player->getRealName());
+                output.success("The UI has been opened to player {}", player.getRealName());
             });
             command.overload<WalletOP>().text("transfer").required("target").required("score").execute([](CommandOrigin const& origin, CommandOutput& output, WalletOP const& param) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
-                Player* player = static_cast<Player*>(entity);
+                Player& player = *static_cast<Player*>(entity);
 
                 std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
                 auto mTargetLists = param.target.results(origin);
                 if (McUtils::scoreboard::getScore(player, mScore) < (int)(mTargetLists.size() * param.score))
                     return output.error("You don't have enough score.");
                 int mMoney = (param.score - (int)(param.score * std::get<double>(mObjectOptions.at("tax"))));
-                for (auto& target : mTargetLists)
-                    McUtils::scoreboard::addScore(target, mScore, mMoney);
+                for (Player*& target : mTargetLists)
+                    McUtils::scoreboard::addScore(*target, mScore, mMoney);
                 McUtils::scoreboard::reduceScore(player, mScore, (int)(mTargetLists.size() * param.score));
 
                 output.success("You have transferred {} to {} players.", param.score, mTargetLists.size());
@@ -162,10 +158,10 @@ namespace LOICollection::Plugins::wallet {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
-                Player* player = static_cast<Player*>(entity);
+                Player& player = *static_cast<Player*>(entity);
                 MainGui::wealth(player);
 
-                output.success("The UI has been opened to player {}", player->getRealName());
+                output.success("The UI has been opened to player {}", player.getRealName());
             });
         }
     }

@@ -5,6 +5,8 @@
 
 #include "ExportLib.h"
 
+class Player;
+
 enum class BlacklistType {
     ip,
     uuid
@@ -12,17 +14,17 @@ enum class BlacklistType {
 
 namespace LOICollection::Plugins::blacklist {
     namespace MainGui {
-        LOICOLLECTION_A_API void info(void* player_ptr, std::string target);
-        LOICOLLECTION_A_API void content(void* player_ptr, void* target_ptr);
-        LOICOLLECTION_A_API void add(void* player_ptr);
-        LOICOLLECTION_A_API void remove(void* player_ptr);
-        LOICOLLECTION_A_API void open(void* player_ptr);
+        LOICOLLECTION_A_API void info(Player& player, std::string target);
+        LOICOLLECTION_A_API void content(Player& player, Player& target);
+        LOICOLLECTION_A_API void add(Player& player);
+        LOICOLLECTION_A_API void remove(Player& player);
+        LOICOLLECTION_A_API void open(Player& player);
     }
 
-    LOICOLLECTION_A_API   void addBlacklist(void* player_ptr, std::string cause, int time, BlacklistType type);
+    LOICOLLECTION_A_API   void addBlacklist(Player& player, std::string cause, int time, BlacklistType type);
     LOICOLLECTION_A_API   void delBlacklist(std::string target);
     
-    LOICOLLECTION_A_NDAPI bool isBlacklist(void* player_ptr);
+    LOICOLLECTION_A_NDAPI bool isBlacklist(Player& player);
 
     LOICOLLECTION_A_API   void registery(void* database);
 }

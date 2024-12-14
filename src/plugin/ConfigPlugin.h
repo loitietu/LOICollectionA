@@ -71,9 +71,9 @@ struct C_Config {
 
 namespace Config {
     std::string getVersion();
-    
-    void SynchronousPluginConfigVersion(void* config_ptr);
-    void SynchronousPluginConfigType(void* config_ptr, const std::string& path);
+
+    void SynchronousPluginConfigVersion(C_Config& config);
+    void SynchronousPluginConfigType(C_Config& config, const std::string& path);
 }
 
 #endif

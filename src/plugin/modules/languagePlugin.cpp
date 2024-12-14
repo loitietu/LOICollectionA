@@ -35,22 +35,21 @@ namespace LOICollection::Plugins::language {
     ll::Logger logger("LOICollectionA - language");
 
     namespace MainGui {
-        void open(void* player_ptr) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void open(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
             
             ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
             form.appendLabel(ll::string_utils::replaceAll(tr(mObjectLanguage, "language.gui.lang"), "${language}", tr(mObjectLanguage, "name")));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys());
-            form.sendTo(*player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) return pl.sendMessage(tr(getLanguage(&pl), "exit"));
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+                if (!dt) return pl.sendMessage(tr(getLanguage(pl), "exit"));
 
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 db->set("OBJECT$" + mObject, "language", std::get<std::string>(dt->at("dropdown")));
                 
-                logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "language.log"), &pl));
+                logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "language.log"), pl));
             });
         }
     }
@@ -66,10 +65,10 @@ namespace LOICollection::Plugins::language {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
-                Player* player = static_cast<Player*>(entity);
+                Player& player = *static_cast<Player*>(entity);
                 MainGui::open(player);
 
-                output.success("The UI has been opened to player {}", player->getRealName());
+                output.success("The UI has been opened to player {}", player.getRealName());
             });
         }
 
@@ -89,15 +88,18 @@ namespace LOICollection::Plugins::language {
         }
     }
 
-    std::string getLanguage(void* player_ptr) {
-        Player* player = static_cast<class Player*>(player_ptr);
-        std::string mObject = player->getUuid().asString();
+    std::string getLanguage(std::string mObject) {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        return db->get("OBJECT$" + mObject, "language");
+        return db->get("OBJECT$" + mObject, "language", "zh_CN");
+    }
+
+    std::string getLanguage(Player& player) {
+        return getLanguage(player.getUuid().asString());
     }
 
     void registery(void* database) {
         db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
+        
         logger.setFile("./logs/LOICollectionA.log");
         
         registerCommand();

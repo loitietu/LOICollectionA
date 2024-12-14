@@ -13,6 +13,8 @@
 #include <ll/api/event/player/PlayerJoinEvent.h>
 
 #include <mc/world/level/Level.h>
+
+#include <mc/world/actor/Mob.h>
 #include <mc/world/actor/Actor.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/server/commands/CommandOrigin.h>
@@ -38,19 +40,18 @@ namespace LOICollection::Plugins::pvp {
     ll::Logger logger("LOICollectionA - PVP");
 
     namespace MainGui {
-        void open(void* player_ptr) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void open(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "pvp.gui.title"), tr(mObjectLanguage, "pvp.gui.label"));
             form.appendButton(tr(mObjectLanguage, "pvp.gui.on"), "textures/ui/book_addtextpage_default", "path", [](Player& pl) {
-                enable(&pl, true);
+                enable(pl, true);
             });
             form.appendButton(tr(mObjectLanguage, "pvp.gui.off"), "textures/ui/cancel", "path", [](Player& pl) {
-                enable(&pl, false);
+                enable(pl, false);
             });
-            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
+            form.sendTo(player, [&](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
             });
         }
     }
@@ -66,16 +67,16 @@ namespace LOICollection::Plugins::pvp {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
-                Player* player = static_cast<Player*>(entity);
+                Player& player = *static_cast<Player*>(entity);
                 MainGui::open(player);
 
-                output.success("The UI has been opened to player {}", player->getRealName());
+                output.success("The UI has been opened to player {}", player.getRealName());
             });
             command.overload().text("off").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
-                Player* player = static_cast<Player*>(entity);
+                Player& player = *static_cast<Player*>(entity);
                 enable(player, false);
 
                 output.success("The PVP has been disabled");
@@ -84,7 +85,7 @@ namespace LOICollection::Plugins::pvp {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
-                Player* player = static_cast<Player*>(entity);
+                Player& player = *static_cast<Player*>(entity);
                 enable(player, true);
 
                 output.success("The PVP has been enabled");
@@ -104,15 +105,15 @@ namespace LOICollection::Plugins::pvp {
                         db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
                 }
             );
-            LOICollection::HookPlugin::Event::onPlayerHurtEvent([](void* target_ptr, void* source_ptr, float /*unused*/) {
-                Player* target = static_cast<Player*>(target_ptr);
-                Player* source = static_cast<Player*>(source_ptr);
+            LOICollection::HookPlugin::Event::onPlayerHurtEvent([](Mob* target, Actor* source, float /*unused*/) {
+                Player& targetPlayer = *static_cast<Player*>(target);
+                Player& sourcePlayer = *static_cast<Player*>(source);
 
-                if (!isEnable(target) && !target->isSimulatedPlayer()) {
-                    source->sendMessage(tr(getLanguage(source), "pvp.off1"));
+                if (!isEnable(targetPlayer) && !targetPlayer.isSimulatedPlayer()) {
+                    sourcePlayer.sendMessage(tr(getLanguage(sourcePlayer), "pvp.off1"));
                     return true;
-                } else if (!isEnable(source) && !source->isSimulatedPlayer()) {
-                    source->sendMessage(tr(getLanguage(source), "pvp.off2"));
+                } else if (!isEnable(sourcePlayer) && !sourcePlayer.isSimulatedPlayer()) {
+                    sourcePlayer.sendMessage(tr(getLanguage(sourcePlayer), "pvp.off2"));
                     return true;
                 }
                 return false;
@@ -120,18 +121,16 @@ namespace LOICollection::Plugins::pvp {
         }
     }
 
-    bool isEnable(void* player_ptr) {
-        Player* player = static_cast<Player*>(player_ptr);
-        std::string mObject = player->getUuid().asString();
+    bool isEnable(Player& player) {
+        std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject))
             return db->get("OBJECT$" + mObject, "Pvp_Enable") == "true";
         return false;
     }
 
-    void enable(void* player_ptr, bool value) {
-        Player* player = static_cast<Player*>(player_ptr);
-        std::string mObject = player->getUuid().asString();
+    void enable(Player& player, bool value) {
+        std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (value) {
             if (db->has("OBJECT$" + mObject))
@@ -146,6 +145,7 @@ namespace LOICollection::Plugins::pvp {
 
     void registery(void* database) {
         db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
+        
         logger.setFile("./logs/LOICollectionA.log");
         
         registerCommand();

@@ -52,17 +52,16 @@ namespace Config {
         }
     }
 
-    void SynchronousPluginConfigVersion(void* config_ptr) {
-        C_Config* config = static_cast<C_Config*>(config_ptr);
-        config->version = std::stoi(ll::string_utils::replaceAll(
+    void SynchronousPluginConfigVersion(C_Config& config) {
+        config.version = std::stoi(ll::string_utils::replaceAll(
             getVersion(), ".", ""
         ));
     }
 
-    void SynchronousPluginConfigType(void* config_ptr, const std::string& path) {
+    void SynchronousPluginConfigType(C_Config& config, const std::string& path) {
         JsonStorage mConfigObject(path);
         nlohmann::ordered_json mPatchJson = nlohmann::ordered_json::parse(
-            ll::reflection::serialize<nlohmann::ordered_json>(*static_cast<C_Config*>(config_ptr))->dump()
+            ll::reflection::serialize<nlohmann::ordered_json>(config)->dump()
         );
         nlohmann::ordered_json mConfigJson = mConfigObject.toJson();
         mergeJson(mPatchJson, mConfigJson);

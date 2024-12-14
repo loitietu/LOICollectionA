@@ -3,6 +3,8 @@
 
 #include "ExportLib.h"
 
+class Player;
+
 enum class TpaType {
     tpa,
     tphere
@@ -10,13 +12,13 @@ enum class TpaType {
 
 namespace LOICollection::Plugins::tpa {
     namespace MainGui {
-        LOICOLLECTION_A_API void setting(void* player_ptr);
-        LOICOLLECTION_A_API void tpa(void* player_ptr, void* target_ptr, TpaType type);
-        LOICOLLECTION_A_API void content(void* player_ptr, void* target_ptr);
-        LOICOLLECTION_A_API void open(void* player_ptr);
+        LOICOLLECTION_A_API void setting(Player& player);
+        LOICOLLECTION_A_API void tpa(Player& player, Player& target, TpaType type);
+        LOICOLLECTION_A_API void content(Player& player, Player& target);
+        LOICOLLECTION_A_API void open(Player& player);
     }
 
-    LOICOLLECTION_A_NDAPI bool isInvite(void* player_ptr);
+    LOICOLLECTION_A_NDAPI bool isInvite(Player& player);
     
     LOICOLLECTION_A_API   void registery(void* database);
     LOICOLLECTION_A_API   void unregistery();

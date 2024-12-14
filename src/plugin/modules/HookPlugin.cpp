@@ -44,11 +44,11 @@
 int64_t mFakeSeed = 0;
 std::vector<std::string> mInterceptedTextPacketTargets;
 std::vector<std::string> mInterceptedGetNameTagTargets;
-std::vector<std::function<bool(void*, std::string)>> mTextPacketSendEventCallbacks;
-std::vector<std::function<void(void*, std::string, std::string)>> mLoginPacketSendEventCallbacks;
+std::vector<std::function<bool(Player*, std::string)>> mTextPacketSendEventCallbacks;
+std::vector<std::function<void(NetworkIdentifier*, std::string, std::string)>> mLoginPacketSendEventCallbacks;
 std::vector<std::function<void(std::string)>> mPlayerDisconnectBeforeEventCallbacks;
-std::vector<std::function<void(void*, int, std::string, ScoreChangedType)>> mPlayerScoreChangedEventCallbacks;
-std::vector<std::function<bool(void*, void*, float)>> mPlayerHurtEventCallbacks;
+std::vector<std::function<void(Player*, int, std::string, ScoreChangedType)>> mPlayerScoreChangedEventCallbacks;
+std::vector<std::function<bool(Mob*, Actor*, float)>> mPlayerHurtEventCallbacks;
 
 LL_TYPE_INSTANCE_HOOK(
     ServerStartGamePacketHook,
@@ -119,7 +119,8 @@ LL_TYPE_INSTANCE_HOOK(
 ) {
     Player* player = this->getServerPlayer(identifier, packet.mClientSubId);
     
-    if (!player) return origin(identifier, packet);
+    if (!player)
+        return origin(identifier, packet);
     for (auto& callback : mTextPacketSendEventCallbacks)
         if (callback(player, packet.mMessage)) return;
     return origin(identifier, packet);
@@ -217,11 +218,11 @@ PlayerHurtHookMacro(PlayerHurtHook3, Mob, "?hurtEffects@Mob@@UEAAXAEBVActorDamag
 
 namespace LOICollection::HookPlugin {
     namespace Event {
-        void onTextPacketSendEvent(const std::function<bool(void*, std::string)>& callback) {
+        void onTextPacketSendEvent(const std::function<bool(Player*, std::string)>& callback) {
             mTextPacketSendEventCallbacks.push_back(callback);
         }
 
-        void onLoginPacketSendEvent(const std::function<void(void*, std::string, std::string)>& callback) {
+        void onLoginPacketSendEvent(const std::function<void(NetworkIdentifier*, std::string, std::string)>& callback) {
             mLoginPacketSendEventCallbacks.push_back(callback);
         }
 
@@ -229,11 +230,11 @@ namespace LOICollection::HookPlugin {
             mPlayerDisconnectBeforeEventCallbacks.push_back(callback);
         }
 
-        void onPlayerScoreChangedEvent(const std::function<void(void*, int, std::string, ScoreChangedType)>& callback) {
+        void onPlayerScoreChangedEvent(const std::function<void(Player*, int, std::string, ScoreChangedType)>& callback) {
             mPlayerScoreChangedEventCallbacks.push_back(callback);
         }
 
-        void onPlayerHurtEvent(const std::function<bool(void*, void*, float)>& callback) {
+        void onPlayerHurtEvent(const std::function<bool(Mob*, Actor*, float)>& callback) {
             mPlayerHurtEventCallbacks.push_back(callback);
         }
     }

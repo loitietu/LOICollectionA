@@ -3,16 +3,18 @@
 
 #include "ExportLib.h"
 
+class Player;
+
 namespace LOICollection::Plugins::announcement {
     namespace MainGui {
-        LOICOLLECTION_A_API void setting(void* player_ptr);
-        LOICOLLECTION_A_API void edit(void* player_ptr);
-        LOICOLLECTION_A_API void open(void* player_ptr);
+        LOICOLLECTION_A_API void setting(Player& player);
+        LOICOLLECTION_A_API void edit(Player& player);
+        LOICOLLECTION_A_API void open(Player& player);
     }
 
-    LOICOLLECTION_A_NDAPI bool isClose(void* player_ptr);
+    LOICOLLECTION_A_NDAPI bool isClose(Player& player);
 
-    LOICOLLECTION_A_API   void registery(void* database, void* database2);
+    LOICOLLECTION_A_API   void registery(void* database, void* config);
     LOICOLLECTION_A_API   void unregistery();
 }
 

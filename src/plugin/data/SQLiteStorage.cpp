@@ -17,7 +17,8 @@ void SQLiteStorage::remove(std::string_view table) {
 }
 
 void SQLiteStorage::set(std::string_view table, std::string_view key, std::string_view value) {
-    if (has(table, key)) return update(table, key, value);
+    if (has(table, key))
+        return update(table, key, value);
 
     SQLite::Statement query(database, "INSERT OR REPLACE INTO " + std::string(table) + " VALUES (?, ?);");
     query.bind(1, std::string(key));
@@ -45,7 +46,7 @@ bool SQLiteStorage::has(std::string_view table, std::string_view key) {
 }
 
 bool SQLiteStorage::has(std::string_view table) {
-    SQLite::Statement query(database, "SELECT name FROM sqlite_master WHERE type='table' AND name=?;");
+    SQLite::Statement query(database, "SELECT name FROM sqlite_master WHERE type='table' AND name = ?;");
     query.bind(1, std::string(table));
     return query.executeStep();
 }
@@ -56,13 +57,13 @@ std::string SQLiteStorage::get(std::string_view table, std::string_view key, std
 
     SQLite::Statement query(database, "SELECT value FROM " + std::string(table) + " WHERE key = ?;");
     query.bind(1, std::string(key));
-    if (query.executeStep())
-        return query.getColumn(0).getText();
-    return std::string(default_val);
+    
+    return query.executeStep() ? query.getColumn(0).getText() : std::string(default_val);
 }
 
 std::vector<std::string> SQLiteStorage::list(std::string_view table) {
     std::vector<std::string> keys;
+
     SQLite::Statement query(database, "SELECT key FROM " + std::string(table) + ";");
     while (query.executeStep())
         keys.push_back(query.getColumn(0).getText());
@@ -71,6 +72,7 @@ std::vector<std::string> SQLiteStorage::list(std::string_view table) {
 
 std::vector<std::string> SQLiteStorage::list() {
     std::vector<std::string> tables;
+
     SQLite::Statement query(database, "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;");
     while (query.executeStep())
         tables.push_back(query.getColumn(0).getText());

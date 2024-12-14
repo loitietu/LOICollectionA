@@ -5,12 +5,15 @@
 
 #include "ExportLib.h"
 
+class Player;
+
 namespace LOICollection::Plugins::language {
     namespace MainGui {
-        LOICOLLECTION_A_API void open(void* player_ptr);
+        LOICOLLECTION_A_API void open(Player& player);
     }
 
-    LOICOLLECTION_A_NDAPI std::string getLanguage(void* player_ptr);
+    LOICOLLECTION_A_NDAPI std::string getLanguage(std::string mObject);
+    LOICOLLECTION_A_NDAPI std::string getLanguage(Player& player);
 
     LOICOLLECTION_A_API   void registery(void* database);
     LOICOLLECTION_A_API   void unregistery();

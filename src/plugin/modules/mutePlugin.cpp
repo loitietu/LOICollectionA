@@ -44,8 +44,7 @@ namespace LOICollection::Plugins::mute {
     ll::Logger logger("LOICollectionA - Mute");
 
     namespace MainGui {
-        void info(void* player_ptr, std::string target) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void info(Player& player, std::string target) {
             std::string mObjectLanguage = getLanguage(player);
             
             std::string mObjectLabel = tr(mObjectLanguage, "mute.gui.info.label");
@@ -59,80 +58,75 @@ namespace LOICollection::Plugins::mute {
             form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [target](Player& pl) {
                 delMute(target);
 
-                McUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::remove(player_ptr);
+                McUtils::Gui::submission(pl, [](Player& player) {
+                    return MainGui::remove(player);
                 });
             });
-            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) MainGui::remove(&pl);
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) MainGui::remove(pl);
             });
         }
 
-        void content(void* player_ptr, void* target_ptr) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void content(Player& player, Player& target) {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::CustomForm form(tr(mObjectLanguage, "mute.gui.add.title"));
             form.appendLabel(tr(mObjectLanguage, "mute.gui.label"));
             form.appendInput("Input1", tr(mObjectLanguage, "mute.gui.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "mute.gui.add.input2"), "", "0");
-            form.sendTo(*player, [target_ptr](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) return MainGui::add(&pl);
+            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+                if (!dt) return MainGui::add(pl);
 
-                std::string PlayerInputCause = std::get<std::string>(dt->at("Input1"));
-                int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                addMute(target_ptr, PlayerInputCause, time);
+                addMute(target, std::get<std::string>(dt->at("Input1")), 
+                    SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0));
                 
-                McUtils::Gui::submission(&pl, [](void* player_ptr) {
-                    return MainGui::add(player_ptr);
+                McUtils::Gui::submission(pl, [](Player& player) {
+                    return MainGui::add(player);
                 });
             });
         }
 
-        void add(void* player_ptr) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void add(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.add.title"), tr(mObjectLanguage, "mute.gui.add.label"));
-            for (auto& mTarget : McUtils::getAllPlayers()) {
-                form.appendButton(static_cast<Player*>(mTarget)->getRealName(), [mTarget](Player& pl) {
-                    MainGui::content(&pl, mTarget);
+            for (Player*& mTarget : McUtils::getAllPlayers()) {
+                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) {
+                    MainGui::content(pl, *mTarget);
                 });
             }
-            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) MainGui::open(&pl);
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) MainGui::open(pl);
             });
         }
 
-        void remove(void* player_ptr) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void remove(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), tr(mObjectLanguage, "mute.gui.remove.label"));
             for (auto& mItem : db->list()) {
                 ll::string_utils::replaceAll(mItem, "OBJECT$", "");
                 form.appendButton(mItem, [mItem](Player& pl) {
-                    MainGui::info(&pl, mItem);
+                    MainGui::info(pl, mItem);
                 });
             }
-            form.sendTo(*player, [&](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) MainGui::open(&pl);
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) MainGui::open(pl);
             });
         }
 
-        void open(void* player_ptr) {
-            Player* player = static_cast<Player*>(player_ptr);
+        void open(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.title"), tr(mObjectLanguage, "mute.gui.label"));
             form.appendButton(tr(mObjectLanguage, "mute.gui.addMute"), "textures/ui/backup_replace", "path", [](Player& pl) {
-                MainGui::add(&pl);
+                MainGui::add(pl);
             });
             form.appendButton(tr(mObjectLanguage, "mute.gui.removeMute"), "textures/ui/free_download_symbol", "path", [](Player& pl) {
-                MainGui::remove(&pl);
+                MainGui::remove(pl);
             });
-            form.sendTo(*player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(&pl), "exit"));
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
             });
         }
     }
@@ -140,9 +134,9 @@ namespace LOICollection::Plugins::mute {
     namespace {
         const auto MuteCommandADD = [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) {
             for (auto& pl : param.target.results(origin)) {
-                if (isMute(pl) || (int) pl->getPlayerPermissionLevel() >= 2 || pl->isSimulatedPlayer())
+                if (isMute(*pl) || (int) pl->getPlayerPermissionLevel() >= 2 || pl->isSimulatedPlayer())
                     continue;
-                addMute(pl, param.cause, param.time);
+                addMute(*pl, param.cause, param.time);
 
                 output.addMessage(fmt::format("Add player {}({}) to mute.", pl->getRealName(),
                     pl->getUuid().asString()), {}, CommandOutputMessageType::Success);
@@ -161,9 +155,9 @@ namespace LOICollection::Plugins::mute {
             command.overload<MuteOP>().text("add").required("target").required("cause").required("time").execute(MuteCommandADD);
             command.overload<MuteOP>().text("remove").required("target").execute([](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) {
                 for (auto& pl : param.target.results(origin)) {
-                    if (!isMute(pl)) 
+                    if (!isMute(*pl)) 
                         continue;
-                    delMute(pl);
+                    delMute(*pl);
 
                     output.addMessage(fmt::format("Remove player {}({}) form mute.", pl->getRealName(),
                         pl->getUuid().asString()), {}, CommandOutputMessageType::Success);
@@ -173,30 +167,30 @@ namespace LOICollection::Plugins::mute {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
-                Player* player = static_cast<Player*>(entity);
+                Player& player = *static_cast<Player*>(entity);
                 MainGui::open(player);
 
-                output.success("The UI has been opened to player {}", player->getRealName());
+                output.success("The UI has been opened to player {}", player.getRealName());
             });
         }
 
         void listenEvent() {
-            LOICollection::HookPlugin::Event::onTextPacketSendEvent([](void* player_ptr, std::string message) {
-                Player* player = static_cast<Player*>(player_ptr);
+            LOICollection::HookPlugin::Event::onTextPacketSendEvent([](Player* player, std::string message) {
                 std::string mObject = player->getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 if (db->has("OBJECT$" + mObject)) {
                     if (SystemUtils::isReach(db->get("OBJECT$" + mObject, "time"))) {
-                        delMute(player);
+                        delMute(*player);
                         return false;
                     }
-                    std::string mObjectTips = tr(getLanguage(player), "mute.tips");
+
+                    std::string mObjectTips = tr(getLanguage(*player), "mute.tips");
                     ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mObject, "cause"));
                     ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
                     player->sendMessage(mObjectTips);
 
                     logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
-                        tr({}, "mute.log3"), "${message}", message), player));
+                        tr({}, "mute.log3"), "${message}", message), *player));
                     return true;
                 }
                 return false;
@@ -204,18 +198,16 @@ namespace LOICollection::Plugins::mute {
         }
     }
 
-    void addMute(void* player_ptr, std::string cause, int time) {
-        Player* player = static_cast<Player*>(player_ptr);
-
-        if ((int) player->getPlayerPermissionLevel() >= 2)
+    void addMute(Player& player, std::string cause, int time) {
+        if ((int) player.getPlayerPermissionLevel() >= 2)
             return;
 
         cause = cause.empty() ? "None" : cause;
-        std::string mObject = player->getUuid().asString();
+        std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (!db->has("OBJECT$" + mObject)) {
             db->create("OBJECT$" + mObject);
-            db->set("OBJECT$" + mObject, "player", player->getRealName());
+            db->set("OBJECT$" + mObject, "player", player.getRealName());
             db->set("OBJECT$" + mObject, "cause", cause);
             db->set("OBJECT$" + mObject, "time", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
             db->set("OBJECT$" + mObject, "subtime", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
@@ -224,9 +216,8 @@ namespace LOICollection::Plugins::mute {
             tr({}, "mute.log1"), "${cause}", cause), player));
     }
 
-    void delMute(void* player_ptr) {
-        Player* player = static_cast<Player*>(player_ptr);
-        std::string mObject = player->getUuid().asString();
+    void delMute(Player& player) {
+        std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         delMute(mObject);
     }
@@ -237,15 +228,15 @@ namespace LOICollection::Plugins::mute {
         logger.info(ll::string_utils::replaceAll(tr({}, "mute.log2"), "${target}", target));
     }
 
-    bool isMute(void* player_ptr) {
-        Player* player = static_cast<Player*>(player_ptr);
-        std::string mObject = player->getUuid().asString();
+    bool isMute(Player& player) {
+        std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         return db->has("OBJECT$" + mObject);
     }
 
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        
         logger.setFile("./logs/LOICollectionA.log");
         
         registerCommand();

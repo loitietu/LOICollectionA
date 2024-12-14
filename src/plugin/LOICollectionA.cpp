@@ -53,7 +53,7 @@ namespace LOICollection {
 
         logger.setFile("./logs/LOICollectionA.log", false);
 
-        Config::SynchronousPluginConfigVersion(&this->config);
+        Config::SynchronousPluginConfigVersion(this->config);
         logger.info("Loading LOICollection - A (Version {})", Config::getVersion());
         logger.info("Protocol - Mojang Eula (https://account.mojang.com/documents/minecraft_eula)");
         
@@ -65,7 +65,7 @@ namespace LOICollection {
                 return false;
             }
         }
-        Config::SynchronousPluginConfigType(&this->config, configFilePath.string());
+        Config::SynchronousPluginConfigType(this->config, configFilePath.string());
         if (!ll::config::loadConfig(this->config, configFilePath)) {
             logger.info("Update configurations.");
             if (!ll::config::saveConfig(this->config, configFilePath)) {
