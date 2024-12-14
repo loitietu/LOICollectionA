@@ -10,8 +10,8 @@
 #include "I18nUtils.h"
 
 namespace I18nUtils {
-    std::string defaultLocal{};
-    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> data;
+    static std::string defaultLocal{};
+    static std::unordered_map<std::string, std::unordered_map<std::string, std::string>> data;
 
     void load(const std::filesystem::path& path) {
         for (const auto& entry : std::filesystem::directory_iterator(path)) {
@@ -20,8 +20,10 @@ namespace I18nUtils {
 
             nlohmann::ordered_json dataJson;
             std::ifstream(entry.path()) >> dataJson;
+
+            auto& localeData = data[entry.path().stem().string()];
             for (const auto& [key, value] : dataJson.items())
-                data[entry.path().stem().string()][key] = value;
+                localeData[key] = value;
         }
     }
 
@@ -29,17 +31,29 @@ namespace I18nUtils {
         defaultLocal = local;
     }
 
-    std::string tr(std::string local, std::string key) {
-        if (local.empty()) local = defaultLocal;
-        if (data.find(local) != data.end() && data[local].find(key) != data[local].end())
-            return data[local][key];
+    std::string tr(const std::string& local, const std::string& key) {
+        if (auto localIt = data.find(local); localIt != data.end()) {
+            const auto& translations = localIt->second;
+            if (auto keyIt = translations.find(key); keyIt != translations.end())
+                return keyIt->second;
+        }
+        
+        if (auto defaultIt = data.find(defaultLocal); defaultIt != data.end()) {
+            const auto& translations = defaultIt->second;
+            if (auto keyIt = translations.find(key); keyIt != translations.end())
+                return keyIt->second;
+        }
+        
         return key;
     }
 
+    
     std::vector<std::string> keys() {
-        std::vector<std::string> keyl;
-        for (const auto& [entry, _] : data)
-            keyl.push_back(entry);
-        return keyl;
+        std::vector<std::string> keyList;
+
+        keyList.reserve(data.size());
+        for (const auto& [locale, _] : data)
+            keyList.push_back(locale);
+        return keyList;
     }
 }

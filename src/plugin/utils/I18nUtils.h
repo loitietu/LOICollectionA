@@ -9,7 +9,7 @@ namespace I18nUtils {
     void load(const std::filesystem::path& path);
     void setDefaultLocal(const std::string& local);
 
-    std::string tr(std::string local, std::string key);
+    std::string tr(const std::string& local, const std::string& key);
 
     std::vector<std::string> keys();
 }
