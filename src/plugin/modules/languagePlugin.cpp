@@ -26,8 +26,7 @@
 
 #include "Include/languagePlugin.h"
 
-using I18nUtils::tr;
-using I18nUtils::keys;
+using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins::language {
     std::shared_ptr<SQLiteStorage> db;
@@ -41,7 +40,7 @@ namespace LOICollection::Plugins::language {
             ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
             form.appendLabel(ll::string_utils::replaceAll(tr(mObjectLanguage, "language.gui.lang"), "${language}", tr(mObjectLanguage, "name")));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys());
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), I18nUtilsTools::keys());
             form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return pl.sendMessage(tr(getLanguage(pl), "exit"));
 

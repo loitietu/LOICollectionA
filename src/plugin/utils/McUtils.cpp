@@ -98,7 +98,7 @@ namespace McUtils {
     }
 
     namespace Gui {
-        using I18nUtils::tr;
+        using I18nUtilsTools::tr;
         using LOICollection::Plugins::language::getLanguage;
 
         void submission(Player& player, std::function<void(Player&)> callback) {

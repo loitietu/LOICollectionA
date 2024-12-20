@@ -36,7 +36,7 @@
 
 #include "include/chatPlugin.h"
 
-using I18nUtils::tr;
+using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;
 
 bool isPermissionFormCommandOrigin(CommandOrigin const& origin, int permissionLevel) {

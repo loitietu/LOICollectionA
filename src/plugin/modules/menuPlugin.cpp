@@ -38,7 +38,7 @@
 
 #include "include/menuPlugin.h"
 
-using I18nUtils::tr;
+using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;
 using LOICollection::LOICollectionAPI::translateString;
 

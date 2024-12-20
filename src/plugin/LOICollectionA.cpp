@@ -93,8 +93,8 @@ namespace LOICollection {
             mObjectLanguage.write(CNLangData);
             mObjectLanguage.save();
         }
-        I18nUtils::load(langFilePath);
-        I18nUtils::setDefaultLocal(this->config.ConsoleLanguage == "system" ?
+        I18nUtils::getInstance() = std::make_unique<I18nUtils>(langFilePath.string());
+        I18nUtils::getInstance()->setDefaultLocal(this->config.ConsoleLanguage == "system" ?
             SystemUtils::getSystemLocaleCode() : this->config.ConsoleLanguage);
         logger.info("Initialization of language file completed.");
 

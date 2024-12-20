@@ -58,7 +58,7 @@ namespace LOICollection::LOICollectionAPI {
             return Plugins::language::getLanguage(player);
         });
         registerVariable("languageName", [](Player& player) {
-            return I18nUtils::tr(Plugins::language::getLanguage(player), "name");
+            return I18nUtils::getInstance()->get(Plugins::language::getLanguage(player), "name");
         });
         registerVariable("tps", [](Player& /*unused*/) {
             double mMspt = ((double) ProfilerLite::gProfilerLiteInstance.getServerTickTime().count() / 1000000.0);
@@ -146,7 +146,7 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string(McUtils::scoreboard::getScore(player, name));
         });
         registerVariableParameter("tr", [](Player& player, std::string name) {
-            return I18nUtils::tr(Plugins::language::getLanguage(player), name);
+            return I18nUtils::getInstance()->get(Plugins::language::getLanguage(player), name);
         });
     }
 

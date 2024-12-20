@@ -38,7 +38,7 @@
 
 #include "include/marketPlugin.h"
 
-using I18nUtils::tr;
+using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::market {
