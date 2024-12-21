@@ -13,16 +13,15 @@
 namespace SystemUtils {
     std::string getSystemLocaleCode() {
         wchar_t buf[LOCALE_NAME_MAX_LENGTH]{};
-        GetUserDefaultLocaleName(buf, LOCALE_NAME_MAX_LENGTH);
+        if (GetUserDefaultLocaleName(buf, LOCALE_NAME_MAX_LENGTH) == 0)
+            return "";
 
-        std::string locale;
-        int mSize = WideCharToMultiByte(65001, 0, buf, (int)wcslen(buf), NULL, 0, NULL, NULL);
-
+        int mSize = WideCharToMultiByte(CP_UTF8, 0, buf, -1, NULL, 0, NULL, NULL);
         if (mSize == 0)
-            return locale;
+            return "";
 
-        locale.resize(mSize);
-        WideCharToMultiByte(65001, 0, buf, (int)wcslen(buf), locale.data(), mSize, NULL, NULL);
+        std::string locale(mSize - 1, '\0');
+        WideCharToMultiByte(CP_UTF8, 0, buf, -1, &locale[0], mSize, NULL, NULL);
         std::replace(locale.begin(), locale.end(), '-', '_');
         return locale;
     }
@@ -33,20 +32,14 @@ namespace SystemUtils {
         localtime_s(&currentTimeInfo, &currentTime);
         char buffer[80];
         std::strftime(buffer, sizeof(buffer), format.c_str(), &currentTimeInfo);
-        return std::string(buffer);
+        return buffer;
     }
 
     std::string formatDataTime(const std::string& timeString) {
         if (timeString.size() != 14) 
             return "None";
-        std::string fomatted;
-        fomatted += timeString.substr(0, 4) + "-";
-        fomatted += timeString.substr(4, 2) + "-";
-        fomatted += timeString.substr(6, 2) + " ";
-        fomatted += timeString.substr(8, 2) + ":";
-        fomatted += timeString.substr(10, 2) + ":";
-        fomatted += timeString.substr(12, 2);
-        return fomatted;
+        return timeString.substr(0, 4) + "-" + timeString.substr(4, 2) + "-" + timeString.substr(6, 2) + " " +
+            timeString.substr(8, 2) + ":" + timeString.substr(10, 2) + ":" + timeString.substr(12, 2);
     }
 
     std::string timeCalculate(const std::string& timeString, int hours) {
@@ -57,21 +50,16 @@ namespace SystemUtils {
         std::mktime(&tm);
         char buffer[20];
         std::strftime(buffer, sizeof(buffer), "%Y%m%d%H%M%S", &tm);
-        return std::string(buffer);
+        return buffer;
     }
 
     int toInt(const std::string& str, int defaultValue) {
-        const char* ptr = str.data();
         char* endpt{};
-        auto result = std::strtol(ptr, &endpt, 10);
-        if (endpt == ptr)
-            return defaultValue;
-        return result;
+        long result = std::strtol(str.c_str(), &endpt, 10);
+        return (endpt == str.c_str()) ? defaultValue : static_cast<int>(result);
     }
 
     bool isReach(const std::string& timeString) {
-        if (timeString.size() != 14) 
-            return false;
-        return std::stoll(getNowTime("%Y%m%d%H%M%S")) > std::stoll(timeString);
+        return timeString.size() == 14 && std::stoll(getNowTime("%Y%m%d%H%M%S")) > std::stoll(timeString);
     }
 }

@@ -64,7 +64,7 @@
             },
             "ChangeScore": {
                 "ModuleEnabled": true,
-                "TargetScoreboard": "money",
+                "ScoreboardLists": [],
                 "FormatText": "§e§lDetected Score §f${Object}§e Change §bOriginal Value: §f${OriMoney} §aChange: §f${SetMoney} §eCurrent Value: §f${GetScore}"
             },
             "DisableCommand": {

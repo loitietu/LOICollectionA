@@ -123,7 +123,7 @@ namespace LOICollection {
             options["ServerToast_JoinText"] = this->config.Plugins.Monitor.ServerToast.FormatText.join;
             options["ServerToast_ExitText"] = this->config.Plugins.Monitor.ServerToast.FormatText.exit;
             options["ChangeScore_Enabled"] = this->config.Plugins.Monitor.ChangeScore.ModuleEnabled;
-            options["ChangeScore_Score"] = this->config.Plugins.Monitor.ChangeScore.TargetScoreboard;
+            options["ChangeScore_Scores"] = this->config.Plugins.Monitor.ChangeScore.ScoreboardLists;
             options["ChangeScore_Text"] = this->config.Plugins.Monitor.ChangeScore.FormatText;
             options["DisableCommand_Enabled"] = this->config.Plugins.Monitor.DisableCommand.ModuleEnabled;
             options["DisableCommand_Text"] = this->config.Plugins.Monitor.DisableCommand.FormatText;

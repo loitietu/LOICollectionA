@@ -64,12 +64,11 @@ namespace LOICollection::Plugins::monitor {
             );
         }
         if (std::get<bool>(options.at("ChangeScore_Enabled"))) {
-            LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([options](Player* player, int score, std::string id, ScoreChangedType type) {
+            std::vector<std::string> mObjectScoreboards = std::get<std::vector<std::string>>(options.at("ChangeScore_Scores"));
+            LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([options, mObjectScoreboards](Player* player, int score, std::string id, ScoreChangedType type) {
                 if (id.empty() || player == nullptr)
                     return;
-
-                std::string target = std::get<std::string>(options.at("ChangeScore_Score"));
-                if (id == target || target == "$all") {
+                if (mObjectScoreboards.empty() || std::find(mObjectScoreboards.begin(), mObjectScoreboards.end(), id) != mObjectScoreboards.end()) {
                     int mOriScore = McUtils::scoreboard::getScore(*player, id);
                     std::string mChangedString = std::get<std::string>(options.at("ChangeScore_Text"));
                     ll::string_utils::replaceAll(mChangedString, "${Object}", id);

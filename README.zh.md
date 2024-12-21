@@ -64,7 +64,7 @@ lip install github.com/loitietu/LOICollectionA
             },
             "ChangeScore": {
                 "ModuleEnabled": true,
-                "TargetScoreboard": "money",
+                "ScoreboardLists": [],
                 "FormatText": "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}"
             },
             "DisableCommand": {

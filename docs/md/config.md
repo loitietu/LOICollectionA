@@ -43,7 +43,7 @@
             },
             "ChangeScore": {
                 "ModuleEnabled": true, // 是否启用 Score 变化检测
-                "TargetScoreboard": "money", // 检测 Score 变化的对象（为 $all 时会检测所有 Score 的变更）
+                "ScoreboardLists": [], // 检测 Score 变化的对象（为空时会检测所有 Score 的变更）
                 "FormatText": "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}" // Score 变化提示
             },
             "DisableCommand": {

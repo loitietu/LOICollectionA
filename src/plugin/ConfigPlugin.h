@@ -37,7 +37,7 @@ struct C_Config {
             } ServerToast;
             struct C_ChangeScore {
                 bool ModuleEnabled = true;
-                std::string TargetScoreboard = "money";
+                std::vector<std::string> ScoreboardLists = {};
                 std::string FormatText = "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}";
             } ChangeScore;
             struct C_DisableCommand {
