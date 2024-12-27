@@ -208,8 +208,6 @@ namespace LOICollection::Plugins::tpa {
     void registery(void* database) {
         db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
         
-        logger.setFile("./logs/LOICollectionA.log");
-        
         registerCommand();
         listenEvent();
     }

@@ -196,7 +196,6 @@ namespace LOICollection::Plugins::announcement {
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         db2 = *static_cast<std::shared_ptr<SQLiteStorage>*>(config);
         
-        logger.setFile("./logs/LOICollectionA.log");
         if (!db->has("title") || !db->has("content")) {
             db->set("title", std::string("测试公告123"));
             db->set("content", nlohmann::ordered_json::array({"这是一条测试公告，欢迎使用本插件！"}));

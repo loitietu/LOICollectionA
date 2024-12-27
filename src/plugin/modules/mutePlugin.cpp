@@ -237,8 +237,6 @@ namespace LOICollection::Plugins::mute {
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         
-        logger.setFile("./logs/LOICollectionA.log");
-        
         registerCommand();
         listenEvent();
     }

@@ -356,8 +356,6 @@ namespace LOICollection::Plugins::chat {
         mChatString = chat;
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         
-        logger.setFile("./logs/LOICollectionA.log");
-        
         registerCommand();
         listenEvent();
     }

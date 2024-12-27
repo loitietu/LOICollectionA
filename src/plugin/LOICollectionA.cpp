@@ -51,8 +51,6 @@ namespace LOICollection {
         const auto& configDataPath = this->mSelf.getConfigDir();
         const auto& configFilePath = configDataPath / "config.json";
 
-        logger.setFile("./logs/LOICollectionA.log", false);
-
         Config::SynchronousPluginConfigVersion(this->config);
         logger.info("Loading LOICollection - A (Version {})", Config::getVersion());
         logger.info("Protocol - Mojang Eula (https://account.mojang.com/documents/minecraft_eula)");

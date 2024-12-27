@@ -168,8 +168,6 @@ namespace LOICollection::Plugins::wallet {
 
     void registery(std::map<std::string, std::variant<std::string, double>>& options) {
         mObjectOptions = options;
-
-        logger.setFile("./logs/LOICollectionA.log");
         
         registerCommand();
     }

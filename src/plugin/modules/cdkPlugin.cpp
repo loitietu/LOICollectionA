@@ -345,8 +345,6 @@ namespace LOICollection::Plugins::cdk {
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         
-        logger.setFile("./logs/LOICollectionA.log");
-        
         registerCommand();
     }
 }

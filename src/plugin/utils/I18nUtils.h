@@ -13,7 +13,7 @@ public:
         return instance;
     }
 
-    I18nUtils(const std::string& path);
+    explicit I18nUtils(const std::string& path);
     ~I18nUtils() = default;
 
     inline void setDefaultLocal(const std::string& local) {
@@ -39,8 +39,8 @@ namespace I18nUtilsTools {
 
     inline std::vector<std::string> keys() {
         std::vector<std::string> keys;
-        for (const auto& [key, value] : I18nUtils::getInstance()->data)
-            keys.push_back(key);
+        for (const auto& item : I18nUtils::getInstance()->data)
+            keys.push_back(item.first);
         return keys;
     }
 }

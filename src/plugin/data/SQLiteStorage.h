@@ -12,8 +12,8 @@
 
 class SQLiteStorage {
 public:
-    LOICOLLECTION_A_API   SQLiteStorage(const std::string& dbName) : database(dbName, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {};
-    LOICOLLECTION_A_API   SQLiteStorage(const std::filesystem::path& dbPath) : database(dbPath.string(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {};
+    LOICOLLECTION_A_API   explicit SQLiteStorage(const std::string& dbName) : database(dbName, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {};
+    LOICOLLECTION_A_API   explicit SQLiteStorage(const std::filesystem::path& dbPath) : database(dbPath.string(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {};
     LOICOLLECTION_A_API   ~SQLiteStorage() = default;
 
     LOICOLLECTION_A_API   void create(std::string_view table);

@@ -673,8 +673,6 @@ namespace LOICollection::Plugins::menu {
         mItemId = itemid;        
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         
-        logger.setFile("./logs/LOICollectionA.log");
-        
         registerCommand();
         listenEvent();
     }

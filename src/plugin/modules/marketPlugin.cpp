@@ -346,8 +346,6 @@ namespace LOICollection::Plugins::market {
         mObjectOptions = options;
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         
-        logger.setFile("./logs/LOICollectionA.log");
-        
         registerCommand();
         listenEvent();
     }
