@@ -45,11 +45,11 @@ namespace LOICollection {
     A& A::getInstance() { return *instance; }
 
     bool A::load() {
-        auto& logger = this->mSelf.getLogger();
-        const auto& dataFilePath = this->mSelf.getDataDir();
-        const auto& langFilePath = this->mSelf.getLangDir();
-        const auto& configDataPath = this->mSelf.getConfigDir();
-        const auto& configFilePath = configDataPath / "config.json";
+        ll::Logger& logger = this->mSelf.getLogger();
+        const std::filesystem::path& dataFilePath = this->mSelf.getDataDir();
+        const std::filesystem::path& langFilePath = this->mSelf.getLangDir();
+        const std::filesystem::path& configDataPath = this->mSelf.getConfigDir();
+        const std::filesystem::path& configFilePath = configDataPath / "config.json";
 
         Config::SynchronousPluginConfigVersion(this->config);
         logger.info("Loading LOICollection - A (Version {})", Config::getVersion());

@@ -401,7 +401,7 @@ namespace LOICollection::Plugins::shop {
                         pl.refreshInventory();
                         return;
                     }
-                    return McUtils::executeCommand(pl, data.at("NoScore").get<std::string>());
+                    return McUtils::executeCommand(pl, original.at("NoScore").get<std::string>());
                 }
                 if (McUtils::isItemPlayerInventory(pl, data.at("id").get<std::string>(), mNumber)) {
                     nlohmann::ordered_json mScoreboardBase = data.at("scores");
@@ -411,7 +411,7 @@ namespace LOICollection::Plugins::shop {
                     pl.refreshInventory();
                     return;
                 }
-                McUtils::executeCommand(pl, data.at("NoItem").get<std::string>());
+                McUtils::executeCommand(pl, original.at("NoItem").get<std::string>());
             });
         }
 
@@ -429,7 +429,7 @@ namespace LOICollection::Plugins::shop {
                                 return chat::addChat(pl, id, data.at("time").get<int>());
                             return chat::addChat(pl, id, 0);
                         }
-                        return McUtils::executeCommand(pl, data.at("NoScore").get<std::string>());
+                        return McUtils::executeCommand(pl, original.at("NoScore").get<std::string>());
                     }
                     if (chat::isChat(pl, id)) {
                         nlohmann::ordered_json mScoreboardBase = data.at("scores");
@@ -437,7 +437,7 @@ namespace LOICollection::Plugins::shop {
                             McUtils::scoreboard::addScore(pl, it.key(), it.value().get<int>());
                         return chat::delChat(pl, id);
                     }
-                    McUtils::executeCommand(pl, data.at("NoTitle").get<std::string>());
+                    McUtils::executeCommand(pl, original.at("NoTitle").get<std::string>());
                 }
             });
         }
