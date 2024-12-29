@@ -26,7 +26,7 @@ struct C_Config {
             struct C_BelowName {
                 bool ModuleEnabled = true;
                 int RefreshInterval = 20;
-                std::string FormatText = "[{title}] §r{player}";
+                std::string FormatText = "{player}";
             } BelowName;
             struct C_ServerToast {
                 bool ModuleEnabled = true;

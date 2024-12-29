@@ -32,7 +32,7 @@
             "BelowName": {
                 "ModuleEnabled": true, // 是否启用玩家名称显示
                 "RefreshInterval": 20, // 刷新间隔，单位为 tick（20 tick = 1 秒）
-                "FormatText": "[{title}] §r{player}" // 玩家名称显示格式，支持 LOICollectionA API 变量
+                "FormatText": "{player}" // 玩家名称显示格式，支持 LOICollectionA API 变量
             },
             "ServerToast": {
                 "ModuleEnabled": true, // 是否启用服务器提示

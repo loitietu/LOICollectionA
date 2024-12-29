@@ -9,15 +9,12 @@
 #include <mc/world/Container.h>
 #include <mc/world/level/Level.h>
 #include <mc/world/level/Command.h>
-
 #include <mc/world/scores/Objective.h>
 #include <mc/world/scores/ScoreInfo.h>
 #include <mc/world/scores/Scoreboard.h>
 #include <mc/world/scores/ScoreboardId.h>
-
 #include <mc/world/actor/player/Player.h>
 #include <mc/world/actor/player/PlayerScoreSetFunction.h>
-
 #include <mc/world/item/registry/ItemStack.h>
 
 #include <mc/enums/CurrentCmdVersion.h>
@@ -28,7 +25,6 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/ServerCommandOrigin.h>
 #include <mc/server/commands/MinecraftCommands.h>
-#include <mc/_HeaderOutputPredefine.h>
 
 #include "include/languagePlugin.h"
 

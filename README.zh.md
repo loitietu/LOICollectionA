@@ -53,7 +53,7 @@ lip install github.com/loitietu/LOICollectionA
             "BelowName": {
                 "ModuleEnabled": true,
                 "RefreshInterval": 20,
-                "FormatText": "[{title}] §r{player}"
+                "FormatText": "{player}"
             },
             "ServerToast": {
                 "ModuleEnabled": true,

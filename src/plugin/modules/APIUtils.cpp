@@ -1,6 +1,8 @@
 #include <regex>
 #include <chrono>
 #include <string>
+#include <vector>
+#include <algorithm>
 #include <functional>
 #include <unordered_map>
 
@@ -12,6 +14,7 @@
 
 #include <mc/util/ProfilerLite.h>
 #include <mc/world/level/Level.h>
+#include <mc/world/actor/Actor.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/network/ServerNetworkHandler.h>
 
@@ -31,122 +34,133 @@ std::unordered_map<std::string, std::function<std::string(Player&, std::string)>
 
 namespace LOICollection::LOICollectionAPI {
     void initialization() {
-        registerVariable("mcVersion", [](Player& /*unused*/) {
+        registerVariable("version.mc", [](Player& /*unused*/) {
             return ll::getGameVersion().to_string();
         });
-        registerVariable("llVersion", [](Player& /*unused*/) {
+        registerVariable("version.ll", [](Player& /*unused*/) {
             return ll::getLoaderVersion().to_string();
         });
-        registerVariable("protocolVersion", [](Player& /*unused*/) {
+        registerVariable("version.protocol", [](Player& /*unused*/) {
             return std::to_string(ll::getNetworkProtocolVersion());
-        });
-        registerVariable("title", [](Player& player) {
-            Plugins::chat::update(player);
-            return Plugins::chat::getTitle(player);
-        });
-        registerVariable("title.time", [](Player& player) {
-            Plugins::chat::update(player);
-            return SystemUtils::formatDataTime(Plugins::chat::getTitleTime(player, Plugins::chat::getTitle(player)));
-        });
-        registerVariable("pvp", [](Player& player) {
-            return Plugins::pvp::isEnable(player) ? "true" : "false";
-        });
-        registerVariable("mute", [](Player& player) {
-            return Plugins::mute::isMute(player) ? "true" : "false";
-        });
-        registerVariable("language", [](Player& player) { 
-            return Plugins::language::getLanguage(player);
-        });
-        registerVariable("languageName", [](Player& player) {
-            return I18nUtils::getInstance()->get(Plugins::language::getLanguage(player), "name");
-        });
-        registerVariable("tps", [](Player& /*unused*/) {
-            double mMspt = ((double) ProfilerLite::gProfilerLiteInstance.getServerTickTime().count() / 1000000.0);
-            return std::to_string(mMspt <= 50.0 ? 20.0 : (double)(1000.0 / mMspt));
-        });
-        registerVariable("mspt", [](Player& /*unused*/) { 
-            return std::to_string((double) ProfilerLite::gProfilerLiteInstance.getServerTickTime().count() / 1000000.0);
-        });
-        registerVariable("time", [](Player& /*unused*/) {
-            return SystemUtils::getNowTime();
         });
         registerVariable("player", [](Player& player) {
             return player.getName();
         });
-        registerVariable("maxPlayer", [](Player& /*unused*/) {
-            return std::to_string(ll::memory::dAccess<int>(ll::service::getServerNetworkHandler().as_ptr(), 200 * 4));
+        registerVariable("player.title", [](Player& player) {
+            Plugins::chat::update(player);
+            return Plugins::chat::getTitle(player);
         });
-        registerVariable("onlinePlayer", [](Player& /*unused*/) {
-            return std::to_string(ll::service::getLevel()->getActivePlayerCount());
+        registerVariable("player.title.time", [](Player& player) {
+            Plugins::chat::update(player);
+            return SystemUtils::formatDataTime(
+                Plugins::chat::getTitleTime(player, 
+                    Plugins::chat::getTitle(player)
+                )
+            );
         });
-        registerVariable("pos", [](Player& player) {
+        registerVariable("player.pvp", [](Player& player) {
+            return Plugins::pvp::isEnable(player) ? "true" : "false";
+        });
+        registerVariable("player.mute", [](Player& player) {
+            return Plugins::mute::isMute(player) ? "true" : "false";
+        });
+        registerVariable("player.language", [](Player& player) { 
+            return Plugins::language::getLanguage(player);
+        });
+        registerVariable("player.language.name", [](Player& player) {
+            return I18nUtils::getInstance()->get(Plugins::language::getLanguage(player), "name");
+        });
+        registerVariable("player.pos", [](Player& player) {
             return player.getPosition().toString();
         });
-        registerVariable("blockPos", [](Player& player) {
+        registerVariable("player.pos.block", [](Player& player) {
             return player.getEyePos().toString();
         });
-        registerVariable("lastDeathPos", [](Player& player) {
+        registerVariable("player.pos.lastDeath", [](Player& player) {
             return player.getLastDeathPos()->toString();
         });
-        registerVariable("realName", [](Player& player) {
+        registerVariable("player.realName", [](Player& player) {
             return player.getRealName();
         });
-        registerVariable("xuid", [](Player& player) {
+        registerVariable("player.xuid", [](Player& player) {
             return player.getXuid();
         });
-        registerVariable("uuid", [](Player& player) {
+        registerVariable("player.uuid", [](Player& player) {
             return player.getUuid().asString();
         });
-        registerVariable("canFly", [](Player& player) {
+        registerVariable("player.canFly", [](Player& player) {
             return player.canFly() ? "true" : "false";
         });
-        registerVariable("maxHealth", [](Player& player) {
+        registerVariable("player.maxHealth", [](Player& player) {
             return std::to_string(player.getMaxHealth());
         });
-        registerVariable("health", [](Player& player) {
+        registerVariable("player.health", [](Player& player) {
             return std::to_string(player.getHealth());
         });
-        registerVariable("speed", [](Player& player) {
+        registerVariable("player.speed", [](Player& player) {
             return std::to_string(player.getSpeed());
         });
-        registerVariable("direction", [](Player& player) {
+        registerVariable("player.direction", [](Player& player) {
             return std::to_string(player.getDirection());
         });
-        registerVariable("dimension", [](Player& player) {
+        registerVariable("player.dimension", [](Player& player) {
             return std::to_string(player.getDimensionId());
         });
-        registerVariable("os", [](Player& player) {
+        registerVariable("player.os", [](Player& player) {
             return std::string(magic_enum::enum_name(player.getPlatform()));
         });
-        registerVariable("ip", [](Player& player) {
+        registerVariable("player.ip", [](Player& player) {
             return player.getIPAndPort();
         });
-        registerVariable("xp", [](Player& player) {
+        registerVariable("player.xp", [](Player& player) {
             return std::to_string(player.getXpEarnedAtCurrentLevel());
         });
-        registerVariable("HandItem", [](Player& player) {
+        registerVariable("player.HandItem", [](Player& player) {
             return player.getCarriedItem().getName();
         });
-        registerVariable("OffHand", [](Player& player) {
+        registerVariable("player.OffHand", [](Player& player) {
             return player.getOffhandSlot().getName();
         });
-        registerVariable("ms", [](Player& player) {
+        registerVariable("player.ms", [](Player& player) {
             return std::to_string(player.getNetworkStatus()->mAveragePing);
         });
-        registerVariable("avgms", [](Player& player) {
+        registerVariable("player.ms.avg", [](Player& player) {
             return std::to_string(player.getNetworkStatus()->mCurrentPing);
         });
-        registerVariable("Packet", [](Player& player) {
+        registerVariable("player.packet", [](Player& player) {
             return std::to_string(player.getNetworkStatus()->mAveragePacketLoss);
         });
-        registerVariable("avgPacket", [](Player& player) {
+        registerVariable("player.packet.avg", [](Player& player) {
             return std::to_string(player.getNetworkStatus()->mCurrentPacketLoss);
+        });
+        registerVariable("server.tps", [](Player& /*unused*/) {
+            double mMspt = ((double) ProfilerLite::gProfilerLiteInstance.getServerTickTime().count() / 1000000.0);
+            return std::to_string(mMspt <= 50.0 ? 20.0 : (double)(1000.0 / mMspt));
+        });
+        registerVariable("server.mspt", [](Player& /*unused*/) { 
+            return std::to_string((double) ProfilerLite::gProfilerLiteInstance.getServerTickTime().count() / 1000000.0);
+        });
+        registerVariable("server.time", [](Player& /*unused*/) {
+            return SystemUtils::getNowTime();
+        });
+        registerVariable("server.player.max", [](Player& /*unused*/) {
+            return std::to_string(ll::memory::dAccess<int>(ll::service::getServerNetworkHandler().as_ptr(), 200 * 4));
+        });
+        registerVariable("server.player.online", [](Player& /*unused*/) {
+            return std::to_string(ll::service::getLevel()->getActivePlayerCount());
         });
         registerVariableParameter("score", [](Player& player, std::string name) {
             return std::to_string(McUtils::scoreboard::getScore(player, name));
         });
         registerVariableParameter("tr", [](Player& player, std::string name) {
             return I18nUtils::getInstance()->get(Plugins::language::getLanguage(player), name);
+        });
+        registerVariableParameter("entity", [](Player& /*unused*/, std::string name) {
+            std::vector<Actor*> mRuntimeActorList = ll::service::getLevel()->getRuntimeActorList();
+            int count = (int)std::count_if(mRuntimeActorList.begin(), mRuntimeActorList.end(), [&name](Actor* actor) {
+                return actor->getTypeName() == name;
+            });
+            return std::to_string(count);
         });
     }
 
