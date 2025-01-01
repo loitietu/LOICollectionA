@@ -20,7 +20,6 @@
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandSelector.h>
-#include <mc/server/commands/CommandOriginType.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
 
@@ -38,16 +37,6 @@
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;
-
-bool isPermissionFormCommandOrigin(CommandOrigin const& origin, int permissionLevel) {
-    if (origin.getOriginType() == CommandOriginType::DedicatedServer) {
-        return ((int) origin.getPermissionsLevel()) >= permissionLevel;
-    } else {
-        auto* entity = origin.getEntity();
-        return ((entity != nullptr && entity->isPlayer()) && (int)(static_cast
-            <Player*>(entity)->getPlayerPermissionLevel()) >= permissionLevel);
-    }
-}
 
 namespace LOICollection::Plugins::chat {
     struct ChatOP {
@@ -186,10 +175,8 @@ namespace LOICollection::Plugins::chat {
             if (!commandRegistery)
                 throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("chat", "§e§lLOICollection -> §b个人称号", CommandPermissionLevel::Any);
+                .getOrCreateCommand("chat", "§e§lLOICollection -> §b个人称号", CommandPermissionLevel::GameDirectors);
             command.overload<ChatOP>().text("add").required("target").required("titleName").optional("time").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
-                if (!isPermissionFormCommandOrigin(origin, 2))
-                    return output.error("No permission to add chat.");
                 for (auto& pl : param.target.results(origin)) {
                     addChat(*pl, param.titleName, param.time);
 
@@ -198,8 +185,6 @@ namespace LOICollection::Plugins::chat {
                 }
             });
             command.overload<ChatOP>().text("remove").required("target").required("titleName").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
-                if (!isPermissionFormCommandOrigin(origin, 2))
-                    return output.error("No permission to remove chat.");
                 for (auto& pl : param.target.results(origin)) {
                     delChat(*pl, param.titleName);
 
@@ -207,9 +192,18 @@ namespace LOICollection::Plugins::chat {
                         pl->getRealName()), {}, CommandOutputMessageType::Success);
                 }
             });
+            command.overload<ChatOP>().text("set").required("target").required("titleName").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
+                for (auto& pl : param.target.results(origin)) {
+                    std::string mObject = pl->getUuid().asString();
+                    std::replace(mObject.begin(), mObject.end(), '-', '_');
+                    if (db->has("OBJECT$" + mObject + "$TITLE", param.titleName))
+                        db->set("OBJECT$" + mObject, "title", param.titleName);
+
+                    output.addMessage(fmt::format("Set Chat for Player {}.",
+                        pl->getRealName()), {}, CommandOutputMessageType::Success);
+                }
+            });
             command.overload<ChatOP>().text("list").required("target").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
-                if (!isPermissionFormCommandOrigin(origin, 2))
-                    return output.error("No permission to list chat.");
                 for (auto& player : param.target.results(origin)) {
                     std::string mObject = player->getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
@@ -229,15 +223,14 @@ namespace LOICollection::Plugins::chat {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
-                if ((int) player.getPlayerPermissionLevel() >= 2) {
-                    MainGui::open(player);
-                    output.success("The UI has been opened to player {}", player.getRealName());
-                    return;
-                }
+                MainGui::open(player);
 
-                output.error("No permission to open the ui.");
+                output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
+
+            auto& settingCommand = ll::command::CommandRegistrar::getInstance()
+                .getOrCreateCommand("setting", "§e§lLOICollection -> §b个人设置", CommandPermissionLevel::Any);
+            settingCommand.overload().text("chat").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");

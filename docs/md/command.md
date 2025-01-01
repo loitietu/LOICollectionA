@@ -69,12 +69,12 @@
 ## Cdk
 ```log
 ? cdk
-11:53:56.875 INFO [Server] cdk:
-11:53:56.875 INFO [Server] LOICollection -> 总换码
-11:53:56.877 INFO [Server] Usage:
-11:53:56.878 INFO [Server] - /cdk convert <convertString: string>
-11:53:56.878 INFO [Server] - /cdk gui
-11:53:56.878 INFO [Server] - /cdk setting
+15:52:33.008 INFO [Server] cdk:
+15:52:33.010 INFO [Server] LOICollection -> 总换码
+15:52:33.010 INFO [Server] Usage:
+15:52:33.010 INFO [Server] - /cdk convert <convertString: string>
+15:52:33.010 INFO [Server] - /cdk edit
+15:52:33.010 INFO [Server] - /cdk gui
 ```
 
 ?> 其中 `cdk` 为 Cdk 的顶层命令（权限等级: Any）。
@@ -120,7 +120,6 @@
 10:36:58.508 INFO [Server] Usage:
 10:36:58.509 INFO [Server] - /tpa gui
 10:36:58.510 INFO [Server] - /tpa invite <tpa|tphere> <target: target>
-10:36:58.511 INFO [Server] - /tpa setting
 ```
 
 ?> 其中 `tpa` 为 Tpa 的顶层命令（权限等级: Any）。
@@ -132,9 +131,6 @@
 
 - `/tpa gui`
   - 打开 Tpa GUI。
-
-- `/tpa setting`
-  - 打开 Tpa 个人设置。
 
 ## Shop
 ```log
@@ -154,28 +150,6 @@
 - `/shop gui <uiName: string>`
   - 打开商店 GUI。
   - 其中 `<uiName: string>` 为商店ID。
-
-## PVP
-```log
-? pvp
-11:59:06.245 INFO [Server] pvp:
-11:59:06.245 INFO [Server] LOICollection -> 服务器PVP
-11:59:06.246 INFO [Server] Usage:
-11:59:06.246 INFO [Server] - /pvp gui
-11:59:06.246 INFO [Server] - /pvp off
-11:59:06.246 INFO [Server] - /pvp on
-```
-
-?> 其中 `pvp` 为 Pvp 的顶层命令（权限等级: Any）。
-
-- `/pvp gui`
-  - 打开个人 Pvp GUI。
-
-- `/pvp off`
-  - 关闭个人 Pvp。
-
-- `/pvp on`
-  - 打开个人 Pvp。
 
 ## Wallet
 ```log
@@ -204,38 +178,41 @@
 ## Chat
 ```log
 ? chat
-22:21:38.303 INFO [Server] chat:
-22:21:38.303 INFO [Server] LOICollection -> 个人称号
-22:21:38.303 INFO [Server] Usage:
-22:21:38.303 INFO [Server] - /chat add <target: target> <titleName: string> [time: int]
-22:21:38.303 INFO [Server] - /chat remove <target: target> <titleName: string>
-22:21:38.303 INFO [Server] - /chat list <target: target>
-22:21:38.303 INFO [Server] - /chat gui
-22:21:38.303 INFO [Server] - /chat setting
+15:55:41.904 INFO [Server] chat:
+15:55:41.904 INFO [Server] LOICollection -> 个人称号
+15:55:41.904 INFO [Server] Usage:
+15:55:41.904 INFO [Server] - /chat add <target: target> <titleName: string> [time: int]
+15:55:41.904 INFO [Server] - /chat gui
+15:55:41.904 INFO [Server] - /chat list <target: target>
+15:55:41.904 INFO [Server] - /chat remove <target: target> <titleName: string>
+15:55:41.904 INFO [Server] - /chat set <target: target> <titleName: string>
 ```
 
-?> 其中 `chat` 为 Chat 的顶层命令（权限等级: Any）。
+?> 其中 `chat` 为 Chat 的顶层命令（权限等级: GameDirectors）。
 
 - `/chat add <target: target> <titleName: string> [time: int]`
-  - 为目标添加指定称号（权限等级: GameDirectors）。
+  - 为目标添加指定称号。
   - 其中 `<target: target>` 为目标选择器。
   - 其中 `<titleName: string>` 为称号名称。
   - 其中 `[time: int]` 为称号时间（单位：小时）。
 
 - `/chat remove <target: target> <titleName: string>`
-  - 为目标移除指定称号（权限等级: GameDirectors）。
+  - 为目标移除指定称号。
   - 其中 `<target: target>` 为目标选择器。
   - 其中 `<titleName: string>` 为称号名称。
 
+- `/chat set <target: target> <titleName: string>`
+  - 为目标设置指定称号。
+  - 其中 `<target: target>` 为目标选择器。
+  - 其中 `<titleName: string>` 为称号名称。
+  - 注: 无法设置未拥有的称号。
+
 - `/chat list <target: target>`
-  - 查看目标的所有称号（权限等级: GameDirectors）。
+  - 查看目标的所有称号。
   - 其中 `<target: target>` 为目标选择器。
 
 - `/chat gui`
-  - 打开管理称号 GUI（权限等级: GameDirectors）。
-
-- `/chat setting`
-  - 打开个人称号设置。
+  - 打开管理称号 GUI。
 
 ## AnnounCement
 ```log
@@ -245,7 +222,6 @@
 12:02:20.001 INFO [Server] Usage:
 12:02:20.001 INFO [Server] - /announcement edit
 12:02:20.001 INFO [Server] - /announcement gui
-12:02:20.001 INFO [Server] - /announcement setting
 ```
 
 ?> 其中 `announcement` 为 AnnounCement 的顶层命令（权限等级: Any）。
@@ -255,9 +231,6 @@
 
 - `/announcement gui`
   - 打开公告 GUI。
-
-- `/announcement setting`
-  - 打开个人公告设置。
 
 ## Market
 ```log
@@ -277,4 +250,42 @@
 - `/market sell`
   - 打开玩家市场出售界面。
 
-!> 以上属于 LOICollectionA 1.4.9 版本的命令列表，对于后续版本的命令列表可能会有所不同。 
+## Setting
+```log
+? setting
+15:57:16.377 INFO [Server] setting:
+15:57:16.377 INFO [Server] LOICollection -> 个人设置
+15:57:16.377 INFO [Server] Usage:
+15:57:16.377 INFO [Server] - /setting announcement
+15:57:16.377 INFO [Server] - /setting chat
+15:57:16.392 INFO [Server] - /setting language
+15:57:16.399 INFO [Server] - /setting pvp gui
+15:57:16.399 INFO [Server] - /setting pvp off
+15:57:16.399 INFO [Server] - /setting pvp on
+15:57:16.399 INFO [Server] - /setting tpa
+```
+
+?> 其中 `setting` 为 Setting 的顶层命令（权限等级: Any）。
+
+- `/setting announcement`
+  - 打开个人公告设置界面。
+
+- `/setting chat`
+  - 打开个人聊天设置界面。
+
+- `/setting language`
+  - 打开个人语言设置界面。
+
+- `/setting pvp gui`
+  - 打开个人 PVP 设置界面。
+
+- `/setting pvp on`
+  - 开启个人 PVP。
+
+- `/setting pvp off`
+  - 关闭个人 PVP。
+
+- `/setting tpa`
+  - 打开个人 TPA 设置界面。
+
+!> 以上属于 LOICollectionA 1.5.2 版本的命令列表，对于后续版本的命令列表可能会有所不同。 

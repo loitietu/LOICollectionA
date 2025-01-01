@@ -170,7 +170,10 @@ namespace LOICollection::Plugins::tpa {
 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
+            
+            auto& settingCommand = ll::command::CommandRegistrar::getInstance()
+                .getOrCreateCommand("setting", "§e§lLOICollection -> §b个人设置", CommandPermissionLevel::Any);
+            settingCommand.overload().text("tpa").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");

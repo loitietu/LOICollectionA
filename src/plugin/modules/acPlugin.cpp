@@ -140,15 +140,6 @@ namespace LOICollection::Plugins::announcement {
 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
-                Player& player = *static_cast<Player*>(entity);
-                MainGui::setting(player);
-
-                output.success("The UI has been opened to player {}", player.getRealName());
-            });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
@@ -160,7 +151,19 @@ namespace LOICollection::Plugins::announcement {
                     return;
                 }
 
-                output.error("No permission to open the ui.");
+                output.error("No permission to open the edit.");
+            });
+
+            auto& settingCommand = ll::command::CommandRegistrar::getInstance()
+                .getOrCreateCommand("setting", "§e§lLOICollection -> §b个人设置", CommandPermissionLevel::Any);
+            settingCommand.overload().text("announcement").execute([](CommandOrigin const& origin, CommandOutput& output) {
+                auto* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error("No player selected.");
+                Player& player = *static_cast<Player*>(entity);
+                MainGui::setting(player);
+
+                output.success("The UI has been opened to player {}", player.getRealName());
             });
         }
 

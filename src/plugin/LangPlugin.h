@@ -14,7 +14,7 @@ static nlohmann::ordered_json CNLangData = {
     {"language.log", "玩家 {player}({player.uuid}) 将语言更改为 {player.language}"},
     {"language.gui.title", "§e§lLOICollection -> §a语言设置"},
     {"language.gui.label", "§a个人语言设置"},
-    {"language.gui.lang", "§b当前语言: §r${player.language}"},
+    {"language.gui.lang", "§b当前语言: §r${language}"},
     {"language.gui.dropdown", "§e语言选择"},
     {"blacklist.log1", "已将玩家 {player}({player.uuid}) 添加进黑名单"},
     {"blacklist.log2", "已将 ${target} 从黑名单中移除"},

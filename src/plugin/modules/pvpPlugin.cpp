@@ -62,8 +62,8 @@ namespace LOICollection::Plugins::pvp {
             if (!commandRegistery)
                 throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("pvp", "§e§lLOICollection -> §b服务器PVP", CommandPermissionLevel::Any);
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
+                .getOrCreateCommand("setting", "§e§lLOICollection -> §b个人设置", CommandPermissionLevel::Any);
+            command.overload().text("pvp").text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
@@ -72,7 +72,7 @@ namespace LOICollection::Plugins::pvp {
 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload().text("off").execute([](CommandOrigin const& origin, CommandOutput& output) {
+            command.overload().text("pvp").text("off").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
@@ -81,7 +81,7 @@ namespace LOICollection::Plugins::pvp {
 
                 output.success("The PVP has been disabled");
             });
-            command.overload().text("on").execute([](CommandOrigin const& origin, CommandOutput& output) {
+            command.overload().text("pvp").text("on").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");

@@ -484,7 +484,7 @@ namespace LOICollection::Plugins::shop {
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
-                if (entity == nullptr ||!entity->isPlayer())
+                if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
                 if ((int) player.getPlayerPermissionLevel() >= 2) {
