@@ -66,6 +66,7 @@ namespace LOICollection::Plugins::market {
                     McUtils::scoreboard::reduceScore(pl, mObjectScore, mScore);
                     std::string mName = db->get(mItemId, "name");
                     std::string mNbt = db->get(mItemId, "nbt");
+
                     ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mNbt)->mTags);
                     pl.add(mItemStack);
                     pl.refreshInventory();
@@ -88,10 +89,6 @@ namespace LOICollection::Plugins::market {
                 } else {
                     pl.sendMessage(tr(getLanguage(pl), "market.gui.sell.sellItem.tips3"));
                 }
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::buy(player);
-                });
             });
             if ((int) player.getPlayerPermissionLevel() >= 2) {
                 form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) {
@@ -99,10 +96,6 @@ namespace LOICollection::Plugins::market {
                     pl.sendMessage(ll::string_utils::replaceAll(tr(getLanguage(pl), 
                         "market.gui.sell.sellItem.tips2"), "${item}", mName));
                     delItem(mItemId);
-
-                    McUtils::Gui::submission(pl, [](Player& player) {
-                        return MainGui::buy(player);
-                    });
 
                     logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
                         tr({}, "market.log3"), "${item}", mName), pl));
@@ -134,10 +127,6 @@ namespace LOICollection::Plugins::market {
                 pl.add(mItemStack);
                 pl.refreshInventory();
                 delItem(mItemId);
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::sellItemContent(player);
-                });
 
                 logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
                     tr({}, "market.log3"), "${item}", mName), pl));
@@ -197,10 +186,6 @@ namespace LOICollection::Plugins::market {
 
                 logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
                     tr({}, "market.log2"), "${item}", mItemName), pl));
-                
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::sellItemInventory(player);
-                });
             });
         }
 
@@ -260,9 +245,7 @@ namespace LOICollection::Plugins::market {
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent"), "textures/items/diamond_axe", "path", [](Player& pl) {
                 MainGui::sellItemContent(pl);
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
 
         void buy(Player& player) {
@@ -277,9 +260,7 @@ namespace LOICollection::Plugins::market {
                     MainGui::buyItem(pl, item);
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) return pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
     }
 

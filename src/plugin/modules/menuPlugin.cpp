@@ -114,10 +114,6 @@ namespace LOICollection::Plugins::menu {
                     db->set(mObjectInput1, mData);
                 db->save();
 
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::editNew(player);
-                });
-
                 logger.info(translateString(ll::string_utils::replaceAll(tr({}, 
                     "menu.log1"), "${menu}", mObjectInput1), pl));
             });
@@ -143,9 +139,6 @@ namespace LOICollection::Plugins::menu {
                             logger.info(translateString(ll::string_utils::replaceAll(tr({}, 
                                 "menu.log2"), "${menu}", key), pl));
                         }
-                        McUtils::Gui::submission(pl, [](Player& player) {
-                            return MainGui::editRemove(player);
-                        });
                     });
                 });
             }
@@ -193,10 +186,6 @@ namespace LOICollection::Plugins::menu {
                 data["permission"] = (int) std::get<double>(dt->at("Slider"));
                 db->set(uiName, data);
                 db->save();
-
-                McUtils::Gui::submission(pl, [uiName](Player& player) {
-                    return MainGui::editAwardContent(player, uiName);
-                });
 
                 logger.info(translateString(ll::string_utils::replaceAll(tr({},
                     "menu.log5"), "${menu}", uiName), pl));
@@ -247,10 +236,6 @@ namespace LOICollection::Plugins::menu {
                 db->set(uiName, mContent);
                 db->save();
 
-                McUtils::Gui::submission(pl, [uiName](Player& player) {
-                    return MainGui::editAwardContent(player, uiName);
-                });
-
                 logger.info(translateString(ll::string_utils::replaceAll(tr({},
                     "menu.log6"), "${menu}", uiName), pl));
             });
@@ -279,25 +264,22 @@ namespace LOICollection::Plugins::menu {
                 ll::form::ModalForm form(tr(mObjectLanguage, "menu.gui.title"), mObjectContent,
                     tr(mObjectLanguage, "menu.gui.button3.remove.yes"), tr(mObjectLanguage, "menu.gui.button3.remove.no"));
                 form.sendTo(pl, [uiName, mId](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
-                    if (result == ll::form::ModalFormSelectedButton::Upper) {
-                        nlohmann::ordered_json data = db->toJson(uiName);
-                        nlohmann::ordered_json mContent = (data.at("type").get<std::string>() == "Custom" ? data.at("customize") : data.at("button"));
-                        for (int i = 0; i < (int) mContent.size(); i++) {
-                            if (mContent.at(i).at("id").get<std::string>() == mId)
-                                mContent.erase(i);
-                        }
-                        data.at("type").get<std::string>() == "Custom" ? data.at("customize") = mContent : data.at("button") = mContent;
-                        db->set(uiName, data);
-                        db->save();
-
-                        std::string logString = tr({}, "menu.log3");
-                        ll::string_utils::replaceAll(logString, "${menu}", uiName);
-                        ll::string_utils::replaceAll(logString, "${customize}", mId);
-                        logger.info(translateString(logString, pl));
+                    if (result != ll::form::ModalFormSelectedButton::Upper) 
+                        return;
+                    nlohmann::ordered_json data = db->toJson(uiName);
+                    nlohmann::ordered_json mContent = (data.at("type").get<std::string>() == "Custom" ? data.at("customize") : data.at("button"));
+                    for (int i = 0; i < (int) mContent.size(); i++) {
+                        if (mContent.at(i).at("id").get<std::string>() == mId)
+                            mContent.erase(i);
                     }
-                    McUtils::Gui::submission(pl, [uiName](Player& player) {
-                        return MainGui::editAwardContent(player, uiName);
-                    });
+                    data.at("type").get<std::string>() == "Custom" ? data.at("customize") = mContent : data.at("button") = mContent;
+                    db->set(uiName, data);
+                    db->save();
+
+                    std::string logString = tr({}, "menu.log3");
+                    ll::string_utils::replaceAll(logString, "${menu}", uiName);
+                    ll::string_utils::replaceAll(logString, "${customize}", mId);
+                    logger.info(translateString(logString, pl));
                 });
             });
         }
@@ -342,10 +324,6 @@ namespace LOICollection::Plugins::menu {
                 data["command"] = mCommand;
                 db->set(uiName, data);
                 db->save();
-
-                McUtils::Gui::submission(pl, [uiName](Player& player) {
-                    return MainGui::editAwardContent(player, uiName);
-                });
 
                 logger.info(translateString(ll::string_utils::replaceAll(tr({},
                     "menu.log4"), "${menu}", uiName), pl));
@@ -421,9 +399,7 @@ namespace LOICollection::Plugins::menu {
             form.appendButton(tr(mObjectLanguage, "menu.gui.button3"), "textures/ui/editIcon", "path", [](Player& pl) {
                 MainGui::editAward(pl);
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
 
         void custom(Player& player, nlohmann::ordered_json& data) {

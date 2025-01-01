@@ -100,10 +100,6 @@ namespace LOICollection::Plugins::shop {
                     db->set(mObjectInput1, mData);
                 db->save();
 
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::editNew(player);
-                });
-
                 logger.info(translateString(ll::string_utils::replaceAll(tr({},
                     "shop.log1"), "${menu}", mObjectInput1), pl));
             });
@@ -129,9 +125,6 @@ namespace LOICollection::Plugins::shop {
                             logger.info(translateString(ll::string_utils::replaceAll(tr({},
                                 "shop.log2"), "${menu}", key), pl));
                         }
-                        McUtils::Gui::submission(pl, [](Player& player) {
-                            return MainGui::editRemove(player);
-                        });
                     });
                 });
             }
@@ -173,10 +166,6 @@ namespace LOICollection::Plugins::shop {
                 };
                 db->set(uiName, data);
                 db->save();
-
-                McUtils::Gui::submission(pl, [uiName](Player& player) {
-                    return MainGui::editAwardContent(player, uiName);
-                });
 
                 logger.info(translateString(ll::string_utils::replaceAll(tr({},
                     "shop.log4"), "${menu}", uiName), pl));
@@ -230,10 +219,6 @@ namespace LOICollection::Plugins::shop {
                 db->set(uiName, mContent);
                 db->save();
 
-                McUtils::Gui::submission(pl, [uiName](Player& player) {
-                    return MainGui::editAwardContent(player, uiName);
-                });
-
                 logger.info(translateString(ll::string_utils::replaceAll(tr({},
                     "menu.log5"), "${menu}", uiName), pl));
             });
@@ -275,9 +260,6 @@ namespace LOICollection::Plugins::shop {
                         ll::string_utils::replaceAll(logString, "${customize}", mId);
                         logger.info(translateString(logString, pl));
                     }
-                    McUtils::Gui::submission(pl, [uiName](Player& player) {
-                        return MainGui::editAwardContent(player, uiName);
-                    });
                 });
             });
         }
@@ -345,9 +327,7 @@ namespace LOICollection::Plugins::shop {
             form.appendButton(tr(mObjectLanguage, "shop.gui.button3"), "textures/ui/editIcon", "path", [](Player& pl) {
                 MainGui::editAward(pl);
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
 
         void menu(Player& player, nlohmann::ordered_json& data, ShopType type) {

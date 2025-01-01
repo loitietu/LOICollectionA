@@ -49,17 +49,13 @@ namespace LOICollection::Plugins::announcement {
             form.appendLabel(tr(mObjectLanguage, "announcement.gui.label"));
             form.appendToggle("Toggle1", tr(mObjectLanguage, "announcement.gui.setting.switch1"), isClose(player));
             form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) return pl.sendMessage(tr(getLanguage(pl), "exit"));
+                if (!dt) return;
 
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 db2->set("OBJECT$" + mObject, "AnnounCement_Toggle1", 
                     std::get<uint64>(dt->at("Toggle1")) ? "true" : "false"
                 );
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::setting(player);
-                });
             });
         }
 
@@ -81,7 +77,7 @@ namespace LOICollection::Plugins::announcement {
             form.appendToggle("Toggle1", tr(mObjectLanguage, "announcement.gui.addLine"));
             form.appendToggle("Toggle2", tr(mObjectLanguage, "announcement.gui.removeLine"));
             form.sendTo(player, [index](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) return pl.sendMessage(tr(getLanguage(pl), "exit"));
+                if (!dt) return;
 
                 std::string mTitle = std::get<std::string>(dt->at("Input"));
                 nlohmann::ordered_json data = db->toJson("content");
@@ -104,10 +100,6 @@ namespace LOICollection::Plugins::announcement {
                 db->set("content", data);
                 db->save();
 
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::edit(player);
-                });
-
                 logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "announcement.log"), pl));
             });
         }
@@ -118,9 +110,7 @@ namespace LOICollection::Plugins::announcement {
             ll::form::CustomForm form(db->get<std::string>("title"));
             for (nlohmann::ordered_json::iterator it = data.begin(); it != data.end(); ++it)
                 form.appendLabel(*it);
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) return pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
     }
 

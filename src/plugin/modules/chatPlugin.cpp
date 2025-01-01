@@ -64,10 +64,6 @@ namespace LOICollection::Plugins::chat {
 
                 addChat(target, std::get<std::string>(dt->at("Input1")),
                     SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0));
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::add(player);
-                });
             });
         }
         
@@ -84,10 +80,6 @@ namespace LOICollection::Plugins::chat {
                 if (!dt) return MainGui::remove(pl);
 
                 delChat(target, std::get<std::string>(dt->at("dropdown")));
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::remove(player);
-                });
             });
         }
 
@@ -133,10 +125,6 @@ namespace LOICollection::Plugins::chat {
 
                 db->set("OBJECT$" + mObject, "title", std::get<std::string>(dt->at("dropdown")));
                 
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::title(player);
-                });
-
                 logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "chat.log1"), pl));
             });
         }
@@ -148,9 +136,7 @@ namespace LOICollection::Plugins::chat {
             form.appendButton(tr(mObjectLanguage, "chat.gui.setTitle"), "textures/ui/backup_replace", "path", [](Player& pl) {
                 MainGui::title(pl);
             });
-            form.sendTo(player, [&](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
 
         void open(Player& player) {
@@ -163,9 +149,7 @@ namespace LOICollection::Plugins::chat {
             form.appendButton(tr(mObjectLanguage, "chat.gui.manager.remove"), "textures/ui/free_download_symbol", "path", [](Player& pl) {
                 MainGui::remove(pl);
             });
-            form.sendTo(player, [&](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
     }
 

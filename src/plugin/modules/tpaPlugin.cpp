@@ -56,17 +56,13 @@ namespace LOICollection::Plugins::tpa {
             form.appendLabel(tr(mObjectLanguage, "tpa.gui.setting.label"));
             form.appendToggle("Toggle1", tr(mObjectLanguage, "tpa.gui.setting.switch1"), isInvite(player));
             form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) return pl.sendMessage(tr(getLanguage(pl), "exit"));
+                if (!dt) return;
 
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 db->set("OBJECT$" + mObject, "Tpa_Toggle1",
                     std::get<uint64>(dt->at("Toggle1")) ? "true" : "false"
                 );
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::setting(player);
-                });
             });
         }
 
@@ -119,10 +115,6 @@ namespace LOICollection::Plugins::tpa {
                 if (std::get<std::string>(dt->at("dropdown")) == "tpa")
                     return MainGui::tpa(pl, target, TpaType::tpa);
                 MainGui::tpa(pl, target, TpaType::tphere);
-
-                McUtils::Gui::submission(pl, [&target](Player& player) {
-                    return MainGui::content(player, target);
-                });
             });
         }
 
@@ -135,9 +127,7 @@ namespace LOICollection::Plugins::tpa {
                     MainGui::content(pl, *mTarget);
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
     }
 

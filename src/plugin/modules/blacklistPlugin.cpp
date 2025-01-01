@@ -67,12 +67,8 @@ namespace LOICollection::Plugins::blacklist {
             ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "time", "None")));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), mObjectLabel);
-            form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [target](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [target](Player& /*unused*/) {
                 delBlacklist(target);
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::remove(player);
-                });
             });
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) MainGui::remove(pl);
@@ -102,10 +98,6 @@ namespace LOICollection::Plugins::blacklist {
                         addBlacklist(target, PlayerInputCause, time, BlacklistType::uuid);
                         break;
                 };
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::add(player);
-                });
             });
         }
 
@@ -148,9 +140,7 @@ namespace LOICollection::Plugins::blacklist {
             form.appendButton(tr(mObjectLanguage, "blacklist.gui.removeBlacklist"), "textures/ui/free_download_symbol", "path", [](Player& pl) {
                 MainGui::remove(pl);
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
     }
 

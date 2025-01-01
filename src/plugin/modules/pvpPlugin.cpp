@@ -50,9 +50,7 @@ namespace LOICollection::Plugins::pvp {
             form.appendButton(tr(mObjectLanguage, "pvp.gui.off"), "textures/ui/cancel", "path", [](Player& pl) {
                 enable(pl, false);
             });
-            form.sendTo(player, [&](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
     }
 

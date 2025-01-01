@@ -51,7 +51,7 @@ namespace LOICollection::Plugins::cdk {
             form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
             form.appendInput("Input", tr(mObjectLanguage, "cdk.gui.convert.input"), "", "convert");
             form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) return pl.sendMessage(tr(getLanguage(pl), "exit"));
+                if (!dt) return;
 
                 std::string convertString = std::get<std::string>(dt->at("Input"));
                 cdkConvert(pl, convertString.empty() ? "default" : convertString);
@@ -84,10 +84,6 @@ namespace LOICollection::Plugins::cdk {
                     db->set(mObjectCdk, dataList);
                     db->save();
                 }
-                
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::cdkNew(player);
-                });
 
                 logger.info(ll::string_utils::replaceAll(tr({},
                     "cdk.log1"), "${cdk}", mObjectCdk));
@@ -111,10 +107,6 @@ namespace LOICollection::Plugins::cdk {
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
                 db->remove(mObjectCdk);
                 db->save();
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::cdkRemove(player);
-                });
 
                 logger.info(ll::string_utils::replaceAll(tr({},
                     "cdk.log2"), "${cdk}", mObjectCdk));
@@ -144,10 +136,6 @@ namespace LOICollection::Plugins::cdk {
                     SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 db->set(mObjectCdk, mObjectData);
                 db->save();
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::cdkAwardScore(player);
-                });
             });
         }
 
@@ -179,10 +167,6 @@ namespace LOICollection::Plugins::cdk {
                 };
                 db->set(mObjectCdk, mObjectData);
                 db->save();
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::cdkAwardItem(player);
-                });
             });
         }
 
@@ -210,10 +194,6 @@ namespace LOICollection::Plugins::cdk {
                     SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 db->set(mObjectCdk, mObjectData);
                 db->save();
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::cdkAwardTitle(player);
-                });
             });
         }
 
@@ -248,9 +228,7 @@ namespace LOICollection::Plugins::cdk {
             form.appendButton(tr(mObjectLanguage, "cdk.gui.addAward"), "textures/ui/color_picker", "path", [](Player& pl) {
                 MainGui::cdkAward(pl);
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
     }
 

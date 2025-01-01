@@ -65,10 +65,6 @@ namespace LOICollection::Plugins::wallet {
                 McUtils::scoreboard::reduceScore(pl, mScore, mMoney);
                 McUtils::scoreboard::addScore(target, mScore, mTargetMoney);
 
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::transfer(player);
-                });
-
                 std::string logString = tr({}, "wallet.log");
                 ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
                 ll::string_utils::replaceAll(logString, "${player2}", target.getRealName());
@@ -110,14 +106,8 @@ namespace LOICollection::Plugins::wallet {
             });
             form.appendButton(tr(mObjectLanguage, "wallet.gui.wealth"), "textures/ui/creative_icon", "path", [](Player& pl) {
                 MainGui::wealth(pl);
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::open(player);
-                });
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
     }
 

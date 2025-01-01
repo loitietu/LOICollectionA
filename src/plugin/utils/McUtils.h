@@ -20,10 +20,6 @@ namespace McUtils {
         
     bool isItemPlayerInventory(Player& player, std::string mTypeName, int mNumber);
 
-    namespace Gui {
-        void submission(Player& player, std::function<void(Player&)> callback);
-    }
-
     namespace scoreboard {
         int getScore(Player& player, const std::string& name);
         void modifyScore(ScoreboardId& identity, const std::string& name, int score, int action);

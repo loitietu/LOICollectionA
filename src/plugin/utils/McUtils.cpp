@@ -26,10 +26,6 @@
 #include <mc/server/commands/ServerCommandOrigin.h>
 #include <mc/server/commands/MinecraftCommands.h>
 
-#include "include/languagePlugin.h"
-
-#include "utils/I18nUtils.h"
-
 #include "McUtils.h"
 
 namespace McUtils {
@@ -91,26 +87,6 @@ namespace McUtils {
             }
         }
         return false;
-    }
-
-    namespace Gui {
-        using I18nUtilsTools::tr;
-        using LOICollection::Plugins::language::getLanguage;
-
-        void submission(Player& player, std::function<void(Player&)> callback) {
-            std::string mObjectLanguage = getLanguage(player);
-
-            ll::form::SimpleForm form(tr(mObjectLanguage, "exit.gui.title"), tr(mObjectLanguage, "exit.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "exit.gui.button1"), [callback](Player& pl) {
-                callback(pl);
-            });
-            form.appendButton(tr(mObjectLanguage, "exit.gui.button2"), [](Player& pl) {
-                pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
-        }
     }
 
     namespace scoreboard {

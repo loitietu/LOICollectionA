@@ -42,7 +42,7 @@ namespace LOICollection::Plugins::language {
             form.appendLabel(ll::string_utils::replaceAll(tr(mObjectLanguage, "language.gui.lang"), "${language}", tr(mObjectLanguage, "name")));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), I18nUtilsTools::keys());
             form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
-                if (!dt) return pl.sendMessage(tr(getLanguage(pl), "exit"));
+                if (!dt) return;
 
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');

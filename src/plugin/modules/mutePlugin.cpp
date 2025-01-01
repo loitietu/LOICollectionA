@@ -55,12 +55,8 @@ namespace LOICollection::Plugins::mute {
             ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "time", "None")));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), mObjectLabel);
-            form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [target](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [target](Player& /*unused*/) {
                 delMute(target);
-
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::remove(player);
-                });
             });
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) MainGui::remove(pl);
@@ -79,10 +75,6 @@ namespace LOICollection::Plugins::mute {
 
                 addMute(target, std::get<std::string>(dt->at("Input1")), 
                     SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0));
-                
-                McUtils::Gui::submission(pl, [](Player& player) {
-                    return MainGui::add(player);
-                });
             });
         }
 
@@ -125,9 +117,7 @@ namespace LOICollection::Plugins::mute {
             form.appendButton(tr(mObjectLanguage, "mute.gui.removeMute"), "textures/ui/free_download_symbol", "path", [](Player& pl) {
                 MainGui::remove(pl);
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) pl.sendMessage(tr(getLanguage(pl), "exit"));
-            });
+            form.sendTo(player);
         }
     }
 
