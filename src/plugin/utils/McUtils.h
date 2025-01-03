@@ -3,7 +3,6 @@
 
 #include <string>
 #include <vector>
-#include <functional>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
