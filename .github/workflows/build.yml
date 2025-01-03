@@ -5,6 +5,16 @@ on:
 
 jobs:
     build:
+        strategy:
+            fail-fast: false
+            matrix:
+                shared:
+                    - true
+                    - false
+                mode:
+                    - debug
+                    - release
+
         runs-on: windows-latest
         steps:
             - uses: actions/checkout@v4
@@ -23,26 +33,15 @@ jobs:
             - run: |
                 xmake lua scripts/project.lua
             
-            - name: Build with Original
-              run: |
-                xmake f -a x64 -m release -p windows -v -y --shared=true
+            - run: |
+                xmake f -a x64 -m ${{ matrix }} -p windows -v -y --shared=${{ matrix.shared }}
+            
+            - run: |
                 xmake -v -y
             
-            - name: Upload artifact original
-              uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v4
               with:
-                name: ${{ github.event.repository.name }}-windows-x64-${{ github.sha }}
+                name: ${{ github.event.repository.name }}-${{ matrix.mode }}-${{ matrix.shared == true && 'ES-' || '' }}windows-x64-${{ github.sha }}
                 path: |
                     bin/
-
-            - name: Build with Extended Static
-              run: |
-                xmake f -a x64 -m release -p windows -v -y --shared=false
-                xmake -v -y
             
-            - name: Upload artifact Extended Static
-              uses: actions/upload-artifact@v4
-              with:
-                name: ${{ github.event.repository.name }}-ES-windows-x64-${{ github.sha }}
-                path: |
-                    bin/

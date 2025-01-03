@@ -2,7 +2,12 @@ add_rules("mode.debug", "mode.release")
 
 add_repositories("liteldev-repo https://github.com/LiteLDev/xmake-repo.git")
 
-set_config("shared", true)
+option("shared")
+    set_default(true)
+    set_showmenu(true)
+    set_description("Build shared library")
+option_end()
+
 add_requires("sqlitecpp 3.3.2", {configs = {shared = get_config("shared")}})
 add_requires(
     "levilamina",
