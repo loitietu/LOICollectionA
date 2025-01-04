@@ -1,12 +1,11 @@
 #include <map>
 #include <memory>
+#include <string>
 #include <vector>
 #include <variant>
 
-#include <string>
-#include <stdexcept>
-
-#include <ll/api/Logger.h>
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
@@ -20,9 +19,14 @@
 
 #include <mc/nbt/Tag.h>
 #include <mc/nbt/CompoundTag.h>
+
 #include <mc/world/level/Level.h>
 #include <mc/world/actor/player/Player.h>
-#include <mc/world/item/registry/ItemStack.h>
+
+#include <mc/world/item/ItemStack.h>
+#include <mc/world/item/SaveContext.h>
+#include <mc/world/item/SaveContextFactory.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
@@ -45,8 +49,8 @@ namespace LOICollection::Plugins::market {
     std::map<std::string, std::variant<std::string, int>> mObjectOptions;
 
     std::unique_ptr<SQLiteStorage> db;
+    std::shared_ptr<ll::io::Logger> logger;
     ll::event::ListenerPtr PlayerJoinEventListener;
-    ll::Logger logger("LOICollectionA - Market");
 
     namespace MainGui {
         void buyItem(Player& player, std::string mItemId) {
@@ -84,7 +88,7 @@ namespace LOICollection::Plugins::market {
                     }
                     delItem(mItemId);
 
-                    logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                    logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
                         tr({}, "market.log1"), "${item}", mName), pl));
                 } else {
                     pl.sendMessage(tr(getLanguage(pl), "market.gui.sell.sellItem.tips3"));
@@ -97,7 +101,7 @@ namespace LOICollection::Plugins::market {
                         "market.gui.sell.sellItem.tips2"), "${item}", mName));
                     delItem(mItemId);
 
-                    logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                    logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
                         tr({}, "market.log3"), "${item}", mName), pl));
                 });
             }
@@ -128,7 +132,7 @@ namespace LOICollection::Plugins::market {
                 pl.refreshInventory();
                 delItem(mItemId);
 
-                logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
                     tr({}, "market.log3"), "${item}", mName), pl));
             });
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
@@ -184,7 +188,7 @@ namespace LOICollection::Plugins::market {
                 pl.getInventory().removeItem(mSlot, 64);
                 pl.refreshInventory();
 
-                logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
                     tr({}, "market.log2"), "${item}", mItemName), pl));
             });
         }
@@ -199,14 +203,14 @@ namespace LOICollection::Plugins::market {
             for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
                 ItemStack mItemStack = mItemInventory.getItem(i);
                 
-                if (!mItemStack.isValid())
+                if (!mItemStack || mItemStack.isNull())
                     continue;
 
                 std::string mItemName = tr(mObjectLanguage, "market.gui.sell.sellItem.dropdown.text");
                 ll::string_utils::replaceAll(mItemName, "${item}", mItemStack.getName());
                 ll::string_utils::replaceAll(mItemName, "${count}", std::to_string(mItemStack.mCount));
                 form.appendButton(mItemName, [mItemStack, i](Player& pl) {
-                    MainGui::sellItem(pl, mItemStack.save()->toSnbt(
+                    MainGui::sellItem(pl, mItemStack.save(*SaveContextFactory::createCloneSaveContext())->toSnbt(
                         SnbtFormat::Minimize, 0), i);
                 });
             }
@@ -266,9 +270,6 @@ namespace LOICollection::Plugins::market {
 
     namespace {
         void registerCommand() {
-            auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery)
-                throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("market", "§e§lLOICollection -> §b玩家市场", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -324,8 +325,9 @@ namespace LOICollection::Plugins::market {
     }
 
     void registery(void* database, std::map<std::string, std::variant<std::string, int>>& options) {
-        mObjectOptions = options;
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
+        mObjectOptions = options;
         
         registerCommand();
         listenEvent();

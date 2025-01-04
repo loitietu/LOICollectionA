@@ -1,8 +1,8 @@
 #include <memory>
 #include <string>
-#include <stdexcept>
 
-#include <ll/api/Logger.h>
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
@@ -11,11 +11,13 @@
 #include <ll/api/command/CommandRegistrar.h>
 #include <ll/api/utils/StringUtils.h>
 
+#include <mc/world/item/ItemStack.h>
 #include <mc/world/actor/player/Player.h>
-#include <mc/world/item/registry/ItemStack.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
+
+#include <mc/safety/RedactableString.h>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -41,7 +43,7 @@ namespace LOICollection::Plugins::cdk {
     };
 
     std::unique_ptr<JsonStorage> db;
-    ll::Logger logger("LOICollectionA - CDK");
+    std::shared_ptr<ll::io::Logger> logger;
 
     namespace MainGui {
         void convert(Player& player) {
@@ -85,7 +87,7 @@ namespace LOICollection::Plugins::cdk {
                     db->save();
                 }
 
-                logger.info(ll::string_utils::replaceAll(tr({},
+                logger->info(ll::string_utils::replaceAll(tr({},
                     "cdk.log1"), "${cdk}", mObjectCdk));
             });
         }
@@ -108,7 +110,7 @@ namespace LOICollection::Plugins::cdk {
                 db->remove(mObjectCdk);
                 db->save();
 
-                logger.info(ll::string_utils::replaceAll(tr({},
+                logger->info(ll::string_utils::replaceAll(tr({},
                     "cdk.log2"), "${cdk}", mObjectCdk));
             });
         }
@@ -234,9 +236,6 @@ namespace LOICollection::Plugins::cdk {
 
     namespace {
         void registerCommand() {
-            auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery)
-                throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("cdk", "§e§lLOICollection -> §b总换码", CommandPermissionLevel::Any);
             command.overload<CDKOP>().text("convert").required("convertString").execute([](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) {
@@ -297,9 +296,9 @@ namespace LOICollection::Plugins::cdk {
             for (nlohmann::ordered_json::iterator it = mScoreboardList.begin(); it != mScoreboardList.end(); ++it)
                 McUtils::scoreboard::addScore(player, it.key(), it.value().get<int>());
             for (nlohmann::ordered_json::iterator it = mItemList.begin(); it != mItemList.end(); ++it) {
-                ItemStack itemStack(it.key(), it.value()["quantity"].get<int>());
-                itemStack.setAuxValue(it.value()["specialvalue"].get<short>());
-                itemStack.setCustomName(it.value()["name"].get<std::string>());
+                ItemStack itemStack(it.key(), it.value()["quantity"].get<int>(),
+                    it.value()["specialvalue"].get<short>(), nullptr);
+                itemStack.setCustomName(Bedrock::Safety::RedactableString(it.value()["name"].get<std::string>()));
                 player.add(itemStack);
                 player.refreshInventory();
             }
@@ -313,7 +312,7 @@ namespace LOICollection::Plugins::cdk {
             
             player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
 
-            logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+            logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
                 tr({}, "cdk.log3"), "${cdk}", convertString), player));
             return;
         }
@@ -322,7 +321,8 @@ namespace LOICollection::Plugins::cdk {
 
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
-        
+        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
+
         registerCommand();
     }
 }

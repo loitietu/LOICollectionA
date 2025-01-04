@@ -1,9 +1,9 @@
 #include <memory>
 #include <string>
-#include <stdexcept>
 #include <numeric>
 
-#include <ll/api/Logger.h>
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
@@ -16,7 +16,11 @@
 #include <ll/api/event/player/PlayerJoinEvent.h>
 #include <ll/api/utils/StringUtils.h>
 
+#include <mc/deps/core/string/HashedString.h>
+
+#include <mc/world/actor/ActorDefinitionIdentifier.h>
 #include <mc/world/actor/player/Player.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandSelector.h>
@@ -47,9 +51,9 @@ namespace LOICollection::Plugins::chat {
 
     std::string mChatString;
     std::unique_ptr<SQLiteStorage> db;
+    std::shared_ptr<ll::io::Logger> logger;
     ll::event::ListenerPtr PlayerChatEventListener;
     ll::event::ListenerPtr PlayerJoinEventListener;
-    ll::Logger logger("LOICollectionA - Chat");
 
     namespace MainGui {
         void contentAdd(Player& player, Player& target) {
@@ -125,7 +129,7 @@ namespace LOICollection::Plugins::chat {
 
                 db->set("OBJECT$" + mObject, "title", std::get<std::string>(dt->at("dropdown")));
                 
-                logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "chat.log1"), pl));
+                logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "chat.log1"), pl));
             });
         }
 
@@ -155,9 +159,6 @@ namespace LOICollection::Plugins::chat {
 
     namespace {
         void registerCommand() {
-            auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery)
-                throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("chat", "§e§lLOICollection -> §b个人称号", CommandPermissionLevel::GameDirectors);
             command.overload<ChatOP>().text("add").required("target").required("titleName").optional("time").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
@@ -268,7 +269,7 @@ namespace LOICollection::Plugins::chat {
                 std::string mTimeString = db->get("OBJECT$" + mObject + "$TITLE", i);
                 if (SystemUtils::isReach(mTimeString)) {
                     db->del("OBJECT$" + mObject + "$TITLE", i);
-                    logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                    logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
                         tr({}, "chat.log4"), "${title}", i), player));
                 }
             }
@@ -287,7 +288,7 @@ namespace LOICollection::Plugins::chat {
             db->create("OBJECT$" + mObject + "$TITLE");
         db->set("OBJECT$" + mObject + "$TITLE", text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
 
-        logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+        logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
             tr({}, "chat.log2"), "${title}", text), player));
     }
 
@@ -298,7 +299,7 @@ namespace LOICollection::Plugins::chat {
             db->del("OBJECT$" + mObject + "$TITLE", text);
             update(player);
         }
-        logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+        logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
             tr({}, "chat.log3"), "${title}", text), player));
     }
 
@@ -330,9 +331,10 @@ namespace LOICollection::Plugins::chat {
     }
 
     void registery(void* database, std::string chat) {
-        mChatString = chat;
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
-        
+        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
+        mChatString = chat;
+
         registerCommand();
         listenEvent();
     }

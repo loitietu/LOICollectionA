@@ -13,7 +13,7 @@ namespace LOICollection {
     class A {
     public:
         static A& getInstance();
-        A(ll::mod::NativeMod& self) : mSelf(self) {}
+        A() : mSelf(*ll::mod::NativeMod::current()) {}
         [[nodiscard]] ll::mod::NativeMod& getSelf() const { return mSelf; }
         bool load();
         bool enable();

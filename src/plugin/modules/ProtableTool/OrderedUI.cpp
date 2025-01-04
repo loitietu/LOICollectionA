@@ -5,8 +5,9 @@
 #include <ll/api/memory/Hook.h>
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
-#include <ll/api/event/player/PlayerLeaveEvent.h>
+#include <ll/api/event/player/PlayerDisconnectEvent.h>
 
+#include <mc/server/ServerPlayer.h>
 #include <mc/world/actor/player/Player.h>
 
 #include <mc/network/ServerNetworkHandler.h>
@@ -14,7 +15,7 @@
 #include <mc/network/packet/ModalFormRequestPacket.h>
 #include <mc/network/packet/ModalFormResponsePacket.h>
 
-#include <mc/enums/SubClientId.h>
+#include <mc/common/SubClientId.h>
 
 #include "include/ProtableTool/OrderedUI.h"
 
@@ -27,9 +28,10 @@ LL_TYPE_INSTANCE_HOOK(
     ModalFormRequestPacket,
     &ModalFormRequestPacket::sendTo,
     void,
-    Player const& player
+    ServerPlayer const& player
 ) {
-    if (!this->mFormId || this->mFormJSON.empty()) return origin(player);
+    if (!this->mFormId || this->mFormJSON->empty())
+        return origin(player);
 
     std::string mUuid = player.getUuid().asString();
     if (mFormResponse.contains(mUuid)) {
@@ -50,7 +52,8 @@ LL_TYPE_INSTANCE_HOOK(
     NetEventCallback& callback,
     std::shared_ptr<Packet>& packet
 ) {
-    if (auto player = ((ServerNetworkHandler&)callback).getServerPlayer(identifier, SubClientId::PrimaryClient); player) {
+    auto handle = static_cast<ServerNetworkHandler*>(&callback);
+    if (auto player = handle->_getServerPlayer(identifier, SubClientId::PrimaryClient); player) {
         auto& response = (ModalFormResponsePacket&)*packet;
 
         std::string mUuid = player->getUuid().asString();
@@ -77,15 +80,15 @@ LL_TYPE_INSTANCE_HOOK(
 };
 
 namespace LOICollection::ProtableTool::OrderedUI {
-    ll::event::ListenerPtr PlayerLeaveEventListener;
+    ll::event::ListenerPtr PlayerDisconnectEventListener;
 
     void registery() {
         ModalFormRequestPacketHook::hook();
         ModalFormResponsePacketHook::hook();
 
         auto& eventBus = ll::event::EventBus::getInstance();
-        PlayerLeaveEventListener = eventBus.emplaceListener<ll::event::PlayerLeaveEvent>(
-            [](ll::event::PlayerLeaveEvent& event) {
+        PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>(
+            [](ll::event::PlayerDisconnectEvent& event) {
                 if (event.self().isSimulatedPlayer())
                     return;
                 std::string mUuid = event.self().getUuid().asString();
@@ -102,6 +105,6 @@ namespace LOICollection::ProtableTool::OrderedUI {
         ModalFormResponsePacketHook::unhook();
 
         auto& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerLeaveEventListener);
+        eventBus.removeListener(PlayerDisconnectEventListener);
     }
 }

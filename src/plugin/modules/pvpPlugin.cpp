@@ -1,8 +1,8 @@
 #include <memory>
 #include <string>
-#include <stdexcept>
 
-#include <ll/api/Logger.h>
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
@@ -36,8 +36,8 @@ using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::pvp {
     std::shared_ptr<SQLiteStorage> db;
+    std::shared_ptr<ll::io::Logger> logger;
     ll::event::ListenerPtr PlayerJoinEventListener;
-    ll::Logger logger("LOICollectionA - PVP");
 
     namespace MainGui {
         void open(Player& player) {
@@ -56,9 +56,6 @@ namespace LOICollection::Plugins::pvp {
 
     namespace {
         void registerCommand() {
-            auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery)
-                throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("setting", "§e§lLOICollection -> §b个人设置", CommandPermissionLevel::Any);
             command.overload().text("pvp").text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -133,16 +130,17 @@ namespace LOICollection::Plugins::pvp {
         if (value) {
             if (db->has("OBJECT$" + mObject))
                 db->set("OBJECT$" + mObject, "Pvp_Enable", "true");
-            logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "pvp.log1"), player));
+            logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "pvp.log1"), player));
             return;
         }
         if (db->has("OBJECT$" + mObject))
             db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
-        logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "pvp.log2"), player));
+        logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "pvp.log2"), player));
     }
 
     void registery(void* database) {
         db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
+        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         
         registerCommand();
         listenEvent();

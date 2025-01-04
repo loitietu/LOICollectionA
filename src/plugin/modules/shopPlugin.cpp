@@ -1,10 +1,10 @@
 #include <memory>
 #include <vector>
 #include <string>
-#include <stdexcept>
 #include <utility>
 
-#include <ll/api/Logger.h>
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/ModalForm.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/form/SimpleForm.h>
@@ -17,8 +17,10 @@
 
 #include <mc/nbt/Tag.h>
 #include <mc/nbt/CompoundTag.h>
+
 #include <mc/world/actor/player/Player.h>
-#include <mc/world/item/registry/ItemStack.h>
+#include <mc/world/item/ItemStack.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
@@ -48,7 +50,7 @@ namespace LOICollection::Plugins::shop {
     };
 
     std::unique_ptr<JsonStorage> db;
-    ll::Logger logger("LOICollectionA - Shop");
+    std::shared_ptr<ll::io::Logger> logger;
 
     namespace MainGui {
         void editNew(Player& player) {
@@ -100,7 +102,7 @@ namespace LOICollection::Plugins::shop {
                     db->set(mObjectInput1, mData);
                 db->save();
 
-                logger.info(translateString(ll::string_utils::replaceAll(tr({},
+                logger->info(translateString(ll::string_utils::replaceAll(tr({},
                     "shop.log1"), "${menu}", mObjectInput1), pl));
             });
         }
@@ -122,7 +124,7 @@ namespace LOICollection::Plugins::shop {
                             db->remove(key);
                             db->save();
 
-                            logger.info(translateString(ll::string_utils::replaceAll(tr({},
+                            logger->info(translateString(ll::string_utils::replaceAll(tr({},
                                 "shop.log2"), "${menu}", key), pl));
                         }
                     });
@@ -167,7 +169,7 @@ namespace LOICollection::Plugins::shop {
                 db->set(uiName, data);
                 db->save();
 
-                logger.info(translateString(ll::string_utils::replaceAll(tr({},
+                logger->info(translateString(ll::string_utils::replaceAll(tr({},
                     "shop.log4"), "${menu}", uiName), pl));
             });
         }
@@ -219,7 +221,7 @@ namespace LOICollection::Plugins::shop {
                 db->set(uiName, mContent);
                 db->save();
 
-                logger.info(translateString(ll::string_utils::replaceAll(tr({},
+                logger->info(translateString(ll::string_utils::replaceAll(tr({},
                     "menu.log5"), "${menu}", uiName), pl));
             });
         }
@@ -258,7 +260,7 @@ namespace LOICollection::Plugins::shop {
                         std::string logString = tr({}, "shop.log3");
                         ll::string_utils::replaceAll(logString, "${menu}", uiName);
                         ll::string_utils::replaceAll(logString, "${customize}", mId);
-                        logger.info(translateString(logString, pl));
+                        logger->info(translateString(logString, pl));
                     }
                 });
             });
@@ -348,7 +350,7 @@ namespace LOICollection::Plugins::shop {
                             MainGui::open(pl, mItem.at("menu").get<std::string>());
                             break;
                         default:
-                            logger.error("Unknown UI type {}.", mItem["type"].get<std::string>());
+                            logger->error("Unknown UI type {}.", mItem["type"].get<std::string>());
                             break;
                     };
                 });
@@ -370,7 +372,7 @@ namespace LOICollection::Plugins::shop {
                 if (type == ShopType::buy) {
                     if (checkModifiedData(pl, data, mNumber)) {
                         ItemStack itemStack = data.contains("nbt") ? ItemStack::fromTag(CompoundTag::fromSnbt(data.at("nbt").get<std::string>())->mTags)
-                            : ItemStack(data.at("id").get<std::string>(), 1);
+                            : ItemStack(data.at("id").get<std::string>(), 1, 0, nullptr);
                         for (int i = 0; i < (int)(mNumber / 64); ++i) {
                             ItemStack itemStackC = itemStack.clone();
                             itemStackC.mCount = 64;
@@ -437,20 +439,17 @@ namespace LOICollection::Plugins::shop {
                         MainGui::menu(player, data, ShopType::sell);
                         break;
                     default:
-                        logger.error("Unknown UI type {}.", data.at("type").get<std::string>());
+                        logger->error("Unknown UI type {}.", data.at("type").get<std::string>());
                         break;
                 };
                 return;
             }
-            logger.error("ShopUI {} reading failed.", uiName);
+            logger->error("ShopUI {} reading failed.", uiName);
         }
     }
 
     namespace {
         void registerCommand() {
-            auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery)
-                throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("shop", "§e§lLOICollection -> §b服务器商店", CommandPermissionLevel::Any);
             command.overload<ShopOP>().text("gui").required("uiName").execute([](CommandOrigin const& origin, CommandOutput& output, ShopOP param) {
@@ -490,6 +489,7 @@ namespace LOICollection::Plugins::shop {
 
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
+        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         
         registerCommand();
     }

@@ -1,8 +1,8 @@
 #include <memory>
 #include <string>
-#include <stdexcept>
 
-#include <ll/api/Logger.h>
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
@@ -38,8 +38,8 @@ using LOICollection::Plugins::language::getLanguage;
 namespace LOICollection::Plugins::announcement {
     std::unique_ptr<JsonStorage> db;
     std::shared_ptr<SQLiteStorage> db2;
+    std::shared_ptr<ll::io::Logger> logger;
     ll::event::ListenerPtr PlayerJoinEventListener;
-    ll::Logger logger("LOICollectionA - AnnounCement");
 
     namespace MainGui {
         void setting(Player& player) {
@@ -100,7 +100,7 @@ namespace LOICollection::Plugins::announcement {
                 db->set("content", data);
                 db->save();
 
-                logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "announcement.log"), pl));
+                logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "announcement.log"), pl));
             });
         }
 
@@ -116,9 +116,6 @@ namespace LOICollection::Plugins::announcement {
 
     namespace {
         void registerCommand() {
-            auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery)
-                throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("announcement", "§e§lLOICollection -> §a公告系统", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -188,6 +185,7 @@ namespace LOICollection::Plugins::announcement {
     void registery(void* database, void* config) {
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         db2 = *static_cast<std::shared_ptr<SQLiteStorage>*>(config);
+        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         
         if (!db->has("title") || !db->has("content")) {
             db->set("title", std::string("测试公告123"));

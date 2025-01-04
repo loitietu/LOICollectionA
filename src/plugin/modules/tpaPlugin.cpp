@@ -1,9 +1,9 @@
 #include <memory>
 #include <vector>
 #include <string>
-#include <stdexcept>
 
-#include <ll/api/Logger.h>
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/ModalForm.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/form/CustomForm.h>
@@ -16,7 +16,11 @@
 #include <ll/api/event/player/PlayerJoinEvent.h>
 #include <ll/api/utils/StringUtils.h>
 
+#include <mc/deps/core/string/HashedString.h>
+
+#include <mc/world/actor/ActorDefinitionIdentifier.h>
 #include <mc/world/actor/player/Player.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandSelector.h>
@@ -45,8 +49,8 @@ namespace LOICollection::Plugins::tpa {
     };
 
     std::shared_ptr<SQLiteStorage> db;
+    std::shared_ptr<ll::io::Logger> logger;
     ll::event::ListenerPtr PlayerJoinEventListener;
-    ll::Logger logger("LOICollectionA - TPA");
 
     namespace MainGui {
         void setting(Player& player) {
@@ -93,7 +97,7 @@ namespace LOICollection::Plugins::tpa {
                         ll::string_utils::replaceAll(logString, "${player1}", player.getRealName());
                         ll::string_utils::replaceAll(logString, "${player2}", pl.getRealName());
                     }
-                    logger.info(logString);
+                    logger->info(logString);
                     return;
                 }
                 player.sendMessage(ll::string_utils::replaceAll(
@@ -133,9 +137,6 @@ namespace LOICollection::Plugins::tpa {
 
     namespace {
         void registerCommand() {
-            auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery)
-                throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("tpa", "§e§lLOICollection -> §b玩家互传", CommandPermissionLevel::Any);
             command.overload<TpaOP>().text("invite").required("selectorType").required("target").execute([](CommandOrigin const& origin, CommandOutput& output, TpaOP const& param) {
@@ -200,6 +201,7 @@ namespace LOICollection::Plugins::tpa {
 
     void registery(void* database) {
         db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
+        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         
         registerCommand();
         listenEvent();

@@ -1,7 +1,7 @@
 #ifndef LOICOLLECTION_A_ACPLUGIN_H
 #define LOICOLLECTION_A_ACPLUGIN_H
 
-#include "ExportLib.h"
+#include "base/Macro.h"
 
 class Player;
 

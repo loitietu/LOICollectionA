@@ -1,17 +1,24 @@
 #include <memory>
 #include <string>
-#include <stdexcept>
 
-#include <ll/api/Logger.h>
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
+#include <ll/api/event/EventBus.h>
+#include <ll/api/event/ListenerBase.h>
+#include <ll/api/event/player/PlayerChatEvent.h>
 #include <ll/api/utils/StringUtils.h>
 
+#include <mc/deps/core/string/HashedString.h>
+
+#include <mc/world/actor/ActorDefinitionIdentifier.h>
 #include <mc/world/actor/player/Player.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandSelector.h>
@@ -41,7 +48,8 @@ namespace LOICollection::Plugins::mute {
     };
 
     std::unique_ptr<SQLiteStorage> db;
-    ll::Logger logger("LOICollectionA - Mute");
+    std::shared_ptr<ll::io::Logger> logger;
+    ll::event::ListenerPtr PlayerChatEventListener;
 
     namespace MainGui {
         void info(Player& player, std::string target) {
@@ -134,9 +142,6 @@ namespace LOICollection::Plugins::mute {
         };
 
         void registerCommand() {
-            auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery)
-                throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("mute", "§e§lLOICollection -> §b服务器禁言", CommandPermissionLevel::GameDirectors);
             command.overload<MuteOP>().text("add").required("target").execute(MuteCommandADD);
@@ -165,26 +170,30 @@ namespace LOICollection::Plugins::mute {
         }
 
         void listenEvent() {
-            LOICollection::HookPlugin::Event::onTextPacketSendEvent([](Player* player, std::string message) {
-                std::string mObject = player->getUuid().asString();
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-                if (db->has("OBJECT$" + mObject)) {
-                    if (SystemUtils::isReach(db->get("OBJECT$" + mObject, "time"))) {
-                        delMute(*player);
-                        return false;
+            auto& eventBus = ll::event::EventBus::getInstance();
+            PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>(
+                [](ll::event::PlayerChatEvent& event) {
+                    if (event.self().isSimulatedPlayer() || mute::isMute(event.self()))
+                        return;
+                    std::string mObject = event.self().getUuid().asString();
+                    std::replace(mObject.begin(), mObject.end(), '-', '_');
+                    if (db->has("OBJECT$" + mObject)) {
+                        if (SystemUtils::isReach(db->get("OBJECT$" + mObject, "time"))) {
+                            delMute(event.self());
+                            return;
+                        }
+
+                        std::string mObjectTips = tr(getLanguage(event.self()), "mute.tips");
+                        ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mObject, "cause"));
+                        ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
+                        event.self().sendMessage(mObjectTips);
+
+                        logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+                            tr({}, "mute.log3"), "${message}", event.message()), event.self()));
+                        return event.cancel();
                     }
-
-                    std::string mObjectTips = tr(getLanguage(*player), "mute.tips");
-                    ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mObject, "cause"));
-                    ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
-                    player->sendMessage(mObjectTips);
-
-                    logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
-                        tr({}, "mute.log3"), "${message}", message), *player));
-                    return true;
-                }
-                return false;
-            });
+                }, ll::event::EventPriority::High
+            );
         }
     }
 
@@ -202,7 +211,7 @@ namespace LOICollection::Plugins::mute {
             db->set("OBJECT$" + mObject, "time", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
             db->set("OBJECT$" + mObject, "subtime", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         }
-        logger.info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
+        logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
             tr({}, "mute.log1"), "${cause}", cause), player));
     }
 
@@ -215,7 +224,7 @@ namespace LOICollection::Plugins::mute {
     void delMute(std::string target) {
         if (db->has("OBJECT$" + target))
             db->remove("OBJECT$" + target);
-        logger.info(ll::string_utils::replaceAll(tr({}, "mute.log2"), "${target}", target));
+        logger->info(ll::string_utils::replaceAll(tr({}, "mute.log2"), "${target}", target));
     }
 
     bool isMute(Player& player) {
@@ -226,8 +235,14 @@ namespace LOICollection::Plugins::mute {
 
     void registery(void* database) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         
         registerCommand();
         listenEvent();
+    }
+    
+    void unregistery() {
+        auto& eventBus = ll::event::EventBus::getInstance();
+        eventBus.removeListener(PlayerChatEventListener);
     }
 }

@@ -1,9 +1,9 @@
 #include <memory>
 #include <vector>
 #include <string>
-#include <stdexcept>
 
-#include <ll/api/Logger.h>
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/ModalForm.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/form/SimpleForm.h>
@@ -18,8 +18,9 @@
 #include <ll/api/utils/StringUtils.h>
 #include <ll/api/utils/HashUtils.h>
 
+#include <mc/world/item/ItemStack.h>
 #include <mc/world/actor/player/Player.h>
-#include <mc/world/item/registry/ItemStack.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
@@ -49,9 +50,9 @@ namespace LOICollection::Plugins::menu {
 
     std::string mItemId;
     std::unique_ptr<JsonStorage> db;
+    std::shared_ptr<ll::io::Logger> logger;
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::event::ListenerPtr PlayerUseItemEventListener;
-    ll::Logger logger("LOICollectionA - Menu");
 
     namespace MainGui {
         void editNew(Player& player) {
@@ -114,7 +115,7 @@ namespace LOICollection::Plugins::menu {
                     db->set(mObjectInput1, mData);
                 db->save();
 
-                logger.info(translateString(ll::string_utils::replaceAll(tr({}, 
+                logger->info(translateString(ll::string_utils::replaceAll(tr({}, 
                     "menu.log1"), "${menu}", mObjectInput1), pl));
             });
         }
@@ -136,7 +137,7 @@ namespace LOICollection::Plugins::menu {
                             db->remove(key);
                             db->save();
 
-                            logger.info(translateString(ll::string_utils::replaceAll(tr({}, 
+                            logger->info(translateString(ll::string_utils::replaceAll(tr({}, 
                                 "menu.log2"), "${menu}", key), pl));
                         }
                     });
@@ -187,7 +188,7 @@ namespace LOICollection::Plugins::menu {
                 db->set(uiName, data);
                 db->save();
 
-                logger.info(translateString(ll::string_utils::replaceAll(tr({},
+                logger->info(translateString(ll::string_utils::replaceAll(tr({},
                     "menu.log5"), "${menu}", uiName), pl));
             });
         }
@@ -236,7 +237,7 @@ namespace LOICollection::Plugins::menu {
                 db->set(uiName, mContent);
                 db->save();
 
-                logger.info(translateString(ll::string_utils::replaceAll(tr({},
+                logger->info(translateString(ll::string_utils::replaceAll(tr({},
                     "menu.log6"), "${menu}", uiName), pl));
             });
         }
@@ -279,7 +280,7 @@ namespace LOICollection::Plugins::menu {
                     std::string logString = tr({}, "menu.log3");
                     ll::string_utils::replaceAll(logString, "${menu}", uiName);
                     ll::string_utils::replaceAll(logString, "${customize}", mId);
-                    logger.info(translateString(logString, pl));
+                    logger->info(translateString(logString, pl));
                 });
             });
         }
@@ -325,7 +326,7 @@ namespace LOICollection::Plugins::menu {
                 db->set(uiName, data);
                 db->save();
 
-                logger.info(translateString(ll::string_utils::replaceAll(tr({},
+                logger->info(translateString(ll::string_utils::replaceAll(tr({},
                     "menu.log4"), "${menu}", uiName), pl));
             });
         }
@@ -531,20 +532,17 @@ namespace LOICollection::Plugins::menu {
                         modal(player, data);
                         break;
                     default:
-                        logger.error("Unknown UI type {}.", data.at("type").get<std::string>());
+                        logger->error("Unknown UI type {}.", data.at("type").get<std::string>());
                         break;
                 }
                 return;
             }
-            logger.error("MenuUI {} reading failed.", uiName);
+            logger->error("MenuUI {} reading failed.", uiName);
         }
     }
 
     namespace {
         void registerCommand() {
-            auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery)
-                throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("menu", "§e§lLOICollection -> §b服务器菜单", CommandPermissionLevel::Any);
             command.overload<MenuOP>().text("gui").optional("uiName").execute([](CommandOrigin const& origin, CommandOutput& output, MenuOP param) {
@@ -574,9 +572,9 @@ namespace LOICollection::Plugins::menu {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
-                ItemStack itemStack(mItemId, 1);
+                ItemStack itemStack(mItemId, 1, 0, nullptr);
 
-                if (!itemStack)
+                if (!itemStack || itemStack.isNull())
                     return output.error("Failed to give the MenuItem to player {}", player.getRealName());
                 if (McUtils::isItemPlayerInventory(player, mItemId, 1))
                     return output.error("The MenuItem has already been given to player {}", player.getRealName());
@@ -602,7 +600,7 @@ namespace LOICollection::Plugins::menu {
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
-                    ItemStack itemStack(mItemId, 1);
+                    ItemStack itemStack(mItemId, 1, 0, nullptr);
                     if (!itemStack || McUtils::isItemPlayerInventory(event.self(), mItemId, 1))
                         return;
                     event.self().add(itemStack);
@@ -645,9 +643,10 @@ namespace LOICollection::Plugins::menu {
         }
     }
 
-    void registery(void* database, std::string itemid) {
-        mItemId = itemid;        
+    void registery(void* database, std::string itemid) {     
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
+        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
+        mItemId = itemid;
         
         registerCommand();
         listenEvent();

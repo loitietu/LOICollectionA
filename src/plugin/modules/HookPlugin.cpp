@@ -7,46 +7,48 @@
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/utils/RandomUtils.h>
 
-#include <mc/world/ActorUniqueID.h>
 #include <mc/world/actor/Mob.h>
 #include <mc/world/actor/Actor.h>
 #include <mc/world/actor/ActorDamageSource.h>
 #include <mc/world/actor/player/Player.h>
-#include <mc/world/actor/player/PlayerScoreSetFunction.h>
 
 #include <mc/world/scores/Objective.h>
 #include <mc/world/scores/ScoreInfo.h>
 #include <mc/world/scores/Scoreboard.h>
 #include <mc/world/scores/ScoreboardId.h>
+#include <mc/world/scores/PlayerScoreboardId.h>
+#include <mc/world/scores/IdentityDefinition.h>
+#include <mc/world/scores/PlayerScoreSetFunction.h>
 
 #include <mc/world/level/Level.h>
 #include <mc/world/level/LevelSeed64.h>
+#include <mc/world/level/LevelSettings.h>
 
 #include <mc/deps/core/utility/BinaryStream.h>
 
+#include <mc/network/ConnectionRequest.h>
+#include <mc/network/LoopbackPacketSender.h>
 #include <mc/network/packet/StartGamePacket.h>
 #include <mc/network/packet/LoginPacket.h>
 #include <mc/network/packet/TextPacket.h>
+#include <mc/network/packet/TextPacketType.h>
 #include <mc/network/ServerNetworkHandler.h>
 #include <mc/network/NetworkIdentifier.h>
 
 #include <mc/certificates/Certificate.h>
 #include <mc/certificates/ExtendedCertificate.h>
 
-#include <mc/server/ServerPlayer.h>
-#include <mc/server/LoopbackPacketSender.h>
+#include <mc/common/SubClientId.h>
+#include <mc/common/ActorUniqueID.h>
 
-#include <mc/enums/TextPacketType.h>
-#include <mc/enums/SubClientId.h>
+#include <mc/server/ServerPlayer.h>
 
 #include "include/HookPlugin.h"
 
 int64_t mFakeSeed = 0;
 std::vector<std::string> mInterceptedTextPacketTargets;
 std::vector<std::string> mInterceptedGetNameTagTargets;
-std::vector<std::function<bool(Player*, std::string)>> mTextPacketSendEventCallbacks;
 std::vector<std::function<void(NetworkIdentifier*, std::string, std::string)>> mLoginPacketSendEventCallbacks;
-std::vector<std::function<void(std::string)>> mPlayerDisconnectBeforeEventCallbacks;
 std::vector<std::function<void(Player*, int, std::string, ScoreChangedType)>> mPlayerScoreChangedEventCallbacks;
 std::vector<std::function<bool(Mob*, Actor*, float)>> mPlayerHurtEventCallbacks;
 
@@ -54,11 +56,11 @@ LL_TYPE_INSTANCE_HOOK(
     ServerStartGamePacketHook,
     HookPriority::Normal,
     StartGamePacket,
-    "?write@StartGamePacket@@UEBAXAEAVBinaryStream@@@Z",
+    &StartGamePacket::$write,
     void,
     BinaryStream& stream
 ) {
-    if (!mFakeSeed) this->mSettings.setRandomSeed(LevelSeed64(mFakeSeed));
+    if (!mFakeSeed) this->mSettings->setRandomSeed(LevelSeed64(mFakeSeed));
     return origin(stream);
 };
 
@@ -66,10 +68,10 @@ LL_TYPE_INSTANCE_HOOK(
     LL_TYPE_INSTANCE_HOOK(NAME, HookPriority::Normal, TYPE, SYMBOL, void,  __VA_ARGS__) {                       \
         if (packet.getId() == MinecraftPacketIds::Text) {                                                       \
             auto mTextPacket = static_cast<TextPacket const&>(packet);                                          \
-            if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.mParams.size() <= 1) {            \
+            if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.params.size() <= 1) {             \
                 if (mTextPacket.mMessage.find(LIMIT) == std::string::npos)                                      \
                     return origin VAL;                                                                          \
-                Player* player = ll::service::getLevel()->getPlayer(mTextPacket.mParams.at(0));                 \
+                Player* player = ll::service::getLevel()->getPlayer(mTextPacket.params.at(0));                  \
                 if (player == nullptr) return origin VAL;                                                       \
                 if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(),       \
                     player->getUuid().asString()) != mInterceptedTextPacketTargets.end())                       \
@@ -80,13 +82,13 @@ LL_TYPE_INSTANCE_HOOK(
     };                                                                                                          \
 
 InterceptPacketHookMacro(InterceptPacketHook1, LoopbackPacketSender, 
-    "?sendBroadcast@LoopbackPacketSender@@UEAAXAEBVNetworkIdentifier@@W4SubClientId@@AEBVPacket@@@Z",
+    &LoopbackPacketSender::$sendBroadcast,
     "multiplayer.player.joined", (identifier, subId, packet),
     NetworkIdentifier const& identifier, SubClientId subId, Packet const& packet
 )
 
 InterceptPacketHookMacro(InterceptPacketHook2, LoopbackPacketSender,
-    "?sendBroadcast@LoopbackPacketSender@@UEAAXAEBVPacket@@@Z",
+    &LoopbackPacketSender::$sendBroadcast,
     "multiplayer.player.left", (packet),
     Packet const& packet
 )
@@ -109,28 +111,10 @@ LL_TYPE_INSTANCE_HOOK(
 };
 
 LL_TYPE_INSTANCE_HOOK(
-    TextPacketSendHook,
-    HookPriority::High,
-    ServerNetworkHandler,
-    &ServerNetworkHandler::handle,
-    void,
-    NetworkIdentifier const& identifier,
-    TextPacket const& packet
-) {
-    Player* player = this->getServerPlayer(identifier, packet.mClientSubId);
-    
-    if (!player)
-        return origin(identifier, packet);
-    for (auto& callback : mTextPacketSendEventCallbacks)
-        if (callback(player, packet.mMessage)) return;
-    return origin(identifier, packet);
-};
-
-LL_TYPE_INSTANCE_HOOK(
     LoginPacketSendHook,
     HookPriority::Normal,
     ServerNetworkHandler,
-    &ServerNetworkHandler::handle,
+    &ServerNetworkHandler::$handle,
     void,
     NetworkIdentifier const& identifier,
     LoginPacket const& packet
@@ -141,20 +125,6 @@ LL_TYPE_INSTANCE_HOOK(
     auto ipAndPort = identifier.getIPAndPort();    
     for (auto& callback : mLoginPacketSendEventCallbacks)
         callback(&const_cast<NetworkIdentifier&>(identifier), uuid, ipAndPort);
-};
-
-LL_TYPE_INSTANCE_HOOK(
-    PlayerDisconnectBeforeHook,
-    HookPriority::Normal,
-    ServerPlayer,
-    &ServerPlayer::disconnect,
-    void
-) {
-    std::string mUuid = this->getUuid().asString();
-    
-    origin();
-    for (auto& callback : mPlayerDisconnectBeforeEventCallbacks)
-        callback(mUuid);
 };
 
 LL_TYPE_INSTANCE_HOOK(
@@ -184,50 +154,45 @@ LL_TYPE_INSTANCE_HOOK(
     return origin(success, id, objective, scoreValue, action);
 };
 
-#define PlayerHurtHookMacro(NAME, TYPE, SYMBOL, RET, VAL, ...)                                                                                  \
-    LL_TYPE_INSTANCE_HOOK(NAME, HookPriority::Normal, TYPE, SYMBOL, RET, __VA_ARGS__) {                                                         \
-        if (this->isPlayer()) {                                                                                                                 \
-            if (!source.isEntitySource())                                                                                                       \
-                return origin VAL;                                                                                                              \
-            Actor* damgeSource = nullptr;                                                                                                       \
-            source.isChildEntitySource() ? damgeSource = ll::service::getLevel()->fetchEntity(source.getEntityUniqueID())                       \
-                : damgeSource = ll::service::getLevel()->fetchEntity(source.getDamagingEntityUniqueID());                                       \
-            if (damgeSource == nullptr || !damgeSource->isPlayer() || damgeSource->getOrCreateUniqueID().id == this->getOrCreateUniqueID().id)  \
-                return origin VAL;                                                                                                              \
-            for (auto& callback : mPlayerHurtEventCallbacks)                                                                                    \
-                if (callback(this, damgeSource, damage)) return false;                                                                          \
-        }                                                                                                                                       \
-        return origin VAL;                                                                                                                      \
-    };                                                                                                                                          \
+#define PlayerHurtHookMacro(NAME, TYPE, SYMBOL, RET, RETV, VAL, ...)                                                                                    \
+    LL_TYPE_INSTANCE_HOOK(NAME, HookPriority::Normal, TYPE, SYMBOL, RET, __VA_ARGS__) {                                                                 \
+        if (this->isPlayer()) {                                                                                                                         \
+            if (!source.isEntitySource())                                                                                                               \
+                return origin VAL;                                                                                                                      \
+            Actor* damgeSource = nullptr;                                                                                                               \
+            source.isChildEntitySource() ? damgeSource = ll::service::getLevel()->fetchEntity(source.getEntityUniqueID(), false)                        \
+                : damgeSource = ll::service::getLevel()->fetchEntity(source.getDamagingEntityUniqueID(), false);                                        \
+            if (damgeSource == nullptr || !damgeSource->isPlayer() || damgeSource->getOrCreateUniqueID().rawID == this->getOrCreateUniqueID().rawID)    \
+                return origin VAL;                                                                                                                      \
+            for (auto& callback : mPlayerHurtEventCallbacks)                                                                                            \
+                if (callback(this, damgeSource, damage)) return RETV;                                                                                   \
+        }                                                                                                                                               \
+        return origin VAL;                                                                                                                              \
+    };                                                                                                                                                  \
 
-PlayerHurtHookMacro(PlayerHurtHook1, Mob, &Mob::getDamageAfterResistanceEffect,
-    float, (source, damage),
+PlayerHurtHookMacro(PlayerHurtHook1, Mob,
+    &Mob::getDamageAfterResistanceEffect,
+    float, 0, (source, damage),
     ActorDamageSource const& source,
     float damage
 )
-PlayerHurtHookMacro(PlayerHurtHook2, Mob, "?_hurt@Mob@@MEAA_NAEBVActorDamageSource@@M_N1@Z",
-    bool, (source, damage, knock, ignite),
+PlayerHurtHookMacro(PlayerHurtHook2, Mob,
+    &Mob::$_hurt, bool, false,
+    (source, damage, knock, ignite),
     ActorDamageSource const& source,
     float damage, bool knock, bool ignite
 )
-PlayerHurtHookMacro(PlayerHurtHook3, Mob, "?hurtEffects@Mob@@UEAAXAEBVActorDamageSource@@M_N1@Z",
-    bool, (source, damage, knock, ignite),
+PlayerHurtHookMacro(PlayerHurtHook3, Mob,
+    &Mob::$hurtEffects, void, void(),
+    (source, damage, knock, ignite),
     ActorDamageSource const& source,
     float damage, bool knock, bool ignite
 )
 
 namespace LOICollection::HookPlugin {
     namespace Event {
-        void onTextPacketSendEvent(const std::function<bool(Player*, std::string)>& callback) {
-            mTextPacketSendEventCallbacks.push_back(callback);
-        }
-
         void onLoginPacketSendEvent(const std::function<void(NetworkIdentifier*, std::string, std::string)>& callback) {
             mLoginPacketSendEventCallbacks.push_back(callback);
-        }
-
-        void onPlayerDisconnectBeforeEvent(const std::function<void(std::string)>& callback) {
-            mPlayerDisconnectBeforeEventCallbacks.push_back(callback);
         }
 
         void onPlayerScoreChangedEvent(const std::function<void(Player*, int, std::string, ScoreChangedType)>& callback) {
@@ -275,9 +240,7 @@ namespace LOICollection::HookPlugin {
         InterceptPacketHook1::hook();
         InterceptPacketHook2::hook();
         InterceptGetNameTagHook::hook();
-        TextPacketSendHook::hook();
         LoginPacketSendHook::hook();
-        PlayerDisconnectBeforeHook::hook();
         PlayerScoreChangedHook::hook();
         PlayerHurtHook1::hook();
         PlayerHurtHook2::hook();
@@ -289,9 +252,7 @@ namespace LOICollection::HookPlugin {
         InterceptPacketHook1::unhook();
         InterceptPacketHook2::unhook();
         InterceptGetNameTagHook::unhook();
-        TextPacketSendHook::unhook();
         LoginPacketSendHook::unhook();
-        PlayerDisconnectBeforeHook::unhook();
         PlayerScoreChangedHook::unhook();
         PlayerHurtHook1::unhook();
         PlayerHurtHook2::unhook();

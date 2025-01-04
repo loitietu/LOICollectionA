@@ -1,7 +1,7 @@
 #ifndef LOICOLLECTION_A_TPAPLUGIN_H
 #define LOICOLLECTION_A_TPAPLUGIN_H
 
-#include "ExportLib.h"
+#include "base/Macro.h"
 
 class Player;
 

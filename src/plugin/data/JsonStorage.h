@@ -9,7 +9,7 @@
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
-#include "ExportLib.h"
+#include "base/Macro.h"
 
 class JsonStorage {
 public:

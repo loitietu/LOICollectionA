@@ -1,5 +1,4 @@
 #include <regex>
-#include <chrono>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -13,8 +12,10 @@
 #include <ll/api/service/Bedrock.h>
 
 #include <mc/util/ProfilerLite.h>
+#include <mc/deps/core/math/Vec3.h>
+
 #include <mc/world/level/Level.h>
-#include <mc/world/actor/Actor.h>
+#include <mc/world/level/BlockPos.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/network/ServerNetworkHandler.h>
 
@@ -134,11 +135,11 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string(player.getNetworkStatus()->mCurrentPacketLoss);
         });
         registerVariable("server.tps", [](Player& /*unused*/) {
-            double mMspt = ((double) ProfilerLite::gProfilerLiteInstance.getServerTickTime().count() / 1000000.0);
+            double mMspt = ((double) ProfilerLite::gProfilerLiteInstance().getServerTickTime().count() / 1000000.0);
             return std::to_string(mMspt <= 50.0 ? 20.0 : (double)(1000.0 / mMspt));
         });
         registerVariable("server.mspt", [](Player& /*unused*/) { 
-            return std::to_string((double) ProfilerLite::gProfilerLiteInstance.getServerTickTime().count() / 1000000.0);
+            return std::to_string((double) ProfilerLite::gProfilerLiteInstance().getServerTickTime().count() / 1000000.0);
         });
         registerVariable("server.time", [](Player& /*unused*/) {
             return SystemUtils::getNowTime();

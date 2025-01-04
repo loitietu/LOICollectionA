@@ -10,7 +10,8 @@ option_end()
 
 add_requires("sqlitecpp 3.3.2", {configs = {shared = get_config("shared")}})
 add_requires(
-    "levilamina",
+    "levilamina develop",
+    "levibuildscript",
     "nlohmann_json 3.11.3"
 )
 
@@ -19,6 +20,7 @@ if not has_config("vs_runtime") then
 end
 
 target("LOICollectionA")
+    add_rules("@levibuildscript/linkrule")
     add_cxflags(
         "/EHa",
         "/utf-8",
@@ -32,19 +34,22 @@ target("LOICollectionA")
         "/w45204"
     )
     add_defines(
-        "_HAS_CXX23=1",
         "NOMINMAX",
         "UNICODE",
         "LOICOLLECTION_A_EXPORTS"
     )
-    add_files("src/plugin/**.cpp")
-    add_includedirs("src/plugin")
+    add_files(
+        "src/plugin/**.cpp"
+    )
+    add_includedirs(
+        "src/plugin"
+    )
     add_packages(
         "levilamina",
         "nlohmann_json",
-        "sqlitecpp"
+        "sqlitecpp",
+        "bdslibrary"
     )
-    add_shflags("/DELAYLOAD:bedrock_server.dll")
     set_exceptions("none")
     set_kind("shared")
     set_languages("cxx20")

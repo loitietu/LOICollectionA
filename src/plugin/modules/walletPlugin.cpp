@@ -1,9 +1,9 @@
 #include <map>
 #include <string>
-#include <stdexcept>
 #include <variant>
 
-#include <ll/api/Logger.h>
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/service/Bedrock.h>
@@ -14,7 +14,11 @@
 #include <ll/api/utils/StringUtils.h>
 #include <ll/api/utils/HashUtils.h>
 
+#include <mc/deps/core/string/HashedString.h>
+
+#include <mc/world/actor/ActorDefinitionIdentifier.h>
 #include <mc/world/actor/player/Player.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandSelector.h>
@@ -40,7 +44,7 @@ namespace LOICollection::Plugins::wallet {
     };
 
     std::map<std::string, std::variant<std::string, double>> mObjectOptions;
-    ll::Logger logger("LOICollectionA - Wallet");
+    std::shared_ptr<ll::io::Logger> logger;
 
     namespace MainGui {
         void content(Player& player, Player& target) {
@@ -69,7 +73,7 @@ namespace LOICollection::Plugins::wallet {
                 ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
                 ll::string_utils::replaceAll(logString, "${player2}", target.getRealName());
                 ll::string_utils::replaceAll(logString, "${money}", std::to_string(mMoney));
-                logger.info(logString);
+                logger->info(logString);
             });
         }
 
@@ -113,9 +117,6 @@ namespace LOICollection::Plugins::wallet {
 
     namespace {
         void registerCommand() {
-            auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery)
-                throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("wallet", "§e§lLOICollection -> §b个人钱包", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -157,6 +158,7 @@ namespace LOICollection::Plugins::wallet {
     }
 
     void registery(std::map<std::string, std::variant<std::string, double>>& options) {
+        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         mObjectOptions = options;
         
         registerCommand();

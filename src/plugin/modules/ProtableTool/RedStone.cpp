@@ -1,9 +1,9 @@
 #include <unordered_map>
 
 #include <ll/api/memory/Hook.h>
-#include <ll/api/schedule/Task.h>
-#include <ll/api/schedule/Scheduler.h>
+#include <ll/api/coro/CoroTask.h>
 #include <ll/api/service/Bedrock.h>
+#include <ll/api/thread/ServerThreadExecutor.h>
 #include <ll/api/chrono/GameChrono.h>
 
 #include <mc/world/level/Level.h>
@@ -31,34 +31,35 @@ std::unordered_map<DimensionType, std::unordered_map<BlockPos, int>> mRedStoneMa
     };                                                                                      \
 
 RedStoneUpdateHookMacro(RedStoneWireBlockHook, RedStoneWireBlock,
-    "?onRedstoneUpdate@RedStoneWireBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z",
+    &RedStoneWireBlock::$onRedstoneUpdate,
     (region, pos, strength, isFirstTime),
     BlockSource& region, BlockPos const& pos,
     int strength, bool isFirstTime
 )
 
 RedStoneUpdateHookMacro(RedStoneTorchBlockHook, RedstoneTorchBlock,
-    "?onRedstoneUpdate@RedstoneTorchBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z",
+    &RedstoneTorchBlock::$onRedstoneUpdate,
     (region, pos, strength, isFirstTime),
     BlockSource& region, BlockPos const& pos,
     int strength, bool isFirstTime
 )
 
 RedStoneUpdateHookMacro(DiodeBlockHook, DiodeBlock,
-    "?onRedstoneUpdate@DiodeBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z",
+    &DiodeBlock::$onRedstoneUpdate,
     (region, pos, strength, isFirstTime),
     BlockSource& region, BlockPos const& pos,
     int strength, bool isFirstTime
 )
 
 RedStoneUpdateHookMacro(ComparatorBlockHook, ComparatorBlock,
-    "?onRedstoneUpdate@ComparatorBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@H_N@Z",
+    &ComparatorBlock::$onRedstoneUpdate,
     (region, pos, strength, isFirstTime),
     BlockSource& region, BlockPos const& pos,
     int strength, bool isFirstTime
 )
 
-RedStoneUpdateHookMacro(ObserverBlockHook, ObserverBlock, &ObserverBlock::_updateState,
+RedStoneUpdateHookMacro(ObserverBlockHook, ObserverBlock,
+    &ObserverBlock::_updateState,
     (region, pos, component, turnOn),
     BlockSource& region, BlockPos const& pos, 
     PulseCapacitor& component, bool turnOn
@@ -80,15 +81,16 @@ namespace LOICollection::ProtableTool::RedStone {
         ComparatorBlockHook::hook();
         ObserverBlockHook::hook();
 
-        static ll::schedule::ServerTimeScheduler scheduler;
-        scheduler.add<ll::schedule::RepeatTask>(ll::chrono::ticks(20), [] {
-            if (mRedStoneMap.empty()) return;
+        ll::coro::keepThis([]() -> ll::coro::CoroTask<> {
+            co_await ll::chrono::ticks(20);
+            if (mRedStoneMap.empty()) 
+                co_return;
             for (auto it = mRedStoneMap.begin(); it != mRedStoneMap.end(); ++it) {
                 for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
                     if (it2->second >= mRedStoneTick) ll::service::getLevel()->destroyBlock(getBlockSource(it->first), it2->first, true);
             }
             mRedStoneMap.clear();
-        });
+        }).launch(ll::thread::ServerThreadExecutor::getDefault());
     }
 
     void unregistery() {

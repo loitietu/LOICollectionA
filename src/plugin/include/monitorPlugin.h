@@ -6,7 +6,7 @@
 #include <vector>
 #include <variant>
 
-#include "ExportLib.h"
+#include "base/Macro.h"
 
 namespace LOICollection::Plugins::monitor {
     LOICOLLECTION_A_API void registery(std::map<std::string, std::variant<std::string, std::vector<std::string>, int, bool>>& options);

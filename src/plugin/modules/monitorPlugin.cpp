@@ -3,15 +3,15 @@
 #include <vector>
 #include <variant>
 
-#include <ll/api/schedule/Task.h>
-#include <ll/api/schedule/Scheduler.h>
+#include <ll/api/coro/CoroTask.h>
 #include <ll/api/chrono/GameChrono.h>
+#include <ll/api/thread/ServerThreadExecutor.h>
 #include <ll/api/utils/StringUtils.h>
 
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
-#include <ll/api/event/player/PlayerLeaveEvent.h>
+#include <ll/api/event/player/PlayerDisconnectEvent.h>
 #include <ll/api/event/command/ExecuteCommandEvent.h>
 
 #include <mc/world/actor/player/Player.h>
@@ -25,22 +25,22 @@
 
 #include "include/monitorPlugin.h"
 
-static ll::schedule::GameTickAsyncScheduler scheduler;
-
 namespace LOICollection::Plugins::monitor {
     ll::event::ListenerPtr PlayerJoinEventListener;
-    ll::event::ListenerPtr PlayerLeaveEventListener;
+    ll::event::ListenerPtr PlayerDisconnectEventListener1;
+    ll::event::ListenerPtr PlayerDisconnectEventListener2;
     ll::event::ListenerPtr ExecuteCommandEvent;
 
     void registery(std::map<std::string, std::variant<std::string, std::vector<std::string>, int, bool>>& options) {
         if (std::get<bool>(options.at("BelowName_Enabled"))) {
-            scheduler.add<ll::schedule::RepeatTask>(ll::chrono_literals::operator""_tick(std::get<int>(options.at("BelowName_RefreshInterval"))), [options] {
+            ll::coro::keepThis([options]() -> ll::coro::CoroTask<> {
+                co_await ll::chrono::ticks(std::get<int>(options.at("BelowName_RefreshInterval")));
                 for (Player*& player : McUtils::getAllPlayers()) {
                     std::string mMonitorString = std::get<std::string>(options.at("BelowName_Text"));
                     LOICollection::LOICollectionAPI::translateString(mMonitorString, *player);
                     player->setNameTag(mMonitorString);
                 }
-            });
+            }).launch(ll::thread::ServerThreadExecutor::getDefault());
         }
         auto& eventBus = ll::event::EventBus::getInstance();
         if (std::get<bool>(options.at("ServerToast_Enabled"))) {
@@ -53,8 +53,8 @@ namespace LOICollection::Plugins::monitor {
                     McUtils::broadcastText(mMonitorString);
                 }
             );
-            PlayerLeaveEventListener = eventBus.emplaceListener<ll::event::PlayerLeaveEvent>(
-                [options](ll::event::PlayerLeaveEvent& event) {
+            PlayerDisconnectEventListener1 = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>(
+                [options](ll::event::PlayerDisconnectEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mMonitorString = std::get<std::string>(options.at("ServerToast_ExitText"));
@@ -106,17 +106,23 @@ namespace LOICollection::Plugins::monitor {
                 LOICollection::HookPlugin::interceptTextPacket(mUuid);
             LOICollection::HookPlugin::interceptGetNameTag(mUuid);
         });
-        LOICollection::HookPlugin::Event::onPlayerDisconnectBeforeEvent([options](std::string mUuid) {
-            if (std::get<bool>(options.at("ServerToast_Enabled")))
+
+        PlayerDisconnectEventListener2 = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>(
+            [options](ll::event::PlayerDisconnectEvent& event) {
+                if (event.self().isSimulatedPlayer())
+                    return;
+                std::string mUuid = event.self().getUuid().asString();
                 LOICollection::HookPlugin::uninterceptTextPacket(mUuid);
-            LOICollection::HookPlugin::uninterceptGetNameTag(mUuid);
-        });
+                LOICollection::HookPlugin::uninterceptGetNameTag(mUuid);
+            }
+        );
     }
 
     void unregistery() {
         auto& eventBus = ll::event::EventBus::getInstance();
         if (PlayerJoinEventListener) eventBus.removeListener(PlayerJoinEventListener);
-        if (PlayerLeaveEventListener) eventBus.removeListener(PlayerLeaveEventListener);
+        if (PlayerDisconnectEventListener1) eventBus.removeListener(PlayerDisconnectEventListener1);
+        if (PlayerDisconnectEventListener2) eventBus.removeListener(PlayerDisconnectEventListener2);
         if (ExecuteCommandEvent) eventBus.removeListener(ExecuteCommandEvent);
     }
 }

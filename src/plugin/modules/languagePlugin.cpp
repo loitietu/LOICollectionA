@@ -1,8 +1,8 @@
 #include <memory>
 #include <string>
-#include <stdexcept>
 
-#include <ll/api/Logger.h>
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
@@ -30,8 +30,8 @@ using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins::language {
     std::shared_ptr<SQLiteStorage> db;
+    std::shared_ptr<ll::io::Logger> logger;
     ll::event::ListenerPtr PlayerJoinEventListener;
-    ll::Logger logger("LOICollectionA - language");
 
     namespace MainGui {
         void open(Player& player) {
@@ -48,16 +48,13 @@ namespace LOICollection::Plugins::language {
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
                 db->set("OBJECT$" + mObject, "language", std::get<std::string>(dt->at("dropdown")));
                 
-                logger.info(LOICollection::LOICollectionAPI::translateString(tr({}, "language.log"), pl));
+                logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "language.log"), pl));
             });
         }
     }
 
     namespace {
         void registerCommand() {
-            auto commandRegistery = ll::service::getCommandRegistry();
-            if (!commandRegistery)
-                throw std::runtime_error("Failed to get command registry.");
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("setting", "§e§lLOICollection -> §b个人设置", CommandPermissionLevel::Any);
             command.overload().text("language").execute([](CommandOrigin const& origin, CommandOutput& output) {
@@ -98,6 +95,7 @@ namespace LOICollection::Plugins::language {
 
     void registery(void* database) {
         db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
+        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         
         registerCommand();
         listenEvent();

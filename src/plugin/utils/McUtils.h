@@ -11,6 +11,7 @@ class Player;
 class ScoreboardId;
 
 namespace McUtils {
+    void executeCommand(std::string cmd);
     void executeCommand(Player& player, std::string cmd);
     void clearItem(Player& player, std::string mTypeName, int mNumber);
     void broadcastText(const std::string& text);

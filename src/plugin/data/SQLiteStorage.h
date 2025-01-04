@@ -8,7 +8,7 @@
 
 #include <SQLiteCpp/SQLiteCpp.h>
 
-#include "ExportLib.h"
+#include "base/Macro.h"
 
 class SQLiteStorage {
 public:

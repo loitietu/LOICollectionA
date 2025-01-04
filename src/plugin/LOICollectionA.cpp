@@ -6,7 +6,7 @@
 #include <filesystem>
 
 #include <ll/api/Config.h>
-#include <ll/api/Logger.h>
+#include <ll/api/io/Logger.h>
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/Mod/RegisterHelper.h>
 
@@ -40,12 +40,13 @@
 #include "LOICollectionA.h"
 
 namespace LOICollection {
-    static std::unique_ptr<A> instance;
-
-    A& A::getInstance() { return *instance; }
+    A& A::getInstance() {
+        static A instance;
+        return instance;
+    }
 
     bool A::load() {
-        ll::Logger& logger = this->mSelf.getLogger();
+        ll::io::Logger& logger = this->mSelf.getLogger();
         const std::filesystem::path& dataFilePath = this->mSelf.getDataDir();
         const std::filesystem::path& langFilePath = this->mSelf.getLangDir();
         const std::filesystem::path& configDataPath = this->mSelf.getConfigDir();
@@ -152,6 +153,7 @@ namespace LOICollection {
     bool A::disable() {
         HookPlugin::unregistery();
         Plugins::language::unregistery();
+        if (this->config.Plugins.Mute) Plugins::mute::unregistery();
         if (this->config.Plugins.Tpa) Plugins::tpa::unregistery();
         if (this->config.Plugins.Pvp) Plugins::pvp::unregistery();
         if (this->config.Plugins.AnnounCement) Plugins::announcement::unregistery();
@@ -166,4 +168,4 @@ namespace LOICollection {
     }
 }
 
-LL_REGISTER_MOD(LOICollection::A, LOICollection::instance);
+LL_REGISTER_MOD(LOICollection::A, LOICollection::A::getInstance());

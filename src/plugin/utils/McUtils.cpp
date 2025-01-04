@@ -8,20 +8,22 @@
 #include <mc/world/Minecraft.h>
 #include <mc/world/Container.h>
 #include <mc/world/level/Level.h>
-#include <mc/world/level/Command.h>
 #include <mc/world/scores/Objective.h>
 #include <mc/world/scores/ScoreInfo.h>
 #include <mc/world/scores/Scoreboard.h>
 #include <mc/world/scores/ScoreboardId.h>
+#include <mc/world/scores/PlayerScoreSetFunction.h>
+
+#include <mc/deps/core/string/HashedString.h>
+
+#include <mc/world/item/ItemStack.h>
 #include <mc/world/actor/player/Player.h>
-#include <mc/world/actor/player/PlayerScoreSetFunction.h>
-#include <mc/world/item/registry/ItemStack.h>
 
-#include <mc/enums/CurrentCmdVersion.h>
-
+#include <mc/server/commands/Command.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandContext.h>
 #include <mc/server/commands/CommandVersion.h>
+#include <mc/server/commands/CurrentCmdVersion.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/ServerCommandOrigin.h>
 #include <mc/server/commands/MinecraftCommands.h>
@@ -29,13 +31,12 @@
 #include "McUtils.h"
 
 namespace McUtils {
-    void executeCommand(Player& player, std::string cmd) {
-        ll::string_utils::replaceAll(cmd, "${player}", player.getRealName());
+    void executeCommand(std::string cmd, int dimension) {
         auto origin = ServerCommandOrigin(
-            "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, player.getDimensionId()
+            "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, dimension
         );
         auto command = ll::service::getMinecraft()->getCommands().compileCommand(
-            std::string(cmd), origin, (CurrentCmdVersion)CommandVersion::CurrentVersion,
+            HashedString(cmd), origin, (CurrentCmdVersion)CommandVersion::CurrentVersion(),
             [&](std::string const& /*unused*/) {}
         );
         if (command) {
@@ -44,11 +45,18 @@ namespace McUtils {
         }
     }
 
+    void executeCommand(Player& player, std::string cmd) {
+        executeCommand(
+            ll::string_utils::replaceAll(cmd, "${player}", player.getRealName()),
+            player.getDimensionId()
+        );
+    }
+
     void clearItem(Player& player, std::string mTypeName, int mNumber) {
         Container& mItemInventory = player.getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             auto& mItemObject = mItemInventory.getItem(i);
-            if (mItemObject.isValid() && mTypeName == mItemObject.getTypeName()) {
+            if ((mItemObject || !mItemObject.isNull()) && mTypeName == mItemObject.getTypeName()) {
                 if (mItemObject.mCount >= mNumber) {
                     mItemInventory.removeItem(i, mNumber);
                     return;
@@ -80,7 +88,7 @@ namespace McUtils {
         Container& mItemInventory = player.getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             auto& mItemObject = mItemInventory.getItem(i);
-            if (mItemObject.isValid() && mTypeName == mItemObject.getTypeName()) {
+            if ((mItemObject || !mItemObject.isNull()) && mTypeName == mItemObject.getTypeName()) {
                 if (mNumber <= mItemObject.mCount)
                     return true;
                 mNumber -= mItemObject.mCount;
@@ -96,7 +104,7 @@ namespace McUtils {
             if (!identity.isValid())
                 return 0;
             auto obj = level->getScoreboard().getObjective(name);
-            return !obj ? 0 : obj->getPlayerScore(identity).mScore;
+            return !obj ? 0 : obj->getPlayerScore(identity).mValue;
         }
 
         void modifyScore(ScoreboardId& identity, const std::string& name, int score, int action) {
