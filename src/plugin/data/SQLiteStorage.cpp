@@ -62,7 +62,7 @@ std::string SQLiteStorage::get(std::string_view table, std::string_view key, std
 }
 
 std::vector<std::string> SQLiteStorage::list(std::string_view table) {
-    std::vector<std::string> keys;
+    std::vector<std::string> keys{};
 
     SQLite::Statement query(database, "SELECT key FROM " + std::string(table) + ";");
     while (query.executeStep())
@@ -71,7 +71,7 @@ std::vector<std::string> SQLiteStorage::list(std::string_view table) {
 }
 
 std::vector<std::string> SQLiteStorage::list() {
-    std::vector<std::string> tables;
+    std::vector<std::string> tables{};
 
     SQLite::Statement query(database, "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;");
     while (query.executeStep())

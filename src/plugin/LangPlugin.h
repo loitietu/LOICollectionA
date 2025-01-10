@@ -29,7 +29,6 @@ static nlohmann::ordered_json CNLangData = {
     {"blacklist.gui.info.remove", "§c删除该黑名单"},
     {"mute.log1", "玩家 {player}({player.uuid}) 被禁言，原因: ${cause}"},
     {"mute.log2", "目标 ${target} 已解除禁言"},
-    {"mute.log3", "玩家 {player}({player.uuid}) 已被禁言，但仍在尝试发送内容: ${message}"},
     {"mute.tips", "§4您已被禁言，无法发送消息 §e解除时间: §r${time} §b原因: §r${cause}"},
     {"mute.gui.title", "§eLOIMute §b-> §c服务器禁言"},
     {"mute.gui.label", "§a功能如下:"},

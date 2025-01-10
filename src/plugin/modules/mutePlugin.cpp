@@ -130,28 +130,37 @@ namespace LOICollection::Plugins::mute {
     }
 
     namespace {
-        const auto MuteCommandADD = [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) {
-            for (auto& pl : param.target.results(origin)) {
-                if (isMute(*pl) || (int) pl->getPlayerPermissionLevel() >= 2 || pl->isSimulatedPlayer())
-                    continue;
-                addMute(*pl, param.cause, param.time);
-
-                output.addMessage(fmt::format("Add player {}({}) to mute.", pl->getRealName(),
-                    pl->getUuid().asString()), {}, CommandOutputMessageType::Success);
-            }
-        };
-
         void registerCommand() {
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("mute", "§e§lLOICollection -> §b服务器禁言", CommandPermissionLevel::GameDirectors);
-            command.overload<MuteOP>().text("add").required("target").execute(MuteCommandADD);
-            command.overload<MuteOP>().text("add").required("target").required("time").execute(MuteCommandADD);
-            command.overload<MuteOP>().text("add").required("target").required("cause").execute(MuteCommandADD);
-            command.overload<MuteOP>().text("add").required("target").required("cause").required("time").execute(MuteCommandADD);
-            command.overload<MuteOP>().text("remove").required("target").execute([](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) {
-                for (auto& pl : param.target.results(origin)) {
-                    if (!isMute(*pl)) 
+            command.overload<MuteOP>().text("add").required("target").optional("cause").optional("time").execute(
+                [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param, Command const&) {
+                auto results = param.target.results(origin);
+                if (results.empty())
+                    return output.error("No player selected.");
+
+                for (Player*& pl : results) {
+                    if (isMute(*pl) || (int) pl->getPlayerPermissionLevel() >= 2 || pl->isSimulatedPlayer()) {
+                        output.error("Player {} cannot be added to the mute.", pl->getRealName());
                         continue;
+                    }
+                    addMute(*pl, param.cause, param.time);
+
+                    output.addMessage(fmt::format("Add player {}({}) to mute.", pl->getRealName(),
+                        pl->getUuid().asString()), {}, CommandOutputMessageType::Success);
+                }
+            });
+            command.overload<MuteOP>().text("remove").required("target").execute(
+                [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param, Command const&) {
+                auto results = param.target.results(origin);
+                if (results.empty())
+                    return output.error("No player selected.");
+                
+                for (Player*& pl : results) {
+                    if (!isMute(*pl)) {
+                        output.error("Player {} is not in the mute.", pl->getRealName());
+                        continue;
+                    }
                     delMute(*pl);
 
                     output.addMessage(fmt::format("Remove player {}({}) form mute.", pl->getRealName(),
@@ -173,8 +182,6 @@ namespace LOICollection::Plugins::mute {
             auto& eventBus = ll::event::EventBus::getInstance();
             PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>(
                 [](ll::event::PlayerChatEvent& event) {
-                    if (event.self().isSimulatedPlayer() || mute::isMute(event.self()))
-                        return;
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
                     if (db->has("OBJECT$" + mObject)) {
@@ -187,9 +194,7 @@ namespace LOICollection::Plugins::mute {
                         ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mObject, "cause"));
                         ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
                         event.self().sendMessage(mObjectTips);
-
-                        logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
-                            tr({}, "mute.log3"), "${message}", event.message()), event.self()));
+                        
                         return event.cancel();
                     }
                 }, ll::event::EventPriority::High

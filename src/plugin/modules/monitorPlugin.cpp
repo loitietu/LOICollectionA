@@ -31,14 +31,18 @@ namespace LOICollection::Plugins::monitor {
     ll::event::ListenerPtr PlayerDisconnectEventListener2;
     ll::event::ListenerPtr ExecuteCommandEvent;
 
+    bool BelowNameTaskRunning = true;
+
     void registery(std::map<std::string, std::variant<std::string, std::vector<std::string>, int, bool>>& options) {
         if (std::get<bool>(options.at("BelowName_Enabled"))) {
             ll::coro::keepThis([options]() -> ll::coro::CoroTask<> {
-                co_await ll::chrono::ticks(std::get<int>(options.at("BelowName_RefreshInterval")));
-                for (Player*& player : McUtils::getAllPlayers()) {
-                    std::string mMonitorString = std::get<std::string>(options.at("BelowName_Text"));
-                    LOICollection::LOICollectionAPI::translateString(mMonitorString, *player);
-                    player->setNameTag(mMonitorString);
+                while (BelowNameTaskRunning) {
+                    co_await ll::chrono::ticks(std::get<int>(options.at("BelowName_RefreshInterval")));
+                    for (Player*& player : McUtils::getAllPlayers()) {
+                        std::string mMonitorString = std::get<std::string>(options.at("BelowName_Text"));
+                        LOICollection::LOICollectionAPI::translateString(mMonitorString, *player);
+                        player->setNameTag(mMonitorString);
+                    }
                 }
             }).launch(ll::thread::ServerThreadExecutor::getDefault());
         }
@@ -66,7 +70,7 @@ namespace LOICollection::Plugins::monitor {
         if (std::get<bool>(options.at("ChangeScore_Enabled"))) {
             std::vector<std::string> mObjectScoreboards = std::get<std::vector<std::string>>(options.at("ChangeScore_Scores"));
             LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([options, mObjectScoreboards](Player* player, int score, std::string id, ScoreChangedType type) {
-                if (id.empty() || player == nullptr)
+                if (id.empty() || player == nullptr || (type != ScoreChangedType::set && !score))
                     return;
                 if (mObjectScoreboards.empty() || std::find(mObjectScoreboards.begin(), mObjectScoreboards.end(), id) != mObjectScoreboards.end()) {
                     int mOriScore = McUtils::scoreboard::getScore(*player, id);
@@ -124,5 +128,7 @@ namespace LOICollection::Plugins::monitor {
         if (PlayerDisconnectEventListener1) eventBus.removeListener(PlayerDisconnectEventListener1);
         if (PlayerDisconnectEventListener2) eventBus.removeListener(PlayerDisconnectEventListener2);
         if (ExecuteCommandEvent) eventBus.removeListener(ExecuteCommandEvent);
+
+        BelowNameTaskRunning = false;
     }
 }

@@ -40,11 +40,6 @@
 #include "LOICollectionA.h"
 
 namespace LOICollection {
-    A& A::getInstance() {
-        static A instance;
-        return instance;
-    }
-
     bool A::load() {
         ll::io::Logger& logger = this->mSelf.getLogger();
         const std::filesystem::path& dataFilePath = this->mSelf.getDataDir();
@@ -110,7 +105,12 @@ namespace LOICollection {
         if (this->config.Plugins.Blacklist) Plugins::blacklist::registery(&this->BlacklistDB);
         if (this->config.Plugins.Mute) Plugins::mute::registery(&this->MuteDB);
         if (this->config.Plugins.Cdk) Plugins::cdk::registery(&this->CdkDB);
-        if (this->config.Plugins.Menu.ModuleEnabled) Plugins::menu::registery(&this->MenuDB, this->config.Plugins.Menu.MenuItemId);
+        if (this->config.Plugins.Menu.ModuleEnabled) {
+            std::map<std::string, std::string> options;
+            options["MenuItemId"] = this->config.Plugins.Menu.MenuItemId;
+            options["EntranceKey"] = this->config.Plugins.Menu.EntranceKey;
+            Plugins::menu::registery(&this->MenuDB, options);
+        }
         if (this->config.Plugins.Tpa) Plugins::tpa::registery(&this->SettingsDB);
         if (this->config.Plugins.Shop) Plugins::shop::registery(&this->ShopDB);
         if (this->config.Plugins.Monitor.ModuleEnabled) {

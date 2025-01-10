@@ -48,7 +48,7 @@ namespace LOICollection::Plugins::menu {
         std::string uiName;
     };
 
-    std::string mItemId;
+    std::map<std::string, std::string> mObjectOptions;
     std::unique_ptr<JsonStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
     ll::event::ListenerPtr PlayerJoinEventListener;
@@ -545,12 +545,15 @@ namespace LOICollection::Plugins::menu {
         void registerCommand() {
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("menu", "§e§lLOICollection -> §b服务器菜单", CommandPermissionLevel::Any);
-            command.overload<MenuOP>().text("gui").optional("uiName").execute([](CommandOrigin const& origin, CommandOutput& output, MenuOP param) {
+            command.overload<MenuOP>().text("gui").optional("uiName").execute(
+                [](CommandOrigin const& origin, CommandOutput& output, MenuOP param, Command const&) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
-                MainGui::open(player, param.uiName.empty() ? "main" : param.uiName);
+                MainGui::open(player, param.uiName.empty() ? 
+                    mObjectOptions.at("EntranceKey") : param.uiName
+                );
                 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
@@ -572,11 +575,11 @@ namespace LOICollection::Plugins::menu {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
-                ItemStack itemStack(mItemId, 1, 0, nullptr);
+                ItemStack itemStack(mObjectOptions.at("MenuItemId"), 1, 0, nullptr);
 
                 if (!itemStack || itemStack.isNull())
                     return output.error("Failed to give the MenuItem to player {}", player.getRealName());
-                if (McUtils::isItemPlayerInventory(player, mItemId, 1))
+                if (McUtils::isItemPlayerInventory(player, mObjectOptions.at("MenuItemId"), 1))
                     return output.error("The MenuItem has already been given to player {}", player.getRealName());
 
                 player.add(itemStack);
@@ -592,7 +595,7 @@ namespace LOICollection::Plugins::menu {
                 [](ll::event::PlayerUseItemEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
-                    if (event.item().getTypeName() == mItemId)
+                    if (event.item().getTypeName() == mObjectOptions.at("MenuItemId"))
                         MainGui::open(event.self(), "main");
                 }
             );
@@ -600,8 +603,8 @@ namespace LOICollection::Plugins::menu {
                 [](ll::event::PlayerJoinEvent& event) {
                     if (event.self().isSimulatedPlayer())
                         return;
-                    ItemStack itemStack(mItemId, 1, 0, nullptr);
-                    if (!itemStack || McUtils::isItemPlayerInventory(event.self(), mItemId, 1))
+                    ItemStack itemStack(mObjectOptions.at("MenuItemId"), 1, 0, nullptr);
+                    if (!itemStack || McUtils::isItemPlayerInventory(event.self(), mObjectOptions.at("MenuItemId"), 1))
                         return;
                     event.self().add(itemStack);
                     event.self().refreshInventory();
@@ -643,10 +646,10 @@ namespace LOICollection::Plugins::menu {
         }
     }
 
-    void registery(void* database, std::string itemid) {     
+    void registery(void* database, std::map<std::string, std::string>& options) {     
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        mItemId = itemid;
+        mObjectOptions = options;
         
         registerCommand();
         listenEvent();

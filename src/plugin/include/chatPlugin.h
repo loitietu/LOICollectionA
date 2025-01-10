@@ -22,7 +22,8 @@ namespace LOICollection::Plugins::chat {
     LOICOLLECTION_A_API   void addChat(Player& player, std::string text, int time);
     LOICOLLECTION_A_API   void delChat(Player& player, std::string text);
 
-    LOICOLLECTION_A_NDAPI bool isChat(Player& player, std::string text);
+    LOICOLLECTION_A_NDAPI bool isValid();
+    LOICOLLECTION_A_NDAPI bool isChat(Player& player, std::string text);    
 
     LOICOLLECTION_A_NDAPI std::string getTitle(Player& player);
     LOICOLLECTION_A_NDAPI std::string getTitleTime(Player& player, std::string text);

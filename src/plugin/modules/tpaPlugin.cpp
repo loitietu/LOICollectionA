@@ -41,11 +41,13 @@ using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::tpa {
+    enum SelectorType : int {
+        tpa = 0,
+        tphere = 1
+    };
     struct TpaOP {
-        enum SelectorType {
-            tpa, tphere
-        } selectorType;
         CommandSelector<Player> target;
+        SelectorType type;
     };
 
     std::shared_ptr<SQLiteStorage> db;
@@ -139,14 +141,21 @@ namespace LOICollection::Plugins::tpa {
         void registerCommand() {
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("tpa", "§e§lLOICollection -> §b玩家互传", CommandPermissionLevel::Any);
-            command.overload<TpaOP>().text("invite").required("selectorType").required("target").execute([](CommandOrigin const& origin, CommandOutput& output, TpaOP const& param) {
+            command.overload<TpaOP>().text("invite").required("type").required("target").execute(
+                [](CommandOrigin const& origin, CommandOutput& output, TpaOP const& param, Command const&) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
-                for (Player*& pl : param.target.results(origin)) {
-                    MainGui::tpa(player, *pl, param.selectorType == TpaOP::tpa
-                        ? TpaType::tpa : TpaType::tphere);
+
+                auto results = param.target.results(origin);
+                if (results.empty())
+                    return output.error("No player selected.");
+
+                for (Player*& pl : results) {
+                    MainGui::tpa(player, *pl, param.type == SelectorType::tpa
+                        ? TpaType::tpa : TpaType::tphere
+                    );
 
                     output.addMessage(fmt::format("{} has been invited.", 
                         pl->getRealName()), {}, CommandOutputMessageType::Success);
@@ -162,8 +171,7 @@ namespace LOICollection::Plugins::tpa {
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
             
-            auto& settingCommand = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("setting", "§e§lLOICollection -> §b个人设置", CommandPermissionLevel::Any);
+            auto& settingCommand = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
             settingCommand.overload().text("tpa").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())

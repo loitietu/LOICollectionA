@@ -128,14 +128,18 @@ namespace LOICollection::Plugins::wallet {
 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload<WalletOP>().text("transfer").required("target").required("score").execute([](CommandOrigin const& origin, CommandOutput& output, WalletOP const& param) {
+            command.overload<WalletOP>().text("transfer").required("target").required("score").execute(
+                [](CommandOrigin const& origin, CommandOutput& output, WalletOP const& param, Command const&) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
 
-                std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
                 auto mTargetLists = param.target.results(origin);
+                if (mTargetLists.empty())
+                    return output.error("No player selected.");
+
+                std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
                 if (McUtils::scoreboard::getScore(player, mScore) < (int)(mTargetLists.size() * param.score))
                     return output.error("You don't have enough score.");
                 int mMoney = (param.score - (int)(param.score * std::get<double>(mObjectOptions.at("tax"))));

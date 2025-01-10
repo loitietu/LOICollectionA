@@ -8,10 +8,10 @@
 请勿使用记事本等不支持 `.json` 格式的文本编辑器进行编辑，以免导致配置文件结构损坏。
 
 ## 配置文件结构
-> 以下为 LOICollectionA 1.5.2 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以下为 LOICollectionA 1.6.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 ```json
 {
-    "version": 152, // 配置文件版本号，请勿修改
+    "version": 160, // 配置文件版本号，请勿修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
         "FakeSeed": "$random", // 假种子配置，其中 $random 为随机数，其余为数字时是固定值（为 0 时不启用）
@@ -23,7 +23,8 @@
         "Cdk": false, // 是否启用 CDK
         "Menu": { // 菜单配置
             "ModuleEnabled": false, // 是否启用菜单
-            "MenuItemId": "minecraft:clock"  // 打开菜单物品 ID
+            "MenuItemId": "minecraft:clock",  // 打开菜单物品 ID
+            "EntranceKey": "main" // 菜单入口
         },
         "Tpa": false, // 是否启用 TPA
         "Shop": false, // 是否启用商店

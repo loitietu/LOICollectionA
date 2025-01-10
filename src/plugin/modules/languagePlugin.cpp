@@ -28,6 +28,13 @@
 
 using I18nUtilsTools::tr;
 
+std::vector<std::string> keys() {
+    std::vector<std::string> keys;
+    for (const auto& item : I18nUtils::getInstance()->data)
+        keys.push_back(item.first);
+    return keys;
+}
+
 namespace LOICollection::Plugins::language {
     std::shared_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
@@ -39,8 +46,10 @@ namespace LOICollection::Plugins::language {
             
             ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
-            form.appendLabel(ll::string_utils::replaceAll(tr(mObjectLanguage, "language.gui.lang"), "${language}", tr(mObjectLanguage, "name")));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), I18nUtilsTools::keys());
+            form.appendLabel(ll::string_utils::replaceAll(
+                tr(mObjectLanguage, "language.gui.lang"), "${language}", tr(mObjectLanguage, "name")
+            ));
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys());
             form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return;
 
@@ -85,12 +94,13 @@ namespace LOICollection::Plugins::language {
     }
 
     std::string getLanguage(std::string mObject) {
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
         return db->get("OBJECT$" + mObject, "language", "zh_CN");
     }
 
     std::string getLanguage(Player& player) {
-        return getLanguage(player.getUuid().asString());
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        return getLanguage(mObject);
     }
 
     void registery(void* database) {

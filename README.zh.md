@@ -32,7 +32,7 @@ lip install github.com/loitietu/LOICollectionA
 3. 打开后，您会看到类似以下内容的内容：
 ```json
 {
-    "version": 152,
+    "version": 160,
     "ConsoleLanguage": "system",
     "Plugins": {
         "FakeSeed": "$random",
@@ -44,7 +44,8 @@ lip install github.com/loitietu/LOICollectionA
         "Cdk": false,
         "Menu": {
             "ModuleEnabled": false,
-            "MenuItemId": "minecraft:clock" 
+            "MenuItemId": "minecraft:clock",
+            "EntranceKey": "main"
         },
         "Tpa": false,
         "Shop": false,

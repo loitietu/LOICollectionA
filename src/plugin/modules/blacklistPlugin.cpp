@@ -50,14 +50,12 @@ namespace LOICollection::Plugins::blacklist {
         ip = 0,
         uuid = 1
     };
-    struct BlacklistAdd {
+    struct BlacklistOP {
         CommandSelector<Player> target;
         SelectorType type;
+        std::string object;
         std::string cause;
         int time = 0;
-    };
-    struct BlacklistRemove {
-        std::string target;
     };
 
     std::unique_ptr<SQLiteStorage> db;
@@ -129,7 +127,7 @@ namespace LOICollection::Plugins::blacklist {
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"),
                 tr(mObjectLanguage, "blacklist.gui.remove.label"));
-            for (auto& mItem : db->list()) {
+            for (std::string& mItem : db->list()) {
                 ll::string_utils::replaceAll(mItem, "OBJECT$", "");
                 form.appendButton(mItem, [mItem](Player& pl) {
                     MainGui::info(pl, mItem);
@@ -158,13 +156,13 @@ namespace LOICollection::Plugins::blacklist {
         void registerCommand() {
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("blacklist", "§e§lLOICollection -> §b服务器黑名单", CommandPermissionLevel::GameDirectors);
-            command.overload<BlacklistAdd>().text("add").required("type").required("target").optional("cause").optional("time").execute(
-                [&](CommandOrigin const& origin, CommandOutput& output, BlacklistAdd const& param, Command const&) {
+            command.overload<BlacklistOP>().text("add").required("type").required("target").optional("cause").optional("time").execute(
+                [](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param, Command const&) {
                 auto results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");
 
-                for (auto& pl : results) {
+                for (Player*& pl : results) {
                     if (isBlacklist(*pl) || (int) pl->getPlayerPermissionLevel() >= 2 || pl->isSimulatedPlayer()) {
                         output.error("Player {} cannot be added to the blacklist.", pl->getRealName());
                         continue;
@@ -177,15 +175,15 @@ namespace LOICollection::Plugins::blacklist {
                         pl->getRealName()), {}, CommandOutputMessageType::Success);
                 }
             });
-            command.overload<BlacklistRemove>().text("remove").required("target").execute(
-                [&](CommandOrigin const&, CommandOutput& output, BlacklistRemove const& param, Command const&) {
-                if (!db->has("OBJECT$" + param.target))
-                    return output.error("Object {} is not in blacklist.", param.target);
-                delBlacklist(param.target);
+            command.overload<BlacklistOP>().text("remove").required("object").execute(
+                [](CommandOrigin const&, CommandOutput& output, BlacklistOP const& param, Command const&) {
+                if (!db->has("OBJECT$" + param.object))
+                    return output.error("Object {} is not in blacklist.", param.object);
+                delBlacklist(param.object);
 
-                output.success("Remove object {} from blacklist.", param.target);
+                output.success("Remove object {} from blacklist.", param.object);
             });
-            command.overload().text("list").execute([&](CommandOrigin const&, CommandOutput& output) {
+            command.overload().text("list").execute([](CommandOrigin const&, CommandOutput& output) {
                 std::vector<std::string> mObjectList = db->list();
                 std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), 
                     [](const std::string& a, const std::string& b) {
@@ -195,7 +193,7 @@ namespace LOICollection::Plugins::blacklist {
 
                 output.success("Blacklist: {}", result.empty() ? "None" : result);
             });
-            command.overload().text("gui").execute([&](CommandOrigin const& origin, CommandOutput& output) {
+            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");

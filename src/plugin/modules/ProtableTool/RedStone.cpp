@@ -70,7 +70,8 @@ BlockSource& getBlockSource(DimensionType mDimensionId) {
 }
 
 namespace LOICollection::ProtableTool::RedStone {
-    int mRedStoneTick;
+    int mRedStoneTick = 0;
+    bool RedStoneTaskRunning = true;
 
     void registery(int mTick) {
         mRedStoneTick = mTick;
@@ -82,14 +83,16 @@ namespace LOICollection::ProtableTool::RedStone {
         ObserverBlockHook::hook();
 
         ll::coro::keepThis([]() -> ll::coro::CoroTask<> {
-            co_await ll::chrono::ticks(20);
-            if (mRedStoneMap.empty()) 
-                co_return;
-            for (auto it = mRedStoneMap.begin(); it != mRedStoneMap.end(); ++it) {
-                for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
-                    if (it2->second >= mRedStoneTick) ll::service::getLevel()->destroyBlock(getBlockSource(it->first), it2->first, true);
+            while (RedStoneTaskRunning) {
+                co_await ll::chrono::ticks(20);
+                if (mRedStoneMap.empty()) 
+                    continue;
+                for (auto it = mRedStoneMap.begin(); it != mRedStoneMap.end(); ++it) {
+                    for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+                        if (it2->second >= mRedStoneTick) ll::service::getLevel()->destroyBlock(getBlockSource(it->first), it2->first, true);
+                }
+                mRedStoneMap.clear();
             }
-            mRedStoneMap.clear();
         }).launch(ll::thread::ServerThreadExecutor::getDefault());
     }
 
@@ -99,5 +102,7 @@ namespace LOICollection::ProtableTool::RedStone {
         DiodeBlockHook::unhook();
         ComparatorBlockHook::unhook();
         ObserverBlockHook::unhook();
+
+        RedStoneTaskRunning = false;
     }
 }

@@ -2,7 +2,6 @@
 #define I18NUTILS_H
 
 #include <memory>
-#include <vector>
 #include <string>
 #include <unordered_map>
 
@@ -35,13 +34,6 @@ public:
 namespace I18nUtilsTools {
     inline std::string tr(const std::string& local, const std::string& key) {
         return I18nUtils::getInstance()->get(local, key);
-    }
-
-    inline std::vector<std::string> keys() {
-        std::vector<std::string> keys;
-        for (const auto& item : I18nUtils::getInstance()->data)
-            keys.push_back(item.first);
-        return keys;
     }
 }
 

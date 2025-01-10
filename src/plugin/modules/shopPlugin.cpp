@@ -452,7 +452,8 @@ namespace LOICollection::Plugins::shop {
         void registerCommand() {
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("shop", "§e§lLOICollection -> §b服务器商店", CommandPermissionLevel::Any);
-            command.overload<ShopOP>().text("gui").required("uiName").execute([](CommandOrigin const& origin, CommandOutput& output, ShopOP param) {
+            command.overload<ShopOP>().text("gui").required("uiName").execute(
+                [](CommandOrigin const& origin, CommandOutput& output, ShopOP param, Command const&) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");

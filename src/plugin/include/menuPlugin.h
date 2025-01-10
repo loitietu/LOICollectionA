@@ -1,6 +1,7 @@
 #ifndef LOICOLLECTION_A_MENUPLUGIN_H
 #define LOICOLLECTION_A_MENUPLUGIN_H
 
+#include <map>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -37,7 +38,7 @@ namespace LOICollection::Plugins::menu {
 
     LOICOLLECTION_A_API   void logicalExecution(Player& player, nlohmann::ordered_json& data, nlohmann::ordered_json original);
 
-    LOICOLLECTION_A_API   void registery(void* database, std::string itemid);
+    LOICOLLECTION_A_API   void registery(void* database, std::map<std::string, std::string>& options);
     LOICOLLECTION_A_API   void unregistery();
 }
 

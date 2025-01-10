@@ -161,24 +161,27 @@ namespace LOICollection::Plugins::chat {
         void registerCommand() {
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("chat", "§e§lLOICollection -> §b个人称号", CommandPermissionLevel::GameDirectors);
-            command.overload<ChatOP>().text("add").required("target").required("titleName").optional("time").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
-                for (auto& pl : param.target.results(origin)) {
+            command.overload<ChatOP>().text("add").required("target").required("titleName").optional("time").execute(
+                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param, Command const&) {
+                for (Player*& pl : param.target.results(origin)) {
                     addChat(*pl, param.titleName, param.time);
 
                     output.addMessage(fmt::format("Add Chat for Player {}.", 
                         pl->getRealName()), {}, CommandOutputMessageType::Success);
                 }
             });
-            command.overload<ChatOP>().text("remove").required("target").required("titleName").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
-                for (auto& pl : param.target.results(origin)) {
+            command.overload<ChatOP>().text("remove").required("target").required("titleName").execute(
+                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param, Command const&) {
+                for (Player*& pl : param.target.results(origin)) {
                     delChat(*pl, param.titleName);
 
                     output.addMessage(fmt::format("Remove Chat for Player {}.",
                         pl->getRealName()), {}, CommandOutputMessageType::Success);
                 }
             });
-            command.overload<ChatOP>().text("set").required("target").required("titleName").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
-                for (auto& pl : param.target.results(origin)) {
+            command.overload<ChatOP>().text("set").required("target").required("titleName").execute(
+                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param, Command const&) {
+                for (Player*& pl : param.target.results(origin)) {
                     std::string mObject = pl->getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
                     if (db->has("OBJECT$" + mObject + "$TITLE", param.titleName))
@@ -188,8 +191,9 @@ namespace LOICollection::Plugins::chat {
                         pl->getRealName()), {}, CommandOutputMessageType::Success);
                 }
             });
-            command.overload<ChatOP>().text("list").required("target").execute([](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
-                for (auto& player : param.target.results(origin)) {
+            command.overload<ChatOP>().text("list").required("target").execute(
+                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param, Command const&) {
+                for (Player*& player : param.target.results(origin)) {
                     std::string mObject = player->getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
 
@@ -213,8 +217,7 @@ namespace LOICollection::Plugins::chat {
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
 
-            auto& settingCommand = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("setting", "§e§lLOICollection -> §b个人设置", CommandPermissionLevel::Any);
+            auto& settingCommand = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
             settingCommand.overload().text("chat").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
@@ -303,6 +306,10 @@ namespace LOICollection::Plugins::chat {
             tr({}, "chat.log3"), "${title}", text), player));
     }
 
+    bool isValid() {
+        return logger != nullptr && db != nullptr;
+    }
+
     bool isChat(Player& player, std::string text) {
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
@@ -334,7 +341,7 @@ namespace LOICollection::Plugins::chat {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         mChatString = chat;
-
+        
         registerCommand();
         listenEvent();
     }

@@ -18,6 +18,7 @@ struct C_Config {
         struct C_Menu {
             bool ModuleEnabled = false;
             std::string MenuItemId = "minecraft:clock";
+            std::string EntranceKey = "main";
         } Menu;
         bool Tpa = false;
         bool Shop = false;

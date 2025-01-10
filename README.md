@@ -32,7 +32,7 @@
 3. After opening, you will see content similar to the following:
 ```json
 {
-    "version": 152,
+    "version": 160,
     "ConsoleLanguage": "system",
     "Plugins": {
         "FakeSeed": "$random",
@@ -44,7 +44,8 @@
         "Cdk": false,
         "Menu": {
             "ModuleEnabled": false,
-            "MenuItemId": "minecraft:clock" 
+            "MenuItemId": "minecraft:clock",
+            "EntranceKey": "main"
         },
         "Tpa": false,
         "Shop": false,

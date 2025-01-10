@@ -10,17 +10,14 @@
 11:44:58.298 INFO [Server] blacklist:
 11:44:58.298 INFO [Server] LOICollection -> 服务器黑名单
 11:44:58.298 INFO [Server] Usage:
-11:44:58.298 INFO [Server] - /blacklist add <ip|uuid> <target: target>
-11:44:58.298 INFO [Server] - /blacklist add <ip|uuid> <target: target> <cause: string>
-11:44:58.298 INFO [Server] - /blacklist add <ip|uuid> <target: target> <cause: string> <time: int>
-11:44:58.298 INFO [Server] - /blacklist add <ip|uuid> <target: target> <time: int>
+11:44:58.298 INFO [Server] - /blacklist add <ip|uuid> <target: target> [cause: string] [time: int]
 11:44:58.298 INFO [Server] - /blacklist gui
 11:44:58.298 INFO [Server] - /blacklist list
 11:44:58.298 INFO [Server] - /blacklist remove <targetName: string>
 ```
 ?> 其中 `blacklist` 为 Blacklist 的顶层命令（权限等级: GameDirectors）。
 
-- `/blacklist add <ip|uuid> <target: target> <cause: string> <time: int>`
+- `/blacklist add <ip|uuid> <target: target> [cause: string] [time: int]`
   - 向黑名单中添加一个目标。
   - 其中 `<ip|uuid>` 为目标的 IP 或 UUID。
   - 其中 `<target: target>` 为目标选择器。
@@ -43,17 +40,14 @@
 11:45:36.007 INFO [Server] mute:
 11:45:36.007 INFO [Server] LOICollection -> 服务器禁言
 11:45:36.007 INFO [Server] Usage:
-11:45:36.007 INFO [Server] - /mute add <target: target>
-11:45:36.007 INFO [Server] - /mute add <target: target> <cause: string>
-11:45:36.007 INFO [Server] - /mute add <target: target> <cause: string> <time: int>
-11:45:36.007 INFO [Server] - /mute add <target: target> <time: int>
+11:45:36.007 INFO [Server] - /mute add <target: target> [cause: string] [time: int]
 11:45:36.007 INFO [Server] - /mute gui
 11:45:36.007 INFO [Server] - /mute remove <target: target>
 ```
 
 ?> 其中 `mute` 为 Mute 的顶层命令（权限等级: GameDirectors）。
 
-- `/mute add <target: target> <cause: string> <time: int>`
+- `/mute add <target: target> [cause: string] [time: int]`
   - 向禁言列表中添加一个目标。
   - 其中 `<target: target>` 为目标选择器。
   - 其中 `<cause: string>` 为添加的原因。
@@ -83,11 +77,11 @@
   - 总换CDK。
   - 其中 `<convertString: string>` 为要总换的CDK。
 
+- `/cdk edit`
+  - 打开总换CDK设置（权限等级: GameDirectors）。
+
 - `/cdk gui`
   - 打开总换CDK GUI。
-
-- `/cdk setting`
-  - 打开总换CDK设置（权限等级: GameDirectors）。
 
 ## Menu
 ```log
@@ -288,4 +282,4 @@
 - `/setting tpa`
   - 打开个人 TPA 设置界面。
 
-!> 以上属于 LOICollectionA 1.5.2 版本的命令列表，对于后续版本的命令列表可能会有所不同。 
+!> 以上属于 LOICollectionA 1.6.0 版本的命令列表，对于后续版本的命令列表可能会有所不同。 

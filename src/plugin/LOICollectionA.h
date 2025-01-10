@@ -12,9 +12,17 @@
 namespace LOICollection {
     class A {
     public:
-        static A& getInstance();
+        static A& getInstance() {
+            static A instance;
+            return instance;
+        }
+
         A() : mSelf(*ll::mod::NativeMod::current()) {}
-        [[nodiscard]] ll::mod::NativeMod& getSelf() const { return mSelf; }
+
+        [[nodiscard]] ll::mod::NativeMod& getSelf() const { 
+            return mSelf;
+        }
+
         bool load();
         bool enable();
         bool disable();

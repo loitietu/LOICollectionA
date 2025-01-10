@@ -238,7 +238,8 @@ namespace LOICollection::Plugins::cdk {
         void registerCommand() {
             auto& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("cdk", "§e§lLOICollection -> §b总换码", CommandPermissionLevel::Any);
-            command.overload<CDKOP>().text("convert").required("convertString").execute([](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) {
+            command.overload<CDKOP>().text("convert").required("convertString").execute(
+                [](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param, Command const&) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
@@ -286,7 +287,7 @@ namespace LOICollection::Plugins::cdk {
             nlohmann::ordered_json mPlayerList = cdkJson.at("player");
             if (std::find(mPlayerList.begin(), mPlayerList.end(), player.getUuid().asString()) != mPlayerList.end())
                 return player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips2"));
-            if (cdkJson.contains("title")) {
+            if (cdkJson.contains("title") && chat::isValid()) {
                 nlohmann::ordered_json mTitleList = cdkJson.at("title");
                 for (nlohmann::ordered_json::iterator it = mTitleList.begin(); it != mTitleList.end(); ++it)
                     chat::addChat(player, it.key(), it.value().get<int>());
