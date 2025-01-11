@@ -64,7 +64,7 @@ namespace LOICollection::Plugins::language {
 
     namespace {
         void registerCommand() {
-            auto& command = ll::command::CommandRegistrar::getInstance()
+            ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("setting", "§e§lLOICollection -> §b个人设置", CommandPermissionLevel::Any);
             command.overload().text("language").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();

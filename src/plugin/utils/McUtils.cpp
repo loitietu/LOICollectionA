@@ -1,5 +1,6 @@
 #include <vector>
 #include <string>
+#include <functional>
 
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
@@ -67,9 +68,10 @@ namespace McUtils {
         }
     }
 
-    void broadcastText(const std::string& text) {
-        ll::service::getLevel()->forEachPlayer([text](Player& player) {
-            player.sendMessage(text);
+    void broadcastText(const std::string& text, std::function<bool(Player&)> filter) {
+        ll::service::getLevel()->forEachPlayer([text, filter = std::move(filter)](Player& player) {
+            if (filter(player) && !text.empty())
+                player.sendMessage(text);
             return true;
         });
     }

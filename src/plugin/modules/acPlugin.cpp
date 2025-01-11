@@ -141,7 +141,7 @@ namespace LOICollection::Plugins::announcement {
                 output.error("No permission to open the edit.");
             });
 
-            auto& settingCommand = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
+            ll::command::CommandHandle& settingCommand = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
             settingCommand.overload().text("announcement").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())

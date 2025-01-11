@@ -90,7 +90,7 @@ namespace LOICollection {
         I18nUtils::getInstance() = std::make_unique<I18nUtils>(langFilePath.string());
         I18nUtils::getInstance()->setDefaultLocal(this->config.ConsoleLanguage == "system" ?
             SystemUtils::getSystemLocaleCode() : this->config.ConsoleLanguage);
-        logger.info("Initialization of language file completed.");
+        logger.info("Initialization of language completed.");
 
         HookPlugin::setFakeSeed(this->config.Plugins.FakeSeed);
         logger.info("Initialization of Hook completed.");
@@ -136,7 +136,11 @@ namespace LOICollection {
             options["tax"] = this->config.Plugins.Wallet.ExchangeRate;
             Plugins::wallet::registery(options);
         }
-        if (this->config.Plugins.Chat.ModuleEnabled) Plugins::chat::registery(&this->ChatDB, this->config.Plugins.Chat.FormatText);
+        if (this->config.Plugins.Chat.ModuleEnabled) {
+            std::map<std::string, std::string> options;
+            options["chat"] = this->config.Plugins.Chat.FormatText;
+            Plugins::chat::registery(&this->ChatDB, options);
+        }
         if (this->config.Plugins.AnnounCement) Plugins::announcement::registery(&this->AnnounCementDB, &this->SettingsDB);
         if (this->config.Plugins.Market.ModuleEnabled) {
             std::map<std::string, std::variant<std::string, int>> options;

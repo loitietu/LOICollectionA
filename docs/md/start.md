@@ -44,4 +44,4 @@ lip install --upgrade github.com/loitietu/LOICollectionA
 
 ### 常见问题
 - **无法启用: unknown error when make exception string**
-  - 对于这个问题，可以前往 Github Release 手动安装 `LOICollectionA-ES-windows-x64.zip` 版本
+  - 对于这个问题，可以尝试前往 Github Release 手动安装 `LOICollectionA-ES-windows-x64.zip` 版本

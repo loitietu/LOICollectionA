@@ -450,7 +450,7 @@ namespace LOICollection::Plugins::shop {
 
     namespace {
         void registerCommand() {
-            auto& command = ll::command::CommandRegistrar::getInstance()
+            ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("shop", "§e§lLOICollection -> §b服务器商店", CommandPermissionLevel::Any);
             command.overload<ShopOP>().text("gui").required("uiName").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ShopOP param, Command const&) {

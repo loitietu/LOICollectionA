@@ -56,7 +56,7 @@ namespace LOICollection::Plugins::pvp {
 
     namespace {
         void registerCommand() {
-            auto& command = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
+            ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
             command.overload().text("pvp").text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())

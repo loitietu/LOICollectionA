@@ -82,7 +82,7 @@
         },
         "Chat": {
             "ModuleEnabled": false,
-            "FormatText": "<{player}> ${chat}",
+            "FormatText": "<{player}> ${chat}"
         },
         "AnnounCement": false,
         "Market": {

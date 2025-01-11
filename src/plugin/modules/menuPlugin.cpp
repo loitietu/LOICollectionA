@@ -543,7 +543,7 @@ namespace LOICollection::Plugins::menu {
 
     namespace {
         void registerCommand() {
-            auto& command = ll::command::CommandRegistrar::getInstance()
+            ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("menu", "§e§lLOICollection -> §b服务器菜单", CommandPermissionLevel::Any);
             command.overload<MenuOP>().text("gui").optional("uiName").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, MenuOP param, Command const&) {

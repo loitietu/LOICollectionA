@@ -236,7 +236,7 @@ namespace LOICollection::Plugins::cdk {
 
     namespace {
         void registerCommand() {
-            auto& command = ll::command::CommandRegistrar::getInstance()
+            ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("cdk", "§e§lLOICollection -> §b总换码", CommandPermissionLevel::Any);
             command.overload<CDKOP>().text("convert").required("convertString").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param, Command const&) {

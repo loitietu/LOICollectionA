@@ -49,7 +49,7 @@ namespace LOICollection::Plugins::chat {
         int time = 0;
     };
 
-    std::string mChatString;
+    std::map<std::string, std::string> mObjectOptions;
     std::unique_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
     ll::event::ListenerPtr PlayerChatEventListener;
@@ -159,7 +159,7 @@ namespace LOICollection::Plugins::chat {
 
     namespace {
         void registerCommand() {
-            auto& command = ll::command::CommandRegistrar::getInstance()
+            ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("chat", "§e§lLOICollection -> §b个人称号", CommandPermissionLevel::GameDirectors);
             command.overload<ChatOP>().text("add").required("target").required("titleName").optional("time").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param, Command const&) {
@@ -217,7 +217,7 @@ namespace LOICollection::Plugins::chat {
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
 
-            auto& settingCommand = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
+            ll::command::CommandHandle& settingCommand = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
             settingCommand.overload().text("chat").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
@@ -253,7 +253,7 @@ namespace LOICollection::Plugins::chat {
                         return;
                     event.cancel();
                     
-                    std::string mChat = mChatString;
+                    std::string mChat = mObjectOptions.at("chat");
                     ll::string_utils::replaceAll(mChat, "${chat}", event.message());
                     LOICollection::LOICollectionAPI::translateString(mChat, event.self());
                     McUtils::broadcastText(mChat);
@@ -337,10 +337,10 @@ namespace LOICollection::Plugins::chat {
         return "None";
     }
 
-    void registery(void* database, std::string chat) {
+    void registery(void* database, std::map<std::string, std::string> options) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        mChatString = chat;
+        mObjectOptions = options;
         
         registerCommand();
         listenEvent();

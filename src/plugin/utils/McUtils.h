@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -14,7 +15,7 @@ namespace McUtils {
     void executeCommand(std::string cmd);
     void executeCommand(Player& player, std::string cmd);
     void clearItem(Player& player, std::string mTypeName, int mNumber);
-    void broadcastText(const std::string& text);
+    void broadcastText(const std::string& text, std::function<bool(Player&)> filter = {});
 
     std::vector<Player*> getAllPlayers();
         

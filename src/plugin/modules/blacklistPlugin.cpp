@@ -154,7 +154,7 @@ namespace LOICollection::Plugins::blacklist {
 
     namespace {
         void registerCommand() {
-            auto& command = ll::command::CommandRegistrar::getInstance()
+            ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("blacklist", "§e§lLOICollection -> §b服务器黑名单", CommandPermissionLevel::GameDirectors);
             command.overload<BlacklistOP>().text("add").required("type").required("target").optional("cause").optional("time").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param, Command const&) {

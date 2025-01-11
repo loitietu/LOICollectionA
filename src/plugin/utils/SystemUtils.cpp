@@ -13,11 +13,11 @@
 namespace SystemUtils {
     std::string getSystemLocaleCode() {
         wchar_t buf[LOCALE_NAME_MAX_LENGTH]{};
-        if (GetUserDefaultLocaleName(buf, LOCALE_NAME_MAX_LENGTH) == 0)
+        if (!GetUserDefaultLocaleName(buf, LOCALE_NAME_MAX_LENGTH))
             return "";
 
         int mSize = WideCharToMultiByte(CP_UTF8, 0, buf, -1, NULL, 0, NULL, NULL);
-        if (mSize == 0)
+        if (!mSize)
             return "";
 
         std::string locale(mSize - 1, '\0');

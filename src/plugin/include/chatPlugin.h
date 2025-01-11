@@ -1,6 +1,7 @@
 #ifndef LOICOLLECTION_A_CHATPLUGIN_H
 #define LOICOLLECTION_A_CHATPLUGIN_H
 
+#include <map>
 #include <string>
 
 #include "base/Macro.h"
@@ -14,6 +15,9 @@ namespace LOICollection::Plugins::chat {
         LOICOLLECTION_A_API void add(Player& player);
         LOICOLLECTION_A_API void remove(Player& player);
         LOICOLLECTION_A_API void title(Player& player);
+        LOICOLLECTION_A_API void blockWordSet(Player& player, std::string target);
+        LOICOLLECTION_A_API void blockWordAdd(Player& player);
+        LOICOLLECTION_A_API void blockWord(Player& player);
         LOICOLLECTION_A_API void setting(Player& player);
         LOICOLLECTION_A_API void open(Player& player);
     }
@@ -28,7 +32,7 @@ namespace LOICollection::Plugins::chat {
     LOICOLLECTION_A_NDAPI std::string getTitle(Player& player);
     LOICOLLECTION_A_NDAPI std::string getTitleTime(Player& player, std::string text);
 
-    LOICOLLECTION_A_API   void registery(void* database, std::string chat);
+    LOICOLLECTION_A_API   void registery(void* database, std::map<std::string, std::string> options);
     LOICOLLECTION_A_API   void unregistery();
 }
 

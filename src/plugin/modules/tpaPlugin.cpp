@@ -139,7 +139,7 @@ namespace LOICollection::Plugins::tpa {
 
     namespace {
         void registerCommand() {
-            auto& command = ll::command::CommandRegistrar::getInstance()
+            ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("tpa", "§e§lLOICollection -> §b玩家互传", CommandPermissionLevel::Any);
             command.overload<TpaOP>().text("invite").required("type").required("target").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, TpaOP const& param, Command const&) {
@@ -171,7 +171,7 @@ namespace LOICollection::Plugins::tpa {
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
             
-            auto& settingCommand = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
+            ll::command::CommandHandle& settingCommand = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
             settingCommand.overload().text("tpa").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
