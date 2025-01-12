@@ -162,7 +162,7 @@ namespace LOICollection::Plugins::chat {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("chat", "§e§lLOICollection -> §b个人称号", CommandPermissionLevel::GameDirectors);
             command.overload<ChatOP>().text("add").required("target").required("titleName").optional("time").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param, Command const&) {
+                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
                 for (Player*& pl : param.target.results(origin)) {
                     addChat(*pl, param.titleName, param.time);
 
@@ -171,7 +171,7 @@ namespace LOICollection::Plugins::chat {
                 }
             });
             command.overload<ChatOP>().text("remove").required("target").required("titleName").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param, Command const&) {
+                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
                 for (Player*& pl : param.target.results(origin)) {
                     delChat(*pl, param.titleName);
 
@@ -180,7 +180,7 @@ namespace LOICollection::Plugins::chat {
                 }
             });
             command.overload<ChatOP>().text("set").required("target").required("titleName").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param, Command const&) {
+                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
                 for (Player*& pl : param.target.results(origin)) {
                     std::string mObject = pl->getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
@@ -192,7 +192,7 @@ namespace LOICollection::Plugins::chat {
                 }
             });
             command.overload<ChatOP>().text("list").required("target").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param, Command const&) {
+                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
                 for (Player*& player : param.target.results(origin)) {
                     std::string mObject = player->getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');

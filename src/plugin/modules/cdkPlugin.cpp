@@ -239,7 +239,7 @@ namespace LOICollection::Plugins::cdk {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("cdk", "§e§lLOICollection -> §b总换码", CommandPermissionLevel::Any);
             command.overload<CDKOP>().text("convert").required("convertString").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param, Command const&) {
+                [](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");

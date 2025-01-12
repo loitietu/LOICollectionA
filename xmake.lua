@@ -11,7 +11,7 @@ option_end()
 add_requires("sqlitecpp 3.3.2", {configs = {shared = get_config("shared")}})
 add_requires(
     "prelink",
-    "levilamina 1.0.0-rc.2",
+    "levilamina 1.0.0-rc.3",
     "levibuildscript",
     "nlohmann_json 3.11.3"
 )

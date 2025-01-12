@@ -546,7 +546,7 @@ namespace LOICollection::Plugins::menu {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("menu", "§e§lLOICollection -> §b服务器菜单", CommandPermissionLevel::Any);
             command.overload<MenuOP>().text("gui").optional("uiName").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, MenuOP param, Command const&) {
+                [](CommandOrigin const& origin, CommandOutput& output, MenuOP param) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");

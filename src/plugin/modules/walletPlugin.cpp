@@ -129,7 +129,7 @@ namespace LOICollection::Plugins::wallet {
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
             command.overload<WalletOP>().text("transfer").required("target").required("score").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, WalletOP const& param, Command const&) {
+                [](CommandOrigin const& origin, CommandOutput& output, WalletOP const& param) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");

@@ -134,7 +134,7 @@ namespace LOICollection::Plugins::mute {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("mute", "§e§lLOICollection -> §b服务器禁言", CommandPermissionLevel::GameDirectors);
             command.overload<MuteOP>().text("add").required("target").optional("cause").optional("time").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param, Command const&) {
+                [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) {
                 auto results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");
@@ -151,7 +151,7 @@ namespace LOICollection::Plugins::mute {
                 }
             });
             command.overload<MuteOP>().text("remove").required("target").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param, Command const&) {
+                [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) {
                 auto results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");

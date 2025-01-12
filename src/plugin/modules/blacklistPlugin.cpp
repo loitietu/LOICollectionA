@@ -157,7 +157,7 @@ namespace LOICollection::Plugins::blacklist {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("blacklist", "§e§lLOICollection -> §b服务器黑名单", CommandPermissionLevel::GameDirectors);
             command.overload<BlacklistOP>().text("add").required("type").required("target").optional("cause").optional("time").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param, Command const&) {
+                [](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param) {
                 auto results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");
@@ -176,7 +176,7 @@ namespace LOICollection::Plugins::blacklist {
                 }
             });
             command.overload<BlacklistOP>().text("remove").required("object").execute(
-                [](CommandOrigin const&, CommandOutput& output, BlacklistOP const& param, Command const&) {
+                [](CommandOrigin const&, CommandOutput& output, BlacklistOP const& param) {
                 if (!db->has("OBJECT$" + param.object))
                     return output.error("Object {} is not in blacklist.", param.object);
                 delBlacklist(param.object);

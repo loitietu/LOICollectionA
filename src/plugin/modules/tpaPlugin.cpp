@@ -142,7 +142,7 @@ namespace LOICollection::Plugins::tpa {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("tpa", "§e§lLOICollection -> §b玩家互传", CommandPermissionLevel::Any);
             command.overload<TpaOP>().text("invite").required("type").required("target").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, TpaOP const& param, Command const&) {
+                [](CommandOrigin const& origin, CommandOutput& output, TpaOP const& param) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
