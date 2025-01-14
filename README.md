@@ -14,7 +14,7 @@
 - [x] Pvp
 - [x] Wallet
 - [x] Chat
-- [x] Announcement
+- [x] Notice
 - [x] Market
 
 ### How to Install the Plugin?
@@ -84,7 +84,7 @@
             "ModuleEnabled": false,
             "FormatText": "<{player}> ${chat}"
         },
-        "AnnounCement": false,
+        "Notice": false,
         "Market": {
             "ModuleEnabled": false,
             "TargetScoreboard": "money",

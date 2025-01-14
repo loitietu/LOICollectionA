@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_SHOPPLUGIN_H
-#define LOICOLLECTION_A_SHOPPLUGIN_H
+#pragma once
 
 #include <string>
 
@@ -35,5 +34,3 @@ namespace LOICollection::Plugins::shop {
 
     LOICOLLECTION_A_API   void registery(void* database);
 }
-
-#endif

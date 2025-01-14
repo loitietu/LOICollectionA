@@ -1,5 +1,4 @@
-#ifndef SQLITESTORAGE_H
-#define SQLITESTORAGE_H
+#pragma once
 
 #include <vector>
 #include <string>
@@ -32,5 +31,3 @@ public:
 private:
     SQLite::Database database;
 };
-
-#endif

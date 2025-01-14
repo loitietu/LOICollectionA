@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_MONITORPLUGIN_H
-#define LOICOLLECTION_A_MONITORPLUGIN_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -12,5 +11,3 @@ namespace LOICollection::Plugins::monitor {
     LOICOLLECTION_A_API void registery(std::map<std::string, std::variant<std::string, std::vector<std::string>, int, bool>>& options);
     LOICOLLECTION_A_API void unregistery();
 }
-
-#endif

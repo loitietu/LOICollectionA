@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_TPAPLUGIN_H
-#define LOICOLLECTION_A_TPAPLUGIN_H
+#pragma once
 
 #include "base/Macro.h"
 
@@ -23,5 +22,3 @@ namespace LOICollection::Plugins::tpa {
     LOICOLLECTION_A_API   void registery(void* database);
     LOICOLLECTION_A_API   void unregistery();
 }
-
-#endif

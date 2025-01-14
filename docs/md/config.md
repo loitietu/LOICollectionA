@@ -63,7 +63,7 @@
             "ModuleEnabled": false, // 是否启用聊天强化
             "FormatText": "<{player}> ${chat}" // 聊天消息格式，支持 LOICollectionA API 变量
         },
-        "AnnounCement": false, // 是否启用公告栏
+        "Notice": false, // 是否启用公告栏
         "Market": { // 玩家市场配置
             "ModuleEnabled": false, // 是否启用玩家市场
             "TargetScoreboard": "money", // 玩家市场指定使用 Score 对象

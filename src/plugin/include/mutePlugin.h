@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_MUTE_H
-#define LOICOLLECTION_A_MUTE_H
+#pragma once
 
 #include <string>
 
@@ -25,5 +24,3 @@ namespace LOICollection::Plugins::mute {
     LOICOLLECTION_A_API   void registery(void* database);
     LOICOLLECTION_A_API   void unregistery();
 }
-
-#endif

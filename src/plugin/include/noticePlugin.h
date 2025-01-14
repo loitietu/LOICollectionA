@@ -1,11 +1,10 @@
-#ifndef LOICOLLECTION_A_ACPLUGIN_H
-#define LOICOLLECTION_A_ACPLUGIN_H
+#pragma once
 
 #include "base/Macro.h"
 
 class Player;
 
-namespace LOICollection::Plugins::announcement {
+namespace LOICollection::Plugins::notice {
     namespace MainGui {
         LOICOLLECTION_A_API void setting(Player& player);
         LOICOLLECTION_A_API void edit(Player& player);
@@ -17,5 +16,3 @@ namespace LOICollection::Plugins::announcement {
     LOICOLLECTION_A_API   void registery(void* database, void* config);
     LOICOLLECTION_A_API   void unregistery();
 }
-
-#endif

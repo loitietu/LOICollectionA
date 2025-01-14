@@ -1,9 +1,7 @@
-#ifndef TOOLUTILS_H
-#define TOOLUTILS_H
+#pragma once
 
 #include <string>
 #include <vector>
-#include <functional>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -15,7 +13,7 @@ namespace McUtils {
     void executeCommand(std::string cmd);
     void executeCommand(Player& player, std::string cmd);
     void clearItem(Player& player, std::string mTypeName, int mNumber);
-    void broadcastText(const std::string& text, std::function<bool(Player&)> filter = {});
+    void broadcastText(const std::string& text);
 
     std::vector<Player*> getAllPlayers();
         
@@ -28,5 +26,3 @@ namespace McUtils {
         void reduceScore(Player& player, const std::string &name, int score);
     }
 }
-
-#endif

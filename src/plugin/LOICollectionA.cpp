@@ -29,7 +29,7 @@
 #include "include/pvpPlugin.h"
 #include "include/walletPlugin.h"
 #include "include/chatPlugin.h"
-#include "include/acPlugin.h"
+#include "include/noticePlugin.h"
 #include "include/marketPlugin.h"
 
 #include "include/ProtableTool/RedStone.h"
@@ -75,11 +75,11 @@ namespace LOICollection {
         this->MuteDB = std::make_unique<SQLiteStorage>(dataFilePath / "mute.db");
         this->ChatDB = std::make_unique<SQLiteStorage>(dataFilePath / "chat.db");
         this->MarketDB = std::make_unique<SQLiteStorage>(dataFilePath / "market.db");
-        this->AnnounCementDB = std::make_unique<JsonStorage>(configDataPath / "announcement.json");
+        this->NoticeDB = std::make_unique<JsonStorage>(configDataPath / "notice.json");
         this->CdkDB = std::make_unique<JsonStorage>(configDataPath / "cdk.json");
         this->MenuDB = std::make_unique<JsonStorage>(configDataPath / "menu.json");
         this->ShopDB = std::make_unique<JsonStorage>(configDataPath / "shop.json");
-        logger.info("Initialization of database file completed.");
+        logger.info("Initialization of database completed.");
         
         std::filesystem::create_directory(langFilePath);
         if (this->config.Plugins.language.FileUpdate) {
@@ -141,7 +141,7 @@ namespace LOICollection {
             options["chat"] = this->config.Plugins.Chat.FormatText;
             Plugins::chat::registery(&this->ChatDB, options);
         }
-        if (this->config.Plugins.AnnounCement) Plugins::announcement::registery(&this->AnnounCementDB, &this->SettingsDB);
+        if (this->config.Plugins.Notice) Plugins::notice::registery(&this->NoticeDB, &this->SettingsDB);
         if (this->config.Plugins.Market.ModuleEnabled) {
             std::map<std::string, std::variant<std::string, int>> options;
             options["score"] = this->config.Plugins.Market.TargetScoreboard;
@@ -160,7 +160,7 @@ namespace LOICollection {
         if (this->config.Plugins.Mute) Plugins::mute::unregistery();
         if (this->config.Plugins.Tpa) Plugins::tpa::unregistery();
         if (this->config.Plugins.Pvp) Plugins::pvp::unregistery();
-        if (this->config.Plugins.AnnounCement) Plugins::announcement::unregistery();
+        if (this->config.Plugins.Notice) Plugins::notice::unregistery();
         if (this->config.Plugins.Menu.ModuleEnabled) Plugins::menu::unregistery();
         if (this->config.Plugins.Monitor.ModuleEnabled) Plugins::monitor::unregistery();
         if (this->config.Plugins.Chat.ModuleEnabled) Plugins::chat::unregistery();

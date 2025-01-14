@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_MENUPLUGIN_H
-#define LOICOLLECTION_A_MENUPLUGIN_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -41,5 +40,3 @@ namespace LOICollection::Plugins::menu {
     LOICOLLECTION_A_API   void registery(void* database, std::map<std::string, std::string>& options);
     LOICOLLECTION_A_API   void unregistery();
 }
-
-#endif

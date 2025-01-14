@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_CDK_H
-#define LOICOLLECTION_A_CDK_H
+#pragma once
 
 #include <string>
 
@@ -23,5 +22,3 @@ namespace LOICollection::Plugins::cdk {
 
     LOICOLLECTION_A_API void registery(void* database);
 }
-
-#endif

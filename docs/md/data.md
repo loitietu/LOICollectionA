@@ -279,11 +279,11 @@
 }
 ```
 
-## announcement.json
-> 以下是为 LOICollectionA 1.4.9 的 `announcement.json` 结构，对于后续版本的 `announcement.json` 结构可能会有所不同。
+## notice.json
+> 以下是为 LOICollectionA 1.4.9 的 `notice.json` 结构，对于后续版本的 `notice.json` 结构可能会有所不同。
 
-?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `announcement.json` 文件。  
-对于内部编辑器，您可以通过以下 [命令](./md/command.md#announcement) 进行编辑
+?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `notice.json` 文件。  
+对于内部编辑器，您可以通过以下 [命令](./md/command.md#notice) 进行编辑
 
 ```json
 {

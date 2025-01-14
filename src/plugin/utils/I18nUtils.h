@@ -1,5 +1,4 @@
-#ifndef I18NUTILS_H
-#define I18NUTILS_H
+#pragma once
 
 #include <memory>
 #include <string>
@@ -36,5 +35,3 @@ namespace I18nUtilsTools {
         return I18nUtils::getInstance()->get(local, key);
     }
 }
-
-#endif

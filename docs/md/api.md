@@ -1,7 +1,7 @@
 # LOICollectionAPI
 > 以下为 `LOICollectionAPI` 的内容列表
 
-!> 以下为 LOICollectionA 1.5.2 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
+!> 以下为 LOICollectionA 1.6.0 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
 
 | LOICollectionAPI | 备注 |
 | --- | --- |

@@ -1,5 +1,4 @@
-#ifndef LANG_PLUGIN_H
-#define LANG_PLUGIN_H
+#pragma once
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -197,14 +196,14 @@ static nlohmann::ordered_json CNLangData = {
     {"chat.gui.manager.add.input2", "§d请输入称号存在的时间[/hour](0为永久存在)"},
     {"chat.gui.manager.remove.label", "§a请选择要删除的玩家"},
     {"chat.gui.manager.remove.dropdown", "§e请选择要删除的称号"},
-    {"announcement.log", "玩家 {player}({player.uuid}) 重新编辑了公告"},
-    {"announcement.gui.title", "§eLOIAnnounCement §b-> §a公告系统"},
-    {"announcement.gui.label", "§b功能如下:"},
-    {"announcement.gui.setTitle", "§e设置标题"},
-    {"announcement.gui.line", "§a第${index}行"},
-    {"announcement.gui.addLine", "§b添加一行"},
-    {"announcement.gui.removeLine", "§c删除一行"}, 
-    {"announcement.gui.setting.switch1", "§b关闭公告 [§c关闭§b | §a开启§b]"},
+    {"notice.log", "玩家 {player}({player.uuid}) 重新编辑了公告"},
+    {"notice.gui.title", "§eLOINotice §b-> §a公告系统"},
+    {"notice.gui.label", "§b功能如下:"},
+    {"notice.gui.setTitle", "§e设置标题"},
+    {"notice.gui.line", "§a第${index}行"},
+    {"notice.gui.addLine", "§b添加一行"},
+    {"notice.gui.removeLine", "§c删除一行"}, 
+    {"notice.gui.setting.switch1", "§b关闭公告 [§c关闭§b | §a开启§b]"},
     {"market.log1", "玩家 {player}({player.uuid}) 购买物品 ${item}"},
     {"market.log2", "玩家 {player}({player.uuid}) 出售物品 ${item}"},
     {"market.log3", "玩家 {player}({player.uuid}) 下架物品 ${item}"},
@@ -226,5 +225,3 @@ static nlohmann::ordered_json CNLangData = {
     {"market.gui.sell.sellItemContent.button1", "§c下架物品\n§4下架该物品"},
     {"market.gui.sell.buy.button1", "§e购买物品\n§4购买当前物品"}
 };
-
-#endif

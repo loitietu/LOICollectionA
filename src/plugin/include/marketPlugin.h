@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_MARKETPLUGIN_H
-#define LOICOLLECTION_A_MARKETPLUGIN_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -25,5 +24,3 @@ namespace LOICollection::Plugins::market {
     LOICOLLECTION_A_API void registery(void* database, std::map<std::string, std::variant<std::string, int>>& options);
     LOICOLLECTION_A_API void unregistery();
 }
-
-#endif

@@ -30,12 +30,12 @@
 #include "data/JsonStorage.h"
 #include "data/SQLiteStorage.h"
 
-#include "include/acPlugin.h"
+#include "include/noticePlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;
 
-namespace LOICollection::Plugins::announcement {
+namespace LOICollection::Plugins::notice {
     std::unique_ptr<JsonStorage> db;
     std::shared_ptr<SQLiteStorage> db2;
     std::shared_ptr<ll::io::Logger> logger;
@@ -45,15 +45,15 @@ namespace LOICollection::Plugins::announcement {
         void setting(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
-            ll::form::CustomForm form(tr(mObjectLanguage, "announcement.gui.title"));
-            form.appendLabel(tr(mObjectLanguage, "announcement.gui.label"));
-            form.appendToggle("Toggle1", tr(mObjectLanguage, "announcement.gui.setting.switch1"), isClose(player));
+            ll::form::CustomForm form(tr(mObjectLanguage, "notice.gui.title"));
+            form.appendLabel(tr(mObjectLanguage, "notice.gui.label"));
+            form.appendToggle("Toggle1", tr(mObjectLanguage, "notice.gui.setting.switch1"), isClose(player));
             form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return;
 
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
-                db2->set("OBJECT$" + mObject, "AnnounCement_Toggle1", 
+                db2->set("OBJECT$" + mObject, "notice_Toggle1", 
                     std::get<uint64>(dt->at("Toggle1")) ? "true" : "false"
                 );
             });
@@ -63,19 +63,19 @@ namespace LOICollection::Plugins::announcement {
             int index = 1;
 
             std::string mObjectLanguage = getLanguage(player);
-            std::string mObjectLineString = tr(mObjectLanguage, "announcement.gui.line");
+            std::string mObjectLineString = tr(mObjectLanguage, "notice.gui.line");
 
-            ll::form::CustomForm form(tr(mObjectLanguage, "announcement.gui.title"));
-            form.appendLabel(tr(mObjectLanguage, "announcement.gui.label"));
-            form.appendInput("Input", tr(mObjectLanguage, "announcement.gui.setTitle"), "", db->get<std::string>("title"));
+            ll::form::CustomForm form(tr(mObjectLanguage, "notice.gui.title"));
+            form.appendLabel(tr(mObjectLanguage, "notice.gui.label"));
+            form.appendInput("Input", tr(mObjectLanguage, "notice.gui.setTitle"), "", db->get<std::string>("title"));
             for (auto& item : db->toJson("content")) {
                 std::string mLineString = mObjectLineString;
                 std::string mLine = ll::string_utils::replaceAll(mLineString, "${index}", std::to_string(index));
                 form.appendInput("Input" + std::to_string(index), mLine, "", item);
                 index++;
             }
-            form.appendToggle("Toggle1", tr(mObjectLanguage, "announcement.gui.addLine"));
-            form.appendToggle("Toggle2", tr(mObjectLanguage, "announcement.gui.removeLine"));
+            form.appendToggle("Toggle1", tr(mObjectLanguage, "notice.gui.addLine"));
+            form.appendToggle("Toggle2", tr(mObjectLanguage, "notice.gui.removeLine"));
             form.sendTo(player, [index](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
                 if (!dt) return;
 
@@ -100,7 +100,7 @@ namespace LOICollection::Plugins::announcement {
                 db->set("content", data);
                 db->save();
 
-                logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "announcement.log"), pl));
+                logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "notice.log"), pl));
             });
         }
 
@@ -117,7 +117,7 @@ namespace LOICollection::Plugins::announcement {
     namespace {
         void registerCommand() {
             auto& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("announcement", "§e§lLOICollection -> §a公告系统", CommandPermissionLevel::Any);
+                .getOrCreateCommand("notice", "§e§lLOICollection -> §a公告系统", CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
@@ -142,7 +142,7 @@ namespace LOICollection::Plugins::announcement {
             });
 
             ll::command::CommandHandle& settingCommand = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
-            settingCommand.overload().text("announcement").execute([](CommandOrigin const& origin, CommandOutput& output) {
+            settingCommand.overload().text("notice").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
@@ -162,8 +162,8 @@ namespace LOICollection::Plugins::announcement {
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
                     if (!db2->has("OBJECT$" + mObject)) db2->create("OBJECT$" + mObject);
-                    if (!db2->has("OBJECT$" + mObject, "AnnounCement_Toggle1"))
-                        db2->set("OBJECT$" + mObject, "AnnounCement_Toggle1", "false");
+                    if (!db2->has("OBJECT$" + mObject, "notice_Toggle1"))
+                        db2->set("OBJECT$" + mObject, "notice_Toggle1", "false");
                     
                     if (isClose(event.self()))
                         return;
@@ -176,8 +176,8 @@ namespace LOICollection::Plugins::announcement {
     bool isClose(Player& player) {
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db2->has("OBJECT$" + mObject, "AnnounCement_Toggle1"))
-            return db2->get("OBJECT$" + mObject, "AnnounCement_Toggle1") == "true";
+        if (db2->has("OBJECT$" + mObject, "notice_Toggle1"))
+            return db2->get("OBJECT$" + mObject, "notice_Toggle1") == "true";
         return false;
     }
 

@@ -14,7 +14,7 @@
 - [x] Pvp
 - [x] Wallet
 - [x] Chat
-- [x] Announcement
+- [x] Notice
 - [x] Market
 
 ### 如何安装插件？
@@ -84,7 +84,7 @@ lip install github.com/loitietu/LOICollectionA
             "ModuleEnabled": false,
             "FormatText": "<{player}> ${chat}" 
         },
-        "AnnounCement": false,
+        "Notice": false,
         "Market": {
             "ModuleEnabled": false,
             "TargetScoreboard": "money",

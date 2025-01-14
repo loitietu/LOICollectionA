@@ -1,5 +1,4 @@
-#ifndef SYSTEMUTILS_H
-#define SYSTEMUTILS_H
+#pragma once
 
 #include <string>
 
@@ -21,5 +20,3 @@ namespace SystemUtils {
         
     bool isReach(const std::string& timeString);
 }
-
-#endif

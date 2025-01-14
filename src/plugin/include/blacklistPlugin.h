@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_BLACKLIST_H
-#define LOICOLLECTION_A_BLACKLIST_H
+#pragma once
 
 #include <string>
 
@@ -28,5 +27,3 @@ namespace LOICollection::Plugins::blacklist {
 
     LOICOLLECTION_A_API   void registery(void* database);
 }
-
-#endif

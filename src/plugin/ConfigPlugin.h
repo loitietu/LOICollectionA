@@ -1,5 +1,4 @@
-#ifndef CONFIG_PLUGIN_H
-#define CONFIG_PLUGIN_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -57,7 +56,7 @@ struct C_Config {
             bool ModuleEnabled = false;
             std::string FormatText = "<{player}> ${chat}";
         } Chat;
-        bool AnnounCement = false;
+        bool Notice = false;
         struct C_Market {
             bool ModuleEnabled = false;
             std::string TargetScoreboard = "money";
@@ -76,5 +75,3 @@ namespace Config {
     void SynchronousPluginConfigVersion(C_Config& config);
     void SynchronousPluginConfigType(C_Config& config, const std::string& path);
 }
-
-#endif

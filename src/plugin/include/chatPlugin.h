@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_CHATPLUGIN_H
-#define LOICOLLECTION_A_CHATPLUGIN_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -35,5 +34,3 @@ namespace LOICollection::Plugins::chat {
     LOICOLLECTION_A_API   void registery(void* database, std::map<std::string, std::string> options);
     LOICOLLECTION_A_API   void unregistery();
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef JSONUTILS_H
-#define JSONUTILS_H
+#pragma once
 
 #include <vector>
 #include <string>
@@ -54,5 +53,3 @@ template LOICOLLECTION_A_UNAPI bool JsonStorage::get<bool>(std::string_view) con
 template LOICOLLECTION_A_UNAPI float JsonStorage::get<float>(std::string_view) const;
 template LOICOLLECTION_A_UNAPI std::string JsonStorage::get<std::string>(std::string_view) const;
 template LOICOLLECTION_A_UNAPI nlohmann::ordered_json JsonStorage::get<nlohmann::ordered_json>(std::string_view) const;
-
-#endif

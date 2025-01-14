@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_WALLETPLUGIN_H
-#define LOICOLLECTION_A_WALLETPLUGIN_H
+#pragma once
 
 #include <map>
 #include <string>
@@ -20,5 +19,3 @@ namespace LOICollection::Plugins::wallet {
 
     LOICOLLECTION_A_API void registery(std::map<std::string, std::variant<std::string, double>>& options);
 }
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_HOOKPLUGIN_H
-#define LOICOLLECTION_A_HOOKPLUGIN_H
+#pragma once
 
 #include <string>
 #include <functional>
@@ -33,5 +32,3 @@ namespace LOICollection::HookPlugin {
     LOICOLLECTION_A_API void registery();
     LOICOLLECTION_A_API void unregistery();
 }
-
-#endif

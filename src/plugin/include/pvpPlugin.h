@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_PVPPLUGIN_H
-#define LOICOLLECTION_A_PVPPLUGIN_H
+#pragma once
 
 #include "base/Macro.h"
 
@@ -17,5 +16,3 @@ namespace LOICollection::Plugins::pvp {
     LOICOLLECTION_A_API   void registery(void* database);
     LOICOLLECTION_A_API   void unregistery();
 }
-
-#endif

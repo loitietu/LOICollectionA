@@ -1,5 +1,4 @@
-#ifndef LOICOLLECTION_A_LANGUAGE_H
-#define LOICOLLECTION_A_LANGUAGE_H
+#pragma once
 
 #include <string>
 
@@ -18,5 +17,3 @@ namespace LOICollection::Plugins::language {
     LOICOLLECTION_A_API   void registery(void* database);
     LOICOLLECTION_A_API   void unregistery();
 }
-
-#endif

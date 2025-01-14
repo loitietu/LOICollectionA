@@ -208,22 +208,22 @@
 - `/chat gui`
   - 打开管理称号 GUI。
 
-## AnnounCement
+## Notice
 ```log
-? announcement
-12:02:20.000 INFO [Server] announcement:
+? notice
+12:02:20.000 INFO [Server] notice:
 12:02:20.000 INFO [Server] LOICollection -> 公告系统
 12:02:20.001 INFO [Server] Usage:
-12:02:20.001 INFO [Server] - /announcement edit
-12:02:20.001 INFO [Server] - /announcement gui
+12:02:20.001 INFO [Server] - /notice edit
+12:02:20.001 INFO [Server] - /notice gui
 ```
 
-?> 其中 `announcement` 为 AnnounCement 的顶层命令（权限等级: Any）。
+?> 其中 `notice` 为 notice 的顶层命令（权限等级: Any）。
 
-- `/announcement edit`
+- `/notice edit`
   - 打开公告编辑界面（权限等级: GameDirectors）。
 
-- `/announcement gui`
+- `/notice gui`
   - 打开公告 GUI。
 
 ## Market
@@ -250,7 +250,7 @@
 15:57:16.377 INFO [Server] setting:
 15:57:16.377 INFO [Server] LOICollection -> 个人设置
 15:57:16.377 INFO [Server] Usage:
-15:57:16.377 INFO [Server] - /setting announcement
+15:57:16.377 INFO [Server] - /setting notice
 15:57:16.377 INFO [Server] - /setting chat
 15:57:16.392 INFO [Server] - /setting language
 15:57:16.399 INFO [Server] - /setting pvp gui
@@ -261,7 +261,7 @@
 
 ?> 其中 `setting` 为 Setting 的顶层命令（权限等级: Any）。
 
-- `/setting announcement`
+- `/setting notice`
   - 打开个人公告设置界面。
 
 - `/setting chat`
