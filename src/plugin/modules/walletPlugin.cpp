@@ -135,19 +135,19 @@ namespace LOICollection::Plugins::wallet {
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
 
-                auto mTargetLists = param.target.results(origin);
-                if (mTargetLists.empty())
+                auto results = param.target.results(origin);
+                if (results.empty())
                     return output.error("No player selected.");
 
                 std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
-                if (McUtils::scoreboard::getScore(player, mScore) < (int)(mTargetLists.size() * param.score))
+                if (McUtils::scoreboard::getScore(player, mScore) < (int)(results.size() * param.score))
                     return output.error("You don't have enough score.");
                 int mMoney = (param.score - (int)(param.score * std::get<double>(mObjectOptions.at("tax"))));
-                for (Player*& target : mTargetLists)
+                for (Player*& target : results)
                     McUtils::scoreboard::addScore(*target, mScore, mMoney);
-                McUtils::scoreboard::reduceScore(player, mScore, (int)(mTargetLists.size() * param.score));
+                McUtils::scoreboard::reduceScore(player, mScore, (int)(results.size() * param.score));
 
-                output.success("You have transferred {} to {} players.", param.score, mTargetLists.size());
+                output.success("You have transferred {} to {} players.", param.score, results.size());
             });
             command.overload().text("wealth").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();

@@ -18,8 +18,8 @@
 #include <mc/nbt/Tag.h>
 #include <mc/nbt/CompoundTag.h>
 
-#include <mc/world/actor/player/Player.h>
 #include <mc/world/item/ItemStack.h>
+#include <mc/world/actor/player/Player.h>
 
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>

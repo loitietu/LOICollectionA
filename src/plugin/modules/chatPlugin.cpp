@@ -160,10 +160,17 @@ namespace LOICollection::Plugins::chat {
     namespace {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("chat", "§e§lLOICollection -> §b个人称号", CommandPermissionLevel::GameDirectors);
+                .getOrCreateCommand("chat", "§e§lLOICollection -> §b个人称号", CommandPermissionLevel::Any);
             command.overload<ChatOP>().text("add").required("target").required("titleName").optional("time").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
-                for (Player*& pl : param.target.results(origin)) {
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    return output.error("You do not have permission to use this command.");
+
+                auto results = param.target.results(origin);
+                if (results.empty())
+                    return output.error("No player selected.");
+
+                for (Player*& pl : results) {
                     addChat(*pl, param.titleName, param.time);
 
                     output.addMessage(fmt::format("Add Chat for Player {}.", 
@@ -172,7 +179,14 @@ namespace LOICollection::Plugins::chat {
             });
             command.overload<ChatOP>().text("remove").required("target").required("titleName").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
-                for (Player*& pl : param.target.results(origin)) {
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    return output.error("You do not have permission to use this command.");
+
+                auto results = param.target.results(origin);
+                if (results.empty())
+                    return output.error("No player selected.");
+
+                for (Player*& pl : results) {
                     delChat(*pl, param.titleName);
 
                     output.addMessage(fmt::format("Remove Chat for Player {}.",
@@ -181,7 +195,14 @@ namespace LOICollection::Plugins::chat {
             });
             command.overload<ChatOP>().text("set").required("target").required("titleName").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
-                for (Player*& pl : param.target.results(origin)) {
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    return output.error("You do not have permission to use this command.");
+
+                auto results = param.target.results(origin);
+                if (results.empty())
+                    return output.error("No player selected.");
+
+                for (Player*& pl : results) {
                     std::string mObject = pl->getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
                     if (db->has("OBJECT$" + mObject + "$TITLE", param.titleName))
@@ -193,7 +214,14 @@ namespace LOICollection::Plugins::chat {
             });
             command.overload<ChatOP>().text("list").required("target").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
-                for (Player*& player : param.target.results(origin)) {
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    return output.error("You do not have permission to use this command.");
+
+                auto results = param.target.results(origin);
+                if (results.empty())
+                    return output.error("No player selected.");
+
+                for (Player*& player : results) {
                     std::string mObject = player->getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
 
@@ -208,6 +236,9 @@ namespace LOICollection::Plugins::chat {
                 }
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    return output.error("You do not have permission to use this command.");
+
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
@@ -216,9 +247,7 @@ namespace LOICollection::Plugins::chat {
 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-
-            ll::command::CommandHandle& settingCommand = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
-            settingCommand.overload().text("chat").execute([](CommandOrigin const& origin, CommandOutput& output) {
+            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");

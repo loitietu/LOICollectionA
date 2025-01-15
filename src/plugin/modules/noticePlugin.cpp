@@ -128,21 +128,18 @@ namespace LOICollection::Plugins::notice {
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    return output.error("You do not have permission to use this command.");
+
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
-                if ((int) player.getPlayerPermissionLevel() >= 2) {
-                    MainGui::edit(player);
-                    output.success("The UI has been opened to player {}", player.getRealName());
-                    return;
-                }
+                MainGui::edit(player);
 
-                output.error("No permission to open the edit.");
+                output.success("The UI has been opened to player {}", player.getRealName());
             });
-
-            ll::command::CommandHandle& settingCommand = ll::command::CommandRegistrar::getInstance().getOrCreateCommand("setting");
-            settingCommand.overload().text("notice").execute([](CommandOrigin const& origin, CommandOutput& output) {
+            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
                 auto* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
