@@ -60,7 +60,7 @@ LL_TYPE_INSTANCE_HOOK(
     void,
     BinaryStream& stream
 ) {
-    if (!mFakeSeed) this->mSettings->setRandomSeed(LevelSeed64(mFakeSeed));
+    if (mFakeSeed) this->mSettings->setRandomSeed(LevelSeed64(mFakeSeed));
     return origin(stream);
 };
 
