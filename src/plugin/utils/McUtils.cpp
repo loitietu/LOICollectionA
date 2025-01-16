@@ -107,7 +107,7 @@ namespace McUtils {
             return !obj ? 0 : obj->getPlayerScore(identity).mValue;
         }
 
-        void modifyScore(ScoreboardId& identity, const std::string& name, int score, int action) {
+        void modifyScore(ScoreboardId& identity, const std::string& name, int score, ScoreType action) {
             auto level = ll::service::getLevel();
             auto obj = level->getScoreboard().getObjective(name);
             
@@ -119,7 +119,9 @@ namespace McUtils {
 
             bool succes;
             level->getScoreboard().modifyPlayerScore(succes, identity, *obj, score, 
-                action == 0x0 ? PlayerScoreSetFunction::Set : action == 0x1 ? PlayerScoreSetFunction::Add : PlayerScoreSetFunction::Subtract
+                action == ScoreType::set ? PlayerScoreSetFunction::Set : 
+                action == ScoreType::add ? PlayerScoreSetFunction::Add : 
+                PlayerScoreSetFunction::Subtract
             );
         }
 
@@ -128,7 +130,7 @@ namespace McUtils {
             if (!identity.isValid()) 
                 identity = ll::service::getLevel()->getScoreboard().createScoreboardId(player);
             
-            modifyScore(identity, name, score, 0x1);
+            modifyScore(identity, name, score, ScoreType::add);
         }
 
         void reduceScore(Player& player, const std::string &name, int score) {
@@ -136,7 +138,7 @@ namespace McUtils {
             if (!identity.isValid())
                 identity = ll::service::getLevel()->getScoreboard().createScoreboardId(player);
 
-            modifyScore(identity, name, score, 0x2);
+            modifyScore(identity, name, score, ScoreType::reduce);
         }
     }
 }

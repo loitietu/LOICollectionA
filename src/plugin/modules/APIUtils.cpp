@@ -168,13 +168,13 @@ namespace LOICollection::LOICollectionAPI {
     void registerVariable(const std::string& name, const std::function<std::string(Player&)> callback) {
         if (mVariableMap.find(name) != mVariableMap.end())
             return;
-        mVariableMap[name] = callback;
+        mVariableMap[name] = std::move(callback);
     }
 
     void registerVariableParameter(const std::string& name, const std::function<std::string(Player&, std::string)> callback) {
         if (mVariableMapParameter.find(name) != mVariableMapParameter.end())
             return;
-        mVariableMapParameter[name] = callback;
+        mVariableMapParameter[name] = std::move(callback);
     }
 
     std::string getValueForVariable(const std::string& name, Player& player) {

@@ -189,6 +189,20 @@ PlayerHurtHookMacro(PlayerHurtHook3, Mob,
     float damage, bool knock, bool ignite
 )
 
+LL_TYPE_INSTANCE_HOOK(
+    PlayerAddItemHook,
+    HookPriority::Highest,
+    Player,
+    &Player::$add,
+    bool,
+    ItemStack& item
+) {
+    bool result = origin(item);
+    if (!result)
+        this->drop(item, false);
+    return result;
+}
+
 namespace LOICollection::HookPlugin {
     namespace Event {
         void onLoginPacketSendEvent(const std::function<void(NetworkIdentifier*, std::string, std::string)>& callback) {
@@ -245,6 +259,7 @@ namespace LOICollection::HookPlugin {
         PlayerHurtHook1::hook();
         PlayerHurtHook2::hook();
         PlayerHurtHook3::hook();
+        PlayerAddItemHook::hook();
     }
 
     void unregistery() {
@@ -257,5 +272,6 @@ namespace LOICollection::HookPlugin {
         PlayerHurtHook1::unhook();
         PlayerHurtHook2::unhook();
         PlayerHurtHook3::unhook();
+        PlayerAddItemHook::unhook();
     }
 }

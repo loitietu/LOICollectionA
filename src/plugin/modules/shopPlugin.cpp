@@ -374,9 +374,9 @@ namespace LOICollection::Plugins::shop {
                         ItemStack itemStack = data.contains("nbt") ? ItemStack::fromTag(CompoundTag::fromSnbt(data.at("nbt").get<std::string>())->mTags)
                             : ItemStack(data.at("id").get<std::string>(), 1, 0, nullptr);
                         for (int i = 0; i < (int)(mNumber / 64); ++i) {
-                            ItemStack itemStackC = itemStack.clone();
-                            itemStackC.mCount = 64;
-                            pl.add(itemStackC);
+                            ItemStack mItemStack = itemStack.clone();
+                            mItemStack.mCount = 64;
+                            pl.add(mItemStack);
                         }
                         itemStack.mCount = mNumber % 64;
                         pl.add(itemStack);
