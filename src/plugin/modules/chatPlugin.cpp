@@ -63,7 +63,7 @@ namespace LOICollection::Plugins::chat {
             form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
             form.appendInput("Input1", tr(mObjectLanguage, "chat.gui.manager.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "chat.gui.manager.add.input2"), "", "0");
-            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::add(pl);
 
                 addChat(target, std::get<std::string>(dt->at("Input1")),
@@ -80,7 +80,7 @@ namespace LOICollection::Plugins::chat {
             ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.remove.dropdown"), db->list("OBJECT$" + mObject + "$TITLE"));
-            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::remove(pl);
 
                 delChat(target, std::get<std::string>(dt->at("dropdown")));
@@ -92,11 +92,11 @@ namespace LOICollection::Plugins::chat {
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.add.label"));
             for (Player*& mTarget : McUtils::getAllPlayers()) {
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) {
+                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
                     MainGui::contentAdd(pl, *mTarget);
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::open(pl);
             });
         }
@@ -106,11 +106,11 @@ namespace LOICollection::Plugins::chat {
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.remove.label"));
             for (Player*& mTarget : McUtils::getAllPlayers()) {
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) {
+                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
                     MainGui::contentRemove(pl, *mTarget);
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::open(pl);
             });
         }
@@ -124,7 +124,7 @@ namespace LOICollection::Plugins::chat {
             ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
             form.appendLabel(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "chat.gui.setTitle.label"), player));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.setTitle.dropdown"), db->list("OBJECT$" + mObject + "$TITLE"));
-            form.sendTo(player, [mObject](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [mObject](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::setting(pl);
 
                 db->set("OBJECT$" + mObject, "title", std::get<std::string>(dt->at("dropdown")));
@@ -137,7 +137,7 @@ namespace LOICollection::Plugins::chat {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "chat.gui.setTitle"), "textures/ui/backup_replace", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "chat.gui.setTitle"), "textures/ui/backup_replace", "path", [](Player& pl) -> void {
                 MainGui::title(pl);
             });
             form.sendTo(player);
@@ -147,10 +147,10 @@ namespace LOICollection::Plugins::chat {
             std::string mObjectLanguage = getLanguage(player);
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "chat.gui.manager.add"), "textures/ui/backup_replace", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "chat.gui.manager.add"), "textures/ui/backup_replace", "path", [](Player& pl) -> void {
                 MainGui::add(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "chat.gui.manager.remove"), "textures/ui/free_download_symbol", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "chat.gui.manager.remove"), "textures/ui/free_download_symbol", "path", [](Player& pl) -> void {
                 MainGui::remove(pl);
             });
             form.sendTo(player);
@@ -162,11 +162,11 @@ namespace LOICollection::Plugins::chat {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("chat", "§e§lLOICollection -> §b个人称号", CommandPermissionLevel::Any);
             command.overload<ChatOP>().text("add").required("target").required("titleName").optional("time").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
+                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                     return output.error("You do not have permission to use this command.");
 
-                auto results = param.target.results(origin);
+                CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");
 
@@ -178,11 +178,11 @@ namespace LOICollection::Plugins::chat {
                 }
             });
             command.overload<ChatOP>().text("remove").required("target").required("titleName").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
+                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                     return output.error("You do not have permission to use this command.");
 
-                auto results = param.target.results(origin);
+                CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");
 
@@ -194,11 +194,11 @@ namespace LOICollection::Plugins::chat {
                 }
             });
             command.overload<ChatOP>().text("set").required("target").required("titleName").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
+                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                     return output.error("You do not have permission to use this command.");
 
-                auto results = param.target.results(origin);
+                CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");
 
@@ -213,11 +213,11 @@ namespace LOICollection::Plugins::chat {
                 }
             });
             command.overload<ChatOP>().text("list").required("target").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) {
+                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                     return output.error("You do not have permission to use this command.");
 
-                auto results = param.target.results(origin);
+                CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");
 
@@ -235,11 +235,11 @@ namespace LOICollection::Plugins::chat {
                         result.empty() ? "None" : result), {}, CommandOutputMessageType::Success);
                 }
             });
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
+            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                     return output.error("You do not have permission to use this command.");
 
-                auto* entity = origin.getEntity();
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -247,8 +247,8 @@ namespace LOICollection::Plugins::chat {
 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -259,9 +259,9 @@ namespace LOICollection::Plugins::chat {
         }
 
         void listenEvent() {
-            auto& eventBus = ll::event::EventBus::getInstance();
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) {
+                [](ll::event::PlayerJoinEvent& event) -> void {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mObject = event.self().getUuid().asString();
@@ -277,7 +277,7 @@ namespace LOICollection::Plugins::chat {
                 }
             );
             PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>(
-                [](ll::event::PlayerChatEvent& event) {
+                [](ll::event::PlayerChatEvent& event) -> void {
                     if (event.self().isSimulatedPlayer() || mute::isMute(event.self()))
                         return;
                     event.cancel();
@@ -297,7 +297,7 @@ namespace LOICollection::Plugins::chat {
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject + "$TITLE")) {
-            for (auto& i : db->list("OBJECT$" + mObject + "$TITLE")) {
+            for (std::string& i : db->list("OBJECT$" + mObject + "$TITLE")) {
                 if (i == "None") continue;
                 
                 std::string mTimeString = db->get("OBJECT$" + mObject + "$TITLE", i);
@@ -391,7 +391,7 @@ namespace LOICollection::Plugins::chat {
     }
 
     void unregistery() {
-        auto& eventBus = ll::event::EventBus::getInstance();
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
         eventBus.removeListener(PlayerChatEventListener);
     }

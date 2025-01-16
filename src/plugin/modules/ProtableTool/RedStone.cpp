@@ -25,8 +25,8 @@ std::unordered_map<DimensionType, std::unordered_map<BlockPos, int>> mRedStoneMa
 #define RedStoneUpdateHookMacro(NAME, TYPE, SYMBOL, VAL, ...)                               \
     LL_TYPE_INSTANCE_HOOK(NAME, HookPriority::Normal, TYPE, SYMBOL, void, __VA_ARGS__) {    \
         int mDimensionId = region.getDimensionId();                                         \
-        auto& dimMap = mRedStoneMap[mDimensionId];                                          \
-        dimMap[pos]++;                                                                      \
+        std::unordered_map<BlockPos, int>& mDimensionMap = mRedStoneMap[mDimensionId];      \
+        mDimensionMap[pos]++;                                                               \
         return origin VAL;                                                                  \
     };                                                                                      \
 

@@ -32,12 +32,12 @@
 
 namespace McUtils {
     void executeCommand(std::string cmd, int dimension) {
-        auto origin = ServerCommandOrigin(
+        ServerCommandOrigin origin = ServerCommandOrigin(
             "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, dimension
         );
-        auto command = ll::service::getMinecraft()->getCommands().compileCommand(
+        Command* command = ll::service::getMinecraft()->getCommands().compileCommand(
             HashedString(cmd), origin, (CurrentCmdVersion)CommandVersion::CurrentVersion(),
-            [&](std::string const& /*unused*/) {}
+            [&](std::string const& /*unused*/) -> void {}
         );
         if (command) {
             CommandOutput output(CommandOutputType::AllOutput);
@@ -55,7 +55,7 @@ namespace McUtils {
     void clearItem(Player& player, std::string mTypeName, int mNumber) {
         Container& mItemInventory = player.getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
-            auto& mItemObject = mItemInventory.getItem(i);
+            const ItemStack& mItemObject = mItemInventory.getItem(i);
             if ((mItemObject || !mItemObject.isNull()) && mTypeName == mItemObject.getTypeName()) {
                 if (mItemObject.mCount >= mNumber) {
                     mItemInventory.removeItem(i, mNumber);
@@ -68,7 +68,7 @@ namespace McUtils {
     }
 
     void broadcastText(const std::string& text) {
-        ll::service::getLevel()->forEachPlayer([text](Player& player) {
+        ll::service::getLevel()->forEachPlayer([text](Player& player) -> bool {
             player.sendMessage(text);
             return true;
         });
@@ -76,7 +76,7 @@ namespace McUtils {
 
     std::vector<Player*> getAllPlayers() {
         std::vector<Player*> mObjectLists{};
-        ll::service::getLevel()->forEachPlayer([&](Player& player) {
+        ll::service::getLevel()->forEachPlayer([&](Player& player) -> bool {
             if (!player.isSimulatedPlayer())
                 mObjectLists.push_back(&player);
             return true;
@@ -87,7 +87,7 @@ namespace McUtils {
     bool isItemPlayerInventory(Player& player, std::string mTypeName, int mNumber) {
         Container& mItemInventory = player.getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
-            auto& mItemObject = mItemInventory.getItem(i);
+            const ItemStack& mItemObject = mItemInventory.getItem(i);
             if ((mItemObject || !mItemObject.isNull()) && mTypeName == mItemObject.getTypeName()) {
                 if (mNumber <= mItemObject.mCount)
                     return true;
@@ -99,17 +99,17 @@ namespace McUtils {
 
     namespace scoreboard {
         int getScore(Player& player, const std::string& name) {
-            auto level = ll::service::getLevel();
-            auto identity = level->getScoreboard().getScoreboardId(player);
+            optional_ref<Level> level = ll::service::getLevel();
+            ScoreboardId identity = level->getScoreboard().getScoreboardId(player);
             if (!identity.isValid())
                 return 0;
-            auto obj = level->getScoreboard().getObjective(name);
+            Objective* obj = level->getScoreboard().getObjective(name);
             return !obj ? 0 : obj->getPlayerScore(identity).mValue;
         }
 
         void modifyScore(ScoreboardId& identity, const std::string& name, int score, ScoreType action) {
-            auto level = ll::service::getLevel();
-            auto obj = level->getScoreboard().getObjective(name);
+            optional_ref<Level> level = ll::service::getLevel();
+            Objective* obj = level->getScoreboard().getObjective(name);
             
             if (!obj) {
                 obj = static_cast<Objective*>(level->getScoreboard().addObjective(

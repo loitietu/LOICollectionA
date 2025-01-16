@@ -52,7 +52,7 @@ namespace LOICollection::Plugins::cdk {
             ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
             form.appendInput("Input", tr(mObjectLanguage, "cdk.gui.convert.input"), "", "convert");
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return;
 
                 std::string convertString = std::get<std::string>(dt->at("Input"));
@@ -68,7 +68,7 @@ namespace LOICollection::Plugins::cdk {
             form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.new.input1"), "", "cdk");
             form.appendToggle("Toggle", tr(mObjectLanguage, "cdk.gui.new.switch"));
             form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.new.input2"), "", "0");
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::open(pl);
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("Input1"));
@@ -102,7 +102,7 @@ namespace LOICollection::Plugins::cdk {
             ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::open(pl);
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
@@ -126,7 +126,7 @@ namespace LOICollection::Plugins::cdk {
             form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
             form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.score.input1"), "", "money");
             form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.score.input2"), "", "100");
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::cdkAward(pl);
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
@@ -154,7 +154,7 @@ namespace LOICollection::Plugins::cdk {
             form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.item.input2"), "", "apple");
             form.appendInput("Input3", tr(mObjectLanguage, "cdk.gui.award.item.input3"), "", "1");
             form.appendInput("Input4", tr(mObjectLanguage, "cdk.gui.award.item.input4"), "", "0");
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::cdkAward(pl);
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
@@ -183,7 +183,7 @@ namespace LOICollection::Plugins::cdk {
             form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
             form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.title.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.title.input2"), "", "0");
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::cdkAward(pl);
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
@@ -201,16 +201,16 @@ namespace LOICollection::Plugins::cdk {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "cdk.gui.title"), tr(mObjectLanguage, "cdk.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "cdk.gui.award.score"), "textures/items/diamond_sword", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "cdk.gui.award.score"), "textures/items/diamond_sword", "path", [](Player& pl) -> void {
                 MainGui::cdkAwardScore(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "cdk.gui.award.item"), "textures/items/diamond", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "cdk.gui.award.item"), "textures/items/diamond", "path", [](Player& pl) -> void {
                 MainGui::cdkAwardItem(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "cdk.gui.award.title"), "textures/ui/backup_replace", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "cdk.gui.award.title"), "textures/ui/backup_replace", "path", [](Player& pl) -> void {
                 MainGui::cdkAwardTitle(pl);
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::open(pl);
             });
         }
@@ -219,13 +219,13 @@ namespace LOICollection::Plugins::cdk {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "cdk.gui.title"), tr(mObjectLanguage, "cdk.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "cdk.gui.addCdk"), "textures/ui/book_addtextpage_default", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "cdk.gui.addCdk"), "textures/ui/book_addtextpage_default", "path", [](Player& pl) -> void {
                 MainGui::cdkNew(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "cdk.gui.removeCdk"), "textures/ui/cancel", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "cdk.gui.removeCdk"), "textures/ui/cancel", "path", [](Player& pl) -> void {
                 MainGui::cdkRemove(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "cdk.gui.addAward"), "textures/ui/color_picker", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "cdk.gui.addAward"), "textures/ui/color_picker", "path", [](Player& pl) -> void {
                 MainGui::cdkAward(pl);
             });
             form.sendTo(player);
@@ -237,8 +237,8 @@ namespace LOICollection::Plugins::cdk {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("cdk", "§e§lLOICollection -> §b总换码", CommandPermissionLevel::Any);
             command.overload<CDKOP>().text("convert").required("convertString").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) {
-                auto* entity = origin.getEntity();
+                [](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -246,8 +246,8 @@ namespace LOICollection::Plugins::cdk {
                 
                 output.success("The player {} has been converted to cdk: {}", player.getRealName(), param.convertString);
             });
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -255,8 +255,8 @@ namespace LOICollection::Plugins::cdk {
 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);

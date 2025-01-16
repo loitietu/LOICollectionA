@@ -63,10 +63,10 @@ namespace LOICollection::Plugins::mute {
             ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "time", "None")));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), mObjectLabel);
-            form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [target](Player& /*unused*/) {
+            form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [target](Player& /*unused*/) -> void {
                 delMute(target);
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::remove(pl);
             });
         }
@@ -78,7 +78,7 @@ namespace LOICollection::Plugins::mute {
             form.appendLabel(tr(mObjectLanguage, "mute.gui.label"));
             form.appendInput("Input1", tr(mObjectLanguage, "mute.gui.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "mute.gui.add.input2"), "", "0");
-            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::add(pl);
 
                 addMute(target, std::get<std::string>(dt->at("Input1")), 
@@ -91,11 +91,11 @@ namespace LOICollection::Plugins::mute {
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.add.title"), tr(mObjectLanguage, "mute.gui.add.label"));
             for (Player*& mTarget : McUtils::getAllPlayers()) {
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) {
+                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
                     MainGui::content(pl, *mTarget);
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::open(pl);
             });
         }
@@ -104,13 +104,13 @@ namespace LOICollection::Plugins::mute {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), tr(mObjectLanguage, "mute.gui.remove.label"));
-            for (auto& mItem : db->list()) {
+            for (std::string& mItem : db->list()) {
                 ll::string_utils::replaceAll(mItem, "OBJECT$", "");
-                form.appendButton(mItem, [mItem](Player& pl) {
+                form.appendButton(mItem, [mItem](Player& pl) -> void {
                     MainGui::info(pl, mItem);
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::open(pl);
             });
         }
@@ -119,10 +119,10 @@ namespace LOICollection::Plugins::mute {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.title"), tr(mObjectLanguage, "mute.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "mute.gui.addMute"), "textures/ui/backup_replace", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "mute.gui.addMute"), "textures/ui/backup_replace", "path", [](Player& pl) -> void {
                 MainGui::add(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "mute.gui.removeMute"), "textures/ui/free_download_symbol", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "mute.gui.removeMute"), "textures/ui/free_download_symbol", "path", [](Player& pl) -> void {
                 MainGui::remove(pl);
             });
             form.sendTo(player);
@@ -134,8 +134,8 @@ namespace LOICollection::Plugins::mute {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("mute", "§e§lLOICollection -> §b服务器禁言", CommandPermissionLevel::GameDirectors);
             command.overload<MuteOP>().text("add").required("target").optional("cause").optional("time").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) {
-                auto results = param.target.results(origin);
+                [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) -> void {
+                CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");
 
@@ -151,8 +151,8 @@ namespace LOICollection::Plugins::mute {
                 }
             });
             command.overload<MuteOP>().text("remove").required("target").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) {
-                auto results = param.target.results(origin);
+                [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) -> void {
+                CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");
                 
@@ -167,8 +167,8 @@ namespace LOICollection::Plugins::mute {
                         pl->getUuid().asString()), {}, CommandOutputMessageType::Success);
                 }
             });
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -179,9 +179,9 @@ namespace LOICollection::Plugins::mute {
         }
 
         void listenEvent() {
-            auto& eventBus = ll::event::EventBus::getInstance();
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
             PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>(
-                [](ll::event::PlayerChatEvent& event) {
+                [](ll::event::PlayerChatEvent& event) -> void {
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
                     if (db->has("OBJECT$" + mObject)) {
@@ -258,7 +258,7 @@ namespace LOICollection::Plugins::mute {
     }
     
     void unregistery() {
-        auto& eventBus = ll::event::EventBus::getInstance();
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerChatEventListener);
     }
 }

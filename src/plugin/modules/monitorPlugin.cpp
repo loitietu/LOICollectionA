@@ -46,10 +46,10 @@ namespace LOICollection::Plugins::monitor {
                 }
             }).launch(ll::thread::ServerThreadExecutor::getDefault());
         }
-        auto& eventBus = ll::event::EventBus::getInstance();
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         if (std::get<bool>(options.at("ServerToast_Enabled"))) {
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [options](ll::event::PlayerJoinEvent& event) {
+                [options](ll::event::PlayerJoinEvent& event) -> void {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mMonitorString = std::get<std::string>(options.at("ServerToast_JoinText"));
@@ -58,7 +58,7 @@ namespace LOICollection::Plugins::monitor {
                 }
             );
             PlayerDisconnectEventListener1 = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>(
-                [options](ll::event::PlayerDisconnectEvent& event) {
+                [options](ll::event::PlayerDisconnectEvent& event) -> void {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mMonitorString = std::get<std::string>(options.at("ServerToast_ExitText"));
@@ -69,7 +69,7 @@ namespace LOICollection::Plugins::monitor {
         }
         if (std::get<bool>(options.at("ChangeScore_Enabled"))) {
             std::vector<std::string> mObjectScoreboards = std::get<std::vector<std::string>>(options.at("ChangeScore_Scores"));
-            LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([options, mObjectScoreboards](Player* player, int score, std::string id, ScoreChangedType type) {
+            LOICollection::HookPlugin::Event::onPlayerScoreChangedEvent([options, mObjectScoreboards](Player* player, int score, std::string id, ScoreChangedType type) -> void {
                 if (id.empty() || player == nullptr || (type != ScoreChangedType::set && !score))
                     return;
                 if (mObjectScoreboards.empty() || std::find(mObjectScoreboards.begin(), mObjectScoreboards.end(), id) != mObjectScoreboards.end()) {
@@ -91,12 +91,12 @@ namespace LOICollection::Plugins::monitor {
         if (std::get<bool>(options.at("DisableCommand_Enabled"))) {
             std::vector<std::string> mObjectCommands = std::get<std::vector<std::string>>(options.at("DisableCommand_List"));
             ExecuteCommandEvent = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>(
-                [mObjectCommands, options](ll::event::ExecutingCommandEvent& event) {
+                [mObjectCommands, options](ll::event::ExecutingCommandEvent& event) -> void {
                     std::string mCommand = ll::string_utils::replaceAll(std::string(ll::string_utils::splitByPattern(event.commandContext().mCommand, " ")[0]), "/", "");
                     if (std::find(mObjectCommands.begin(), mObjectCommands.end(), mCommand) != mObjectCommands.end()) {
                         event.cancel();
 
-                        auto* entity = event.commandContext().getCommandOrigin().getEntity();
+                        Actor* entity = event.commandContext().getCommandOrigin().getEntity();
                         if (entity == nullptr || !entity->isPlayer())
                             return;
                         Player* player = static_cast<Player*>(entity);
@@ -105,14 +105,14 @@ namespace LOICollection::Plugins::monitor {
                 }
             );
         }
-        LOICollection::HookPlugin::Event::onLoginPacketSendEvent([options](void* /*unused*/, std::string mUuid, std::string /*unused*/) {
+        LOICollection::HookPlugin::Event::onLoginPacketSendEvent([options](void* /*unused*/, std::string mUuid, std::string /*unused*/) -> void {
             if (std::get<bool>(options.at("ServerToast_Enabled")))
                 LOICollection::HookPlugin::interceptTextPacket(mUuid);
             LOICollection::HookPlugin::interceptGetNameTag(mUuid);
         });
 
         PlayerDisconnectEventListener2 = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>(
-            [options](ll::event::PlayerDisconnectEvent& event) {
+            [options](ll::event::PlayerDisconnectEvent& event) -> void {
                 if (event.self().isSimulatedPlayer())
                     return;
                 std::string mUuid = event.self().getUuid().asString();
@@ -123,7 +123,7 @@ namespace LOICollection::Plugins::monitor {
     }
 
     void unregistery() {
-        auto& eventBus = ll::event::EventBus::getInstance();
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         if (PlayerJoinEventListener) eventBus.removeListener(PlayerJoinEventListener);
         if (PlayerDisconnectEventListener1) eventBus.removeListener(PlayerDisconnectEventListener1);
         if (PlayerDisconnectEventListener2) eventBus.removeListener(PlayerDisconnectEventListener2);

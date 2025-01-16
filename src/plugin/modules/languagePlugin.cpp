@@ -50,7 +50,7 @@ namespace LOICollection::Plugins::language {
                 tr(mObjectLanguage, "language.gui.lang"), "${language}", tr(mObjectLanguage, "name")
             ));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys());
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return;
 
                 std::string mObject = pl.getUuid().asString();
@@ -66,8 +66,8 @@ namespace LOICollection::Plugins::language {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("language", "§e§lLOICollection -> §a语言设置", CommandPermissionLevel::Any);
-            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -78,9 +78,9 @@ namespace LOICollection::Plugins::language {
         }
 
         void listenEvent() {
-            auto& eventBus = ll::event::EventBus::getInstance();
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) {
+                [](ll::event::PlayerJoinEvent& event) -> void {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mObject = event.self().getUuid().asString();
@@ -112,7 +112,7 @@ namespace LOICollection::Plugins::language {
     }
 
     void unregistery() {
-        auto& eventBus = ll::event::EventBus::getInstance();
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
     }
 }

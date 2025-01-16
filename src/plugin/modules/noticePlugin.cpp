@@ -48,7 +48,7 @@ namespace LOICollection::Plugins::notice {
             ll::form::CustomForm form(tr(mObjectLanguage, "notice.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "notice.gui.label"));
             form.appendToggle("Toggle1", tr(mObjectLanguage, "notice.gui.setting.switch1"), isClose(player));
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return;
 
                 std::string mObject = pl.getUuid().asString();
@@ -68,15 +68,15 @@ namespace LOICollection::Plugins::notice {
             ll::form::CustomForm form(tr(mObjectLanguage, "notice.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "notice.gui.label"));
             form.appendInput("Input", tr(mObjectLanguage, "notice.gui.setTitle"), "", db->get<std::string>("title"));
-            for (auto& item : db->toJson("content")) {
+            for (nlohmann::ordered_json& item : db->toJson("content")) {
                 std::string mLineString = mObjectLineString;
                 std::string mLine = ll::string_utils::replaceAll(mLineString, "${index}", std::to_string(index));
-                form.appendInput("Input" + std::to_string(index), mLine, "", item);
+                form.appendInput("Input" + std::to_string(index), mLine, "", item.get<std::string>());
                 index++;
             }
             form.appendToggle("Toggle1", tr(mObjectLanguage, "notice.gui.addLine"));
             form.appendToggle("Toggle2", tr(mObjectLanguage, "notice.gui.removeLine"));
-            form.sendTo(player, [index](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [index](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return;
 
                 std::string mTitle = std::get<std::string>(dt->at("Input"));
@@ -116,10 +116,10 @@ namespace LOICollection::Plugins::notice {
 
     namespace {
         void registerCommand() {
-            auto& command = ll::command::CommandRegistrar::getInstance()
+            ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("notice", "§e§lLOICollection -> §a公告系统", CommandPermissionLevel::Any);
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -127,11 +127,11 @@ namespace LOICollection::Plugins::notice {
 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
+            command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                     return output.error("You do not have permission to use this command.");
 
-                auto* entity = origin.getEntity();
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -139,8 +139,8 @@ namespace LOICollection::Plugins::notice {
 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -151,9 +151,9 @@ namespace LOICollection::Plugins::notice {
         }
 
         void listenEvent() {
-            auto& eventBus = ll::event::EventBus::getInstance();
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) {
+                [](ll::event::PlayerJoinEvent& event) -> void {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mObject = event.self().getUuid().asString();
@@ -190,8 +190,8 @@ namespace LOICollection::Plugins::notice {
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         
         if (!db->has("title") || !db->has("content")) {
-            db->set("title", std::string("测试公告123"));
-            db->set("content", nlohmann::ordered_json::array({"这是一条测试公告，欢迎使用本插件！"}));
+            db->set("title", std::string("Test Bulletin 123"));
+            db->set("content", nlohmann::ordered_json::array({"This is a test announcement, welcome to this plugin!"}));
             db->save();
         }
         
@@ -200,7 +200,7 @@ namespace LOICollection::Plugins::notice {
     }
 
     void unregistery() {
-        auto& eventBus = ll::event::EventBus::getInstance();
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
     }
 }

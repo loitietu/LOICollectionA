@@ -73,10 +73,10 @@ namespace LOICollection::Plugins::blacklist {
             ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "time", "None")));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), mObjectLabel);
-            form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [target](Player& /*unused*/) {
+            form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [target](Player& /*unused*/) -> void {
                 delBlacklist(target);
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::remove(pl);
             });
         }
@@ -89,7 +89,7 @@ namespace LOICollection::Plugins::blacklist {
             form.appendInput("Input1", tr(mObjectLanguage, "blacklist.gui.add.input1"), "", "None");
             form.appendInput("Input2", tr(mObjectLanguage, "blacklist.gui.add.input2"), "", "0");
             form.appendDropdown("dropdown", tr(mObjectLanguage, "blacklist.gui.add.dropdown"), { "ip", "uuid" });
-            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::add(pl);
 
                 std::string PlayerSelectType = std::get<std::string>(dt->at("dropdown"));
@@ -113,11 +113,11 @@ namespace LOICollection::Plugins::blacklist {
             ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.add.title"),
                 tr(mObjectLanguage, "blacklist.gui.add.label"));
             for (Player*& mTarget : McUtils::getAllPlayers()) {
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) {
+                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void  {
                     MainGui::content(pl, *mTarget);
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::open(pl);
             });
         }
@@ -133,7 +133,7 @@ namespace LOICollection::Plugins::blacklist {
                     MainGui::info(pl, mItem);
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::open(pl);
             });
         }
@@ -142,10 +142,10 @@ namespace LOICollection::Plugins::blacklist {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.title"), tr(mObjectLanguage, "blacklist.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "blacklist.gui.addBlacklist"), "textures/ui/backup_replace", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "blacklist.gui.addBlacklist"), "textures/ui/backup_replace", "path", [](Player& pl) -> void {
                 MainGui::add(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "blacklist.gui.removeBlacklist"), "textures/ui/free_download_symbol", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "blacklist.gui.removeBlacklist"), "textures/ui/free_download_symbol", "path", [](Player& pl) -> void {
                 MainGui::remove(pl);
             });
             form.sendTo(player);
@@ -157,8 +157,8 @@ namespace LOICollection::Plugins::blacklist {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("blacklist", "§e§lLOICollection -> §b服务器黑名单", CommandPermissionLevel::GameDirectors);
             command.overload<BlacklistOP>().text("add").required("type").required("target").optional("cause").optional("time").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param) {
-                auto results = param.target.results(origin);
+                [](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param) -> void {
+                CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");
 
@@ -176,14 +176,14 @@ namespace LOICollection::Plugins::blacklist {
                 }
             });
             command.overload<BlacklistOP>().text("remove").required("object").execute(
-                [](CommandOrigin const&, CommandOutput& output, BlacklistOP const& param) {
+                [](CommandOrigin const&, CommandOutput& output, BlacklistOP const& param) -> void {
                 if (!db->has("OBJECT$" + param.object))
                     return output.error("Object {} is not in blacklist.", param.object);
                 delBlacklist(param.object);
 
                 output.success("Remove object {} from blacklist.", param.object);
             });
-            command.overload().text("list").execute([](CommandOrigin const&, CommandOutput& output) {
+            command.overload().text("list").execute([](CommandOrigin const&, CommandOutput& output) -> void {
                 std::vector<std::string> mObjectList = db->list();
                 std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), 
                     [](const std::string& a, const std::string& b) {
@@ -193,8 +193,8 @@ namespace LOICollection::Plugins::blacklist {
 
                 output.success("Blacklist: {}", result.empty() ? "None" : result);
             });
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -205,7 +205,7 @@ namespace LOICollection::Plugins::blacklist {
         }
 
         void listenEvent() {
-            LOICollection::HookPlugin::Event::onLoginPacketSendEvent([](void* identifier_ptr, std::string mUuid, std::string mIpAndPort) {
+            LOICollection::HookPlugin::Event::onLoginPacketSendEvent([](void* identifier_ptr, std::string mUuid, std::string mIpAndPort) -> void {
                 NetworkIdentifier* identifier = static_cast<NetworkIdentifier*>(identifier_ptr);
                 std::string mObjectTips = tr(getLanguage(mUuid), "blacklist.tips");
                 std::replace(mUuid.begin(), mUuid.end(), '-', '_');

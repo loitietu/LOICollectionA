@@ -47,8 +47,8 @@ void JsonStorage::save() const {
 
 std::vector<std::string> JsonStorage::keys() const {
     std::vector<std::string> keyl;
-    for (auto& [key, _] : this->d_json.items())
-        keyl.push_back(key);
+    for (auto it = this->d_json.begin(); it != this->d_json.end(); ++it)
+        keyl.push_back(it.key());
     return keyl;
 }
 

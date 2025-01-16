@@ -61,7 +61,7 @@ namespace LOICollection::Plugins::tpa {
             ll::form::CustomForm form(tr(mObjectLanguage, "tpa.gui.setting.title"));
             form.appendLabel(tr(mObjectLanguage, "tpa.gui.setting.label"));
             form.appendToggle("Toggle1", tr(mObjectLanguage, "tpa.gui.setting.switch1"), isInvite(player));
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return;
 
                 std::string mObject = pl.getUuid().asString();
@@ -77,8 +77,7 @@ namespace LOICollection::Plugins::tpa {
 
             if (isInvite(target)) {
                 player.sendMessage(ll::string_utils::replaceAll(
-                    tr(getLanguage(player), "tpa.no.tips"),
-                    "${player}", target.getRealName()
+                    tr(getLanguage(player), "tpa.no.tips"), "${player}", target.getRealName()
                 ));
                 return;
             }
@@ -87,7 +86,7 @@ namespace LOICollection::Plugins::tpa {
                 ? LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player)
                 : LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player),
                 tr(mObjectLanguage, "tpa.yes"), tr(mObjectLanguage, "tpa.no"));
-            form.sendTo(target, [type, &player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
+            form.sendTo(target, [type, &player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
                     std::string logString = tr({}, "tpa.log");
                     if (type == TpaType::tpa) {
@@ -103,8 +102,7 @@ namespace LOICollection::Plugins::tpa {
                     return;
                 }
                 player.sendMessage(ll::string_utils::replaceAll(
-                    tr(getLanguage(player), "tpa.no.tips"),
-                    "${player}", pl.getRealName()
+                    tr(getLanguage(player), "tpa.no.tips"), "${player}", pl.getRealName()
                 ));
             });
         }
@@ -115,7 +113,7 @@ namespace LOICollection::Plugins::tpa {
             ll::form::CustomForm form(tr(mObjectLanguage, "tpa.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "tpa.gui.label"));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "tpa.gui.dropdown"), { "tpa", "tphere" });
-            form.sendTo(player, [&target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [&target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::open(pl);
 
                 if (std::get<std::string>(dt->at("dropdown")) == "tpa")
@@ -129,7 +127,7 @@ namespace LOICollection::Plugins::tpa {
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.title"), tr(mObjectLanguage, "tpa.gui.label2"));
             for (Player*& mTarget : McUtils::getAllPlayers()) {
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) {
+                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
                     MainGui::content(pl, *mTarget);
                 });
             }
@@ -142,13 +140,13 @@ namespace LOICollection::Plugins::tpa {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("tpa", "§e§lLOICollection -> §b玩家互传", CommandPermissionLevel::Any);
             command.overload<TpaOP>().text("invite").required("type").required("target").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, TpaOP const& param) {
-                auto* entity = origin.getEntity();
+                [](CommandOrigin const& origin, CommandOutput& output, TpaOP const& param) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
 
-                auto results = param.target.results(origin);
+                CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");
 
@@ -161,8 +159,8 @@ namespace LOICollection::Plugins::tpa {
                         pl->getRealName()), {}, CommandOutputMessageType::Success);
                 }
             });
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -170,8 +168,8 @@ namespace LOICollection::Plugins::tpa {
 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -182,9 +180,9 @@ namespace LOICollection::Plugins::tpa {
         }
 
         void listenEvent() {
-            auto& eventBus = ll::event::EventBus::getInstance();
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) {
+                [](ll::event::PlayerJoinEvent& event) -> void {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mObject = event.self().getUuid().asString();
@@ -220,7 +218,7 @@ namespace LOICollection::Plugins::tpa {
     }
 
     void unregistery() {
-        auto& eventBus = ll::event::EventBus::getInstance();
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
     }
 }

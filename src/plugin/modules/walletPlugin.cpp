@@ -58,7 +58,7 @@ namespace LOICollection::Plugins::wallet {
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
             form.appendLabel(mLabel);
             form.appendInput("Input", tr(mObjectLanguage, "wallet.gui.transfer.input"), "", "100");
-            form.sendTo(player, [&target, mScore](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [&target, mScore](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::transfer(pl);
 
                 int mMoney = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
@@ -81,19 +81,21 @@ namespace LOICollection::Plugins::wallet {
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), tr(mObjectLanguage, "wallet.gui.transfer.label"));
             for (Player*& mTarget : McUtils::getAllPlayers()) {
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) {
+                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
                     MainGui::content(pl, *mTarget);
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::open(pl);
             });
         }
 
         void wealth(Player& player) {
             std::string mTipsString = ll::string_utils::replaceAll(tr(getLanguage(player), "wallet.showOff"), 
-                "${money}", std::to_string(McUtils::scoreboard::getScore(player,
-                std::get<std::string>(mObjectOptions.at("score")))));
+                "${money}", std::to_string(
+                    McUtils::scoreboard::getScore(player,std::get<std::string>(mObjectOptions.at("score")))
+                )
+            );
             McUtils::broadcastText(LOICollection::LOICollectionAPI::translateString(mTipsString, player));
         }
 
@@ -105,10 +107,10 @@ namespace LOICollection::Plugins::wallet {
             ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(McUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), mLabel);
-            form.appendButton(tr(mObjectLanguage, "wallet.gui.transfer"), "textures/ui/MCoin", "path", [](Player& pl) {
-                return MainGui::transfer(pl);
+            form.appendButton(tr(mObjectLanguage, "wallet.gui.transfer"), "textures/ui/MCoin", "path", [](Player& pl) -> void {
+                MainGui::transfer(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "wallet.gui.wealth"), "textures/ui/creative_icon", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "wallet.gui.wealth"), "textures/ui/creative_icon", "path", [](Player& pl) -> void {
                 MainGui::wealth(pl);
             });
             form.sendTo(player);
@@ -119,8 +121,8 @@ namespace LOICollection::Plugins::wallet {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("wallet", "§e§lLOICollection -> §b个人钱包", CommandPermissionLevel::Any);
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -129,13 +131,13 @@ namespace LOICollection::Plugins::wallet {
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
             command.overload<WalletOP>().text("transfer").required("target").required("score").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, WalletOP const& param) {
-                auto* entity = origin.getEntity();
+                [](CommandOrigin const& origin, CommandOutput& output, WalletOP const& param) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
 
-                auto results = param.target.results(origin);
+                CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
                     return output.error("No player selected.");
 
@@ -149,8 +151,8 @@ namespace LOICollection::Plugins::wallet {
 
                 output.success("You have transferred {} to {} players.", param.score, results.size());
             });
-            command.overload().text("wealth").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("wealth").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);

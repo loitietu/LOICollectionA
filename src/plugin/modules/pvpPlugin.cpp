@@ -44,10 +44,10 @@ namespace LOICollection::Plugins::pvp {
             std::string mObjectLanguage = getLanguage(player);
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "pvp.gui.title"), tr(mObjectLanguage, "pvp.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "pvp.gui.on"), "textures/ui/book_addtextpage_default", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "pvp.gui.on"), "textures/ui/book_addtextpage_default", "path", [](Player& pl) -> void {
                 enable(pl, true);
             });
-            form.appendButton(tr(mObjectLanguage, "pvp.gui.off"), "textures/ui/cancel", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "pvp.gui.off"), "textures/ui/cancel", "path", [](Player& pl) -> void {
                 enable(pl, false);
             });
             form.sendTo(player);
@@ -58,8 +58,8 @@ namespace LOICollection::Plugins::pvp {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("pvp", "§e§lLOICollection -> §b服务器PVP", CommandPermissionLevel::Any);
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -67,8 +67,8 @@ namespace LOICollection::Plugins::pvp {
 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload().text("off").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("off").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -76,8 +76,8 @@ namespace LOICollection::Plugins::pvp {
 
                 output.success("The PVP has been disabled");
             });
-            command.overload().text("on").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("on").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -88,9 +88,9 @@ namespace LOICollection::Plugins::pvp {
         }
 
         void listenEvent() {
-            auto& eventBus = ll::event::EventBus::getInstance();
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) {
+                [](ll::event::PlayerJoinEvent& event) -> void {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mObject = event.self().getUuid().asString();
@@ -100,7 +100,7 @@ namespace LOICollection::Plugins::pvp {
                         db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
                 }
             );
-            LOICollection::HookPlugin::Event::onPlayerHurtEvent([](Mob* target, Actor* source, float /*unused*/) {
+            LOICollection::HookPlugin::Event::onPlayerHurtEvent([](Mob* target, Actor* source, float /*unused*/) -> bool {
                 Player& targetPlayer = *static_cast<Player*>(target);
                 Player& sourcePlayer = *static_cast<Player*>(source);
 
@@ -155,7 +155,7 @@ namespace LOICollection::Plugins::pvp {
     }
 
     void unregistery() {
-        auto& eventBus = ll::event::EventBus::getInstance();
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
     }
 }

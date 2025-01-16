@@ -63,7 +63,7 @@ namespace LOICollection::Plugins::market {
             ll::string_utils::replaceAll(mIntroduce, "${player}", db->get(mItemId, "player"));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), mIntroduce);
-            form.appendButton(tr(mObjectLanguage, "market.gui.sell.buy.button1"), [mItemId](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.buy.button1"), [mItemId](Player& pl) -> void {
                 std::string mObjectScore = std::get<std::string>(mObjectOptions.at("score"));
                 int mScore = SystemUtils::toInt(db->get(mItemId, "score"), 0);
                 if (McUtils::scoreboard::getScore(pl, mObjectScore) >= mScore) {
@@ -91,12 +91,12 @@ namespace LOICollection::Plugins::market {
                     logger->info(LOICollection::LOICollectionAPI::translateString(
                         ll::string_utils::replaceAll(tr({}, "market.log1"), "${item}", mName), pl
                     ));
-                } else {
-                    pl.sendMessage(tr(getLanguage(pl), "market.gui.sell.sellItem.tips3"));
+                    return;
                 }
+                pl.sendMessage(tr(getLanguage(pl), "market.gui.sell.sellItem.tips3"));
             });
             if ((int) player.getPlayerPermissionLevel() >= 2) {
-                form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) {
+                form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) -> void {
                     std::string mName = db->get(mItemId, "name");
                     pl.sendMessage(ll::string_utils::replaceAll(tr(getLanguage(pl), 
                         "market.gui.sell.sellItem.tips2"), "${item}", mName));
@@ -107,7 +107,7 @@ namespace LOICollection::Plugins::market {
                     ));
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::buy(pl);
             });
         }
@@ -122,7 +122,7 @@ namespace LOICollection::Plugins::market {
             ll::string_utils::replaceAll(mIntroduce, "${player}", db->get(mItemId, "player"));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), mIntroduce);
-            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) -> void {
                 std::string mName = db->get(mItemId, "name");
                 std::string mNbt = db->get(mItemId, "nbt");
 
@@ -138,7 +138,7 @@ namespace LOICollection::Plugins::market {
                     ll::string_utils::replaceAll(tr({}, "market.log3"), "${item}", mName), pl
                 ));
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::sellItemContent(pl);
             });
         }
@@ -162,7 +162,7 @@ namespace LOICollection::Plugins::market {
             form.appendInput("Input2", tr(mObjectLanguage, "market.gui.sell.sellItem.input2"), "", "textures/items/diamond");
             form.appendInput("Input3", tr(mObjectLanguage, "market.gui.sell.sellItem.input3"), "", "Introduce");
             form.appendInput("Input4", tr(mObjectLanguage, "market.gui.sell.sellItem.input4"), "", "100");
-            form.sendTo(player, [mNbt, mSlot](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [mNbt, mSlot](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::sellItemInventory(pl);
 
                 std::string mObject = pl.getUuid().asString();
@@ -172,7 +172,7 @@ namespace LOICollection::Plugins::market {
                 std::string mItemIcon = std::get<std::string>(dt->at("Input2"));
                 std::string mItemIntroduce = std::get<std::string>(dt->at("Input3"));
 
-                std::string mItemId = SystemUtils::nest<std::string>([mObject](std::string& val, int loop) {
+                std::string mItemId = SystemUtils::nest<std::string>([mObject](std::string& val, int loop) -> bool {
                     val = val + std::to_string(loop);
                     return db->has("OBJECT$" + mObject + "$ITEMS", val);
                 }, "Item", 1);
@@ -214,12 +214,12 @@ namespace LOICollection::Plugins::market {
                 std::string mItemName = tr(mObjectLanguage, "market.gui.sell.sellItem.dropdown.text");
                 ll::string_utils::replaceAll(mItemName, "${item}", mItemStack.getName());
                 ll::string_utils::replaceAll(mItemName, "${count}", std::to_string(mItemStack.mCount));
-                form.appendButton(mItemName, [mItemStack, i](Player& pl) {
+                form.appendButton(mItemName, [mItemStack, i](Player& pl) -> void {
                     MainGui::sellItem(pl, mItemStack.save(*SaveContextFactory::createCloneSaveContext())->toSnbt(
                         SnbtFormat::Minimize, 0), i);
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) return MainGui::sell(pl);
             });
         }
@@ -232,14 +232,14 @@ namespace LOICollection::Plugins::market {
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"),
                 tr(mObjectLanguage, "market.gui.label"));
-            for (auto& item : db->list("OBJECT$" + mObject + "$ITEMS")) {
+            for (std::string& item : db->list("OBJECT$" + mObject + "$ITEMS")) {
                 std::string mName = db->get("OBJECT$" + mObject + "$ITEMS_$LIST_" + item, "name");
                 std::string mIcon = db->get("OBJECT$" + mObject + "$ITEMS_$LIST_" + item, "icon");
-                form.appendButton(mName, mIcon, "path", [mObject, item](Player& pl) {
+                form.appendButton(mName, mIcon, "path", [mObject, item](Player& pl) -> void {
                     MainGui::itemContent(pl, ("OBJECT$" + mObject + "$ITEMS_$LIST_" + item));
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) return MainGui::sell(pl);
             });
         }
@@ -248,10 +248,10 @@ namespace LOICollection::Plugins::market {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItem"), "textures/items/diamond", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItem"), "textures/items/diamond", "path", [](Player& pl) -> void {
                 MainGui::sellItemInventory(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent"), "textures/items/diamond_axe", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent"), "textures/items/diamond_axe", "path", [](Player& pl) -> void {
                 MainGui::sellItemContent(pl);
             });
             form.sendTo(player);
@@ -262,10 +262,10 @@ namespace LOICollection::Plugins::market {
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"),
                 tr(mObjectLanguage, "market.gui.label"));
-            for (auto& item : db->list("Item")) {
+            for (std::string& item : db->list("Item")) {
                 std::string mName = db->get(item, "name");
                 std::string mIcon = db->get(item, "icon");
-                form.appendButton(mName, mIcon, "path", [item](Player& pl) {
+                form.appendButton(mName, mIcon, "path", [item](Player& pl) -> void {
                     MainGui::buyItem(pl, item);
                 });
             }
@@ -277,8 +277,8 @@ namespace LOICollection::Plugins::market {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("market", "§e§lLOICollection -> §b玩家市场", CommandPermissionLevel::Any);
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -286,8 +286,8 @@ namespace LOICollection::Plugins::market {
 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload().text("sell").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("sell").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -298,9 +298,9 @@ namespace LOICollection::Plugins::market {
         }
 
         void listenEvent() {
-            auto& eventBus = ll::event::EventBus::getInstance();
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) {
+                [](ll::event::PlayerJoinEvent& event) -> void {
                     if (event.self().isSimulatedPlayer())
                         return;
                     std::string mObject = event.self().getUuid().asString();
@@ -345,7 +345,7 @@ namespace LOICollection::Plugins::market {
     }
 
     void unregistery() {
-        auto& eventBus = ll::event::EventBus::getInstance();
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
     }
 }

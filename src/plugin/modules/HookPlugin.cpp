@@ -67,7 +67,7 @@ LL_TYPE_INSTANCE_HOOK(
 #define InterceptPacketHookMacro(NAME, TYPE, SYMBOL, LIMIT, VAL, ...)                                           \
     LL_TYPE_INSTANCE_HOOK(NAME, HookPriority::Normal, TYPE, SYMBOL, void,  __VA_ARGS__) {                       \
         if (packet.getId() == MinecraftPacketIds::Text) {                                                       \
-            auto mTextPacket = static_cast<TextPacket const&>(packet);                                          \
+            TextPacket mTextPacket = static_cast<TextPacket const&>(packet);                                    \
             if (mTextPacket.mType == TextPacketType::Translate && mTextPacket.params.size() <= 1) {             \
                 if (mTextPacket.mMessage.find(LIMIT) == std::string::npos)                                      \
                     return origin VAL;                                                                          \
@@ -120,11 +120,10 @@ LL_TYPE_INSTANCE_HOOK(
     LoginPacket const& packet
 ) {
     origin(identifier, packet);
-    auto certificate = packet.mConnectionRequest->getCertificate();
-    auto uuid = ExtendedCertificate::getIdentity(*certificate).asString();
-    auto ipAndPort = identifier.getIPAndPort();    
+    std::string mIpAndPort = identifier.getIPAndPort();
+    std::string mObjectUuid = ExtendedCertificate::getIdentity(*packet.mConnectionRequest->getCertificate()).asString();
     for (auto& callback : mLoginPacketSendEventCallbacks)
-        callback(&const_cast<NetworkIdentifier&>(identifier), uuid, ipAndPort);
+        callback(&const_cast<NetworkIdentifier&>(identifier), mObjectUuid, mIpAndPort);
 };
 
 LL_TYPE_INSTANCE_HOOK(
@@ -245,7 +244,7 @@ namespace LOICollection::HookPlugin {
     void setFakeSeed(const std::string& str) {
         const char* ptr = str.data();
         char* endpt{};
-        auto result = std::strtoll(ptr, &endpt, 10);
+        int64 result = std::strtoll(ptr, &endpt, 10);
         ptr == endpt ? mFakeSeed = ll::random_utils::rand<int64_t>() : mFakeSeed = result;
     }
 

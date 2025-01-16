@@ -68,7 +68,7 @@ namespace LOICollection::Plugins::menu {
             form.appendInput("Input3", tr(mObjectLanguage, "menu.gui.button1.input3"), "", "execute as ${player} run say You do not have permission to use this button");
             form.appendInput("Input4", tr(mObjectLanguage, "menu.gui.button1.input4"), "", "execute as ${player} run say You do not have enough score to use this button");
             form.appendSlider("Slider", tr(mObjectLanguage, "menu.gui.button1.slider"), 0, 4, 1, 0);
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::edit(pl);
 
                 std::string mObjectInput1 = std::get<std::string>(dt->at("Input1"));
@@ -123,15 +123,15 @@ namespace LOICollection::Plugins::menu {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), tr(mObjectLanguage, "menu.gui.label"));
-            for (auto& key : db->keys()) {
-                form.appendButton(key, [key](Player& pl) {
+            for (std::string& key : db->keys()) {
+                form.appendButton(key, [key](Player& pl) -> void {
                     std::string mObjectLanguage = getLanguage(pl);
                     std::string mObjectContent = tr(mObjectLanguage, "menu.gui.button2.content");
                     
                     ll::string_utils::replaceAll(mObjectContent, "${menu}", key);
                     ll::form::ModalForm form(tr(mObjectLanguage, "menu.gui.title"), mObjectContent,
                         tr(mObjectLanguage, "menu.gui.button2.yes"), tr(mObjectLanguage, "menu.gui.button2.no"));
-                    form.sendTo(pl, [key](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
+                    form.sendTo(pl, [key](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
                         if (result == ll::form::ModalFormSelectedButton::Upper) {
                             db->remove(key);
                             db->save();
@@ -141,7 +141,7 @@ namespace LOICollection::Plugins::menu {
                     });
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::edit(pl);
             });
         }
@@ -161,7 +161,7 @@ namespace LOICollection::Plugins::menu {
             if (type != MenuType::Modal)
                 form.appendInput("Input2", tr(mObjectLanguage, "menu.gui.button1.input2"), "", data.at("exit"));
             form.appendSlider("Slider", tr(mObjectLanguage, "menu.gui.button1.slider"), 0, 4, 1, 0);
-            form.sendTo(player, [uiName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [uiName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::editAwardContent(pl, uiName);
 
                 nlohmann::ordered_json data = db->toJson(uiName);
@@ -207,7 +207,7 @@ namespace LOICollection::Plugins::menu {
             form.appendSlider("Slider", tr(mObjectLanguage, "menu.gui.button3.new.slider"), 0, 4, 1, 0);
             if (type == MenuType::Modal)
                 form.appendDropdown("dropdown2", tr(mObjectLanguage, "menu.gui.button3.new.dropdown2"), { "Upper", "Lower" });
-            form.sendTo(player, [uiName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [uiName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::editAwardContent(pl, uiName);
 
                 std::string mObjectInput4 = std::get<std::string>(dt->at("Input4"));
@@ -244,40 +244,39 @@ namespace LOICollection::Plugins::menu {
             nlohmann::ordered_json data = db->toJson(uiName);
             nlohmann::ordered_json mContent = (data.at("type").get<std::string>() == "Custom" ? data.at("customize") : data.at("button"));
             
-            std::vector<std::string> mObjectItems;
             ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), tr(mObjectLanguage, "menu.gui.label"));
-            for (auto& item : mContent) {
+            for (nlohmann::ordered_json& item : mContent) {
                 std::string mName = item.at("id").get<std::string>();
-                form.appendButton(mName);
-                mObjectItems.push_back(mName);
-            }
-            form.sendTo(player, [uiName, mObjectItems](Player& pl, int id, ll::form::FormCancelReason) {
-                if (id == -1) return MainGui::editAwardContent(pl, uiName);
+                form.appendButton(mName, [mName, uiName](Player& pl) -> void {
+                    std::string mObjectLanguage = getLanguage(pl);
+                    std::string mObjectContent = tr(mObjectLanguage, "menu.gui.button3.remove.content");
+                    ll::string_utils::replaceAll(mObjectContent, "${customize}", mName);
+                    ll::form::ModalForm form(tr(mObjectLanguage, "menu.gui.title"), mObjectContent,
+                        tr(mObjectLanguage, "menu.gui.button3.remove.yes"),
+                        tr(mObjectLanguage, "menu.gui.button3.remove.no")
+                    );
+                    form.sendTo(pl, [uiName, mName](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
+                        if (result != ll::form::ModalFormSelectedButton::Upper) 
+                            return;
+                        nlohmann::ordered_json data = db->toJson(uiName);
+                        nlohmann::ordered_json mContent = (data.at("type").get<std::string>() == "Custom" ? data.at("customize") : data.at("button"));
+                        for (int i = 0; i < (int) mContent.size(); i++) {
+                            if (mContent.at(i).at("id").get<std::string>() == mName)
+                                mContent.erase(i);
+                        }
+                        data.at("type").get<std::string>() == "Custom" ? data.at("customize") = mContent : data.at("button") = mContent;
+                        db->set(uiName, data);
+                        db->save();
 
-                std::string mId = mObjectItems.at(id);
-                std::string mObjectLanguage = getLanguage(pl);
-                std::string mObjectContent = tr(mObjectLanguage, "menu.gui.button3.remove.content");
-                ll::string_utils::replaceAll(mObjectContent, "${customize}", mId);
-                ll::form::ModalForm form(tr(mObjectLanguage, "menu.gui.title"), mObjectContent,
-                    tr(mObjectLanguage, "menu.gui.button3.remove.yes"), tr(mObjectLanguage, "menu.gui.button3.remove.no"));
-                form.sendTo(pl, [uiName, mId](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
-                    if (result != ll::form::ModalFormSelectedButton::Upper) 
-                        return;
-                    nlohmann::ordered_json data = db->toJson(uiName);
-                    nlohmann::ordered_json mContent = (data.at("type").get<std::string>() == "Custom" ? data.at("customize") : data.at("button"));
-                    for (int i = 0; i < (int) mContent.size(); i++) {
-                        if (mContent.at(i).at("id").get<std::string>() == mId)
-                            mContent.erase(i);
-                    }
-                    data.at("type").get<std::string>() == "Custom" ? data.at("customize") = mContent : data.at("button") = mContent;
-                    db->set(uiName, data);
-                    db->save();
-
-                    std::string logString = tr({}, "menu.log3");
-                    ll::string_utils::replaceAll(logString, "${menu}", uiName);
-                    ll::string_utils::replaceAll(logString, "${customize}", mId);
-                    logger->info(translateString(logString, pl));
+                        std::string logString = tr({}, "menu.log3");
+                        ll::string_utils::replaceAll(logString, "${menu}", uiName);
+                        ll::string_utils::replaceAll(logString, "${customize}", mName);
+                        logger->info(translateString(logString, pl));
+                    });
                 });
+            }
+            form.sendTo(player, [uiName](Player& pl, int id, ll::form::FormCancelReason) -> void {
+                if (id == -1) return MainGui::editAwardContent(pl, uiName);
             });
         }
 
@@ -290,15 +289,15 @@ namespace LOICollection::Plugins::menu {
 
             ll::form::CustomForm form(tr(mObjectLanguage, "menu.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "menu.gui.label"));
-            for (auto& item : data.at("command")) {
+            for (nlohmann::ordered_json& item : data.at("command")) {
                 std::string mLineString = mObjectLineString;
                 std::string mLine = ll::string_utils::replaceAll(mLineString, "${index}", std::to_string(index));
-                form.appendInput("Input" + std::to_string(index), mLine, "", item);
+                form.appendInput("Input" + std::to_string(index), mLine, "", item.get<std::string>());
                 index++;
             }
             form.appendToggle("Toggle1", tr(mObjectLanguage, "menu.gui.button3.command.addLine"));
             form.appendToggle("Toggle2", tr(mObjectLanguage, "menu.gui.button3.command.removeLine"));
-            form.sendTo(player, [index, uiName](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [index, uiName](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::editAwardContent(pl, uiName);
 
                 nlohmann::ordered_json data = db->toJson(uiName);
@@ -333,7 +332,7 @@ namespace LOICollection::Plugins::menu {
 
             ll::string_utils::replaceAll(mObjectLabel, "${menu}", uiName);
             ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), mObjectLabel);
-            form.appendButton(tr(mObjectLanguage, "menu.gui.button3.setting"), "textures/ui/icon_setting", "path", [uiName, mObjectType](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "menu.gui.button3.setting"), "textures/ui/icon_setting", "path", [uiName, mObjectType](Player& pl) -> void {
                 switch (ll::hash_utils::doHash(mObjectType)) {
                     case ll::hash_utils::doHash("Simple"):
                         MainGui::editAwardSetting(pl, uiName, MenuType::Simple);
@@ -347,23 +346,23 @@ namespace LOICollection::Plugins::menu {
                 };
             });
             if (mObjectType != "Custom") {
-                form.appendButton(tr(mObjectLanguage, "menu.gui.button3.new"), "textures/ui/icon_sign", "path", [uiName, mObjectType](Player& pl) {
+                form.appendButton(tr(mObjectLanguage, "menu.gui.button3.new"), "textures/ui/icon_sign", "path", [uiName, mObjectType](Player& pl) -> void {
                     if (mObjectType == "Simple")
                         return MainGui::editAwardNew(pl, uiName, MenuType::Simple);
                     MainGui::editAwardNew(pl, uiName, MenuType::Modal);
                 });
             }
             if (mObjectType != "Modal") {
-                form.appendButton(tr(mObjectLanguage, "menu.gui.button3.remove"), "textures/ui/icon_trash", "path", [uiName](Player& pl) {
+                form.appendButton(tr(mObjectLanguage, "menu.gui.button3.remove"), "textures/ui/icon_trash", "path", [uiName](Player& pl) -> void {
                     MainGui::editAwardRemove(pl, uiName);
                 });
             }
             if (mObjectType == "Custom") {
-                form.appendButton(tr(mObjectLanguage, "menu.gui.button3.command"), "textures/ui/creative_icon", "path", [uiName](Player& pl) {
+                form.appendButton(tr(mObjectLanguage, "menu.gui.button3.command"), "textures/ui/creative_icon", "path", [uiName](Player& pl) -> void {
                     MainGui::editAwardCommand(pl, uiName);
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::editAward(pl);
             });
         }
@@ -372,12 +371,12 @@ namespace LOICollection::Plugins::menu {
             std::string mObjectLanguage = getLanguage(player);
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), tr(mObjectLanguage, "menu.gui.label"));
-            for (auto& key : db->keys()) {
-                form.appendButton(key, [key](Player& pl) {
+            for (std::string& key : db->keys()) {
+                form.appendButton(key, [key](Player& pl) -> void {
                     MainGui::editAwardContent(pl, key);
                 });
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::edit(pl);
             });
         }
@@ -386,13 +385,13 @@ namespace LOICollection::Plugins::menu {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), tr(mObjectLanguage, "menu.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "menu.gui.button1"), "textures/ui/achievements", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "menu.gui.button1"), "textures/ui/achievements", "path", [](Player& pl) -> void {
                 MainGui::editNew(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "menu.gui.button2"), "textures/ui/world_glyph_color", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "menu.gui.button2"), "textures/ui/world_glyph_color", "path", [](Player& pl) -> void {
                 MainGui::editRemove(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "menu.gui.button3"), "textures/ui/editIcon", "path", [](Player& pl) {
+            form.appendButton(tr(mObjectLanguage, "menu.gui.button3"), "textures/ui/editIcon", "path", [](Player& pl) -> void {
                 MainGui::editAward(pl);
             });
             form.sendTo(player);
@@ -401,7 +400,7 @@ namespace LOICollection::Plugins::menu {
         void custom(Player& player, nlohmann::ordered_json& data) {
             nlohmann::ordered_json mCustomData;
             ll::form::CustomForm form(translateString(data.at("title").get<std::string>(), player));
-            for (auto& customize : data.at("customize")) {
+            for (nlohmann::ordered_json& customize : data.at("customize")) {
                 switch (ll::hash_utils::doHash(customize.at("type").get<std::string>())) {
                     case ll::hash_utils::doHash("Label"):
                         form.appendLabel(translateString(customize.at("title").get<std::string>(), player));
@@ -448,7 +447,7 @@ namespace LOICollection::Plugins::menu {
                     }
                 }
             }
-            form.sendTo(player, [mCustomData, data](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) {
+            form.sendTo(player, [mCustomData, data](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return McUtils::executeCommand(pl, data.at("exit").get<std::string>());
 
                 nlohmann::ordered_json mCustom;
@@ -476,14 +475,14 @@ namespace LOICollection::Plugins::menu {
         void simple(Player& player, nlohmann::ordered_json& data) {
             ll::form::SimpleForm form(translateString(data.at("title").get<std::string>(), player),
                 translateString(data.at("content").get<std::string>(), player));
-            for (auto& button : data.at("button")) {
+            for (nlohmann::ordered_json& button : data.at("button")) {
                 form.appendButton(translateString(button.at("title").get<std::string>(), player), 
-                    button.at("image").get<std::string>(), "path", [data, button](Player& pl) {
+                    button.at("image").get<std::string>(), "path", [data, button](Player& pl) -> void {
                     nlohmann::ordered_json mButton = button;
                     logicalExecution(pl, mButton, data);
                 });
             }
-            form.sendTo(player, [data](Player& pl, int id, ll::form::FormCancelReason) {
+            form.sendTo(player, [data](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) return McUtils::executeCommand(pl, data.at("exit").get<std::string>());
             });
         }
@@ -496,7 +495,7 @@ namespace LOICollection::Plugins::menu {
                 translateString(data.at("content").get<std::string>(), player),
                 translateString(data.at("confirmButton").at("title").get<std::string>(), player),
                 translateString(data.at("cancelButton").at("title").get<std::string>(), player));
-            form.sendTo(player, [data](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) {
+            form.sendTo(player, [data](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
                     nlohmann::ordered_json mButton = data.at("confirmButton");
                     logicalExecution(pl, mButton, data);
@@ -541,8 +540,8 @@ namespace LOICollection::Plugins::menu {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("menu", "§e§lLOICollection -> §b服务器菜单", CommandPermissionLevel::Any);
             command.overload<MenuOP>().text("gui").optional("uiName").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, MenuOP param) {
-                auto* entity = origin.getEntity();
+                [](CommandOrigin const& origin, CommandOutput& output, MenuOP param) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -552,8 +551,8 @@ namespace LOICollection::Plugins::menu {
                 
                 output.success("The UI has been opened to player {}", player.getRealName());
             });
-            command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -565,8 +564,8 @@ namespace LOICollection::Plugins::menu {
 
                 output.error("No permission to open the ui.");
             });
-            command.overload().text("clock").execute([](CommandOrigin const& origin, CommandOutput& output) {
-                auto* entity = origin.getEntity();
+            command.overload().text("clock").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error("No player selected.");
                 Player& player = *static_cast<Player*>(entity);
@@ -585,9 +584,9 @@ namespace LOICollection::Plugins::menu {
         }
 
         void listenEvent() {
-            auto& eventBus = ll::event::EventBus::getInstance();
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
             PlayerUseItemEventListener = eventBus.emplaceListener<ll::event::PlayerUseItemEvent>(
-                [](ll::event::PlayerUseItemEvent& event) {
+                [](ll::event::PlayerUseItemEvent& event) -> void {
                     if (event.self().isSimulatedPlayer())
                         return;
                     if (event.item().getTypeName() == mObjectOptions.at("MenuItemId"))
@@ -595,7 +594,7 @@ namespace LOICollection::Plugins::menu {
                 }
             );
             PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) {
+                [](ll::event::PlayerJoinEvent& event) -> void {
                     if (event.self().isSimulatedPlayer())
                         return;
                     ItemStack itemStack(mObjectOptions.at("MenuItemId"), 1, 0, nullptr);
@@ -621,7 +620,7 @@ namespace LOICollection::Plugins::menu {
                 return McUtils::executeCommand(player, original.at("NoScore").get<std::string>());
             if (data.at("command").is_string())
                 return McUtils::executeCommand(player, data.at("command").get<std::string>());
-            for (auto& command : data.at("command"))
+            for (nlohmann::ordered_json& command : data.at("command"))
                 McUtils::executeCommand(player, command.get<std::string>());
         } else if (data.at("type").get<std::string>() == "from") {
             if (!checkModifiedData(player, data))
@@ -657,7 +656,7 @@ namespace LOICollection::Plugins::menu {
     }
 
     void unregistery() {
-        auto& eventBus = ll::event::EventBus::getInstance();
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerUseItemEventListener);
         eventBus.removeListener(PlayerJoinEventListener);
     }

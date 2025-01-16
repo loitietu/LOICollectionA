@@ -1,5 +1,4 @@
 #include <string>
-#include <iterator>
 #include <unordered_map>
 
 #include <ll/api/memory/Hook.h>
@@ -37,7 +36,7 @@ LL_TYPE_INSTANCE_HOOK(
     if (packet.getId() == MinecraftPacketIds::ShowModalForm) {
         uint64 identifierHash = identifier.getHash();
 
-        auto& response = (ModalFormRequestPacket&)packet;
+        ModalFormRequestPacket& response = (ModalFormRequestPacket&)packet;
         if (!response.mFormId || response.mFormJSON->empty())
             return origin(identifier, packet, senderSubId);
         if (mFormResponse.contains(identifierHash)) {
@@ -61,7 +60,7 @@ LL_TYPE_INSTANCE_HOOK(
 ) {
     uint64 identifierHash = identifier.getHash();
 
-    auto& response = (ModalFormResponsePacket&)*packet;
+    ModalFormResponsePacket& response = (ModalFormResponsePacket&)*packet;
     if (!mFormResponse.contains(identifierHash))
         return origin(identifier, callback, packet);
     if (response.mFormId != mFormResponse[identifierHash])
@@ -89,9 +88,9 @@ namespace LOICollection::ProtableTool::OrderedUI {
         ModalFormRequestPacketHook::hook();
         ModalFormResponsePacketHook::hook();
 
-        auto& eventBus = ll::event::EventBus::getInstance();
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>(
-            [](ll::event::PlayerDisconnectEvent& event) {
+            [](ll::event::PlayerDisconnectEvent& event) -> void {
                 if (event.self().isSimulatedPlayer())
                     return;
                 uint64 identifierHash = event.self().getNetworkIdentifier().getHash();
@@ -107,7 +106,7 @@ namespace LOICollection::ProtableTool::OrderedUI {
         ModalFormRequestPacketHook::unhook();
         ModalFormResponsePacketHook::unhook();
 
-        auto& eventBus = ll::event::EventBus::getInstance();
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerDisconnectEventListener);
     }
 }
