@@ -12,6 +12,7 @@ namespace LOICollection::Plugins::notice {
     }
 
     LOICOLLECTION_A_NDAPI bool isClose(Player& player);
+    LOICOLLECTION_A_NDAPI bool isValid();
 
     LOICOLLECTION_A_API   void registery(void* database, void* config);
     LOICOLLECTION_A_API   void unregistery();

@@ -87,8 +87,7 @@ namespace LOICollection::Plugins::cdk {
                     db->save();
                 }
 
-                logger->info(ll::string_utils::replaceAll(tr({},
-                    "cdk.log1"), "${cdk}", mObjectCdk));
+                logger->info(ll::string_utils::replaceAll(tr({}, "cdk.log1"), "${cdk}", mObjectCdk));
             });
         }
 
@@ -110,8 +109,7 @@ namespace LOICollection::Plugins::cdk {
                 db->remove(mObjectCdk);
                 db->save();
 
-                logger->info(ll::string_utils::replaceAll(tr({},
-                    "cdk.log2"), "${cdk}", mObjectCdk));
+                logger->info(ll::string_utils::replaceAll(tr({}, "cdk.log2"), "${cdk}", mObjectCdk));
             });
         }
 
@@ -274,6 +272,8 @@ namespace LOICollection::Plugins::cdk {
     }
 
     void cdkConvert(Player& player, std::string convertString) {
+        if (!isValid()) return;
+
         std::string mObjectLanguage = getLanguage(player);
         if (db->has(convertString)) {
             nlohmann::ordered_json cdkJson = db->toJson(convertString);
@@ -287,7 +287,7 @@ namespace LOICollection::Plugins::cdk {
             nlohmann::ordered_json mPlayerList = cdkJson.at("player");
             if (std::find(mPlayerList.begin(), mPlayerList.end(), player.getUuid().asString()) != mPlayerList.end())
                 return player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips2"));
-            if (cdkJson.contains("title") && chat::isValid()) {
+            if (cdkJson.contains("title")) {
                 nlohmann::ordered_json mTitleList = cdkJson.at("title");
                 for (nlohmann::ordered_json::iterator it = mTitleList.begin(); it != mTitleList.end(); ++it)
                     chat::addChat(player, it.key(), it.value().get<int>());
@@ -313,11 +313,16 @@ namespace LOICollection::Plugins::cdk {
             
             player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
 
-            logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
-                tr({}, "cdk.log3"), "${cdk}", convertString), player));
+            logger->info(LOICollection::LOICollectionAPI::translateString(
+                ll::string_utils::replaceAll(tr({}, "cdk.log3"), "${cdk}", convertString), player
+            ));
             return;
         }
         player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
+    }
+
+    bool isValid() {
+        return logger != nullptr && db != nullptr;
     }
 
     void registery(void* database) {

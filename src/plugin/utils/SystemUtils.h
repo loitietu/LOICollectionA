@@ -12,7 +12,7 @@ namespace SystemUtils {
     T nest(Func func, T value, int loop = 0) {
         T ref = value;
         if(func(ref, loop))
-            return nest(func, value, ++loop);
+            return nest(std::move(func), value, ++loop);
         return ref;
     };
 

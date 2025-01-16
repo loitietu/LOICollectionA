@@ -24,6 +24,7 @@ namespace LOICollection::Plugins::blacklist {
     LOICOLLECTION_A_API   void delBlacklist(std::string target);
     
     LOICOLLECTION_A_NDAPI bool isBlacklist(Player& player);
+    LOICOLLECTION_A_NDAPI bool isValid();
 
     LOICOLLECTION_A_API   void registery(void* database);
 }

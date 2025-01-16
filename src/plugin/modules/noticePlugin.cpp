@@ -171,11 +171,17 @@ namespace LOICollection::Plugins::notice {
     }
 
     bool isClose(Player& player) {
+        if (!isValid()) return false;
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db2->has("OBJECT$" + mObject, "notice_Toggle1"))
             return db2->get("OBJECT$" + mObject, "notice_Toggle1") == "true";
         return false;
+    }
+
+    bool isValid() {
+        return logger != nullptr && db != nullptr && db2 != nullptr;
     }
 
     void registery(void* database, void* config) {

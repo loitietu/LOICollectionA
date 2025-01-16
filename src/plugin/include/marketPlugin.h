@@ -19,8 +19,10 @@ namespace LOICollection::Plugins::market {
         LOICOLLECTION_A_API void buy(Player& player);
     }
 
-    LOICOLLECTION_A_API void delItem(std::string mItemId);
+    LOICOLLECTION_A_API   void delItem(std::string mItemId);
 
-    LOICOLLECTION_A_API void registery(void* database, std::map<std::string, std::variant<std::string, int>>& options);
-    LOICOLLECTION_A_API void unregistery();
+    LOICOLLECTION_A_NDAPI bool isValid();
+
+    LOICOLLECTION_A_API   void registery(void* database, std::map<std::string, std::variant<std::string, int>>& options);
+    LOICOLLECTION_A_API   void unregistery();
 }

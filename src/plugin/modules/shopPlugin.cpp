@@ -102,8 +102,7 @@ namespace LOICollection::Plugins::shop {
                     db->set(mObjectInput1, mData);
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({},
-                    "shop.log1"), "${menu}", mObjectInput1), pl));
+                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "shop.log1"), "${menu}", mObjectInput1), pl));
             });
         }
 
@@ -124,8 +123,7 @@ namespace LOICollection::Plugins::shop {
                             db->remove(key);
                             db->save();
 
-                            logger->info(translateString(ll::string_utils::replaceAll(tr({},
-                                "shop.log2"), "${menu}", key), pl));
+                            logger->info(translateString(ll::string_utils::replaceAll(tr({}, "shop.log2"), "${menu}", key), pl));
                         }
                     });
                 });
@@ -169,8 +167,7 @@ namespace LOICollection::Plugins::shop {
                 db->set(uiName, data);
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({},
-                    "shop.log4"), "${menu}", uiName), pl));
+                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "shop.log4"), "${menu}", uiName), pl));
             });
         }
 
@@ -221,8 +218,7 @@ namespace LOICollection::Plugins::shop {
                 db->set(uiName, mContent);
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({},
-                    "menu.log5"), "${menu}", uiName), pl));
+                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log5"), "${menu}", uiName), pl));
             });
         }
 
@@ -479,6 +475,8 @@ namespace LOICollection::Plugins::shop {
     }
 
     bool checkModifiedData(Player& player, nlohmann::ordered_json data, int number) {
+        if (!isValid()) return true;
+
         for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it) {
             if ((it.value().get<int>() * number) > McUtils::scoreboard::getScore(player, it.key()))
                 return false;
@@ -486,6 +484,10 @@ namespace LOICollection::Plugins::shop {
         for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
             McUtils::scoreboard::reduceScore(player, it.key(), (it.value().get<int>() * number));
         return true;
+    }
+
+    bool isValid() {
+        return logger != nullptr && db != nullptr;
     }
 
     void registery(void* database) {

@@ -31,6 +31,7 @@ namespace LOICollection::Plugins::shop {
     }
 
     LOICOLLECTION_A_NDAPI bool checkModifiedData(Player& player, nlohmann::ordered_json data, int number);
+    LOICOLLECTION_A_NDAPI bool isValid();
 
     LOICOLLECTION_A_API   void registery(void* database);
 }

@@ -20,6 +20,7 @@ namespace LOICollection::Plugins::mute {
     LOICOLLECTION_A_API   void delMute(std::string target);
     
     LOICOLLECTION_A_NDAPI bool isMute(Player& player);
+    LOICOLLECTION_A_NDAPI bool isValid();
 
     LOICOLLECTION_A_API   void registery(void* database);
     LOICOLLECTION_A_API   void unregistery();

@@ -198,11 +198,17 @@ namespace LOICollection::Plugins::tpa {
     }
 
     bool isInvite(Player& player) {
+        if (!isValid()) return false;
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject))
             return db->get("OBJECT$" + mObject, "Tpa_Toggle1") == "true";
         return false;
+    }
+
+    bool isValid() {
+        return logger != nullptr && db != nullptr;
     }
 
     void registery(void* database) {

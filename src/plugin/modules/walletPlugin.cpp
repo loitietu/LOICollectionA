@@ -161,6 +161,10 @@ namespace LOICollection::Plugins::wallet {
         }
     }
 
+    bool isValid() {
+        return logger != nullptr;
+    }
+
     void registery(std::map<std::string, std::variant<std::string, double>>& options) {
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         mObjectOptions = options;

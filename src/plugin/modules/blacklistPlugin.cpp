@@ -238,7 +238,7 @@ namespace LOICollection::Plugins::blacklist {
     }
 
     void addBlacklist(Player& player, std::string cause, int time, BlacklistType type) {
-        if ((int) player.getPlayerPermissionLevel() >= 2)
+        if ((int) player.getPlayerPermissionLevel() >= 2 || !isValid())
             return;
 
         cause = cause.empty() ? "None" : cause;
@@ -264,13 +264,16 @@ namespace LOICollection::Plugins::blacklist {
     }
 
     void delBlacklist(std::string target) {
+        if (!isValid()) return;
+
         if (db->has("OBJECT$" + target))
             db->remove("OBJECT$" + target);
-        logger->info(ll::string_utils::replaceAll(tr({},
-            "blacklist.log2"), "${target}", target));
+        logger->info(ll::string_utils::replaceAll(tr({}, "blacklist.log2"), "${target}", target));
     }
 
     bool isBlacklist(Player& player) {
+        if (!isValid()) return false;
+
         std::string mObjectUuid = player.getUuid().asString();
         std::string mObjectIP = std::string(ll::string_utils::splitByPattern(player.getIPAndPort(), ":")[0]);
         std::replace(mObjectUuid.begin(), mObjectUuid.end(), '-', '_');
@@ -278,6 +281,10 @@ namespace LOICollection::Plugins::blacklist {
         if (db->has("OBJECT$" + mObjectUuid))
             return true;
         return db->has("OBJECT$" + mObjectIP);
+    }
+
+    bool isValid() {
+        return logger != nullptr && db != nullptr;
     }
 
     void registery(void* database) {

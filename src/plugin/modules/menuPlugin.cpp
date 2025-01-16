@@ -115,8 +115,7 @@ namespace LOICollection::Plugins::menu {
                     db->set(mObjectInput1, mData);
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({}, 
-                    "menu.log1"), "${menu}", mObjectInput1), pl));
+                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log1"), "${menu}", mObjectInput1), pl));
             });
         }
 
@@ -137,8 +136,7 @@ namespace LOICollection::Plugins::menu {
                             db->remove(key);
                             db->save();
 
-                            logger->info(translateString(ll::string_utils::replaceAll(tr({}, 
-                                "menu.log2"), "${menu}", key), pl));
+                            logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log2"), "${menu}", key), pl));
                         }
                     });
                 });
@@ -188,8 +186,7 @@ namespace LOICollection::Plugins::menu {
                 db->set(uiName, data);
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({},
-                    "menu.log5"), "${menu}", uiName), pl));
+                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log5"), "${menu}", uiName), pl));
             });
         }
 
@@ -237,8 +234,7 @@ namespace LOICollection::Plugins::menu {
                 db->set(uiName, mContent);
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({},
-                    "menu.log6"), "${menu}", uiName), pl));
+                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log6"), "${menu}", uiName), pl));
             });
         }
 
@@ -326,8 +322,7 @@ namespace LOICollection::Plugins::menu {
                 db->set(uiName, data);
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({},
-                    "menu.log4"), "${menu}", uiName), pl));
+                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log4"), "${menu}", uiName), pl));
             });
         }
 
@@ -613,21 +608,10 @@ namespace LOICollection::Plugins::menu {
         }
     }
 
-    bool checkModifiedData(Player& player, nlohmann::ordered_json& data) {
-        if (!data.contains("scores")) 
-            return true;
-        for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it) {
-            if (it.value().get<int>() > McUtils::scoreboard::getScore(player, it.key()))
-                return false;
-        }
-        for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
-            McUtils::scoreboard::reduceScore(player, it.key(), it.value().get<int>());
-        return true;
-    }
-
     void logicalExecution(Player& player, nlohmann::ordered_json& data, nlohmann::ordered_json original) {
-        if (data.empty()) 
+        if (data.empty() || !isValid()) 
             return;
+
         if (data.contains("permission")) {
             if ((int) player.getPlayerPermissionLevel() < data["permission"].get<int>())
                 return McUtils::executeCommand(player, original.at("NoPermission").get<std::string>());
@@ -644,6 +628,23 @@ namespace LOICollection::Plugins::menu {
                 return McUtils::executeCommand(player, original.at("NoScore").get<std::string>());
             MainGui::open(player, data.at("menu").get<std::string>());
         }
+    }
+
+    bool checkModifiedData(Player& player, nlohmann::ordered_json& data) {
+        if (!data.contains("scores") || !isValid()) 
+            return true;
+
+        for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it) {
+            if (it.value().get<int>() > McUtils::scoreboard::getScore(player, it.key()))
+                return false;
+        }
+        for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
+            McUtils::scoreboard::reduceScore(player, it.key(), it.value().get<int>());
+        return true;
+    }
+
+    bool isValid() {
+        return logger != nullptr && db != nullptr;
     }
 
     void registery(void* database, std::map<std::string, std::string>& options) {     

@@ -18,7 +18,9 @@ namespace LOICollection::Plugins::cdk {
         LOICOLLECTION_A_API void open(Player& player);
     }
 
-    LOICOLLECTION_A_API void cdkConvert(Player& player, std::string convertString);
+    LOICOLLECTION_A_API   void cdkConvert(Player& player, std::string convertString);
 
-    LOICOLLECTION_A_API void registery(void* database);
+    LOICOLLECTION_A_NDAPI bool isValid();
+
+    LOICOLLECTION_A_API   void registery(void* database);
 }

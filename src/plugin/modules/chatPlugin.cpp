@@ -292,6 +292,8 @@ namespace LOICollection::Plugins::chat {
     }
 
     void update(Player& player) {
+        if (!isValid()) return;
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject + "$TITLE")) {
@@ -301,8 +303,9 @@ namespace LOICollection::Plugins::chat {
                 std::string mTimeString = db->get("OBJECT$" + mObject + "$TITLE", i);
                 if (SystemUtils::isReach(mTimeString)) {
                     db->del("OBJECT$" + mObject + "$TITLE", i);
-                    logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
-                        tr({}, "chat.log4"), "${title}", i), player));
+                    logger->info(LOICollection::LOICollectionAPI::translateString(
+                        ll::string_utils::replaceAll(tr({}, "chat.log4"), "${title}", i), player
+                    ));
                 }
             }
         }
@@ -314,40 +317,36 @@ namespace LOICollection::Plugins::chat {
     }
 
     void addChat(Player& player, std::string text, int time) {
+        if (!isValid()) return;
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (!db->has("OBJECT$" + mObject + "$TITLE"))
             db->create("OBJECT$" + mObject + "$TITLE");
         db->set("OBJECT$" + mObject + "$TITLE", text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
 
-        logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
-            tr({}, "chat.log2"), "${title}", text), player));
+        logger->info(LOICollection::LOICollectionAPI::translateString(
+            ll::string_utils::replaceAll(tr({}, "chat.log2"), "${title}", text), player
+        ));
     }
 
     void delChat(Player& player, std::string text) {
+        if (!isValid()) return;
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject) && text != "None") {
             db->del("OBJECT$" + mObject + "$TITLE", text);
             update(player);
         }
-        logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
-            tr({}, "chat.log3"), "${title}", text), player));
-    }
-
-    bool isValid() {
-        return logger != nullptr && db != nullptr;
-    }
-
-    bool isChat(Player& player, std::string text) {
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject + "$TITLE"))
-            return db->has("OBJECT$" + mObject + "$TITLE", text);
-        return false;
+        logger->info(LOICollection::LOICollectionAPI::translateString(
+            ll::string_utils::replaceAll(tr({}, "chat.log3"), "${title}", text), player
+        ));
     }
 
     std::string getTitle(Player& player) {
+        if (!isValid()) return "None";
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject))
@@ -356,6 +355,8 @@ namespace LOICollection::Plugins::chat {
     }
 
     std::string getTitleTime(Player& player, std::string text) {
+        if (!isValid()) return "None";
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject + "$TITLE")) {
@@ -364,6 +365,20 @@ namespace LOICollection::Plugins::chat {
                 return mTimeString;
         }
         return "None";
+    }
+
+    bool isChat(Player& player, std::string text) {
+        if (!isValid()) return false;
+
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        if (db->has("OBJECT$" + mObject + "$TITLE"))
+            return db->has("OBJECT$" + mObject + "$TITLE", text);
+        return false;
+    }
+
+    bool isValid() {
+        return logger != nullptr && db != nullptr;
     }
 
     void registery(void* database, std::map<std::string, std::string> options) {

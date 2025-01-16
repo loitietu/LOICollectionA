@@ -88,8 +88,9 @@ namespace LOICollection::Plugins::market {
                     }
                     delItem(mItemId);
 
-                    logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
-                        tr({}, "market.log1"), "${item}", mName), pl));
+                    logger->info(LOICollection::LOICollectionAPI::translateString(
+                        ll::string_utils::replaceAll(tr({}, "market.log1"), "${item}", mName), pl
+                    ));
                 } else {
                     pl.sendMessage(tr(getLanguage(pl), "market.gui.sell.sellItem.tips3"));
                 }
@@ -101,8 +102,9 @@ namespace LOICollection::Plugins::market {
                         "market.gui.sell.sellItem.tips2"), "${item}", mName));
                     delItem(mItemId);
 
-                    logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
-                        tr({}, "market.log3"), "${item}", mName), pl));
+                    logger->info(LOICollection::LOICollectionAPI::translateString(
+                        ll::string_utils::replaceAll(tr({}, "market.log3"), "${item}", mName), pl
+                    ));
                 });
             }
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
@@ -132,8 +134,9 @@ namespace LOICollection::Plugins::market {
                 pl.refreshInventory();
                 delItem(mItemId);
 
-                logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
-                    tr({}, "market.log3"), "${item}", mName), pl));
+                logger->info(LOICollection::LOICollectionAPI::translateString(
+                    ll::string_utils::replaceAll(tr({}, "market.log3"), "${item}", mName), pl
+                ));
             });
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) {
                 if (id == -1) MainGui::sellItemContent(pl);
@@ -148,8 +151,9 @@ namespace LOICollection::Plugins::market {
 
             int mSize = std::get<int>(mObjectOptions.at("upload"));
             if (((int) db->list("OBJECT$" + mObject + "$ITEMS").size()) >= mSize) {
-                return player.sendMessage(ll::string_utils::replaceAll(tr(mObjectLanguage, 
-                    "market.gui.sell.sellItem.tips4"), "${size}", std::to_string(mSize)));
+                return player.sendMessage(ll::string_utils::replaceAll(
+                    tr(mObjectLanguage, "market.gui.sell.sellItem.tips4"), "${size}", std::to_string(mSize)
+                ));
             }
 
             ll::form::CustomForm form(tr(mObjectLanguage, "market.gui.title"));
@@ -188,8 +192,9 @@ namespace LOICollection::Plugins::market {
                 pl.getInventory().removeItem(mSlot, 64);
                 pl.refreshInventory();
 
-                logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
-                    tr({}, "market.log2"), "${item}", mItemName), pl));
+                logger->info(LOICollection::LOICollectionAPI::translateString(
+                    ll::string_utils::replaceAll(tr({}, "market.log2"), "${item}", mItemName), pl
+                ));
             });
         }
 
@@ -198,7 +203,7 @@ namespace LOICollection::Plugins::market {
 
             Container& mItemInventory = player.getInventory();
 
-            ll::form::SimpleForm form(tr(mObjectLanguage,"market.gui.title"),
+            ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"),
                 tr(mObjectLanguage, "market.gui.sell.sellItem.dropdown"));
             for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
                 ItemStack mItemStack = mItemInventory.getItem(i);
@@ -318,10 +323,16 @@ namespace LOICollection::Plugins::market {
     }
 
     void delItem(std::string mItemId) {
+        if (!isValid()) return;
+
         auto mIdList = ll::string_utils::splitByPattern(mItemId, "_$LIST_");
         db->del(mIdList[0], mIdList[1]);
         db->del("Item", mItemId);
         db->remove(mItemId);
+    }
+
+    bool isValid() {
+        return logger != nullptr && db != nullptr;
     }
 
     void registery(void* database, std::map<std::string, std::variant<std::string, int>>& options) {

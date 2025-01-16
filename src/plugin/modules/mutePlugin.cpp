@@ -203,7 +203,7 @@ namespace LOICollection::Plugins::mute {
     }
 
     void addMute(Player& player, std::string cause, int time) {
-        if ((int) player.getPlayerPermissionLevel() >= 2)
+        if ((int) player.getPlayerPermissionLevel() >= 2 || !isValid())
             return;
 
         cause = cause.empty() ? "None" : cause;
@@ -216,26 +216,37 @@ namespace LOICollection::Plugins::mute {
             db->set("OBJECT$" + mObject, "time", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
             db->set("OBJECT$" + mObject, "subtime", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         }
-        logger->info(LOICollection::LOICollectionAPI::translateString(ll::string_utils::replaceAll(
-            tr({}, "mute.log1"), "${cause}", cause), player));
+        logger->info(LOICollection::LOICollectionAPI::translateString(
+            ll::string_utils::replaceAll(tr({}, "mute.log1"), "${cause}", cause), player)
+        );
     }
 
     void delMute(Player& player) {
+        if (!isValid()) return;
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         delMute(mObject);
     }
 
     void delMute(std::string target) {
+        if (!isValid()) return;
+
         if (db->has("OBJECT$" + target))
             db->remove("OBJECT$" + target);
         logger->info(ll::string_utils::replaceAll(tr({}, "mute.log2"), "${target}", target));
     }
 
     bool isMute(Player& player) {
+        if (!isValid()) return false;
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         return db->has("OBJECT$" + mObject);
+    }
+
+    bool isValid() {
+        return logger != nullptr && db != nullptr;
     }
 
     void registery(void* database) {

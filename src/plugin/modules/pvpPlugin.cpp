@@ -116,15 +116,9 @@ namespace LOICollection::Plugins::pvp {
         }
     }
 
-    bool isEnable(Player& player) {
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject))
-            return db->get("OBJECT$" + mObject, "Pvp_Enable") == "true";
-        return false;
-    }
-
     void enable(Player& player, bool value) {
+        if (!isValid()) return;
+        
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (value) {
@@ -136,6 +130,20 @@ namespace LOICollection::Plugins::pvp {
         if (db->has("OBJECT$" + mObject))
             db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
         logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "pvp.log2"), player));
+    }
+
+    bool isEnable(Player& player) {
+        if (!isValid()) return false;
+
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        if (db->has("OBJECT$" + mObject))
+            return db->get("OBJECT$" + mObject, "Pvp_Enable") == "true";
+        return false;
+    }
+
+    bool isValid() {
+        return logger != nullptr && db != nullptr;
     }
 
     void registery(void* database) {
