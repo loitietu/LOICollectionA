@@ -14,7 +14,7 @@ lip install github.com/loitietu/LOICollectionA
 
 > 对于安装指定版本的可以执行以下命令
 ```bash
-lip install github.com/loitietu/LOICollectionA@v1.5.1
+lip install github.com/loitietu/LOICollectionA@v1.6.0
 ```
 
 > 对于进行版本更新的可以执行以下命令
@@ -40,7 +40,7 @@ lip install --upgrade github.com/loitietu/LOICollectionA
 2. 解压下载的 `LOICollectionA-windows-x64.zip`
 3. 将解压后的 `LOICollectionA` 文件夹移动到 `plugins` 文件夹下
 4. 双击服务端根目录下的 `bedrock_server_mod.exe` 文件以启动服务器
-5. 在服务器终端中,您应该能够看到 LOICollection 的启动日志
+5. 在服务器终端中，您应该能够看到 LOICollection 的启动日志
 
 ### 常见问题
 - **无法启用: unknown error when make exception string**

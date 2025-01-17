@@ -1,7 +1,6 @@
 - [主页](./README.md)
-- **个人文档**
+- **用户文档**
 - [快速开始](./md/start.md)
-- [配置文件](./md/config.md)
 - [数据文件](./md/data.md)
 - [命令列表](./md/command.md)
 - [LOICollectionAPI](./md/api.md)

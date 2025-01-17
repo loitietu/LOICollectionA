@@ -1,8 +1,6 @@
 # LOICollectionAPI
 > 以下为 `LOICollectionAPI` 的内容列表
 
-!> 以下为 LOICollectionA 1.6.0 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
-
 | LOICollectionAPI | 备注 |
 | --- | --- |
 {version.mc} | 当前服务器 Minecraft 版本
@@ -44,3 +42,5 @@
 {score(ScoreboardName)} | 玩家的计分板分数
 {tr(languageId)} | 获取玩家当前语言指定ID的翻译文本
 {entity(typeid)} | 获取指定ID的实体数量
+
+!> 以上为 LOICollectionA 1.6.0 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
