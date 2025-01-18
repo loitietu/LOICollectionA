@@ -177,21 +177,17 @@ namespace LOICollection::LOICollectionAPI {
         mVariableMapParameter[name] = std::move(callback);
     }
 
-    std::string getValueForVariable(const std::string& name, Player& player) {
-        if (auto it = mVariableMap.find(name); it != mVariableMap.end()) {
-            try {
-                return it->second(player);
-            } catch (...) {};
-        }
+    std::string getValueForVariable(const std::string& name, Player& player) try {
+        auto it = mVariableMap.find(name);
+        return it != mVariableMap.end() ? it->second(player) : "None";
+    } catch (...) {
         return "None";
     }
 
-    std::string getValueForVariable(const std::string& name, Player& player, const std::string& parameter) {
-        if (auto it = mVariableMapParameter.find(name); it != mVariableMapParameter.end()) {
-            try {
-                return it->second(player, parameter);
-            } catch (...) {};
-        }
+    std::string getValueForVariable(const std::string& name, Player& player, const std::string& parameter) try {
+        auto it = mVariableMapParameter.find(name);
+        return it != mVariableMapParameter.end() ? it->second(player, parameter) : "None";
+    } catch (...) {
         return "None";
     }
 

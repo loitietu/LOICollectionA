@@ -1,5 +1,8 @@
+#include <map>
 #include <memory>
 #include <string>
+#include <vector>
+#include <variant>
 #include <numeric>
 
 #include <ll/api/io/Logger.h>
@@ -49,7 +52,8 @@ namespace LOICollection::Plugins::chat {
         int time = 0;
     };
 
-    std::map<std::string, std::string> mObjectOptions;
+    std::map<std::string, std::variant<std::string, int>> mObjectOptions;
+
     std::unique_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
     ll::event::ListenerPtr PlayerChatEventListener;
@@ -133,12 +137,78 @@ namespace LOICollection::Plugins::chat {
             });
         }
 
+        void blacklistSet(Player& player, std::string target) {
+            std::string mObjectLanguage = getLanguage(player);
+
+            std::string mObject = player.getUuid().asString();
+            std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+            std::string mObjectLabel = tr(mObjectLanguage, "chat.gui.setBlacklist.set.label");
+            ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
+            ll::string_utils::replaceAll(mObjectLabel, "${player}", db->get("OBJECT$" + mObject + "$CHAT" + target, "name", "None"));
+            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(
+                db->get("OBJECT$" + mObject + "$CHAT" + target, "time", "None")
+            ));
+
+            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), mObjectLabel);
+            form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.set.remove"), [target](Player& pl) -> void {
+                delBlacklist(pl, target);
+            });
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
+                if (id == -1) MainGui::blacklist(pl);
+            });
+        }
+
+        void blacklistAdd(Player& player) {
+            std::string mObjectLanguage = getLanguage(player);
+
+            int mSize = std::get<int>(mObjectOptions.at("upload"));
+            if (((int) getBlacklist(player).size()) >= mSize) {
+                return player.sendMessage(ll::string_utils::replaceAll(
+                    tr(mObjectLanguage, "chat.gui.setBlacklist.tips1"), "${size}", std::to_string(mSize)
+                ));
+            }
+            
+            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.setBlacklist.add.label"));
+            for (Player*& mTarget : McUtils::getAllPlayers()) {
+                if (mTarget->getUuid() == player.getUuid())
+                    continue;
+                
+                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
+                    addBlacklist(pl, *mTarget);
+                });
+            }
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
+                if (id == -1) MainGui::blacklist(pl);
+            });
+        }
+
+        void blacklist(Player& player) {
+            std::string mObjectLanguage = getLanguage(player);
+            
+            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
+            for (std::string& mTarget : getBlacklist(player)) {
+                form.appendButton(mTarget, [mTarget](Player& pl) -> void {
+                    MainGui::blacklistSet(pl, mTarget);
+                });
+            }
+            form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.add"), [](Player& pl) -> void {
+                MainGui::blacklistAdd(pl);
+            });
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
+                if (id == -1) MainGui::setting(pl);
+            });
+        }
+
         void setting(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
             form.appendButton(tr(mObjectLanguage, "chat.gui.setTitle"), "textures/ui/backup_replace", "path", [](Player& pl) -> void {
                 MainGui::title(pl);
+            });
+            form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist"), "textures/ui/icon_book_writable", "path", [](Player& pl) -> void {
+                MainGui::blacklist(pl);
             });
             form.sendTo(player);
         }
@@ -274,6 +344,8 @@ namespace LOICollection::Plugins::chat {
                         db->create("OBJECT$" + mObject + "$TITLE");
                         db->set("OBJECT$" + mObject + "$TITLE", "None", "0");
                     }
+                    if (!db->has("OBJECT$" + mObject + "$CHAT"))
+                        db->create("OBJECT$" + mObject + "$CHAT");
                 }
             );
             PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>(
@@ -282,10 +354,17 @@ namespace LOICollection::Plugins::chat {
                         return;
                     event.cancel();
                     
-                    std::string mChat = mObjectOptions.at("chat");
+                    std::string mChat = std::get<std::string>(mObjectOptions.at("chat"));
                     ll::string_utils::replaceAll(mChat, "${chat}", event.message());
+
                     LOICollection::LOICollectionAPI::translateString(mChat, event.self());
-                    McUtils::broadcastText(mChat);
+                    McUtils::broadcastText(mChat, [&event](Player& player) -> bool {
+                        std::string mObject = event.self().getUuid().asString();
+                        std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+                        std::vector<std::string> mList = getBlacklist(player);
+                        return std::find(mList.begin(), mList.end(), mObject) == mList.end();
+                    });
                 }
             );
         }
@@ -330,6 +409,23 @@ namespace LOICollection::Plugins::chat {
         ));
     }
 
+    void addBlacklist(Player& player, Player& target) {
+        std::string mObject = player.getUuid().asString();
+        std::string mTargetObject = target.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
+
+        db->set("OBJECT$" + mObject + "$CHAT", mTargetObject, "blacklist");
+        
+        db->create("OBJECT$" + mObject + "$CHAT" + mTargetObject);
+        db->set("OBJECT$" + mObject + "$CHAT" + mTargetObject, "name", target.getRealName());
+        db->set("OBJECT$" + mObject + "$CHAT" + mTargetObject, "time", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
+
+        logger->info(LOICollection::LOICollectionAPI::translateString(
+            ll::string_utils::replaceAll(tr({}, "chat.log5"), "${target}", mTargetObject), player
+        ));
+    }
+
     void delChat(Player& player, std::string text) {
         if (!isValid()) return;
 
@@ -341,6 +437,18 @@ namespace LOICollection::Plugins::chat {
         }
         logger->info(LOICollection::LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "chat.log3"), "${title}", text), player
+        ));
+    }
+
+    void delBlacklist(Player& player, std::string target) {
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+        db->del("OBJECT$" + mObject + "$CHAT", target);
+        db->remove("OBJECT$" + mObject + "$CHAT" + target);
+
+        logger->info(LOICollection::LOICollectionAPI::translateString(
+            ll::string_utils::replaceAll(tr({}, "chat.log6"), "${target}", target), player
         ));
     }
 
@@ -367,6 +475,14 @@ namespace LOICollection::Plugins::chat {
         return "None";
     }
 
+    std::vector<std::string> getBlacklist(Player& player) {
+        if (!isValid()) return {};
+
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        return db->list("OBJECT$" + mObject + "$CHAT");
+    }
+
     bool isChat(Player& player, std::string text) {
         if (!isValid()) return false;
 
@@ -381,7 +497,7 @@ namespace LOICollection::Plugins::chat {
         return logger != nullptr && db != nullptr;
     }
 
-    void registery(void* database, std::map<std::string, std::string> options) {
+    void registery(void* database, std::map<std::string, std::variant<std::string, int>> options) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         mObjectOptions = options;

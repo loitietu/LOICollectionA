@@ -28,6 +28,9 @@
 #include <mc/server/commands/ServerCommandOrigin.h>
 #include <mc/server/commands/MinecraftCommands.h>
 
+#include <mc/network/packet/TextPacket.h>
+#include <mc/network/packet/TextPacketType.h>
+
 #include "McUtils.h"
 
 namespace McUtils {
@@ -67,9 +70,11 @@ namespace McUtils {
         }
     }
 
-    void broadcastText(const std::string& text) {
-        ll::service::getLevel()->forEachPlayer([text](Player& player) -> bool {
-            player.sendMessage(text);
+    void broadcastText(const std::string& text, std::function<bool(Player&)> filter) {
+        TextPacket packet = TextPacket::createSystemMessage(text);
+        ll::service::getLevel()->forEachPlayer([packet, filter = std::move(filter)](Player& player) -> bool {
+            if (filter(player) && packet.isValid())
+                packet.sendTo(player);
             return true;
         });
     }

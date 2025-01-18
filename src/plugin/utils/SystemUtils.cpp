@@ -1,6 +1,4 @@
 #include <ctime>
-#include <cstdlib>
-
 #include <string>
 #include <sstream>
 #include <iomanip>
@@ -60,6 +58,14 @@ namespace SystemUtils {
     }
 
     bool isReach(const std::string& timeString) {
-        return timeString.size() == 14 && std::stoll(getNowTime("%Y%m%d%H%M%S")) > std::stoll(timeString);
+        if (timeString.size() != 14)
+            return false;
+        std::tm tm = {};
+        std::istringstream iss(timeString);
+        iss >> std::get_time(&tm, "%Y%m%d%H%M%S");
+        if (iss.fail())
+            return false;
+        std::time_t targetTime = std::mktime(&tm);
+        return std::difftime(targetTime, std::time(nullptr)) <= 0;
     }
 }

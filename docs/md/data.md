@@ -62,7 +62,8 @@
         },
         "Chat": { // 聊天强化配置
             "ModuleEnabled": false, // 是否启用聊天强化
-            "FormatText": "<{player}> ${chat}" // 聊天消息格式，支持 LOICollectionA API 变量
+            "FormatText": "<{player}> ${chat}", // 聊天消息格式，支持 LOICollectionA API 变量
+            "MaximumUpload": 20 // 黑名单目标最大上传数量
         },
         "Notice": false, // 是否启用公告栏
         "Market": { // 玩家市场配置

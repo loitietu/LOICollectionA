@@ -197,7 +197,7 @@ namespace LOICollection::Plugins::mute {
                         
                         return event.cancel();
                     }
-                }, ll::event::EventPriority::High
+                }, ll::event::EventPriority::Highest
             );
         }
     }

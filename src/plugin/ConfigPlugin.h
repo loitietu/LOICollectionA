@@ -55,6 +55,7 @@ struct C_Config {
         struct C_Chat {
             bool ModuleEnabled = false;
             std::string FormatText = "<{player}> ${chat}";
+            int MaximumUpload = 20;
         } Chat;
         bool Notice = false;
         struct C_Market {

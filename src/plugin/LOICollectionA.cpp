@@ -137,8 +137,9 @@ namespace LOICollection {
             Plugins::wallet::registery(options);
         }
         if (this->config.Plugins.Chat.ModuleEnabled) {
-            std::map<std::string, std::string> options;
+            std::map<std::string, std::variant<std::string, int>> options;
             options["chat"] = this->config.Plugins.Chat.FormatText;
+            options["upload"] = this->config.Plugins.Chat.MaximumUpload;
             Plugins::chat::registery(&this->ChatDB, options);
         }
         if (this->config.Plugins.Notice) Plugins::notice::registery(&this->NoticeDB, &this->SettingsDB);

@@ -82,7 +82,8 @@ lip install github.com/loitietu/LOICollectionA
         },
         "Chat": {
             "ModuleEnabled": false,
-            "FormatText": "<{player}> ${chat}" 
+            "FormatText": "<{player}> ${chat}",
+            "MaximumUpload": 20
         },
         "Notice": false,
         "Market": {

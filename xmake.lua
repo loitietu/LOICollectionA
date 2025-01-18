@@ -64,7 +64,7 @@ target("LOICollectionA")
     after_build(function (target)
         local plugin_packer = import("scripts.after_build")
 
-        local major, minor, patch = 1, 6, 0
+        local major, minor, patch = 1, 6, 1
         local plugin_define = {
             pluginName = target:name(),
             pluginFile = path.filename(target:targetfile()),

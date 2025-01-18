@@ -44,6 +44,7 @@ namespace LOICollection::Plugins::wallet {
     };
 
     std::map<std::string, std::variant<std::string, double>> mObjectOptions;
+    
     std::shared_ptr<ll::io::Logger> logger;
 
     namespace MainGui {
