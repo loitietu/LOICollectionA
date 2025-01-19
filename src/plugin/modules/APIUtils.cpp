@@ -17,6 +17,7 @@
 #include <mc/world/level/Level.h>
 #include <mc/world/level/BlockPos.h>
 #include <mc/world/actor/player/Player.h>
+#include <mc/world/attribute/AttributeInstance.h>
 #include <mc/network/ServerNetworkHandler.h>
 
 #include "include/pvpPlugin.h"
@@ -71,16 +72,40 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("player.language.name", [](Player& player) -> std::string {
             return I18nUtils::getInstance()->get(Plugins::language::getLanguage(player), "name");
         });
+        registerVariable("player.gamemode", [](Player& player) -> std::string {
+            return std::string(magic_enum::enum_name(player.getPlayerGameType()));
+        });
         registerVariable("player.pos", [](Player& player) -> std::string {
             return player.getPosition().toString();
+        });
+        registerVariable("player.pos.x", [](Player& player) -> std::string {
+            return std::to_string((int)player.getPosition().x);
+        });
+        registerVariable("player.pos.y", [](Player& player) -> std::string {
+            return std::to_string((int)player.getPosition().y);
+        });
+        registerVariable("player.pos.z", [](Player& player) -> std::string {
+            return std::to_string((int)player.getPosition().z);
+        });
+        registerVariable("player.pos.respawn", [](Player& player) -> std::string {
+            return player.hasRespawnPosition() ? player.getSpawnPosition().toString() : "None";
+        });
+        registerVariable("player.pos.respawn.x", [](Player& player) -> std::string {
+            return player.hasRespawnPosition() ? std::to_string((int)player.getSpawnPosition().x) : "None";
+        });
+        registerVariable("player.pos.respawn.y", [](Player& player) -> std::string {
+            return player.hasRespawnPosition() ? std::to_string((int)player.getSpawnPosition().y) : "None";
+        });
+        registerVariable("player.pos.respawn.z", [](Player& player) -> std::string {
+            return player.hasRespawnPosition() ? std::to_string((int)player.getSpawnPosition().z) : "None";
         });
         registerVariable("player.pos.block", [](Player& player) -> std::string {
             return player.getEyePos().toString();
         });
-        registerVariable("player.pos.lastDeath", [](Player& player) -> std::string {
+        registerVariable("player.pos.lastdeath", [](Player& player) -> std::string {
             return player.getLastDeathPos()->toString();
         });
-        registerVariable("player.realName", [](Player& player) -> std::string {
+        registerVariable("player.realname", [](Player& player) -> std::string {
             return player.getRealName();
         });
         registerVariable("player.xuid", [](Player& player) -> std::string {
@@ -89,14 +114,29 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("player.uuid", [](Player& player) -> std::string {
             return player.getUuid().asString();
         });
-        registerVariable("player.canFly", [](Player& player) -> std::string {
+        registerVariable("player.is.op", [](Player& player) -> std::string {
+            return player.isOperator() ? "true" : "false";
+        });
+        registerVariable("player.can.fly", [](Player& player) -> std::string {
             return player.canFly() ? "true" : "false";
         });
-        registerVariable("player.maxHealth", [](Player& player) -> std::string {
-            return std::to_string(player.getMaxHealth());
-        });
         registerVariable("player.health", [](Player& player) -> std::string {
-            return std::to_string(player.getHealth());
+            return std::to_string((int)player.getHealth());
+        });
+        registerVariable("player.max.health", [](Player& player) -> std::string {
+            return std::to_string((int)player.getMaxHealth());
+        });
+        registerVariable("player.hunger", [](Player& player) -> std::string {
+            return std::to_string((int)player.getAttribute(Player::HUNGER()).getCurrentValue());
+        });
+        registerVariable("player.max.hunger", [](Player& player) -> std::string {
+            return std::to_string((int)player.getAttribute(Player::HUNGER()).getMaxValue());
+        });
+        registerVariable("player.saturation", [](Player& player) -> std::string {
+            return std::to_string((int)player.getAttribute(Player::SATURATION()).getCurrentValue());
+        });
+        registerVariable("player.max.saturation", [](Player& player) -> std::string {
+            return std::to_string((int)player.getAttribute(Player::SATURATION()).getMaxValue());
         });
         registerVariable("player.speed", [](Player& player) -> std::string {
             return std::to_string(player.getSpeed());
@@ -113,13 +153,19 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("player.ip", [](Player& player) -> std::string {
             return player.getIPAndPort();
         });
-        registerVariable("player.xp", [](Player& player) -> std::string {
+        registerVariable("player.exp.xp", [](Player& player) -> std::string {
             return std::to_string(player.getXpEarnedAtCurrentLevel());
         });
-        registerVariable("player.HandItem", [](Player& player) -> std::string {
+        registerVariable("player.exp.level", [](Player& player) -> std::string {
+            return std::to_string(player.getPlayerLevel());
+        });
+        registerVariable("player.exp.level.next", [](Player& player) -> std::string {
+            return std::to_string(player.getXpNeededForNextLevel());
+        });
+        registerVariable("player.handitem", [](Player& player) -> std::string {
             return player.getCarriedItem().getName();
         });
-        registerVariable("player.OffHand", [](Player& player) -> std::string {
+        registerVariable("player.offhand", [](Player& player) -> std::string {
             return player.getOffhandSlot().getName();
         });
         registerVariable("player.ms", [](Player& player) -> std::string {

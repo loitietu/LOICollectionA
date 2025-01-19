@@ -215,8 +215,7 @@ namespace LOICollection::Plugins::market {
                 ll::string_utils::replaceAll(mItemName, "${item}", mItemStack.getName());
                 ll::string_utils::replaceAll(mItemName, "${count}", std::to_string(mItemStack.mCount));
                 form.appendButton(mItemName, [mItemStack, i](Player& pl) -> void {
-                    MainGui::sellItem(pl, mItemStack.save(*SaveContextFactory::createCloneSaveContext())->toSnbt(
-                        SnbtFormat::Minimize, 0), i);
+                    MainGui::sellItem(pl, mItemStack.save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0), i);
                 });
             }
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {

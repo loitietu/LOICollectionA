@@ -60,45 +60,39 @@ namespace LOICollection::Plugins::notice {
         }
 
         void edit(Player& player) {
-            int index = 1;
-
             std::string mObjectLanguage = getLanguage(player);
-            std::string mObjectLineString = tr(mObjectLanguage, "notice.gui.line");
 
             ll::form::CustomForm form(tr(mObjectLanguage, "notice.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "notice.gui.label"));
             form.appendInput("Input", tr(mObjectLanguage, "notice.gui.setTitle"), "", db->get<std::string>("title"));
-            for (nlohmann::ordered_json& item : db->toJson("content")) {
-                std::string mLineString = mObjectLineString;
-                std::string mLine = ll::string_utils::replaceAll(mLineString, "${index}", std::to_string(index));
-                form.appendInput("Input" + std::to_string(index), mLine, "", item.get<std::string>());
-                index++;
+            
+            nlohmann::ordered_json data = db->toJson("content");
+            for (int i = 1; i < (int)(data.size() + 1); i++) {
+                std::string mLine = tr(mObjectLanguage, "notice.gui.line");
+                ll::string_utils::replaceAll(mLine, "${index}", std::to_string(i));
+                form.appendInput("Input" + std::to_string(i), mLine, "", data.at(i - 1).get<std::string>());
             }
+
             form.appendToggle("Toggle1", tr(mObjectLanguage, "notice.gui.addLine"));
             form.appendToggle("Toggle2", tr(mObjectLanguage, "notice.gui.removeLine"));
-            form.sendTo(player, [index](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return;
 
                 std::string mTitle = std::get<std::string>(dt->at("Input"));
                 nlohmann::ordered_json data = db->toJson("content");
-                if (std::get<uint64>(dt->at("Toggle1"))) {
+                if (std::get<uint64>(dt->at("Toggle1")))
                     data.push_back("");
-                    db->set("title", mTitle);
-                    db->set("content", data);
-                    db->save();
-                    return MainGui::edit(pl);
-                } else if (std::get<uint64>(dt->at("Toggle2"))) {
+                else if (std::get<uint64>(dt->at("Toggle2")))
                     data.erase(data.end() - 1);
-                    db->set("title", mTitle);
-                    db->set("content", data);
-                    db->save();
-                    return MainGui::edit(pl);
+                else {
+                    for (int i = 1; i < (int)(data.size() + 1); i++)
+                        data.at(i - 1) = std::get<std::string>(dt->at("Input" + std::to_string(i)));
                 }
-                for (int i = 1; i < index; i++)
-                    data.at(i - 1) = std::get<std::string>(dt->at("Input" + std::to_string(i)));
                 db->set("title", mTitle);
                 db->set("content", data);
                 db->save();
+
+                MainGui::edit(pl);
 
                 logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "notice.log"), pl));
             });
