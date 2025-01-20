@@ -13,7 +13,12 @@ I18nUtils::I18nUtils(const std::string& path) {
         if (!entry.is_regular_file() || entry.path().extension() != ".json")
             continue;
         nlohmann::ordered_json dataJson;
-        std::ifstream(entry.path()) >> dataJson;
+        
+        std::ifstream file(entry.path());
+        if (!file.is_open())
+            continue;
+        file >> dataJson;
+        file.close();
 
         const std::string& locale = entry.path().stem().string();
         for (const auto& [key, value] : dataJson.items())

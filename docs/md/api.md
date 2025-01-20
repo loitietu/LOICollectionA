@@ -54,8 +54,9 @@
 {server.time} | 当前时间
 {server.player.max} | 最大玩家数量
 {server.player.online} | 在线玩家数量
+{server.entity} | 当前服务器实体数量
 {score(ScoreboardName)} | 玩家的计分板分数
 {tr(languageId)} | 获取玩家当前语言指定ID的翻译文本
 {entity(typeid)} | 获取指定ID的实体数量
 
-!> 以上为 LOICollectionA 1.6.0 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
+!> 以上为 LOICollectionA 1.6.1 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。

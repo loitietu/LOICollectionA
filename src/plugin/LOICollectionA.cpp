@@ -88,8 +88,8 @@ namespace LOICollection {
             mObjectLanguage.save();
         }
         I18nUtils::getInstance() = std::make_unique<I18nUtils>(langFilePath.string());
-        I18nUtils::getInstance()->setDefaultLocal(this->config.ConsoleLanguage == "system" ?
-            SystemUtils::getSystemLocaleCode() : this->config.ConsoleLanguage);
+        I18nUtils::getInstance()->defaultLocal = this->config.ConsoleLanguage == "system" ?
+            SystemUtils::getSystemLocaleCode() : this->config.ConsoleLanguage;
         logger.info("Initialization of language completed.");
 
         HookPlugin::setFakeSeed(this->config.Plugins.FakeSeed);

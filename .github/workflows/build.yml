@@ -42,7 +42,7 @@ jobs:
                 xmake lua scripts/project.lua
             
             - run: |
-                xmake f -a x64 -m ${{ matrix }} -p windows -v -y --shared=${{ matrix.shared }}
+                xmake f -a x64 -m ${{ matrix.mode }} -p windows -v -y --shared=${{ matrix.shared }}
             
             - run: |
                 xmake -v -y

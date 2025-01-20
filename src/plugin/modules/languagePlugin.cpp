@@ -13,6 +13,9 @@
 #include <ll/api/event/player/PlayerJoinEvent.h>
 #include <ll/api/utils/StringUtils.h>
 
+#include <mc/certificates/WebToken.h>
+#include <mc/network/ConnectionRequest.h>
+
 #include <mc/world/actor/player/Player.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
@@ -83,18 +86,35 @@ namespace LOICollection::Plugins::language {
                 [](ll::event::PlayerJoinEvent& event) -> void {
                     if (event.self().isSimulatedPlayer())
                         return;
+
+                    std::string langcode = getLanguageCode(event.self());
+                    if (auto data = I18nUtils::getInstance()->data; data.find(langcode) == data.end())
+                        langcode = I18nUtils::getInstance()->defaultLocal;
+
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
                     if (!db->has("OBJECT$" + mObject)) db->create("OBJECT$" + mObject);
                     if (!db->has("OBJECT$" + mObject, "language"))
-                        db->set("OBJECT$" + mObject, "language", "zh_CN");
+                        db->set("OBJECT$" + mObject, "language", langcode);
                 }
             );
         }
     }
 
+    std::string getLanguageCode(Player& player) {
+        std::string defaultLocal = I18nUtils::getInstance()->defaultLocal;
+
+        if (player.isSimulatedPlayer())
+            return defaultLocal;
+
+        if (auto request = player.getConnectionRequest(); request)
+            return request->mRawToken->mDataInfo["LanguageCode"].asString(defaultLocal);
+        return defaultLocal;
+    }
+
     std::string getLanguage(std::string mObject) {
-        return db->get("OBJECT$" + mObject, "language", "zh_CN");
+        std::string defaultLocal = I18nUtils::getInstance()->defaultLocal;
+        return db->get("OBJECT$" + mObject, "language", defaultLocal);
     }
 
     std::string getLanguage(Player& player) {

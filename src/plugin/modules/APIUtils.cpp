@@ -196,13 +196,16 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("server.player.online", [](Player& /*unused*/) -> std::string {
             return std::to_string(ll::service::getLevel()->getActivePlayerCount());
         });
-        registerVariableParameter("score", [](Player& player, std::string name) -> std::string {
+        registerVariable("server.entity", [](Player& /*unused*/) -> std::string {
+            return std::to_string(ll::service::getLevel()->getRuntimeActorList().size());
+        });
+        registerVariable("score", [](Player& player, std::string name) -> std::string {
             return std::to_string(McUtils::scoreboard::getScore(player, name));
         });
-        registerVariableParameter("tr", [](Player& player, std::string name) -> std::string {
+        registerVariable("tr", [](Player& player, std::string name) -> std::string {
             return I18nUtils::getInstance()->get(Plugins::language::getLanguage(player), name);
         });
-        registerVariableParameter("entity", [](Player& /*unused*/, std::string name) -> std::string {
+        registerVariable("entity", [](Player& /*unused*/, std::string name) -> std::string {
             std::vector<Actor*> mRuntimeActorList = ll::service::getLevel()->getRuntimeActorList();
             int count = (int)std::count_if(mRuntimeActorList.begin(), mRuntimeActorList.end(), [&name](Actor* actor) {
                 return actor->getTypeName() == name;
@@ -217,7 +220,7 @@ namespace LOICollection::LOICollectionAPI {
         mVariableMap[name] = std::move(callback);
     }
 
-    void registerVariableParameter(const std::string& name, const std::function<std::string(Player&, std::string)> callback) {
+    void registerVariable(const std::string& name, const std::function<std::string(Player&, std::string)> callback) {
         if (mVariableMapParameter.find(name) != mVariableMapParameter.end())
             return;
         mVariableMapParameter[name] = std::move(callback);

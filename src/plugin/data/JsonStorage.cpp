@@ -10,9 +10,9 @@
 
 JsonStorage::JsonStorage(const std::filesystem::path& path) : d_path(path) {
     if (!std::filesystem::exists(path)) {
-        std::ofstream newfile(path);
-        newfile << this->d_json.dump();
-        newfile.close();
+        std::ofstream file(path);
+        file << this->d_json.dump();
+        file.close();
     }
     std::ifstream file(path);
     if (file.is_open()) {
