@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 
+#include <fmt/core.h>
+
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/ModalForm.h>
@@ -138,44 +140,43 @@ namespace LOICollection::Plugins::tpa {
     namespace {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("tpa", "§e§lLOICollection -> §b玩家互传", CommandPermissionLevel::Any);
+                .getOrCreateCommand("tpa", tr({}, "commands.tpa.description"), CommandPermissionLevel::Any);
             command.overload<TpaOP>().text("invite").required("type").required("target").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, TpaOP const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
                 CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
 
                 for (Player*& pl : results) {
                     MainGui::tpa(player, *pl, param.type == SelectorType::tpa
                         ? TpaType::tpa : TpaType::tphere
                     );
 
-                    output.addMessage(fmt::format("{} has been invited.", 
-                        pl->getRealName()), {}, CommandOutputMessageType::Success);
+                    output.success(fmt::runtime(tr({}, "commands.tpa.success.invite")), pl->getRealName());
                 }
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::open(player);
 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::setting(player);
 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
         }
 

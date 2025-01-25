@@ -26,14 +26,15 @@
 
 #include <mc/deps/core/utility/BinaryStream.h>
 
+#include <mc/network/NetworkIdentifier.h>
 #include <mc/network/ConnectionRequest.h>
 #include <mc/network/LoopbackPacketSender.h>
+#include <mc/network/ServerNetworkHandler.h>
 #include <mc/network/packet/StartGamePacket.h>
+#include <mc/network/packet/EmoteListPacket.h>
 #include <mc/network/packet/LoginPacket.h>
 #include <mc/network/packet/TextPacket.h>
 #include <mc/network/packet/TextPacketType.h>
-#include <mc/network/ServerNetworkHandler.h>
-#include <mc/network/NetworkIdentifier.h>
 
 #include <mc/certificates/Certificate.h>
 #include <mc/certificates/ExtendedCertificate.h>
@@ -101,8 +102,7 @@ LL_TYPE_INSTANCE_HOOK(
     std::string const&
 ) {
     Player* player = (Player*) this;
-    if (this->isPlayer() && std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(),
-        player->getUuid().asString()) != mInterceptedGetNameTagTargets.end()) {
+    if (this->isPlayer() && std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), player->getUuid().asString()) != mInterceptedGetNameTagTargets.end()) {
         static std::string mName;
         mName = player->getRealName();
         return mName;
@@ -188,20 +188,6 @@ PlayerHurtHookMacro(PlayerHurtHook3, Mob,
     float damage, bool knock, bool ignite
 )
 
-LL_TYPE_INSTANCE_HOOK(
-    PlayerAddItemHook,
-    HookPriority::Highest,
-    Player,
-    &Player::$add,
-    bool,
-    ItemStack& item
-) {
-    bool result = origin(item);
-    if (!result)
-        this->drop(item, false);
-    return result;
-}
-
 namespace LOICollection::HookPlugin {
     namespace Event {
         void onLoginPacketSendEvent(const std::function<void(NetworkIdentifier*, std::string, std::string)>& callback) {
@@ -218,15 +204,13 @@ namespace LOICollection::HookPlugin {
     }
 
     void interceptTextPacket(const std::string& uuid) {
-        if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), uuid) != mInterceptedTextPacketTargets.end())
-            return;
-        mInterceptedTextPacketTargets.push_back(uuid);
+        if (std::find(mInterceptedTextPacketTargets.begin(), mInterceptedTextPacketTargets.end(), uuid) == mInterceptedTextPacketTargets.end())
+            mInterceptedTextPacketTargets.push_back(uuid);
     }
 
     void interceptGetNameTag(const std::string& uuid) {
-        if (std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), uuid) != mInterceptedGetNameTagTargets.end())
-            return;
-        mInterceptedGetNameTagTargets.push_back(uuid);
+        if (std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), uuid) == mInterceptedGetNameTagTargets.end())
+            mInterceptedGetNameTagTargets.push_back(uuid);
     }
 
     void uninterceptTextPacket(const std::string& uuid) {
@@ -237,7 +221,7 @@ namespace LOICollection::HookPlugin {
 
     void uninterceptGetNameTag(const std::string& uuid) {
         auto it = std::find(mInterceptedGetNameTagTargets.begin(), mInterceptedGetNameTagTargets.end(), uuid);
-        if (it!= mInterceptedGetNameTagTargets.end())
+        if (it != mInterceptedGetNameTagTargets.end())
             mInterceptedGetNameTagTargets.erase(it);
     }
 
@@ -245,7 +229,7 @@ namespace LOICollection::HookPlugin {
         const char* ptr = str.data();
         char* endpt{};
         int64 result = std::strtoll(ptr, &endpt, 10);
-        ptr == endpt ? mFakeSeed = ll::random_utils::rand<int64_t>() : mFakeSeed = result;
+        mFakeSeed = ptr == endpt ? ll::random_utils::rand<int64_t>() : result;
     }
 
     void registery() {
@@ -258,7 +242,6 @@ namespace LOICollection::HookPlugin {
         PlayerHurtHook1::hook();
         PlayerHurtHook2::hook();
         PlayerHurtHook3::hook();
-        PlayerAddItemHook::hook();
     }
 
     void unregistery() {
@@ -271,6 +254,5 @@ namespace LOICollection::HookPlugin {
         PlayerHurtHook1::unhook();
         PlayerHurtHook2::unhook();
         PlayerHurtHook3::unhook();
-        PlayerAddItemHook::unhook();
     }
 }

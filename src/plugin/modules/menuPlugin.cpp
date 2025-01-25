@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 
+#include <fmt/core.h>
+
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/ModalForm.h>
@@ -530,48 +532,47 @@ namespace LOICollection::Plugins::menu {
     namespace {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("menu", "§e§lLOICollection -> §b服务器菜单", CommandPermissionLevel::Any);
+                .getOrCreateCommand("menu", tr({}, "commands.menu.description"), CommandPermissionLevel::Any);
             command.overload<MenuOP>().text("gui").optional("uiName").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, MenuOP param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::open(player, param.uiName.empty() ? 
                     mObjectOptions.at("EntranceKey") : param.uiName
                 );
                 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    output.error(tr({}, "commands.generic.permission"));
+                
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
-                if ((int) player.getPlayerPermissionLevel() >= 2) {
-                    MainGui::edit(player);
-                    output.success("The UI has been opened to player {}", player.getRealName());
-                    return;
-                }
+                MainGui::edit(player);
 
-                output.error("No permission to open the ui.");
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
             command.overload().text("clock").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 ItemStack itemStack(mObjectOptions.at("MenuItemId"), 1, 0, nullptr);
 
                 if (!itemStack || itemStack.isNull())
-                    return output.error("Failed to give the MenuItem to player {}", player.getRealName());
+                    return output.error(tr({}, "commands.menu.error.item.null"));
                 if (McUtils::isItemPlayerInventory(player, mObjectOptions.at("MenuItemId"), 1))
-                    return output.error("The MenuItem has already been given to player {}", player.getRealName());
+                    return output.error(fmt::runtime(tr({}, "commands.menu.error.item.give")), player.getRealName());
 
-                player.add(itemStack);
+                McUtils::giveItem(player, itemStack, 1);
                 player.refreshInventory();
 
-                output.success("The MenuItem has been given to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
         }
 
@@ -592,7 +593,7 @@ namespace LOICollection::Plugins::menu {
                     ItemStack itemStack(mObjectOptions.at("MenuItemId"), 1, 0, nullptr);
                     if (!itemStack || McUtils::isItemPlayerInventory(event.self(), mObjectOptions.at("MenuItemId"), 1))
                         return;
-                    event.self().add(itemStack);
+                    McUtils::giveItem(event.self(), itemStack, 1);
                     event.self().refreshInventory();
                 }
             );

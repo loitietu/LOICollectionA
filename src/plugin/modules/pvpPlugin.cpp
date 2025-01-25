@@ -1,6 +1,8 @@
 #include <memory>
 #include <string>
 
+#include <fmt/core.h>
+
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/SimpleForm.h>
@@ -57,33 +59,33 @@ namespace LOICollection::Plugins::pvp {
     namespace {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("pvp", "§e§lLOICollection -> §b服务器PVP", CommandPermissionLevel::Any);
+                .getOrCreateCommand("pvp", tr({}, "commands.pvp.description"), CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::open(player);
 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
             command.overload().text("off").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 enable(player, false);
 
-                output.success("The PVP has been disabled");
+                output.success(tr({}, "commands.pvp.success.disable"));
             });
             command.overload().text("on").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 enable(player, true);
 
-                output.success("The PVP has been enabled");
+                output.success(tr({}, "commands.pvp.success.enable"));
             });
         }
 

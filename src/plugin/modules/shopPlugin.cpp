@@ -3,6 +3,8 @@
 #include <string>
 #include <utility>
 
+#include <fmt/core.h>
+
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/ModalForm.h>
@@ -366,13 +368,7 @@ namespace LOICollection::Plugins::shop {
                     if (checkModifiedData(pl, data, mNumber)) {
                         ItemStack itemStack = data.contains("nbt") ? ItemStack::fromTag(CompoundTag::fromSnbt(data.at("nbt").get<std::string>())->mTags)
                             : ItemStack(data.at("id").get<std::string>(), 1, 0, nullptr);
-                        for (int i = 0; i < (int)(mNumber / 64); ++i) {
-                            ItemStack mItemStack = itemStack.clone();
-                            mItemStack.mCount = 64;
-                            pl.add(mItemStack);
-                        }
-                        itemStack.mCount = mNumber % 64;
-                        pl.add(itemStack);
+                        McUtils::giveItem(pl, itemStack, mNumber);
                         pl.refreshInventory();
                         return;
                     }
@@ -444,29 +440,28 @@ namespace LOICollection::Plugins::shop {
     namespace {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("shop", "§e§lLOICollection -> §b服务器商店", CommandPermissionLevel::Any);
+                .getOrCreateCommand("shop", tr({}, "commands.shop.description"), CommandPermissionLevel::Any);
             command.overload<ShopOP>().text("gui").required("uiName").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ShopOP param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::open(player, param.uiName);
 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    output.error(tr({}, "commands.generic.permission"));
+                
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
-                if ((int) player.getPlayerPermissionLevel() >= 2) {
-                    MainGui::edit(player);
-                    output.success("The UI has been opened to player {}", player.getRealName());
-                    return;
-                }
+                MainGui::edit(player);
 
-                output.error("No permission to open the ui.");
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
         }
     }

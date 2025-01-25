@@ -19,6 +19,8 @@
 #include <mc/world/item/ItemStack.h>
 #include <mc/world/actor/player/Player.h>
 
+#include <mc/util/LootTableUtils.h>
+
 #include <mc/server/commands/Command.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandContext.h>
@@ -68,6 +70,17 @@ namespace McUtils {
                 mItemInventory.removeItem(i, mItemObject.mCount);
             }
         }
+    }
+
+    void giveItem(Player& player, ItemStack& item, int mNumber) {
+        std::vector<ItemStack> items;
+        while (mNumber > 0) {
+            int count = std::min(mNumber, 64);
+            item.mCount = (uchar)count;
+            items.push_back(item);
+            mNumber -= count;
+        }
+        Util::LootTableUtils::givePlayer(player, items, true);
     }
 
     void broadcastText(const std::string& text, std::function<bool(Player&)> filter) {

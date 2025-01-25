@@ -1,6 +1,8 @@
 #include <memory>
 #include <string>
 
+#include <fmt/core.h>
+
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/CustomForm.h>
@@ -132,49 +134,47 @@ namespace LOICollection::Plugins::mute {
     namespace {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("mute", "§e§lLOICollection -> §b服务器禁言", CommandPermissionLevel::GameDirectors);
+                .getOrCreateCommand("mute", tr({}, "commands.mute.description"), CommandPermissionLevel::GameDirectors);
             command.overload<MuteOP>().text("add").required("target").optional("cause").optional("time").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) -> void {
                 CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
 
                 for (Player*& pl : results) {
                     if (isMute(*pl) || (int) pl->getPlayerPermissionLevel() >= 2 || pl->isSimulatedPlayer()) {
-                        output.error("Player {} cannot be added to the mute.", pl->getRealName());
+                        output.error(fmt::runtime(tr({}, "commands.mute.error.add")), pl->getRealName());
                         continue;
                     }
                     addMute(*pl, param.cause, param.time);
 
-                    output.addMessage(fmt::format("Add player {}({}) to mute.", pl->getRealName(),
-                        pl->getUuid().asString()), {}, CommandOutputMessageType::Success);
+                    output.success(fmt::runtime(tr({}, "commands.mute.success.add")), pl->getRealName());
                 }
             });
             command.overload<MuteOP>().text("remove").required("target").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) -> void {
                 CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 
                 for (Player*& pl : results) {
                     if (!isMute(*pl)) {
-                        output.error("Player {} is not in the mute.", pl->getRealName());
+                        output.error(fmt::runtime(tr({}, "commands.mute.error.remove")), pl->getRealName());
                         continue;
                     }
                     delMute(*pl);
 
-                    output.addMessage(fmt::format("Remove player {}({}) form mute.", pl->getRealName(),
-                        pl->getUuid().asString()), {}, CommandOutputMessageType::Success);
+                    output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), pl->getRealName());
                 }
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::open(player);
 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
         }
 

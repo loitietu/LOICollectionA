@@ -2,6 +2,8 @@
 #include <string>
 #include <variant>
 
+#include <fmt/core.h>
+
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/SimpleForm.h>
@@ -121,45 +123,45 @@ namespace LOICollection::Plugins::wallet {
     namespace {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("wallet", "§e§lLOICollection -> §b个人钱包", CommandPermissionLevel::Any);
+                .getOrCreateCommand("wallet", tr({}, "commands.wallet.description"), CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::open(player);
 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
             command.overload<WalletOP>().text("transfer").required("target").required("score").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, WalletOP const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
                 CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
 
                 std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
                 if (McUtils::scoreboard::getScore(player, mScore) < (int)(results.size() * param.score))
-                    return output.error("You don't have enough score.");
+                    return output.error(tr({}, "commands.wallet.error.score"));
                 int mMoney = (param.score - (int)(param.score * std::get<double>(mObjectOptions.at("tax"))));
                 for (Player*& target : results)
                     McUtils::scoreboard::addScore(*target, mScore, mMoney);
                 McUtils::scoreboard::reduceScore(player, mScore, (int)(results.size() * param.score));
 
-                output.success("You have transferred {} to {} players.", param.score, results.size());
+                output.success(fmt::runtime(tr({}, "commands.wallet.success.transfer")), param.score, results.size());
             });
             command.overload().text("wealth").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::wealth(player);
 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
         }
     }

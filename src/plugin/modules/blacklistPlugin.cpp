@@ -3,6 +3,8 @@
 #include <string>
 #include <numeric>
 
+#include <fmt/core.h>
+
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/CustomForm.h>
@@ -155,33 +157,32 @@ namespace LOICollection::Plugins::blacklist {
     namespace {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("blacklist", "§e§lLOICollection -> §b服务器黑名单", CommandPermissionLevel::GameDirectors);
+                .getOrCreateCommand("blacklist", tr({}, "commands.blacklist.description"), CommandPermissionLevel::GameDirectors);
             command.overload<BlacklistOP>().text("add").required("type").required("target").optional("cause").optional("time").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, BlacklistOP const& param) -> void {
                 CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
 
                 for (Player*& pl : results) {
                     if (isBlacklist(*pl) || (int) pl->getPlayerPermissionLevel() >= 2 || pl->isSimulatedPlayer()) {
-                        output.error("Player {} cannot be added to the blacklist.", pl->getRealName());
+                        output.error(fmt::runtime(tr({}, "commands.blacklist.error.add")), pl->getRealName());
                         continue;
                     }
                     addBlacklist(*pl, param.cause, param.time,
                         param.type == SelectorType::ip ? BlacklistType::ip : BlacklistType::uuid
                     );
 
-                    output.addMessage(fmt::format("Add player {} to blacklist.", 
-                        pl->getRealName()), {}, CommandOutputMessageType::Success);
+                    output.success(fmt::runtime(tr({}, "commands.blacklist.success.add")), pl->getRealName());
                 }
             });
             command.overload<BlacklistOP>().text("remove").required("object").execute(
                 [](CommandOrigin const&, CommandOutput& output, BlacklistOP const& param) -> void {
                 if (!db->has("OBJECT$" + param.object))
-                    return output.error("Object {} is not in blacklist.", param.object);
+                    return output.error(fmt::runtime(tr({}, "commands.blacklist.error.remove")), param.object);
                 delBlacklist(param.object);
 
-                output.success("Remove object {} from blacklist.", param.object);
+                output.success(fmt::runtime(tr({}, "commands.blacklist.success.remove")), param.object);
             });
             command.overload().text("list").execute([](CommandOrigin const&, CommandOutput& output) -> void {
                 std::vector<std::string> mObjectList = db->list();
@@ -191,16 +192,16 @@ namespace LOICollection::Plugins::blacklist {
                 });
                 ll::string_utils::replaceAll(result, "OBJECT$", "");
 
-                output.success("Blacklist: {}", result.empty() ? "None" : result);
+                output.success(fmt::runtime(tr({}, "commands.blacklist.success.list")), result.empty() ? "None" : result);
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::open(player);
 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
         }
 

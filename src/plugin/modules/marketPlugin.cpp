@@ -4,6 +4,8 @@
 #include <vector>
 #include <variant>
 
+#include <fmt/core.h>
+
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/CustomForm.h>
@@ -72,7 +74,7 @@ namespace LOICollection::Plugins::market {
                     std::string mNbt = db->get(mItemId, "nbt");
 
                     ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mNbt)->mTags);
-                    pl.add(mItemStack);
+                    McUtils::giveItem(pl, mItemStack, (int)mItemStack.mCount);
                     pl.refreshInventory();
 
                     Player* mPlayer = ll::service::getLevel()->getPlayer(db->get(mItemId, "player"));
@@ -130,7 +132,7 @@ namespace LOICollection::Plugins::market {
                     "market.gui.sell.sellItem.tips2"), "${item}", mName));
                 
                 ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mNbt)->mTags);
-                pl.add(mItemStack);
+                McUtils::giveItem(pl, mItemStack, (int)mItemStack.mCount);
                 pl.refreshInventory();
                 delItem(mItemId);
 
@@ -275,24 +277,24 @@ namespace LOICollection::Plugins::market {
     namespace {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("market", "§e§lLOICollection -> §b玩家市场", CommandPermissionLevel::Any);
+                .getOrCreateCommand("market", tr({}, "commands.market.description"), CommandPermissionLevel::Any);
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::buy(player);
 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
             command.overload().text("sell").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::sell(player);
 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
         }
 

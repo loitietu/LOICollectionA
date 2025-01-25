@@ -103,7 +103,7 @@ namespace LOICollection::LOICollectionAPI {
             return player.getEyePos().toString();
         });
         registerVariable("player.pos.lastdeath", [](Player& player) -> std::string {
-            return player.getLastDeathPos()->toString();
+            return player.getLastDeathPos() ? player.getLastDeathPos()->toString() : "None";
         });
         registerVariable("player.realname", [](Player& player) -> std::string {
             return player.getRealName();
@@ -215,15 +215,11 @@ namespace LOICollection::LOICollectionAPI {
     }
 
     void registerVariable(const std::string& name, const std::function<std::string(Player&)> callback) {
-        if (mVariableMap.find(name) != mVariableMap.end())
-            return;
-        mVariableMap[name] = std::move(callback);
+        mVariableMap.emplace(name, std::move(callback));
     }
 
     void registerVariable(const std::string& name, const std::function<std::string(Player&, std::string)> callback) {
-        if (mVariableMapParameter.find(name) != mVariableMapParameter.end())
-            return;
-        mVariableMapParameter[name] = std::move(callback);
+        mVariableMapParameter.emplace(name, std::move(callback));
     }
 
     std::string getValueForVariable(const std::string& name, Player& player) try {

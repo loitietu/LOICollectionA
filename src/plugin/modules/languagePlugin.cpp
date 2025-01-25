@@ -1,6 +1,8 @@
 #include <memory>
 #include <string>
 
+#include <fmt/core.h>
+
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/CustomForm.h>
@@ -68,15 +70,15 @@ namespace LOICollection::Plugins::language {
     namespace {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("language", "§e§lLOICollection -> §a语言设置", CommandPermissionLevel::Any);
+                .getOrCreateCommand("language", tr({}, "commands.language.description"), CommandPermissionLevel::Any);
             command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::open(player);
 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
         }
 
@@ -89,7 +91,7 @@ namespace LOICollection::Plugins::language {
 
                     std::string langcode = getLanguageCode(event.self());
                     if (auto data = I18nUtils::getInstance()->data; data.find(langcode) == data.end())
-                        langcode = I18nUtils::getInstance()->defaultLocal;
+                        langcode = I18nUtils::getInstance()->defaultLocale;
 
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
@@ -102,19 +104,19 @@ namespace LOICollection::Plugins::language {
     }
 
     std::string getLanguageCode(Player& player) {
-        std::string defaultLocal = I18nUtils::getInstance()->defaultLocal;
+        std::string defaultLocale = I18nUtils::getInstance()->defaultLocale;
 
         if (player.isSimulatedPlayer())
-            return defaultLocal;
+            return defaultLocale;
 
         if (auto request = player.getConnectionRequest(); request)
-            return request->mRawToken->mDataInfo["LanguageCode"].asString(defaultLocal);
-        return defaultLocal;
+            return request->mRawToken->mDataInfo["LanguageCode"].asString(defaultLocale);
+        return defaultLocale;
     }
 
     std::string getLanguage(std::string mObject) {
-        std::string defaultLocal = I18nUtils::getInstance()->defaultLocal;
-        return db->get("OBJECT$" + mObject, "language", defaultLocal);
+        std::string defaultLocale = I18nUtils::getInstance()->defaultLocale;
+        return db->get("OBJECT$" + mObject, "language", defaultLocale);
     }
 
     std::string getLanguage(Player& player) {

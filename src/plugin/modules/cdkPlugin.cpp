@@ -1,6 +1,8 @@
 #include <memory>
 #include <string>
 
+#include <fmt/core.h>
+
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/form/CustomForm.h>
@@ -235,38 +237,37 @@ namespace LOICollection::Plugins::cdk {
     namespace {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("cdk", "§e§lLOICollection -> §b总换码", CommandPermissionLevel::Any);
+                .getOrCreateCommand("cdk", tr({}, "commands.cdk.description"), CommandPermissionLevel::Any);
             command.overload<CDKOP>().text("convert").required("convertString").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 cdkConvert(player, param.convertString);
                 
-                output.success("The player {} has been converted to cdk: {}", player.getRealName(), param.convertString);
+                output.success(fmt::runtime(tr({}, "commands.cdk.success.convert")), player.getRealName(), param.convertString);
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
                 MainGui::convert(player);
 
-                output.success("The UI has been opened to player {}", player.getRealName());
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    output.error(tr({}, "commands.generic.permission"));
+                
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error("No player selected.");
+                    return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
-                if ((int) player.getPlayerPermissionLevel() >= 2) {
-                    MainGui::open(player);
-                    output.success("The UI has been opened to player {}", player.getRealName());
-                    return;
-                }
+                MainGui::open(player);
 
-                output.error("No permission to open the edit.");
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
         }
     }
@@ -297,10 +298,9 @@ namespace LOICollection::Plugins::cdk {
             for (nlohmann::ordered_json::iterator it = mScoreboardList.begin(); it != mScoreboardList.end(); ++it)
                 McUtils::scoreboard::addScore(player, it.key(), it.value().get<int>());
             for (nlohmann::ordered_json::iterator it = mItemList.begin(); it != mItemList.end(); ++it) {
-                ItemStack itemStack(it.key(), it.value()["quantity"].get<int>(),
-                    it.value()["specialvalue"].get<short>(), nullptr);
+                ItemStack itemStack(it.key(), it.value()["quantity"].get<int>(), it.value()["specialvalue"].get<short>(), nullptr);
                 itemStack.setCustomName(Bedrock::Safety::RedactableString(it.value()["name"].get<std::string>()));
-                player.add(itemStack);
+                McUtils::giveItem(player, itemStack, (int)itemStack.mCount);
                 player.refreshInventory();
             }
             if (cdkJson["personal"].get<bool>()) db->remove(convertString);

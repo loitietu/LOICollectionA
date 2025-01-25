@@ -23,7 +23,7 @@ public:
     std::string get(const std::string& local, const std::string& key);
 public:
     std::unordered_map<std::string, std::unordered_map<std::string, std::string>> data;
-    std::string defaultLocal{};
+    std::string defaultLocale{};
 };
 
 namespace I18nUtilsTools {
