@@ -1,7 +1,6 @@
 #include <vector>
 #include <string>
 
-#include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/utils/StringUtils.h>
 
@@ -42,7 +41,7 @@ namespace McUtils {
         );
         Command* command = ll::service::getMinecraft()->getCommands().compileCommand(
             HashedString(cmd), origin, (CurrentCmdVersion)CommandVersion::CurrentVersion(),
-            [&](std::string const& /*unused*/) -> void {}
+            [&](std::string const&) -> void {}
         );
         if (command) {
             CommandOutput output(CommandOutputType::AllOutput);

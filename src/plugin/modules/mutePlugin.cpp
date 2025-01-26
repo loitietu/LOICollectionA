@@ -65,7 +65,7 @@ namespace LOICollection::Plugins::mute {
             ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "time", "None")));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), mObjectLabel);
-            form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [target](Player& /*unused*/) -> void {
+            form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [target](Player&) -> void {
                 delMute(target);
             });
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {

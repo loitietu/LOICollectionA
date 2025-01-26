@@ -36,9 +36,6 @@
 #include <mc/network/packet/TextPacket.h>
 #include <mc/network/packet/TextPacketType.h>
 
-#include <mc/certificates/Certificate.h>
-#include <mc/certificates/ExtendedCertificate.h>
-
 #include <mc/common/SubClientId.h>
 #include <mc/common/ActorUniqueID.h>
 
@@ -49,7 +46,7 @@
 int64_t mFakeSeed = 0;
 std::vector<std::string> mInterceptedTextPacketTargets;
 std::vector<std::string> mInterceptedGetNameTagTargets;
-std::vector<std::function<void(NetworkIdentifier*, std::string, std::string)>> mLoginPacketSendEventCallbacks;
+std::vector<std::function<void(NetworkIdentifier*, ConnectionRequest*)>> mLoginPacketSendEventCallbacks;
 std::vector<std::function<void(Player*, int, std::string, ScoreChangedType)>> mPlayerScoreChangedEventCallbacks;
 std::vector<std::function<bool(Mob*, Actor*, float)>> mPlayerHurtEventCallbacks;
 
@@ -120,10 +117,8 @@ LL_TYPE_INSTANCE_HOOK(
     LoginPacket const& packet
 ) {
     origin(identifier, packet);
-    std::string mIpAndPort = identifier.getIPAndPort();
-    std::string mObjectUuid = ExtendedCertificate::getIdentity(*packet.mConnectionRequest->getCertificate()).asString();
     for (auto& callback : mLoginPacketSendEventCallbacks)
-        callback(&const_cast<NetworkIdentifier&>(identifier), mObjectUuid, mIpAndPort);
+        callback(&const_cast<NetworkIdentifier&>(identifier), packet.mConnectionRequest.get());
 };
 
 LL_TYPE_INSTANCE_HOOK(
@@ -190,7 +185,7 @@ PlayerHurtHookMacro(PlayerHurtHook3, Mob,
 
 namespace LOICollection::HookPlugin {
     namespace Event {
-        void onLoginPacketSendEvent(const std::function<void(NetworkIdentifier*, std::string, std::string)>& callback) {
+        void onLoginPacketSendEvent(const std::function<void(NetworkIdentifier*, ConnectionRequest*)>& callback) {
             mLoginPacketSendEventCallbacks.push_back(callback);
         }
 

@@ -36,13 +36,13 @@ std::unordered_map<std::string, std::function<std::string(Player&, std::string)>
 
 namespace LOICollection::LOICollectionAPI {
     void initialization() {
-        registerVariable("version.mc", [](Player& /*unused*/) -> std::string {
+        registerVariable("version.mc", [](Player&) -> std::string {
             return ll::getGameVersion().to_string();
         });
-        registerVariable("version.ll", [](Player& /*unused*/) -> std::string {
+        registerVariable("version.ll", [](Player&) -> std::string {
             return ll::getLoaderVersion().to_string();
         });
-        registerVariable("version.protocol", [](Player& /*unused*/) -> std::string {
+        registerVariable("version.protocol", [](Player&) -> std::string {
             return std::to_string(ll::getNetworkProtocolVersion()); 
         });
         registerVariable("player", [](Player& player) -> std::string {
@@ -148,7 +148,7 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string(player.getDimensionId());
         });
         registerVariable("player.os", [](Player& player) -> std::string {
-            return std::string(magic_enum::enum_name(player.getPlatform()));
+            return magic_enum::enum_name(player.getPlatform()).data();
         });
         registerVariable("player.ip", [](Player& player) -> std::string {
             return player.getIPAndPort();
@@ -180,23 +180,23 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("player.packet.avg", [](Player& player) -> std::string {
             return std::to_string(player.getNetworkStatus()->mCurrentPacketLoss);
         });
-        registerVariable("server.tps", [](Player& /*unused*/) -> std::string {
+        registerVariable("server.tps", [](Player&) -> std::string {
             double mMspt = ((double) ProfilerLite::gProfilerLiteInstance().getServerTickTime().count() / 1000000.0);
             return std::to_string(mMspt <= 50.0 ? 20.0 : (double)(1000.0 / mMspt));
         });
-        registerVariable("server.mspt", [](Player& /*unused*/) -> std::string { 
+        registerVariable("server.mspt", [](Player&) -> std::string { 
             return std::to_string((double) ProfilerLite::gProfilerLiteInstance().getServerTickTime().count() / 1000000.0);
         });
-        registerVariable("server.time", [](Player& /*unused*/) -> std::string {
+        registerVariable("server.time", [](Player&) -> std::string {
             return SystemUtils::getNowTime();
         });
-        registerVariable("server.player.max", [](Player& /*unused*/) -> std::string {
+        registerVariable("server.player.max", [](Player&) -> std::string {
             return std::to_string(ll::memory::dAccess<int>(ll::service::getServerNetworkHandler().as_ptr(), 200 * 4));
         });
-        registerVariable("server.player.online", [](Player& /*unused*/) -> std::string {
+        registerVariable("server.player.online", [](Player&) -> std::string {
             return std::to_string(ll::service::getLevel()->getActivePlayerCount());
         });
-        registerVariable("server.entity", [](Player& /*unused*/) -> std::string {
+        registerVariable("server.entity", [](Player&) -> std::string {
             return std::to_string(ll::service::getLevel()->getRuntimeActorList().size());
         });
         registerVariable("score", [](Player& player, std::string name) -> std::string {
@@ -205,7 +205,7 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("tr", [](Player& player, std::string name) -> std::string {
             return I18nUtils::getInstance()->get(Plugins::language::getLanguage(player), name);
         });
-        registerVariable("entity", [](Player& /*unused*/, std::string name) -> std::string {
+        registerVariable("entity", [](Player&, std::string name) -> std::string {
             std::vector<Actor*> mRuntimeActorList = ll::service::getLevel()->getRuntimeActorList();
             int count = (int)std::count_if(mRuntimeActorList.begin(), mRuntimeActorList.end(), [&name](Actor* actor) {
                 return actor->getTypeName() == name;

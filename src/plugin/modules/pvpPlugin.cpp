@@ -102,7 +102,7 @@ namespace LOICollection::Plugins::pvp {
                         db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
                 }
             );
-            LOICollection::HookPlugin::Event::onPlayerHurtEvent([](Mob* target, Actor* source, float /*unused*/) -> bool {
+            LOICollection::HookPlugin::Event::onPlayerHurtEvent([](Mob* target, Actor* source, float) -> bool {
                 Player& targetPlayer = *static_cast<Player*>(target);
                 Player& sourcePlayer = *static_cast<Player*>(source);
 

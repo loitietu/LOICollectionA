@@ -5,10 +5,13 @@
 #include "base/Macro.h"
 
 class Player;
+class ConnectionRequest;
+class NetworkIdentifier;
 
 enum class BlacklistType {
     ip,
-    uuid
+    uuid,
+    clientid
 };
 
 namespace LOICollection::Plugins::blacklist {
@@ -19,6 +22,11 @@ namespace LOICollection::Plugins::blacklist {
         LOICOLLECTION_A_API void remove(Player& player);
         LOICOLLECTION_A_API void open(Player& player);
     }
+    
+    LOICOLLECTION_A_NDAPI BlacklistType getType(std::string type);
+    
+    LOICOLLECTION_A_NDAPI std::string getResult(const NetworkIdentifier& identifier, const ConnectionRequest& conn, BlacklistType type);
+    LOICOLLECTION_A_NDAPI std::string getResult(Player& player, BlacklistType type);
 
     LOICOLLECTION_A_API   void addBlacklist(Player& player, std::string cause, int time, BlacklistType type);
     LOICOLLECTION_A_API   void delBlacklist(std::string target);

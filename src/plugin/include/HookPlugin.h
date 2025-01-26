@@ -8,6 +8,7 @@
 class Mob;
 class Actor;
 class Player;
+class ConnectionRequest;
 class NetworkIdentifier;
 
 enum class ScoreChangedType {
@@ -18,7 +19,7 @@ enum class ScoreChangedType {
 
 namespace LOICollection::HookPlugin {
     namespace Event {
-        LOICOLLECTION_A_API void onLoginPacketSendEvent(const std::function<void(NetworkIdentifier*, std::string, std::string)>& callback);
+        LOICOLLECTION_A_API void onLoginPacketSendEvent(const std::function<void(NetworkIdentifier*, ConnectionRequest*)>& callback);
         LOICOLLECTION_A_API void onPlayerScoreChangedEvent(const std::function<void(Player*, int, std::string, ScoreChangedType)>& callback);
         LOICOLLECTION_A_API void onPlayerHurtEvent(const std::function<bool(Mob*, Actor*, float)>& callback);
     }

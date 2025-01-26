@@ -19,6 +19,12 @@
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandContext.h>
 
+#include <mc/network/ConnectionRequest.h>
+#include <mc/network/NetworkIdentifier.h>
+
+#include <mc/certificates/Certificate.h>
+#include <mc/certificates/ExtendedCertificate.h>
+
 #include "include/APIUtils.h"
 #include "include/HookPlugin.h"
 
@@ -106,7 +112,9 @@ namespace LOICollection::Plugins::monitor {
                 }
             );
         }
-        LOICollection::HookPlugin::Event::onLoginPacketSendEvent([options](void* /*unused*/, std::string mUuid, std::string /*unused*/) -> void {
+        LOICollection::HookPlugin::Event::onLoginPacketSendEvent([options](NetworkIdentifier*, ConnectionRequest* conn) -> void {
+            std::string mUuid = ExtendedCertificate::getIdentity(*conn->getCertificate()).asString();
+
             if (std::get<bool>(options.at("ServerToast_Enabled")))
                 LOICollection::HookPlugin::interceptTextPacket(mUuid);
             LOICollection::HookPlugin::interceptGetNameTag(mUuid);

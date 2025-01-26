@@ -10,7 +10,7 @@
 11:44:58.298 INFO [Server] blacklist:
 11:44:58.298 INFO [Server] LOICollection -> 服务器黑名单
 11:44:58.298 INFO [Server] Usage:
-11:44:58.298 INFO [Server] - /blacklist add <ip|uuid> <target: target> [cause: string] [time: int]
+11:44:58.298 INFO [Server] - /blacklist add <ip|uuid|clientid> <target: target> [cause: string] [time: int]
 11:44:58.298 INFO [Server] - /blacklist gui
 11:44:58.298 INFO [Server] - /blacklist list
 11:44:58.298 INFO [Server] - /blacklist remove <targetName: string>
@@ -19,7 +19,7 @@
 
 - `/blacklist add <ip|uuid> <target: target> [cause: string] [time: int]`
   - 向黑名单中添加一个目标。
-  - 其中 `<ip|uuid>` 为目标的 IP 或 UUID。
+  - 其中 `<ip|uuid|clientid>` 为目标的类型。
   - 其中 `<target: target>` 为目标选择器。
   - 其中 `<cause: string>` 为添加的原因。
   - 其中 `<time: int>` 为添加的时间（单位：小时）。
@@ -278,4 +278,4 @@
 - `/market sell`
   - 打开玩家市场出售界面。
 
-!> 以上属于 LOICollectionA 1.6.0 版本的命令列表，对于后续版本的命令列表可能会有所不同。 
+!> 以上属于 LOICollectionA 1.6.1 版本的命令列表，对于后续版本的命令列表可能会有所不同。 
