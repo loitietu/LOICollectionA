@@ -58,6 +58,7 @@ namespace LOICollection::Plugins::chat {
 
     std::unique_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
+    
     ll::event::ListenerPtr PlayerChatEventListener;
     ll::event::ListenerPtr PlayerJoinEventListener;
 

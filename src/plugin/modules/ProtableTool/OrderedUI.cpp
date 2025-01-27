@@ -45,7 +45,7 @@ LL_TYPE_INSTANCE_HOOK(
         }
         mFormResponse[identifierHash] = response.mFormId;
     }
-    return origin(identifier, packet, senderSubId);
+    origin(identifier, packet, senderSubId);
 };
 
 LL_TYPE_INSTANCE_HOOK(
@@ -78,7 +78,6 @@ LL_TYPE_INSTANCE_HOOK(
     auto it = std::prev(mFormLists[identifierHash].end());
     ModalFormRequestPacket(it->first, it->second).sendToClient(identifier, packet->mClientSubId);
     mFormLists[identifierHash].erase(it);
-    return;
 };
 
 namespace LOICollection::ProtableTool::OrderedUI {

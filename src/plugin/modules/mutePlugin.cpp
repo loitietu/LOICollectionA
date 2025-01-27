@@ -29,7 +29,6 @@
 
 #include "include/APIUtils.h"
 #include "include/languagePlugin.h"
-#include "include/HookPlugin.h"
 
 #include "utils/McUtils.h"
 #include "utils/SystemUtils.h"
@@ -51,6 +50,7 @@ namespace LOICollection::Plugins::mute {
 
     std::unique_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
+    
     ll::event::ListenerPtr PlayerChatEventListener;
 
     namespace MainGui {

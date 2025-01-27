@@ -16,7 +16,6 @@
 
 #include <mc/world/level/Level.h>
 
-#include <mc/world/actor/Mob.h>
 #include <mc/world/actor/Actor.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/server/commands/CommandOrigin.h>
@@ -25,7 +24,7 @@
 
 #include "include/APIUtils.h"
 #include "include/languagePlugin.h"
-#include "include/HookPlugin.h"
+#include "include/ServerEvents/PlayerHurtEvent.h"
 
 #include "utils/I18nUtils.h"
 
@@ -39,7 +38,9 @@ using LOICollection::Plugins::language::getLanguage;
 namespace LOICollection::Plugins::pvp {
     std::shared_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
+
     ll::event::ListenerPtr PlayerJoinEventListener;
+    ll::event::ListenerPtr PlayerHurtEventListener;
 
     namespace MainGui {
         void open(Player& player) {
@@ -102,19 +103,20 @@ namespace LOICollection::Plugins::pvp {
                         db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
                 }
             );
-            LOICollection::HookPlugin::Event::onPlayerHurtEvent([](Mob* target, Actor* source, float) -> bool {
-                Player& targetPlayer = *static_cast<Player*>(target);
-                Player& sourcePlayer = *static_cast<Player*>(source);
-
-                if (!isEnable(targetPlayer) && !targetPlayer.isSimulatedPlayer()) {
-                    sourcePlayer.sendMessage(tr(getLanguage(sourcePlayer), "pvp.off1"));
-                    return true;
-                } else if (!isEnable(sourcePlayer) && !sourcePlayer.isSimulatedPlayer()) {
-                    sourcePlayer.sendMessage(tr(getLanguage(sourcePlayer), "pvp.off2"));
-                    return true;
+            PlayerHurtEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerHurtEvent>(
+                [](LOICollection::ServerEvents::PlayerHurtEvent& event) -> void {
+                    if (!event.getSource().isPlayer() || event.getSource().isSimulatedPlayer() || event.self().isSimulatedPlayer())
+                        return;
+                    Player& source = static_cast<Player&>(event.getSource());
+                    if (!isEnable(event.self())) {
+                        source.sendMessage(tr(getLanguage(source), "pvp.off1"));
+                        event.cancel();
+                    } else if (!isEnable(source)) {
+                        source.sendMessage(tr(getLanguage(source), "pvp.off2"));
+                        event.cancel();
+                    }
                 }
-                return false;
-            });
+            );
         }
     }
 
@@ -159,5 +161,6 @@ namespace LOICollection::Plugins::pvp {
     void unregistery() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
+        eventBus.removeListener(PlayerHurtEventListener);
     }
 }

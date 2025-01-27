@@ -1,12 +1,16 @@
 #include <vector>
 #include <string>
 
+#include <ll/api/memory/Hook.h>
 #include <ll/api/service/Bedrock.h>
+#include <ll/api/utils/RandomUtils.h>
 #include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/Minecraft.h>
 #include <mc/world/Container.h>
 #include <mc/world/level/Level.h>
+#include <mc/world/level/LevelSeed64.h>
+#include <mc/world/level/LevelSettings.h>
 #include <mc/world/scores/Objective.h>
 #include <mc/world/scores/ScoreInfo.h>
 #include <mc/world/scores/Scoreboard.h>
@@ -31,6 +35,9 @@
 
 #include <mc/network/packet/TextPacket.h>
 #include <mc/network/packet/TextPacketType.h>
+#include <mc/network/packet/StartGamePacket.h>
+
+#include <mc/deps/core/utility/BinaryStream.h>
 
 #include "McUtils.h"
 
@@ -112,6 +119,29 @@ namespace McUtils {
             }
         }
         return false;
+    }
+
+    namespace manager {
+        int64 mFakeSeed = 0;
+
+        LL_AUTO_TYPE_INSTANCE_HOOK(
+            ServerStartGamePacketHook,
+            HookPriority::Normal,
+            StartGamePacket,
+            &StartGamePacket::$write,
+            void,
+            BinaryStream& stream
+        ) {
+            if (mFakeSeed) this->mSettings->setRandomSeed(LevelSeed64(mFakeSeed));
+            return origin(stream);
+        };
+
+        void setFakeSeed(const std::string& str) {
+            const char* ptr = str.data();
+            char* endpt{};
+            int64 result = std::strtoll(ptr, &endpt, 10);
+            mFakeSeed = ptr == endpt ? ll::random_utils::rand<int64_t>() : result;
+        }
     }
 
     namespace scoreboard {

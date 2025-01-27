@@ -25,7 +25,7 @@ namespace LOICollection::Plugins::blacklist {
     
     LOICOLLECTION_A_NDAPI BlacklistType getType(std::string type);
     
-    LOICOLLECTION_A_NDAPI std::string getResult(const NetworkIdentifier& identifier, const ConnectionRequest& conn, BlacklistType type);
+    LOICOLLECTION_A_NDAPI std::string getResult(std::string ip, std::string uuid, std::string clientid, BlacklistType type);
     LOICOLLECTION_A_NDAPI std::string getResult(Player& player, BlacklistType type);
 
     LOICOLLECTION_A_API   void addBlacklist(Player& player, std::string cause, int time, BlacklistType type);
@@ -35,4 +35,5 @@ namespace LOICollection::Plugins::blacklist {
     LOICOLLECTION_A_NDAPI bool isValid();
 
     LOICOLLECTION_A_API   void registery(void* database);
+    LOICOLLECTION_A_API   void unregistery();
 }

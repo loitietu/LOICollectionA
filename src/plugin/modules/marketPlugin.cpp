@@ -52,6 +52,7 @@ namespace LOICollection::Plugins::market {
 
     std::unique_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
+    
     ll::event::ListenerPtr PlayerJoinEventListener;
 
     namespace MainGui {

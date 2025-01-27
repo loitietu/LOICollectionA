@@ -43,6 +43,7 @@ std::vector<std::string> keys() {
 namespace LOICollection::Plugins::language {
     std::shared_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
+    
     ll::event::ListenerPtr PlayerJoinEventListener;
 
     namespace MainGui {
@@ -116,13 +117,12 @@ namespace LOICollection::Plugins::language {
 
     std::string getLanguage(std::string mObject) {
         std::string defaultLocale = I18nUtils::getInstance()->defaultLocale;
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
         return db->get("OBJECT$" + mObject, "language", defaultLocale);
     }
 
     std::string getLanguage(Player& player) {
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        return getLanguage(mObject);
+        return getLanguage(player.getUuid().asString());
     }
 
     void registery(void* database) {

@@ -41,6 +41,7 @@ namespace LOICollection::Plugins::notice {
     std::unique_ptr<JsonStorage> db;
     std::shared_ptr<SQLiteStorage> db2;
     std::shared_ptr<ll::io::Logger> logger;
+    
     ll::event::ListenerPtr PlayerJoinEventListener;
 
     namespace MainGui {

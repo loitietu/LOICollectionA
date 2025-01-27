@@ -54,6 +54,7 @@ namespace LOICollection::Plugins::menu {
     
     std::unique_ptr<JsonStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
+    
     ll::event::ListenerPtr PlayerJoinEventListener;
     ll::event::ListenerPtr PlayerUseItemEventListener;
 

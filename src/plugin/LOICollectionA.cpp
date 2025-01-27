@@ -10,14 +10,14 @@
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/Mod/RegisterHelper.h>
 
-#include "utils/I18nUtils.h"
+#include "utils/McUtils.h"
 #include "utils/SystemUtils.h"
+#include "utils/I18nUtils.h"
 
 #include "data/JsonStorage.h"
 #include "data/SQLiteStorage.h"
 
 #include "include/APIUtils.h"
-#include "include/HookPlugin.h"
 #include "include/languagePlugin.h"
 #include "include/blacklistPlugin.h"
 #include "include/mutePlugin.h"
@@ -92,15 +92,14 @@ namespace LOICollection {
             SystemUtils::getSystemLocaleCode() : this->config.ConsoleLanguage;
         logger.info("Initialization of language completed.");
 
-        HookPlugin::setFakeSeed(this->config.Plugins.FakeSeed);
-        logger.info("Initialization of Hook completed.");
+        McUtils::manager::setFakeSeed(this->config.Plugins.FakeSeed);
+        logger.info("Initialization of Basic Hook completed.");
         return true;
     }
 
     bool A::enable() {
         LOICollectionAPI::initialization();
 
-        HookPlugin::registery();
         Plugins::language::registery(&this->SettingsDB);
         if (this->config.Plugins.Blacklist) Plugins::blacklist::registery(&this->BlacklistDB);
         if (this->config.Plugins.Mute) Plugins::mute::registery(&this->MuteDB);
@@ -156,8 +155,8 @@ namespace LOICollection {
     }
 
     bool A::disable() {
-        HookPlugin::unregistery();
         Plugins::language::unregistery();
+        if (this->config.Plugins.Blacklist) Plugins::blacklist::unregistery();
         if (this->config.Plugins.Mute) Plugins::mute::unregistery();
         if (this->config.Plugins.Tpa) Plugins::tpa::unregistery();
         if (this->config.Plugins.Pvp) Plugins::pvp::unregistery();
