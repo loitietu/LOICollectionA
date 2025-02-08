@@ -7,7 +7,6 @@ struct C_Config {
     int version = 0;
     std::string ConsoleLanguage = "system";
     struct C_Plugins {
-        std::string FakeSeed = "$random";
         struct C_Language{
             bool FileUpdate = true;
         } language;
@@ -65,6 +64,10 @@ struct C_Config {
         } Market;
     } Plugins;
     struct C_ProtableTool {
+        struct C_BasicHook {
+            bool ModuleEnabled = false;
+            std::string FakeSeed = "$random";
+        } BasicHook;
         int RedStone = 0;
         bool OrderedUI = false;
     } ProtableTool;

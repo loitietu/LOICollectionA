@@ -24,7 +24,7 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include "include/APIUtils.h"
-#include "include/languagePlugin.h"
+#include "include/LanguagePlugin.h"
 
 #include "utils/McUtils.h"
 #include "utils/I18nUtils.h"
@@ -32,7 +32,7 @@
 #include "data/JsonStorage.h"
 #include "data/SQLiteStorage.h"
 
-#include "include/noticePlugin.h"
+#include "include/NoticePlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

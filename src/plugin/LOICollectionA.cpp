@@ -10,7 +10,6 @@
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/Mod/RegisterHelper.h>
 
-#include "utils/McUtils.h"
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
@@ -18,20 +17,21 @@
 #include "data/SQLiteStorage.h"
 
 #include "include/APIUtils.h"
-#include "include/languagePlugin.h"
-#include "include/blacklistPlugin.h"
-#include "include/mutePlugin.h"
-#include "include/cdkPlugin.h"
-#include "include/menuPlugin.h"
-#include "include/tpaPlugin.h"
-#include "include/shopPlugin.h"
-#include "include/monitorPlugin.h"
-#include "include/pvpPlugin.h"
-#include "include/walletPlugin.h"
-#include "include/chatPlugin.h"
-#include "include/noticePlugin.h"
-#include "include/marketPlugin.h"
+#include "include/LanguagePlugin.h"
+#include "include/BlacklistPlugin.h"
+#include "include/MutePlugin.h"
+#include "include/CdkPlugin.h"
+#include "include/MenuPlugin.h"
+#include "include/TpaPlugin.h"
+#include "include/ShopPlugin.h"
+#include "include/MonitorPlugin.h"
+#include "include/PvpPlugin.h"
+#include "include/WalletPlugin.h"
+#include "include/ChatPlugin.h"
+#include "include/NoticePlugin.h"
+#include "include/MarketPlugin.h"
 
+#include "include/ProtableTool/BasicHook.h"
 #include "include/ProtableTool/RedStone.h"
 #include "include/ProtableTool/OrderedUI.h"
 
@@ -91,9 +91,6 @@ namespace LOICollection {
         I18nUtils::getInstance()->defaultLocale = this->config.ConsoleLanguage == "system" ?
             SystemUtils::getSystemLocaleCode() : this->config.ConsoleLanguage;
         logger.info("Initialization of language completed.");
-
-        McUtils::manager::setFakeSeed(this->config.Plugins.FakeSeed);
-        logger.info("Initialization of Basic Hook completed.");
         return true;
     }
 
@@ -149,6 +146,11 @@ namespace LOICollection {
             Plugins::market::registery(&this->MarketDB, options);
         }
 
+        if (this->config.ProtableTool.BasicHook.ModuleEnabled) {
+            std::map<std::string, std::string> options;
+            options["seed"] = this->config.ProtableTool.BasicHook.FakeSeed;
+            ProtableTool::BasicHook::registery(options);
+        }
         if (this->config.ProtableTool.RedStone) ProtableTool::RedStone::registery(this->config.ProtableTool.RedStone);
         if (this->config.ProtableTool.OrderedUI) ProtableTool::OrderedUI::registery();
         return true;

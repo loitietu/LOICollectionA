@@ -26,10 +26,10 @@ public:
 
     template <typename T>
     void set(std::string_view key, T value) {
-        this->d_json[key] = value;
+        this->d_json[key] = std::move(value);
     }
 
-    LOICOLLECTION_A_API   void write(nlohmann::ordered_json& json);
+    LOICOLLECTION_A_API   void write(const nlohmann::ordered_json& json);
     LOICOLLECTION_A_API   void save() const;
     
     LOICOLLECTION_A_NDAPI std::vector<std::string> keys() const;
@@ -39,7 +39,7 @@ public:
     LOICOLLECTION_A_NDAPI nlohmann::ordered_json toJson() const;
 private:
     std::filesystem::path d_path;
-    nlohmann::ordered_json d_json = nlohmann::ordered_json::object();
+    nlohmann::ordered_json d_json;
 };
 
 template LOICOLLECTION_A_UNAPI void JsonStorage::set<int>(std::string_view, int);

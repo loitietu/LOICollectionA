@@ -28,13 +28,13 @@
 #include <mc/server/commands/CommandOutputMessageType.h>
 
 #include "include/APIUtils.h"
-#include "include/languagePlugin.h"
+#include "include/LanguagePlugin.h"
 
 #include "utils/McUtils.h"
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
-#include "include/walletPlugin.h"
+#include "include/WalletPlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

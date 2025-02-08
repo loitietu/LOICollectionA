@@ -31,7 +31,7 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include "include/APIUtils.h"
-#include "include/languagePlugin.h"
+#include "include/LanguagePlugin.h"
 
 #include "utils/McUtils.h"
 #include "utils/SystemUtils.h"
@@ -39,7 +39,7 @@
 
 #include "data/JsonStorage.h"
 
-#include "include/menuPlugin.h"
+#include "include/MenuPlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

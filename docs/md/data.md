@@ -9,13 +9,12 @@
 请勿使用记事本等不支持 `.json` 格式的文本编辑器进行编辑，以免导致配置文件结构损坏。
 
 ### 配置文件结构
-> 以下为 LOICollectionA 1.6.1 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以下为 LOICollectionA 1.6.2 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 ```json
 {
     "version": 161, // 配置文件版本号，请勿修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
-        "FakeSeed": "$random", // 假种子配置，其中 $random 为随机数，其余为数字时是固定值（为 0 时不启用）
         "language": { // 多语言配置
             "FileUpdate": true // 是否启用语言更新（即每次启动服务器时向内置语言文件进行重写）
         },
@@ -73,6 +72,10 @@
         }
     },
     "ProtableTool": { // 便携工具配置
+        "BasicHook": { // 基础功能配置
+            "ModuleEnabled": false, // 是否启用基础功能
+            "FakeSeed": "$random" // 假种子配置
+        },
         "RedStone": 0, // 红石高频检测，其中为每秒频率（为 0 时不启用）
         "OrderedUI": false // 是否启用有序 UI
     }

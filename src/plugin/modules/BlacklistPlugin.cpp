@@ -37,7 +37,7 @@
 #include <mc/network/connection/DisconnectFailReason.h>
 
 #include "include/APIUtils.h"
-#include "include/languagePlugin.h"
+#include "include/LanguagePlugin.h"
 #include "include/ServerEvents/LoginPacketEvent.h"
 
 #include "utils/McUtils.h"
@@ -46,7 +46,7 @@
 
 #include "data/SQLiteStorage.h"
 
-#include "include/blacklistPlugin.h"
+#include "include/BlacklistPlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

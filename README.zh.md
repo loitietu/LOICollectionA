@@ -35,7 +35,6 @@ lip install github.com/loitietu/LOICollectionA
     "version": 161,
     "ConsoleLanguage": "system",
     "Plugins": {
-        "FakeSeed": "$random",
         "language": {
             "FileUpdate": true
         },
@@ -93,6 +92,10 @@ lip install github.com/loitietu/LOICollectionA
         }
     },
     "ProtableTool": {
+        "BasicHook": {
+            "ModuleEnabled": false,
+            "FakeSeed": "$random"
+        },
         "RedStone": 0,
         "OrderedUI": false
     }

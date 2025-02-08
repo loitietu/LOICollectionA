@@ -20,10 +20,10 @@
 #include <mc/world/attribute/AttributeInstance.h>
 #include <mc/network/ServerNetworkHandler.h>
 
-#include "include/pvpPlugin.h"
-#include "include/mutePlugin.h"
-#include "include/chatPlugin.h"
-#include "include/languagePlugin.h"
+#include "include/PvpPlugin.h"
+#include "include/MutePlugin.h"
+#include "include/ChatPlugin.h"
+#include "include/LanguagePlugin.h"
 
 #include "utils/McUtils.h"
 #include "utils/SystemUtils.h"

@@ -93,6 +93,10 @@
         }
     },
     "ProtableTool": {
+        "BasicHook": {
+            "ModuleEnabled": false,
+            "FakeSeed": "$random"
+        },
         "RedStone": 0,
         "OrderedUI": false
     }

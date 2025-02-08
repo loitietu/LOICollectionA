@@ -11,7 +11,7 @@ option_end()
 add_requires("sqlitecpp 3.3.2", {configs = {shared = get_config("shared")}})
 add_requires(
     "prelink",
-    "levilamina 1.0.0",
+    "levilamina 1.0.1",
     "levibuildscript",
     "nlohmann_json 3.11.3"
 )
@@ -64,7 +64,7 @@ target("LOICollectionA")
     after_build(function (target)
         local plugin_packer = import("scripts.after_build")
 
-        local major, minor, patch = 1, 6, 1
+        local major, minor, patch = 1, 6, 2
         local plugin_define = {
             pluginName = target:name(),
             pluginFile = path.filename(target:targetfile()),

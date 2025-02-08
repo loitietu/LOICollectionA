@@ -30,10 +30,6 @@ namespace McUtils {
         
     bool isItemPlayerInventory(Player& player, std::string mTypeName, int mNumber);
 
-    namespace manager {
-        void setFakeSeed(const std::string& str);
-    }
-
     namespace scoreboard {
         int getScore(Player& player, const std::string& name);
         void modifyScore(ScoreboardId& identity, const std::string& name, int score, ScoreType action);

@@ -34,7 +34,7 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 
 #include "include/APIUtils.h"
-#include "include/languagePlugin.h"
+#include "include/LanguagePlugin.h"
 
 #include "utils/McUtils.h"
 #include "utils/SystemUtils.h"
@@ -42,7 +42,7 @@
 
 #include "data/SQLiteStorage.h"
 
-#include "include/marketPlugin.h"
+#include "include/MarketPlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

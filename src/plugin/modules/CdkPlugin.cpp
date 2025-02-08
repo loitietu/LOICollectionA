@@ -25,8 +25,8 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include "include/APIUtils.h"
-#include "include/languagePlugin.h"
-#include "include/chatPlugin.h"
+#include "include/LanguagePlugin.h"
+#include "include/ChatPlugin.h"
 
 #include "utils/McUtils.h"
 #include "utils/SystemUtils.h"
@@ -34,7 +34,7 @@
 
 #include "data/JsonStorage.h"
 
-#include "include/cdkPlugin.h"
+#include "include/CdkPlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

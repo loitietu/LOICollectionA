@@ -11,7 +11,7 @@
 JsonStorage::JsonStorage(const std::filesystem::path& path) : d_path(path) {
     if (!std::filesystem::exists(path)) {
         std::ofstream file(path);
-        file << this->d_json.dump();
+        file << "{}";
         file.close();
     }
     std::ifstream file(path);
@@ -33,7 +33,7 @@ bool JsonStorage::isEmpty() const {
     return this->d_json.empty();
 }
 
-void JsonStorage::write(nlohmann::ordered_json& json) {
+void JsonStorage::write(const nlohmann::ordered_json& json) {
     this->d_json = json;
 }
 
@@ -46,10 +46,11 @@ void JsonStorage::save() const {
 }
 
 std::vector<std::string> JsonStorage::keys() const {
-    std::vector<std::string> keyl;
-    for (auto it = this->d_json.begin(); it != this->d_json.end(); ++it)
-        keyl.push_back(it.key());
-    return keyl;
+    std::vector<std::string> result;
+    result.reserve(this->d_json.size());
+    for (auto& el : this->d_json.items())
+        result.emplace_back(el.key());
+    return result;
 }
 
 std::string JsonStorage::toString(int indent) const {
@@ -57,8 +58,6 @@ std::string JsonStorage::toString(int indent) const {
 }
 
 nlohmann::ordered_json JsonStorage::toJson(std::string_view key) const {
-    if (!has(key))
-        return nlohmann::ordered_json();
     return this->d_json.at(key);
 }
 

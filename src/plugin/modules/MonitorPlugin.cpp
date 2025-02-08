@@ -36,7 +36,7 @@
 
 #include "utils/McUtils.h"
 
-#include "include/monitorPlugin.h"
+#include "include/MonitorPlugin.h"
 
 std::vector<std::string> mInterceptTextObjectPacket;
 std::vector<std::string> mInterceptTextObjectName;
