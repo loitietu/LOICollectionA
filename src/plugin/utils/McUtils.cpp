@@ -51,7 +51,7 @@ namespace McUtils {
 
     void executeCommand(Player& player, std::string cmd) {
         executeCommand(
-            ll::string_utils::replaceAll(cmd, "${player}", player.getRealName()),
+            ll::string_utils::replaceAll(cmd, "${player}", player.getName()),
             player.getDimensionId()
         );
     }

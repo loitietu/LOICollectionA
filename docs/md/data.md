@@ -12,7 +12,7 @@
 > 以下为 LOICollectionA 1.6.2 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 ```json
 {
-    "version": 161, // 配置文件版本号，请勿修改
+    "version": 162, // 配置文件版本号，请勿修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
         "language": { // 多语言配置

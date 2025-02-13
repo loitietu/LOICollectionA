@@ -49,11 +49,12 @@ namespace LOICollection {
 
         Config::SynchronousPluginConfigVersion(this->config);
         logger.info("Loading LOICollection - A (Version {})", Config::getVersion());
+        logger.info("LOICollectionA Compilation Info - ({}-{})", __DATE__, __TIME__);
         logger.info("Protocol - Mojang Eula (https://account.mojang.com/documents/minecraft_eula)");
         
         if (!std::filesystem::exists(configFilePath)) {
-            logger.info("Configurations not found.");
-            logger.info("Saving default configurations.");
+            logger.info("Plugin - Configurations not found.");
+            logger.info("Plugin - Saving default configurations.");
             if (!ll::config::saveConfig(this->config, configFilePath)) {
                 logger.error("Failed to save default configurations.");
                 return false;
@@ -61,7 +62,7 @@ namespace LOICollection {
         }
         Config::SynchronousPluginConfigType(this->config, configFilePath.string());
         if (!ll::config::loadConfig(this->config, configFilePath)) {
-            logger.info("Update configurations.");
+            logger.info("Plugin - Update configurations.");
             if (!ll::config::saveConfig(this->config, configFilePath)) {
                 logger.error("Failed to save default configurations.");
                 return false;

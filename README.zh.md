@@ -32,7 +32,7 @@ lip install github.com/loitietu/LOICollectionA
 3. 打开后，您会看到类似以下内容的内容：
 ```json
 {
-    "version": 161,
+    "version": 162,
     "ConsoleLanguage": "system",
     "Plugins": {
         "language": {
