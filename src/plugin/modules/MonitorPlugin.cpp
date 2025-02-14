@@ -176,7 +176,10 @@ namespace LOICollection::Plugins::monitor {
                 bool result = std::any_of(mTextPacketType.begin(), mTextPacketType.end(), [target = event.getPacket().mMessage](const std::string& item) {
                     return target.find(item) != std::string::npos;
                 });
-                if (Player* player = ll::service::getLevel()->getPlayer(event.getPacket().params.at(0)); player && result) {
+
+                if (!(event.getPacket().params.size() > 0) || !result)
+                    return;
+                if (Player* player = ll::service::getLevel()->getPlayer(event.getPacket().params.at(0)); player) {
                     if (std::find(mInterceptTextObjectName.begin(), mInterceptTextObjectName.end(), player->getUuid().asString()) != mInterceptTextObjectName.end())
                         event.cancel();
                 }
