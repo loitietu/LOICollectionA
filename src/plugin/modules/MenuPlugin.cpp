@@ -150,7 +150,7 @@ namespace LOICollection::Plugins::menu {
             });
         }
 
-        void editAwardSetting(Player& player, std::string uiName, MenuType type) {
+        void editAwardSetting(Player& player, const std::string& uiName, MenuType type) {
             std::string mObjectLanguage = getLanguage(player);
 
             nlohmann::ordered_json data = db->toJson(uiName);
@@ -194,7 +194,7 @@ namespace LOICollection::Plugins::menu {
             });
         }
 
-        void editAwardNew(Player& player, std::string uiName, MenuType type) {
+        void editAwardNew(Player& player, const std::string& uiName, MenuType type) {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::CustomForm form(tr(mObjectLanguage, "menu.gui.title"));
@@ -242,7 +242,7 @@ namespace LOICollection::Plugins::menu {
             });
         }
 
-        void editAwardRemove(Player& player, std::string uiName) {
+        void editAwardRemove(Player& player, const std::string& uiName) {
             std::string mObjectLanguage = getLanguage(player);
 
             nlohmann::ordered_json data = db->toJson(uiName);
@@ -284,7 +284,7 @@ namespace LOICollection::Plugins::menu {
             });
         }
 
-        void editAwardCommand(Player& player, std::string uiName) {
+        void editAwardCommand(Player& player, const std::string& uiName) {
             std::string mObjectLanguage = getLanguage(player); 
 
             ll::form::CustomForm form(tr(mObjectLanguage, "menu.gui.title"));
@@ -320,7 +320,7 @@ namespace LOICollection::Plugins::menu {
             });
         }
 
-        void editAwardContent(Player& player, std::string uiName) {
+        void editAwardContent(Player& player, const std::string& uiName) {
             std::string mObjectLanguage = getLanguage(player);
             std::string mObjectLabel = tr(mObjectLanguage, "menu.gui.button3.label");
             std::string mObjectType = db->toJson(uiName).at("type").get<std::string>();
@@ -473,8 +473,7 @@ namespace LOICollection::Plugins::menu {
             for (nlohmann::ordered_json& button : data.at("button")) {
                 form.appendButton(translateString(button.at("title").get<std::string>(), player), 
                     button.at("image").get<std::string>(), "path", [data, button](Player& pl) -> void {
-                    nlohmann::ordered_json mButton = button;
-                    logicalExecution(pl, mButton, data);
+                    logicalExecution(pl, button, data);
                 });
             }
             form.sendTo(player, [data](Player& pl, int id, ll::form::FormCancelReason) -> void {
@@ -491,13 +490,9 @@ namespace LOICollection::Plugins::menu {
                 translateString(data.at("confirmButton").at("title").get<std::string>(), player),
                 translateString(data.at("cancelButton").at("title").get<std::string>(), player));
             form.sendTo(player, [data](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
-                if (result == ll::form::ModalFormSelectedButton::Upper) {
-                    nlohmann::ordered_json mButton = data.at("confirmButton");
-                    logicalExecution(pl, mButton, data);
-                    return;
-                }
-                nlohmann::ordered_json mButton = data.at("cancelButton");
-                logicalExecution(pl, mButton, data);
+                if (result == ll::form::ModalFormSelectedButton::Upper) 
+                    return logicalExecution(pl, data.at("confirmButton"), data);
+                logicalExecution(pl, data.at("cancelButton"), data);
             });
         }
 
@@ -535,7 +530,7 @@ namespace LOICollection::Plugins::menu {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("menu", tr({}, "commands.menu.description"), CommandPermissionLevel::Any);
             command.overload<MenuOP>().text("gui").optional("uiName").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, MenuOP param) -> void {
+                [](CommandOrigin const& origin, CommandOutput& output, const MenuOP& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
@@ -601,7 +596,7 @@ namespace LOICollection::Plugins::menu {
         }
     }
 
-    void logicalExecution(Player& player, nlohmann::ordered_json& data, nlohmann::ordered_json original) {
+    void logicalExecution(Player& player, nlohmann::ordered_json data, nlohmann::ordered_json original) {
         if (data.empty() || !isValid()) 
             return;
 
@@ -643,7 +638,7 @@ namespace LOICollection::Plugins::menu {
     void registery(void* database, std::map<std::string, std::string>& options) {     
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        mObjectOptions = options;
+        mObjectOptions = std::move(options);
         
         registerCommand();
         listenEvent();

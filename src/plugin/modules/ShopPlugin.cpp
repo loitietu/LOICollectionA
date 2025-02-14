@@ -135,7 +135,7 @@ namespace LOICollection::Plugins::shop {
             });
         }
 
-        void editAwardSetting(Player& player, std::string uiName, ShopType type) {
+        void editAwardSetting(Player& player, const std::string& uiName, ShopType type) {
             std::string mObjectLanguage = getLanguage(player);
 
             nlohmann::ordered_json data = db->toJson(uiName);
@@ -173,7 +173,7 @@ namespace LOICollection::Plugins::shop {
             });
         }
 
-        void editAwardNew(Player& player, std::string uiName, ShopType type) {
+        void editAwardNew(Player& player, const std::string& uiName, ShopType type) {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::CustomForm form(tr(mObjectLanguage, "shop.gui.title"));
@@ -224,7 +224,7 @@ namespace LOICollection::Plugins::shop {
             });
         }
 
-        void editAwardRemove(Player& player, std::string uiName) {
+        void editAwardRemove(Player& player, const std::string& uiName) {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "shop.gui.title"), tr(mObjectLanguage, "shop.gui.label"));
@@ -261,7 +261,7 @@ namespace LOICollection::Plugins::shop {
             });
         }
 
-        void editAwardContent(Player& player, std::string uiName) {
+        void editAwardContent(Player& player, const std::string& uiName) {
             std::string mObjectLanguage = getLanguage(player);
 
             std::string mObjectLabel = tr(mObjectLanguage, "shop.gui.button3.label");
@@ -355,7 +355,7 @@ namespace LOICollection::Plugins::shop {
             });
         }
 
-        void commodity(Player& player, nlohmann::ordered_json& data, nlohmann::ordered_json original, ShopType type) {
+        void commodity(Player& player, nlohmann::ordered_json& data, const nlohmann::ordered_json& original, ShopType type) {
             ll::form::CustomForm form(translateString(data.at("title").get<std::string>(), player));
             form.appendLabel(translateString(data.at("introduce").get<std::string>(), player));
             form.appendInput("Input", translateString(data.at("number").get<std::string>(), player), "", "1");
@@ -386,7 +386,7 @@ namespace LOICollection::Plugins::shop {
             });
         }
 
-        void title(Player& player, nlohmann::ordered_json& data, nlohmann::ordered_json original, ShopType type) {
+        void title(Player& player, nlohmann::ordered_json& data, const nlohmann::ordered_json& original, ShopType type) {
             ll::form::ModalForm form(translateString(data.at("title").get<std::string>(), player),
                 translateString(data.at("introduce").get<std::string>(), player),
                 translateString(data.at("confirmButton").get<std::string>(), player),
@@ -442,7 +442,7 @@ namespace LOICollection::Plugins::shop {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("shop", tr({}, "commands.shop.description"), CommandPermissionLevel::Any);
             command.overload<ShopOP>().text("gui").required("uiName").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ShopOP param) -> void {
+                [](CommandOrigin const& origin, CommandOutput& output, const ShopOP& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));

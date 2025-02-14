@@ -34,7 +34,7 @@ LL_TYPE_INSTANCE_HOOK(
 
 namespace LOICollection::ProtableTool::BasicHook {
     void registery(std::map<std::string, std::string>& options) {
-        mObjectOptions = options;
+        mObjectOptions = std::move(options);
 
         ServerStartGamePacketHook::hook();
     }

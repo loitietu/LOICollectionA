@@ -172,7 +172,7 @@ namespace LOICollection::Plugins::wallet {
 
     void registery(std::map<std::string, std::variant<std::string, double>>& options) {
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        mObjectOptions = options;
+        mObjectOptions = std::move(options);
         
         registerCommand();
     }

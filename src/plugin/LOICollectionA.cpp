@@ -49,7 +49,6 @@ namespace LOICollection {
 
         Config::SynchronousPluginConfigVersion(this->config);
         logger.info("Loading LOICollection - A (Version {})", Config::getVersion());
-        logger.info("LOICollectionA Compilation Info - ({}-{})", __DATE__, __TIME__);
         logger.info("Protocol - Mojang Eula (https://account.mojang.com/documents/minecraft_eula)");
         
         if (!std::filesystem::exists(configFilePath)) {
@@ -92,6 +91,8 @@ namespace LOICollection {
         I18nUtils::getInstance()->defaultLocale = this->config.ConsoleLanguage == "system" ?
             SystemUtils::getSystemLocaleCode() : this->config.ConsoleLanguage;
         logger.info("Initialization of language completed.");
+
+        logger.info("Initialization of plugins completed.");
         return true;
     }
 

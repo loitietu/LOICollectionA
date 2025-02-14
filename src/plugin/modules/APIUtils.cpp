@@ -199,10 +199,10 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("server.entity", [](Player&) -> std::string {
             return std::to_string(ll::service::getLevel()->getRuntimeActorList().size());
         });
-        registerVariable("score", [](Player& player, std::string name) -> std::string {
+        registerVariable("score", [](Player& player, const std::string& name) -> std::string {
             return std::to_string(McUtils::scoreboard::getScore(player, name));
         });
-        registerVariable("tr", [](Player& player, std::string name) -> std::string {
+        registerVariable("tr", [](Player& player, const std::string& name) -> std::string {
             return I18nUtils::getInstance()->get(Plugins::language::getLanguage(player), name);
         });
         registerVariable("entity", [](Player&, std::string name) -> std::string {
@@ -214,11 +214,11 @@ namespace LOICollection::LOICollectionAPI {
         });
     }
 
-    void registerVariable(const std::string& name, const std::function<std::string(Player&)> callback) {
+    void registerVariable(const std::string& name, std::function<std::string(Player&)> callback) {
         mVariableMap.emplace(name, std::move(callback));
     }
 
-    void registerVariable(const std::string& name, const std::function<std::string(Player&, std::string)> callback) {
+    void registerVariable(const std::string& name, std::function<std::string(Player&, std::string)> callback) {
         mVariableMapParameter.emplace(name, std::move(callback));
     }
 

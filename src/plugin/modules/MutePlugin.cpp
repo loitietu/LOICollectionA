@@ -54,7 +54,7 @@ namespace LOICollection::Plugins::mute {
     ll::event::ListenerPtr PlayerChatEventListener;
 
     namespace MainGui {
-        void info(Player& player, std::string target) {
+        void info(Player& player, const std::string& target) {
             std::string mObjectLanguage = getLanguage(player);
             
             std::string mObjectLabel = tr(mObjectLanguage, "mute.gui.info.label");
@@ -229,7 +229,7 @@ namespace LOICollection::Plugins::mute {
         delMute(mObject);
     }
 
-    void delMute(std::string target) {
+    void delMute(const std::string& target) {
         if (!isValid()) return;
 
         if (db->has("OBJECT$" + target))

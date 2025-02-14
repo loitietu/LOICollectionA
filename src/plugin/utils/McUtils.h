@@ -18,9 +18,9 @@ enum class ScoreType {
 };
 
 namespace McUtils {
-    void executeCommand(std::string cmd);
-    void executeCommand(Player& player, std::string cmd);
-    void clearItem(Player& player, std::string mTypeName, int mNumber);
+    void executeCommand(const std::string& cmd);
+    void executeCommand(Player& player, const std::string& cmd);
+    void clearItem(Player& player, const std::string& mTypeName, int mNumber);
     void giveItem(Player& player, ItemStack& item, int mNumber);
     void broadcastText(const std::string& text, std::function<bool(Player&)> filter = [](Player&) -> bool { 
         return true; 
@@ -28,7 +28,7 @@ namespace McUtils {
 
     std::vector<Player*> getAllPlayers();
         
-    bool isItemPlayerInventory(Player& player, std::string mTypeName, int mNumber);
+    bool isItemPlayerInventory(Player& player, const std::string& mTypeName, int mNumber);
 
     namespace scoreboard {
         int getScore(Player& player, const std::string& name);

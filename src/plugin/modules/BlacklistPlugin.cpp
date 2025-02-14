@@ -71,7 +71,7 @@ namespace LOICollection::Plugins::blacklist {
     ll::event::ListenerPtr LoginPacketEventListener;
 
     namespace MainGui {
-        void info(Player& player, std::string target) {
+        void info(Player& player, const std::string& target) {
             std::string mObjectLanguage = getLanguage(player);
 
             std::string mObjectLabel = tr(mObjectLanguage, "blacklist.gui.info.label");
@@ -235,7 +235,7 @@ namespace LOICollection::Plugins::blacklist {
         }
     }
 
-    BlacklistType getType(std::string type) {
+    BlacklistType getType(const std::string& type) {
         switch (ll::hash_utils::doHash(type)) {
             case ll::hash_utils::doHash("ip"):
                 return BlacklistType::ip;
@@ -292,7 +292,7 @@ namespace LOICollection::Plugins::blacklist {
         logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "blacklist.log1"), player));
     }
 
-    void delBlacklist(std::string target) {
+    void delBlacklist(const std::string& target) {
         if (!isValid()) return;
 
         if (db->has("OBJECT$" + target))

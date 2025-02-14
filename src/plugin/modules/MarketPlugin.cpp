@@ -56,7 +56,7 @@ namespace LOICollection::Plugins::market {
     ll::event::ListenerPtr PlayerJoinEventListener;
 
     namespace MainGui {
-        void buyItem(Player& player, std::string mItemId) {
+        void buyItem(Player& player, const std::string& mItemId) {
             std::string mObjectLanguage = getLanguage(player);
             
             std::string mIntroduce = tr(mObjectLanguage, "market.gui.sell.introduce");
@@ -115,7 +115,7 @@ namespace LOICollection::Plugins::market {
             });
         }
 
-        void itemContent(Player& player, std::string mItemId) {
+        void itemContent(Player& player, const std::string& mItemId) {
             std::string mObjectLanguage = getLanguage(player);
 
             std::string mIntroduce = tr(mObjectLanguage, "market.gui.sell.introduce");
@@ -146,7 +146,7 @@ namespace LOICollection::Plugins::market {
             });
         }
 
-        void sellItem(Player& player, std::string mNbt, int mSlot) {
+        void sellItem(Player& player, const std::string& mNbt, int mSlot) {
             std::string mObjectLanguage = getLanguage(player);
 
             std::string mObject = player.getUuid().asString();
@@ -232,13 +232,14 @@ namespace LOICollection::Plugins::market {
             std::string mObject = player.getUuid().asString();
             std::replace(mObject.begin(), mObject.end(), '-', '_');
 
+            std::string mTableId = "OBJECT$" + mObject + "$ITEMS";
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"),
                 tr(mObjectLanguage, "market.gui.label"));
-            for (std::string& item : db->list("OBJECT$" + mObject + "$ITEMS")) {
-                std::string mName = db->get("OBJECT$" + mObject + "$ITEMS_$LIST_" + item, "name");
-                std::string mIcon = db->get("OBJECT$" + mObject + "$ITEMS_$LIST_" + item, "icon");
-                form.appendButton(mName, mIcon, "path", [mObject, item](Player& pl) -> void {
-                    MainGui::itemContent(pl, ("OBJECT$" + mObject + "$ITEMS_$LIST_" + item));
+            for (std::string& item : db->list(mTableId)) {
+                std::string mName = db->get(mTableId + item, "name");
+                std::string mIcon = db->get(mTableId + item, "icon");
+                form.appendButton(mName, mIcon, "path", [item, mTableId](Player& pl) -> void {
+                    MainGui::itemContent(pl, (mTableId + item));
                 });
             }
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
@@ -324,7 +325,7 @@ namespace LOICollection::Plugins::market {
         }
     }
 
-    void delItem(std::string mItemId) {
+    void delItem(const std::string& mItemId) {
         if (!isValid()) return;
 
         auto mIdList = ll::string_utils::splitByPattern(mItemId, "_$LIST_");
@@ -340,7 +341,7 @@ namespace LOICollection::Plugins::market {
     void registery(void* database, std::map<std::string, std::variant<std::string, int>>& options) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        mObjectOptions = options;
+        mObjectOptions = std::move(options);
         
         registerCommand();
         listenEvent();

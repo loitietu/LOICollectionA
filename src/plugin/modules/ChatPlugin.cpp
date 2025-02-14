@@ -140,7 +140,7 @@ namespace LOICollection::Plugins::chat {
             });
         }
 
-        void blacklistSet(Player& player, std::string target) {
+        void blacklistSet(Player& player, const std::string& target) {
             std::string mObjectLanguage = getLanguage(player);
 
             std::string mObject = player.getUuid().asString();
@@ -297,8 +297,8 @@ namespace LOICollection::Plugins::chat {
 
                     std::vector<std::string> mObjectList = db->list("OBJECT$" + mObject + "$TITLE");
                     std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), 
-                        [](const std::string& a, const std::string& b) {
-                        return a + (a.empty() ? "" : ", ") + b;
+                        [](std::string a, const std::string& b) -> std::string {
+                        return a.append(a.empty() ? "" : ", ").append(b);
                     });
 
                     output.success(fmt::runtime(tr({}, "commands.chat.success.list")), player->getRealName(), result.empty() ? "None" : result);
@@ -394,7 +394,7 @@ namespace LOICollection::Plugins::chat {
         }
     }
 
-    void addChat(Player& player, std::string text, int time) {
+    void addChat(Player& player, const std::string& text, int time) {
         if (!isValid()) return;
 
         std::string mObject = player.getUuid().asString();
@@ -425,7 +425,7 @@ namespace LOICollection::Plugins::chat {
         ));
     }
 
-    void delChat(Player& player, std::string text) {
+    void delChat(Player& player, const std::string& text) {
         if (!isValid()) return;
 
         std::string mObject = player.getUuid().asString();
@@ -439,7 +439,7 @@ namespace LOICollection::Plugins::chat {
         ));
     }
 
-    void delBlacklist(Player& player, std::string target) {
+    void delBlacklist(Player& player, const std::string& target) {
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
@@ -461,7 +461,7 @@ namespace LOICollection::Plugins::chat {
         return "None";
     }
 
-    std::string getTitleTime(Player& player, std::string text) {
+    std::string getTitleTime(Player& player, const std::string& text) {
         if (!isValid()) return "None";
 
         std::string mObject = player.getUuid().asString();
@@ -482,7 +482,7 @@ namespace LOICollection::Plugins::chat {
         return db->list("OBJECT$" + mObject + "$CHAT");
     }
 
-    bool isChat(Player& player, std::string text) {
+    bool isChat(Player& player, const std::string& text) {
         if (!isValid()) return false;
 
         std::string mObject = player.getUuid().asString();
@@ -499,7 +499,7 @@ namespace LOICollection::Plugins::chat {
     void registery(void* database, std::map<std::string, std::variant<std::string, int>> options) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        mObjectOptions = options;
+        mObjectOptions = std::move(options);
         
         registerCommand();
         listenEvent();

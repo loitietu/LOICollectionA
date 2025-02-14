@@ -272,7 +272,7 @@ namespace LOICollection::Plugins::cdk {
         }
     }
 
-    void cdkConvert(Player& player, std::string convertString) {
+    void cdkConvert(Player& player, const std::string& convertString) {
         if (!isValid()) return;
 
         std::string mObjectLanguage = getLanguage(player);

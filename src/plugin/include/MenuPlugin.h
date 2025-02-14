@@ -20,11 +20,11 @@ namespace LOICollection::Plugins::menu {
     namespace MainGui {
         LOICOLLECTION_A_API void editNew(Player& player);
         LOICOLLECTION_A_API void editRemove(Player& player);
-        LOICOLLECTION_A_API void editAwardSetting(Player& player, std::string uiName, MenuType type);
-        LOICOLLECTION_A_API void editAwardNew(Player& player, std::string uiName, MenuType type);
-        LOICOLLECTION_A_API void editAwardRemove(Player& player, std::string uiName);
-        LOICOLLECTION_A_API void editAwardCommand(Player& player, std::string uiName);
-        LOICOLLECTION_A_API void editAwardContent(Player& player, std::string uiName);
+        LOICOLLECTION_A_API void editAwardSetting(Player& player, const std::string& uiName, MenuType type);
+        LOICOLLECTION_A_API void editAwardNew(Player& player, const std::string& uiName, MenuType type);
+        LOICOLLECTION_A_API void editAwardRemove(Player& player, const std::string& uiName);
+        LOICOLLECTION_A_API void editAwardCommand(Player& player, const std::string& uiName);
+        LOICOLLECTION_A_API void editAwardContent(Player& player, const std::string& uiName);
         LOICOLLECTION_A_API void editAward(Player& player);
         LOICOLLECTION_A_API void edit(Player& player);
         LOICOLLECTION_A_API void custom(Player& player, nlohmann::ordered_json& data);
@@ -33,7 +33,7 @@ namespace LOICollection::Plugins::menu {
         LOICOLLECTION_A_API void open(Player& player, std::string uiName);
     }
 
-    LOICOLLECTION_A_API   void logicalExecution(Player& player, nlohmann::ordered_json& data, nlohmann::ordered_json original);
+    LOICOLLECTION_A_API   void logicalExecution(Player& player, nlohmann::ordered_json data, nlohmann::ordered_json original);
 
     LOICOLLECTION_A_NDAPI bool checkModifiedData(Player& player, nlohmann::ordered_json& data);
     LOICOLLECTION_A_NDAPI bool isValid();

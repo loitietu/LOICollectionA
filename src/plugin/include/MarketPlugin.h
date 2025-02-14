@@ -10,16 +10,16 @@ class Player;
 
 namespace LOICollection::Plugins::market {
     namespace MainGui {
-        LOICOLLECTION_A_API void buyItem(Player& player, std::string mItemId);
-        LOICOLLECTION_A_API void itemContent(Player& player, std::string mItemId);
-        LOICOLLECTION_A_API void sellItem(Player& player, std::string mNbt, int mSlot);
+        LOICOLLECTION_A_API void buyItem(Player& player, const std::string& mItemId);
+        LOICOLLECTION_A_API void itemContent(Player& player, const std::string& mItemId);
+        LOICOLLECTION_A_API void sellItem(Player& player, const std::string& mNbt, int mSlot);
         LOICOLLECTION_A_API void sellItemInventory(Player& player);
         LOICOLLECTION_A_API void sellItemContent(Player& player);
         LOICOLLECTION_A_API void sell(Player& player);
         LOICOLLECTION_A_API void buy(Player& player);
     }
 
-    LOICOLLECTION_A_API   void delItem(std::string mItemId);
+    LOICOLLECTION_A_API   void delItem(const std::string& mItemId);
 
     LOICOLLECTION_A_NDAPI bool isValid();
 

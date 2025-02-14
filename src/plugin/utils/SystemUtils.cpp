@@ -26,7 +26,7 @@ namespace SystemUtils {
 
     std::string getNowTime(const std::string& format) {
         std::time_t currentTime = std::time(nullptr);
-        std::tm currentTimeInfo;
+        std::tm currentTimeInfo{};
         localtime_s(&currentTimeInfo, &currentTime);
         char buffer[80];
         std::strftime(buffer, sizeof(buffer), format.c_str(), &currentTimeInfo);

@@ -35,7 +35,7 @@
 #include "McUtils.h"
 
 namespace McUtils {
-    void executeCommand(std::string cmd, int dimension) {
+    void executeCommand(const std::string& cmd, int dimension) {
         ServerCommandOrigin origin = ServerCommandOrigin(
             "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, dimension
         );
@@ -49,14 +49,14 @@ namespace McUtils {
         }
     }
 
-    void executeCommand(Player& player, std::string cmd) {
+    void executeCommand(Player& player, const std::string& cmd) {
         executeCommand(
             ll::string_utils::replaceAll(cmd, "${player}", player.getName()),
             player.getDimensionId()
         );
     }
 
-    void clearItem(Player& player, std::string mTypeName, int mNumber) {
+    void clearItem(Player& player, const std::string& mTypeName, int mNumber) {
         Container& mItemInventory = player.getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             const ItemStack& mItemObject = mItemInventory.getItem(i);
@@ -101,7 +101,7 @@ namespace McUtils {
         return mObjectLists;
     }
 
-    bool isItemPlayerInventory(Player& player, std::string mTypeName, int mNumber) {
+    bool isItemPlayerInventory(Player& player, const std::string& mTypeName, int mNumber) {
         Container& mItemInventory = player.getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             const ItemStack& mItemObject = mItemInventory.getItem(i);
