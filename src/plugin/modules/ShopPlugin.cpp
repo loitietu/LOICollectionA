@@ -442,7 +442,7 @@ namespace LOICollection::Plugins::shop {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("shop", tr({}, "commands.shop.description"), CommandPermissionLevel::Any);
             command.overload<ShopOP>().text("gui").required("uiName").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, const ShopOP& param) -> void {
+                [](CommandOrigin const& origin, CommandOutput& output, ShopOP const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));

@@ -530,7 +530,7 @@ namespace LOICollection::Plugins::menu {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("menu", tr({}, "commands.menu.description"), CommandPermissionLevel::Any);
             command.overload<MenuOP>().text("gui").optional("uiName").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, const MenuOP& param) -> void {
+                [](CommandOrigin const& origin, CommandOutput& output, MenuOP const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));

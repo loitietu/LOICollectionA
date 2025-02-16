@@ -1,5 +1,9 @@
 #pragma once
 
+#include <map>
+#include <string>
+#include <variant>
+
 #include "base/Macro.h"
 
 class Player;
@@ -20,6 +24,6 @@ namespace LOICollection::Plugins::tpa {
     LOICOLLECTION_A_NDAPI bool isInvite(Player& player);
     LOICOLLECTION_A_NDAPI bool isValid();
     
-    LOICOLLECTION_A_API   void registery(void* database);
+    LOICOLLECTION_A_API   void registery(void* database, std::map<std::string, std::variant<std::string, int>>& options);
     LOICOLLECTION_A_API   void unregistery();
 }

@@ -165,7 +165,7 @@ namespace LOICollection::Plugins::chat {
         void blacklistAdd(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
-            int mSize = std::get<int>(mObjectOptions.at("upload"));
+            int mSize = std::get<int>(mObjectOptions.at("blacklist"));
             if (((int) getBlacklist(player).size()) >= mSize) {
                 return player.sendMessage(ll::string_utils::replaceAll(
                     tr(mObjectLanguage, "chat.gui.setBlacklist.tips1"), "${size}", std::to_string(mSize)
@@ -190,14 +190,14 @@ namespace LOICollection::Plugins::chat {
             std::string mObjectLanguage = getLanguage(player);
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
+            form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.add"), [](Player& pl) -> void {
+                MainGui::blacklistAdd(pl);
+            });
             for (std::string& mTarget : getBlacklist(player)) {
                 form.appendButton(mTarget, [mTarget](Player& pl) -> void {
                     MainGui::blacklistSet(pl, mTarget);
                 });
             }
-            form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.add"), [](Player& pl) -> void {
-                MainGui::blacklistAdd(pl);
-            });
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::setting(pl);
             });

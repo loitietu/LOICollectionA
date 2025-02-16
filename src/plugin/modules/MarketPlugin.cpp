@@ -48,7 +48,7 @@ using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::market {
-    std::map<std::string, std::variant<std::string, int>> mObjectOptions;
+    std::map<std::string, std::variant<std::string, int, std::vector<std::string>>> mObjectOptions;
 
     std::unique_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
@@ -175,10 +175,7 @@ namespace LOICollection::Plugins::market {
                 std::string mItemIcon = std::get<std::string>(dt->at("Input2"));
                 std::string mItemIntroduce = std::get<std::string>(dt->at("Input3"));
 
-                std::string mItemId = SystemUtils::nest<std::string>([mObject](std::string& val, int loop) -> bool {
-                    val = val + std::to_string(loop);
-                    return db->has("OBJECT$" + mObject + "$ITEMS", val);
-                }, "Item", 1);
+                std::string mItemId = "Item" + SystemUtils::getCurrentTimestamp();
                 std::string mItemListId = "OBJECT$" + mObject + "$ITEMS_$LIST_" + mItemId;
 
                 db->set("OBJECT$" + mObject + "$ITEMS", mItemId, "LIST");
@@ -206,12 +203,13 @@ namespace LOICollection::Plugins::market {
 
             Container& mItemInventory = player.getInventory();
 
+            std::vector<std::string> ProhibitedItems = std::get<std::vector<std::string>>(mObjectOptions.at("items"));
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"),
                 tr(mObjectLanguage, "market.gui.sell.sellItem.dropdown"));
             for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
                 ItemStack mItemStack = mItemInventory.getItem(i);
                 
-                if (!mItemStack || mItemStack.isNull())
+                if (!mItemStack || mItemStack.isNull() || std::find(ProhibitedItems.begin(), ProhibitedItems.end(), mItemStack.getTypeName()) != ProhibitedItems.end())
                     continue;
 
                 std::string mItemName = tr(mObjectLanguage, "market.gui.sell.sellItem.dropdown.text");
@@ -232,10 +230,10 @@ namespace LOICollection::Plugins::market {
             std::string mObject = player.getUuid().asString();
             std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-            std::string mTableId = "OBJECT$" + mObject + "$ITEMS";
+            std::string mTableId = "OBJECT$" + mObject + "$ITEMS_$LIST_";
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"),
                 tr(mObjectLanguage, "market.gui.label"));
-            for (std::string& item : db->list(mTableId)) {
+            for (std::string& item : db->list("OBJECT$" + mObject + "$ITEMS")) {
                 std::string mName = db->get(mTableId + item, "name");
                 std::string mIcon = db->get(mTableId + item, "icon");
                 form.appendButton(mName, mIcon, "path", [item, mTableId](Player& pl) -> void {
@@ -247,15 +245,81 @@ namespace LOICollection::Plugins::market {
             });
         }
 
+        void blacklistSet(Player& player, const std::string& target) {
+            std::string mObjectLanguage = getLanguage(player);
+
+            std::string mObject = player.getUuid().asString();
+            std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+            std::string mObjectLabel = tr(mObjectLanguage, "market.gui.sell.blacklist.set.label");
+            ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
+            ll::string_utils::replaceAll(mObjectLabel, "${player}", db->get("OBJECT$" + mObject + "$PLAYER" + target, "name", "None"));
+            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(
+                db->get("OBJECT$" + mObject + "$PLAYER" + target, "time", "None")
+            ));
+
+            ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), mObjectLabel);
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist.set.remove"), [target](Player& pl) -> void {
+                delBlacklist(pl, target);
+            });
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
+                if (id == -1) MainGui::blacklist(pl);
+            });
+        }
+
+        void blacklistAdd(Player& player) {
+            std::string mObjectLanguage = getLanguage(player);
+
+            int mSize = std::get<int>(mObjectOptions.at("blacklist"));
+            if (((int) getBlacklist(player.getUuid().asString()).size()) >= mSize) {
+                return player.sendMessage(ll::string_utils::replaceAll(
+                    tr(mObjectLanguage, "market.gui.sell.sellItem.tips5"), "${size}", std::to_string(mSize)
+                ));
+            }
+            
+            ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.sell.blacklist.add.label"));
+            for (Player*& mTarget : McUtils::getAllPlayers()) {
+                if (mTarget->getUuid() == player.getUuid())
+                    continue;
+                
+                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
+                    addBlacklist(pl, *mTarget);
+                });
+            }
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
+                if (id == -1) MainGui::blacklist(pl);
+            });
+        }
+
+        void blacklist(Player& player) {
+            std::string mObjectLanguage = getLanguage(player);
+
+            ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist.add"), "textures/ui/editIcon", "path", [](Player& pl) -> void {
+                MainGui::blacklistAdd(pl);
+            });
+            for (std::string& mTarget : getBlacklist(player.getUuid().asString())) {
+                form.appendButton(mTarget, [mTarget](Player& pl) -> void {
+                    MainGui::blacklistSet(pl, mTarget);
+                });
+            }
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
+                if (id == -1) return MainGui::sell(pl);
+            });
+        }
+
         void sell(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItem"), "textures/items/diamond", "path", [](Player& pl) -> void {
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItem"), "textures/ui/icon_blackfriday", "path", [](Player& pl) -> void {
                 MainGui::sellItemInventory(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent"), "textures/items/diamond_axe", "path", [](Player& pl) -> void {
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent"), "textures/ui/creative_icon", "path", [](Player& pl) -> void {
                 MainGui::sellItemContent(pl);
+            });
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist"), "textures/ui/icon_deals", "path", [](Player& pl) -> void {
+                MainGui::blacklist(pl);
             });
             form.sendTo(player);
         }
@@ -263,9 +327,16 @@ namespace LOICollection::Plugins::market {
         void buy(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
+            std::string mUuid = player.getUuid().asString();
+            std::replace(mUuid.begin(), mUuid.end(), '-', '_');
+
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"),
                 tr(mObjectLanguage, "market.gui.label"));
             for (std::string& item : db->list("Item")) {
+                std::vector<std::string> mList = getBlacklist(db->get("Item", item));
+                if (std::find(mList.begin(), mList.end(), mUuid) != mList.end())
+                    continue;
+
                 std::string mName = db->get(item, "name");
                 std::string mIcon = db->get(item, "icon");
                 form.appendButton(mName, mIcon, "path", [item](Player& pl) -> void {
@@ -308,13 +379,16 @@ namespace LOICollection::Plugins::market {
                         return;
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (!db->has("Item")) db->create("Item");
+                    if (!db->has("Item"))
+                        db->create("Item");
                     if (!db->has("OBJECT$" + mObject)) {
                         db->create("OBJECT$" + mObject);
                         db->create("OBJECT$" + mObject + "$ITEMS");
                         db->set("OBJECT$" + mObject, "score", "0");
                         return;
                     }
+                    if (!db->has("OBJECT$" + mObject + "$PLAYER"))
+                        db->create("OBJECT$" + mObject + "$PLAYER");
                     int mScore = SystemUtils::toInt(db->get("OBJECT$" + mObject, "score"), 0);
                     if (mScore > 0) {
                         McUtils::scoreboard::addScore(event.self(), std::get<std::string>(mObjectOptions.at("score")), mScore);
@@ -323,6 +397,35 @@ namespace LOICollection::Plugins::market {
                 }
             );
         }
+    }
+
+    void addBlacklist(Player& player, Player& target) {
+        std::string mObject = player.getUuid().asString();
+        std::string mTargetObject = target.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
+
+        db->set("OBJECT$" + mObject + "$PLAYER", mTargetObject, "blacklist");
+        
+        db->create("OBJECT$" + mObject + "$PLAYER" + mTargetObject);
+        db->set("OBJECT$" + mObject + "$PLAYER" + mTargetObject, "name", target.getRealName());
+        db->set("OBJECT$" + mObject + "$PLAYER" + mTargetObject, "time", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
+
+        logger->info(LOICollection::LOICollectionAPI::translateString(
+            ll::string_utils::replaceAll(tr({}, "market.log4"), "${target}", mTargetObject), player
+        ));
+    }
+
+    void delBlacklist(Player& player, const std::string& target) {
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+        db->del("OBJECT$" + mObject + "$PLAYER", target);
+        db->remove("OBJECT$" + mObject + "$PLAYER" + target);
+
+        logger->info(LOICollection::LOICollectionAPI::translateString(
+            ll::string_utils::replaceAll(tr({}, "market.log5"), "${target}", target), player
+        ));
     }
 
     void delItem(const std::string& mItemId) {
@@ -334,11 +437,18 @@ namespace LOICollection::Plugins::market {
         db->remove(mItemId);
     }
 
+    std::vector<std::string> getBlacklist(std::string target) {
+        if (!isValid()) return {};
+
+        std::replace(target.begin(), target.end(), '-', '_');
+        return db->list("OBJECT$" + target + "$PLAYER");
+    }
+
     bool isValid() {
         return logger != nullptr && db != nullptr;
     }
 
-    void registery(void* database, std::map<std::string, std::variant<std::string, int>>& options) {
+    void registery(void* database, std::map<std::string, std::variant<std::string, int, std::vector<std::string>>>& options) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         mObjectOptions = std::move(options);

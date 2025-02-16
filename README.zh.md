@@ -46,7 +46,11 @@ lip install github.com/loitietu/LOICollectionA
             "MenuItemId": "minecraft:clock",
             "EntranceKey": "main"
         },
-        "Tpa": false,
+        "Tpa": {
+            "ModuleEnabled": false,
+            "TargetScoreboard": "money",
+            "RequestRequired": 100
+        },
         "Shop": false,
         "Monitor": {
             "ModuleEnabled": false,
@@ -77,18 +81,20 @@ lip install github.com/loitietu/LOICollectionA
         "Wallet": {
             "ModuleEnabled": false,
             "TargetScoreboard": "money",
-            "ExchangeRate": 0.1 
+            "ExchangeRate": 0.1
         },
         "Chat": {
             "ModuleEnabled": false,
             "FormatText": "<{player}> ${chat}",
-            "MaximumUpload": 20
+            "BlacklistUpload": 10
         },
         "Notice": false,
         "Market": {
             "ModuleEnabled": false,
             "TargetScoreboard": "money",
-            "MaximumUpload": 20
+            "MaximumUpload": 20,
+            "BlacklistUpload": 10,
+            "ProhibitedItems": []
         }
     },
     "ProtableTool": {

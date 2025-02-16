@@ -31,7 +31,7 @@ namespace LOICollection::ServerEvents {
         Packet const& packet
     ) {
         if (packet.getId() != MinecraftPacketIds::Text)
-            return;
+            return origin(identifier, subId, packet);
 
         TextPacketEvent event(static_cast<TextPacket const&>(packet));
         ll::event::EventBus::getInstance().publish(event);
@@ -49,7 +49,7 @@ namespace LOICollection::ServerEvents {
         Packet const& packet
     ) {
         if (packet.getId() != MinecraftPacketIds::Text)
-            return;
+            return origin(packet);
 
         TextPacketEvent event(static_cast<TextPacket const&>(packet));
         ll::event::EventBus::getInstance().publish(event);

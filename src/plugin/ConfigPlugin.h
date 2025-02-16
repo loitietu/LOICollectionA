@@ -18,7 +18,11 @@ struct C_Config {
             std::string MenuItemId = "minecraft:clock";
             std::string EntranceKey = "main";
         } Menu;
-        bool Tpa = false;
+        struct C_Tpa {
+            bool ModuleEnabled = false;
+            std::string TargetScoreboard = "money";
+            int RequestRequired = 100;
+        } Tpa;
         bool Shop = false;
         struct C_Monitor {
             bool ModuleEnabled = false;
@@ -36,13 +40,13 @@ struct C_Config {
             } ServerToast;
             struct C_ChangeScore {
                 bool ModuleEnabled = true;
-                std::vector<std::string> ScoreboardLists = {};
+                std::vector<std::string> ScoreboardLists{};
                 std::string FormatText = "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}";
             } ChangeScore;
             struct C_DisableCommand {
                 bool ModuleEnabled = true;
                 std::string FormatText = "该指令已被禁用";
-                std::vector<std::string> CommandLists = {};
+                std::vector<std::string> CommandLists{};
             } DisableCommand;
         } Monitor;
         bool Pvp = false;
@@ -54,13 +58,15 @@ struct C_Config {
         struct C_Chat {
             bool ModuleEnabled = false;
             std::string FormatText = "<{player}> ${chat}";
-            int MaximumUpload = 20;
+            int BlacklistUpload = 10;
         } Chat;
         bool Notice = false;
         struct C_Market {
             bool ModuleEnabled = false;
             std::string TargetScoreboard = "money";
             int MaximumUpload = 20;
+            int BlacklistUpload = 10;
+            std::vector<std::string> ProhibitedItems{};
         } Market;
     } Plugins;
     struct C_ProtableTool {

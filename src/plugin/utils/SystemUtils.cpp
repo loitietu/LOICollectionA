@@ -24,6 +24,11 @@ namespace SystemUtils {
         return locale;
     }
 
+    std::string getCurrentTimestamp() {
+        std::time_t now = std::time(nullptr);
+        return std::to_string(now);
+    }
+
     std::string getNowTime(const std::string& format) {
         std::time_t currentTime = std::time(nullptr);
         std::tm currentTimeInfo{};

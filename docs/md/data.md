@@ -26,7 +26,11 @@
             "MenuItemId": "minecraft:clock",  // 打开菜单物品 ID
             "EntranceKey": "main" // 菜单入口
         },
-        "Tpa": false, // 是否启用 TPA
+        "Tpa": { // TPA 配置
+            "ModuleEnabled": false, // 是否启用 TPA
+            "TargetScoreboard": "money", // TPA 请求目标使用 Score 对象
+            "RequestRequired": 100 // TPA 请求所需 Score 数量
+        },
         "Shop": false, // 是否启用商店
         "Monitor": { // 消息强化配置
             "ModuleEnabled": false, // 是否启用消息强化
@@ -62,13 +66,15 @@
         "Chat": { // 聊天强化配置
             "ModuleEnabled": false, // 是否启用聊天强化
             "FormatText": "<{player}> ${chat}", // 聊天消息格式，支持 LOICollectionA API 变量
-            "MaximumUpload": 20 // 黑名单目标最大上传数量
+            "BlacklistUpload": 10 // 黑名单目标最大上传数量
         },
         "Notice": false, // 是否启用公告栏
         "Market": { // 玩家市场配置
             "ModuleEnabled": false, // 是否启用玩家市场
             "TargetScoreboard": "money", // 玩家市场指定使用 Score 对象
-            "MaximumUpload": 20 // 玩家市场最大上传数量
+            "MaximumUpload": 20, // 玩家市场最大上传数量
+            "BlacklistUpload": 10, // 玩家黑名单目标最大上传数量
+            "ProhibitedItems": [] // 玩家市场禁止上传的物品
         }
     },
     "ProtableTool": { // 便携工具配置

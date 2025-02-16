@@ -109,7 +109,12 @@ namespace LOICollection {
             options["EntranceKey"] = this->config.Plugins.Menu.EntranceKey;
             Plugins::menu::registery(&this->MenuDB, options);
         }
-        if (this->config.Plugins.Tpa) Plugins::tpa::registery(&this->SettingsDB);
+        if (this->config.Plugins.Tpa.ModuleEnabled) {
+            std::map<std::string, std::variant<std::string, int>> options;
+            options["score"] = this->config.Plugins.Tpa.TargetScoreboard;
+            options["required"] = this->config.Plugins.Tpa.RequestRequired;
+            Plugins::tpa::registery(&this->SettingsDB, options);
+        }
         if (this->config.Plugins.Shop) Plugins::shop::registery(&this->ShopDB);
         if (this->config.Plugins.Monitor.ModuleEnabled) {
             std::map<std::string, std::variant<std::string, std::vector<std::string>, int, bool>> options;
@@ -137,14 +142,16 @@ namespace LOICollection {
         if (this->config.Plugins.Chat.ModuleEnabled) {
             std::map<std::string, std::variant<std::string, int>> options;
             options["chat"] = this->config.Plugins.Chat.FormatText;
-            options["upload"] = this->config.Plugins.Chat.MaximumUpload;
+            options["blacklist"] = this->config.Plugins.Chat.BlacklistUpload;
             Plugins::chat::registery(&this->ChatDB, options);
         }
         if (this->config.Plugins.Notice) Plugins::notice::registery(&this->NoticeDB, &this->SettingsDB);
         if (this->config.Plugins.Market.ModuleEnabled) {
-            std::map<std::string, std::variant<std::string, int>> options;
+            std::map<std::string, std::variant<std::string, int, std::vector<std::string>>> options;
             options["score"] = this->config.Plugins.Market.TargetScoreboard;
             options["upload"] = this->config.Plugins.Market.MaximumUpload;
+            options["blacklist"] = this->config.Plugins.Market.BlacklistUpload;
+            options["items"] = this->config.Plugins.Market.ProhibitedItems;
             Plugins::market::registery(&this->MarketDB, options);
         }
 
@@ -162,7 +169,7 @@ namespace LOICollection {
         Plugins::language::unregistery();
         if (this->config.Plugins.Blacklist) Plugins::blacklist::unregistery();
         if (this->config.Plugins.Mute) Plugins::mute::unregistery();
-        if (this->config.Plugins.Tpa) Plugins::tpa::unregistery();
+        if (this->config.Plugins.Tpa.ModuleEnabled) Plugins::tpa::unregistery();
         if (this->config.Plugins.Pvp) Plugins::pvp::unregistery();
         if (this->config.Plugins.Notice) Plugins::notice::unregistery();
         if (this->config.Plugins.Menu.ModuleEnabled) Plugins::menu::unregistery();

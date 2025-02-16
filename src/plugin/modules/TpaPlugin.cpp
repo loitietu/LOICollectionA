@@ -1,6 +1,8 @@
+#include <map>
 #include <memory>
-#include <vector>
 #include <string>
+#include <vector>
+#include <variant>
 
 #include <fmt/core.h>
 
@@ -52,6 +54,8 @@ namespace LOICollection::Plugins::tpa {
         SelectorType type;
     };
 
+    std::map<std::string, std::variant<std::string, int>> mObjectOptions;
+
     std::shared_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
     
@@ -84,6 +88,16 @@ namespace LOICollection::Plugins::tpa {
                 ));
                 return;
             }
+
+            int mScore = std::get<int>(mObjectOptions.at("required"));
+            std::string mScoreboard = std::get<std::string>(mObjectOptions.at("score"));
+            if (McUtils::scoreboard::getScore(player, mScoreboard) < mScore) {
+                player.sendMessage(ll::string_utils::replaceAll(
+                    tr(getLanguage(player), "tpa.tips1"), "${score}", std::to_string(mScore)
+                ));
+                return;
+            }
+            McUtils::scoreboard::reduceScore(player, mScoreboard, mScore);
 
             ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"), (type == TpaType::tpa)
                 ? LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player)
@@ -153,7 +167,14 @@ namespace LOICollection::Plugins::tpa {
                 if (results.empty())
                     return output.error(tr({}, "commands.generic.target"));
 
+                int mScore = std::get<int>(mObjectOptions.at("required"));
+                std::string mScoreboard = std::get<std::string>(mObjectOptions.at("score"));
                 for (Player*& pl : results) {
+                    if (McUtils::scoreboard::getScore(*pl, mScoreboard) < mScore) {
+                        output.error(fmt::runtime(tr({}, "commands.tpa.error.invite")), mScore);
+                        break;
+                    }
+
                     MainGui::tpa(player, *pl, param.type == SelectorType::tpa
                         ? TpaType::tpa : TpaType::tphere
                     );
@@ -211,9 +232,10 @@ namespace LOICollection::Plugins::tpa {
         return logger != nullptr && db != nullptr;
     }
 
-    void registery(void* database) {
+    void registery(void* database, std::map<std::string, std::variant<std::string, int>>& options) {
         db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
+        mObjectOptions = std::move(options);
         
         registerCommand();
         listenEvent();
