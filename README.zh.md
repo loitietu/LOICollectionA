@@ -49,6 +49,7 @@ lip install github.com/loitietu/LOICollectionA
         "Tpa": {
             "ModuleEnabled": false,
             "TargetScoreboard": "money",
+            "BlacklistUpload": 10,
             "RequestRequired": 100
         },
         "Shop": false,

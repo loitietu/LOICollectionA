@@ -21,6 +21,7 @@ struct C_Config {
         struct C_Tpa {
             bool ModuleEnabled = false;
             std::string TargetScoreboard = "money";
+            int BlacklistUpload = 10;
             int RequestRequired = 100;
         } Tpa;
         bool Shop = false;

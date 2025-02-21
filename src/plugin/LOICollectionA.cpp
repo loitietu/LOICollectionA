@@ -73,6 +73,7 @@ namespace LOICollection {
         this->SettingsDB = std::make_unique<SQLiteStorage>(dataFilePath / "settings.db");
         this->BlacklistDB = std::make_unique<SQLiteStorage>(dataFilePath / "blacklist.db");
         this->MuteDB = std::make_unique<SQLiteStorage>(dataFilePath / "mute.db");
+        this->TpaDB = std::make_unique<SQLiteStorage>(dataFilePath / "tpa.db");
         this->ChatDB = std::make_unique<SQLiteStorage>(dataFilePath / "chat.db");
         this->MarketDB = std::make_unique<SQLiteStorage>(dataFilePath / "market.db");
         this->NoticeDB = std::make_unique<JsonStorage>(configDataPath / "notice.json");
@@ -113,7 +114,8 @@ namespace LOICollection {
             std::map<std::string, std::variant<std::string, int>> options;
             options["score"] = this->config.Plugins.Tpa.TargetScoreboard;
             options["required"] = this->config.Plugins.Tpa.RequestRequired;
-            Plugins::tpa::registery(&this->SettingsDB, options);
+            options["blacklist"] = this->config.Plugins.Tpa.BlacklistUpload;
+            Plugins::tpa::registery(&this->TpaDB, &this->SettingsDB, options);
         }
         if (this->config.Plugins.Shop) Plugins::shop::registery(&this->ShopDB);
         if (this->config.Plugins.Monitor.ModuleEnabled) {

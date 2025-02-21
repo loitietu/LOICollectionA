@@ -34,6 +34,7 @@ namespace LOICollection {
         std::shared_ptr<SQLiteStorage> SettingsDB;
         std::unique_ptr<SQLiteStorage> BlacklistDB;
         std::unique_ptr<SQLiteStorage> MuteDB;
+        std::unique_ptr<SQLiteStorage> TpaDB;
         std::unique_ptr<SQLiteStorage> ChatDB;
         std::unique_ptr<SQLiteStorage> MarketDB;
         std::unique_ptr<JsonStorage> NoticeDB;

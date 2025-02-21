@@ -29,6 +29,7 @@
         "Tpa": { // TPA 配置
             "ModuleEnabled": false, // 是否启用 TPA
             "TargetScoreboard": "money", // TPA 请求目标使用 Score 对象
+            "BlacklistUpload": 10, // 玩家黑名单目标最大上传数量
             "RequestRequired": 100 // TPA 请求所需 Score 数量
         },
         "Shop": false, // 是否启用商店

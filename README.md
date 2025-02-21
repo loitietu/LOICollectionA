@@ -50,6 +50,7 @@
         "Tpa": {
             "ModuleEnabled": false,
             "TargetScoreboard": "money",
+            "BlacklistUpload": 10,
             "RequestRequired": 100
         },
         "Shop": false,

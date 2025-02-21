@@ -35,6 +35,7 @@
 #include "include/LanguagePlugin.h"
 
 #include "utils/McUtils.h"
+#include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
 #include "data/SQLiteStorage.h"
@@ -56,27 +57,104 @@ namespace LOICollection::Plugins::tpa {
 
     std::map<std::string, std::variant<std::string, int>> mObjectOptions;
 
-    std::shared_ptr<SQLiteStorage> db;
+    std::unique_ptr<SQLiteStorage> db;
+    std::shared_ptr<SQLiteStorage> db2;
     std::shared_ptr<ll::io::Logger> logger;
     
     ll::event::ListenerPtr PlayerJoinEventListener;
 
     namespace MainGui {
-        void setting(Player& player) {
+        void generic(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
             
             ll::form::CustomForm form(tr(mObjectLanguage, "tpa.gui.setting.title"));
             form.appendLabel(tr(mObjectLanguage, "tpa.gui.setting.label"));
-            form.appendToggle("Toggle1", tr(mObjectLanguage, "tpa.gui.setting.switch1"), isInvite(player));
+            form.appendToggle("Toggle1", tr(mObjectLanguage, "tpa.gui.setting.generic.switch1"), isInvite(player));
             form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-                if (!dt) return;
+                if (!dt) return MainGui::setting(pl);
 
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
-                db->set("OBJECT$" + mObject, "Tpa_Toggle1",
+                db2->set("OBJECT$" + mObject, "Tpa_Toggle1",
                     std::get<uint64>(dt->at("Toggle1")) ? "true" : "false"
                 );
             });
+        };
+
+        void blacklistSet(Player& player, const std::string& target) {
+            std::string mObjectLanguage = getLanguage(player);
+
+            std::string mObject = player.getUuid().asString();
+            std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+            std::string mObjectLabel = tr(mObjectLanguage, "tpa.gui.setting.blacklist.set.label");
+            ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
+            ll::string_utils::replaceAll(mObjectLabel, "${player}", db->get("OBJECT$" + mObject + "$PLAYER" + target, "name", "None"));
+            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(
+                db->get("OBJECT$" + mObject + "$PLAYER" + target, "time", "None")
+            ));
+
+            ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), mObjectLabel);
+            form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.set.remove"), [target](Player& pl) -> void {
+                delBlacklist(pl, target);
+            });
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
+                if (id == -1) MainGui::blacklist(pl);
+            });
+        }
+
+        void blacklistAdd(Player& player) {
+            std::string mObjectLanguage = getLanguage(player);
+
+            int mSize = std::get<int>(mObjectOptions.at("blacklist"));
+            if (((int) getBlacklist(player).size()) >= mSize) {
+                return player.sendMessage(ll::string_utils::replaceAll(
+                    tr(mObjectLanguage, "tpa.tips2"), "${size}", std::to_string(mSize)
+                ));
+            }
+            
+            ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), tr(mObjectLanguage, "tpa.gui.setting.blacklist.add.label"));
+            for (Player*& mTarget : McUtils::getAllPlayers()) {
+                if (mTarget->getUuid() == player.getUuid())
+                    continue;
+                
+                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
+                    addBlacklist(pl, *mTarget);
+                });
+            }
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
+                if (id == -1) MainGui::blacklist(pl);
+            });
+        }
+
+        void blacklist(Player& player) {
+            std::string mObjectLanguage = getLanguage(player);
+
+            ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), tr(mObjectLanguage, "tpa.gui.setting.label"));
+            form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.add"), "textures/ui/editIcon", "path", [](Player& pl) -> void {
+                MainGui::blacklistAdd(pl);
+            });
+            for (std::string& mTarget : getBlacklist(player)) {
+                form.appendButton(mTarget, [mTarget](Player& pl) -> void {
+                    MainGui::blacklistSet(pl, mTarget);
+                });
+            }
+            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
+                if (id == -1) return MainGui::setting(pl);
+            });
+        }
+
+        void setting(Player& player) {
+            std::string mObjectLanguage = getLanguage(player);
+
+            ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), tr(mObjectLanguage, "tpa.gui.setting.label"));
+            form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.generic"), "textures/ui/icon_setting", "path", [](Player& pl) -> void {
+                MainGui::generic(pl);
+            });
+            form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist"), "textures/ui/icon_lock", "path", [](Player& pl) -> void {
+                MainGui::blacklist(pl);
+            });
+            form.sendTo(player);
         }
 
         void tpa(Player& player, Player& target, TpaType type) {
@@ -91,7 +169,7 @@ namespace LOICollection::Plugins::tpa {
 
             int mScore = std::get<int>(mObjectOptions.at("required"));
             std::string mScoreboard = std::get<std::string>(mObjectOptions.at("score"));
-            if (McUtils::scoreboard::getScore(player, mScoreboard) < mScore) {
+            if (mScore && McUtils::scoreboard::getScore(player, mScoreboard) < mScore) {
                 player.sendMessage(ll::string_utils::replaceAll(
                     tr(getLanguage(player), "tpa.tips1"), "${score}", std::to_string(mScore)
                 ));
@@ -105,7 +183,7 @@ namespace LOICollection::Plugins::tpa {
                 tr(mObjectLanguage, "tpa.yes"), tr(mObjectLanguage, "tpa.no"));
             form.sendTo(target, [type, &player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
-                    std::string logString = tr({}, "tpa.log");
+                    std::string logString = tr({}, "tpa.log1");
                     if (type == TpaType::tpa) {
                         player.teleport(pl.getPosition(), pl.getDimensionId());
                         ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
@@ -142,8 +220,15 @@ namespace LOICollection::Plugins::tpa {
         void open(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
+            std::string mObject = player.getUuid().asString();
+            std::replace(mObject.begin(), mObject.end(), '-', '_');
+
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.title"), tr(mObjectLanguage, "tpa.gui.label2"));
             for (Player*& mTarget : McUtils::getAllPlayers()) {
+                std::vector<std::string> mList = getBlacklist(*mTarget);
+                if (std::find(mList.begin(), mList.end(), mObject) != mList.end())
+                    continue;
+
                 form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
                     MainGui::content(pl, *mTarget);
                 });
@@ -167,6 +252,9 @@ namespace LOICollection::Plugins::tpa {
                 if (results.empty())
                     return output.error(tr({}, "commands.generic.target"));
 
+                std::string mObject = player.getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+
                 int mScore = std::get<int>(mObjectOptions.at("required"));
                 std::string mScoreboard = std::get<std::string>(mObjectOptions.at("score"));
                 for (Player*& pl : results) {
@@ -174,6 +262,10 @@ namespace LOICollection::Plugins::tpa {
                         output.error(fmt::runtime(tr({}, "commands.tpa.error.invite")), mScore);
                         break;
                     }
+
+                    std::vector<std::string> mList = getBlacklist(*pl);
+                    if (std::find(mList.begin(), mList.end(), mObject) != mList.end())
+                        continue;
 
                     MainGui::tpa(player, *pl, param.type == SelectorType::tpa
                         ? TpaType::tpa : TpaType::tphere
@@ -210,12 +302,51 @@ namespace LOICollection::Plugins::tpa {
                         return;
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (!db->has("OBJECT$" + mObject)) db->create("OBJECT$" + mObject);
-                    if (!db->has("OBJECT$" + mObject, "Tpa_Toggle1"))
-                        db->set("OBJECT$" + mObject, "Tpa_Toggle1", "false");
+                    if (!db2->has("OBJECT$" + mObject)) db2->create("OBJECT$" + mObject);
+                    if (!db2->has("OBJECT$" + mObject, "Tpa_Toggle1"))
+                        db2->set("OBJECT$" + mObject, "Tpa_Toggle1", "false");
+                    if (!db->has("OBJECT$" + mObject + "$PLAYER"))
+                        db->create("OBJECT$" + mObject + "$PLAYER");
                 }
             );
         }
+    }
+
+    void addBlacklist(Player& player, Player& target) {
+        std::string mObject = player.getUuid().asString();
+        std::string mTargetObject = target.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
+
+        db->set("OBJECT$" + mObject + "$PLAYER", mTargetObject, "blacklist");
+        
+        db->create("OBJECT$" + mObject + "$PLAYER" + mTargetObject);
+        db->set("OBJECT$" + mObject + "$PLAYER" + mTargetObject, "name", target.getRealName());
+        db->set("OBJECT$" + mObject + "$PLAYER" + mTargetObject, "time", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
+
+        logger->info(LOICollection::LOICollectionAPI::translateString(
+            ll::string_utils::replaceAll(tr({}, "tpa.log2"), "${target}", mTargetObject), player
+        ));
+    }
+
+    void delBlacklist(Player& player, const std::string& target) {
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+        db->del("OBJECT$" + mObject + "$PLAYER", target);
+        db->remove("OBJECT$" + mObject + "$PLAYER" + target);
+
+        logger->info(LOICollection::LOICollectionAPI::translateString(
+            ll::string_utils::replaceAll(tr({}, "tpa.log3"), "${target}", target), player
+        ));
+    }
+
+    std::vector<std::string> getBlacklist(Player& player) {
+        if (!isValid()) return {};
+
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        return db->list("OBJECT$" + mObject + "$PLAYER");
     }
 
     bool isInvite(Player& player) {
@@ -223,17 +354,18 @@ namespace LOICollection::Plugins::tpa {
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject))
-            return db->get("OBJECT$" + mObject, "Tpa_Toggle1") == "true";
+        if (db2->has("OBJECT$" + mObject))
+            return db2->get("OBJECT$" + mObject, "Tpa_Toggle1") == "true";
         return false;
     }
 
     bool isValid() {
-        return logger != nullptr && db != nullptr;
+        return logger != nullptr && db != nullptr && db2 != nullptr;
     }
 
-    void registery(void* database, std::map<std::string, std::variant<std::string, int>>& options) {
-        db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
+    void registery(void* database, void* setting, std::map<std::string, std::variant<std::string, int>>& options) {
+        db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        db2 = *static_cast<std::shared_ptr<SQLiteStorage>*>(setting);
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         mObjectOptions = std::move(options);
         

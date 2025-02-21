@@ -56,7 +56,7 @@ namespace LOICollection::Plugins::notice {
 
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
-                db2->set("OBJECT$" + mObject, "notice_Toggle1", 
+                db2->set("OBJECT$" + mObject, "Notice_Toggle1", 
                     std::get<uint64>(dt->at("Toggle1")) ? "true" : "false"
                 );
             });
@@ -156,8 +156,8 @@ namespace LOICollection::Plugins::notice {
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
                     if (!db2->has("OBJECT$" + mObject)) db2->create("OBJECT$" + mObject);
-                    if (!db2->has("OBJECT$" + mObject, "notice_Toggle1"))
-                        db2->set("OBJECT$" + mObject, "notice_Toggle1", "false");
+                    if (!db2->has("OBJECT$" + mObject, "Notice_Toggle1"))
+                        db2->set("OBJECT$" + mObject, "Notice_Toggle1", "false");
                     
                     if (isClose(event.self()))
                         return;
@@ -172,8 +172,8 @@ namespace LOICollection::Plugins::notice {
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db2->has("OBJECT$" + mObject, "notice_Toggle1"))
-            return db2->get("OBJECT$" + mObject, "notice_Toggle1") == "true";
+        if (db2->has("OBJECT$" + mObject, "Notice_Toggle1"))
+            return db2->get("OBJECT$" + mObject, "Notice_Toggle1") == "true";
         return false;
     }
 
@@ -181,9 +181,9 @@ namespace LOICollection::Plugins::notice {
         return logger != nullptr && db != nullptr && db2 != nullptr;
     }
 
-    void registery(void* database, void* config) {
+    void registery(void* database, void* setting) {
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
-        db2 = *static_cast<std::shared_ptr<SQLiteStorage>*>(config);
+        db2 = *static_cast<std::shared_ptr<SQLiteStorage>*>(setting);
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         
         if (!db->has("title") || !db->has("content")) {
