@@ -156,14 +156,14 @@ namespace LOICollection::Plugins::menu {
             nlohmann::ordered_json data = db->toJson(uiName);
             ll::form::CustomForm form(tr(mObjectLanguage, "menu.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "menu.gui.label"));
-            form.appendInput("Input6", tr(mObjectLanguage, "menu.gui.button1.input6"), "", data.at("title"));
+            form.appendInput("Input6", tr(mObjectLanguage, "menu.gui.button1.input6"), "", data.value("title", ""));
             if (type != MenuType::Custom) {
-                form.appendInput("Input5", tr(mObjectLanguage, "menu.gui.button1.input5"), "", data.at("content"));
-                form.appendInput("Input4", tr(mObjectLanguage, "menu.gui.button1.input4"), "", data.at("NoScore"));
-                form.appendInput("Input3", tr(mObjectLanguage, "menu.gui.button1.input3"), "", data.at("NoPermission"));
+                form.appendInput("Input5", tr(mObjectLanguage, "menu.gui.button1.input5"), "", data.value("content", ""));
+                form.appendInput("Input4", tr(mObjectLanguage, "menu.gui.button1.input4"), "", data.value("NoScore", ""));
+                form.appendInput("Input3", tr(mObjectLanguage, "menu.gui.button1.input3"), "", data.value("NoPermission", ""));
             }
             if (type != MenuType::Modal)
-                form.appendInput("Input2", tr(mObjectLanguage, "menu.gui.button1.input2"), "", data.at("exit"));
+                form.appendInput("Input2", tr(mObjectLanguage, "menu.gui.button1.input2"), "", data.value("exit", ""));
             form.appendSlider("Slider", tr(mObjectLanguage, "menu.gui.button1.slider"), 0, 4, 1, 0);
             form.sendTo(player, [uiName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::editAwardContent(pl, uiName);
@@ -234,7 +234,8 @@ namespace LOICollection::Plugins::menu {
 
                 nlohmann::ordered_json mContent = db->toJson(uiName);
                 type == MenuType::Simple ? mContent["button"].push_back(data)
-                    : (void)((std::get<std::string>(dt->at("dropdown2")) == "Upper" ? mContent["confirmButton"] : mContent["cancelButton"]) = data);
+                    : (void)((std::get<std::string>(dt->at("dropdown2")) == "Upper" ?
+                        mContent.at("confirmButton") : mContent.at("cancelButton")) = data);
                 db->set(uiName, mContent);
                 db->save();
 
@@ -245,12 +246,14 @@ namespace LOICollection::Plugins::menu {
         void editAwardRemove(Player& player, const std::string& uiName) {
             std::string mObjectLanguage = getLanguage(player);
 
+            nlohmann::ordered_json defaultJson{};
             nlohmann::ordered_json data = db->toJson(uiName);
-            nlohmann::ordered_json mContent = (data.at("type").get<std::string>() == "Custom" ? data.at("customize") : data.at("button"));
+            nlohmann::ordered_json mContent = (data.value("type", "") == "Custom" ?
+                data.value("customize", defaultJson) : data.value("button", defaultJson));
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), tr(mObjectLanguage, "menu.gui.label"));
             for (nlohmann::ordered_json& item : mContent) {
-                std::string mName = item.at("id").get<std::string>();
+                std::string mName = item.value("id", "");
                 form.appendButton(mName, [mName, uiName](Player& pl) -> void {
                     std::string mObjectLanguage = getLanguage(pl);
                     std::string mObjectContent = tr(mObjectLanguage, "menu.gui.button3.remove.content");
@@ -262,13 +265,16 @@ namespace LOICollection::Plugins::menu {
                     form.sendTo(pl, [uiName, mName](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
                         if (result != ll::form::ModalFormSelectedButton::Upper) 
                             return;
+                        nlohmann::ordered_json defaultJson{};
                         nlohmann::ordered_json data = db->toJson(uiName);
-                        nlohmann::ordered_json mContent = (data.at("type").get<std::string>() == "Custom" ? data.at("customize") : data.at("button"));
+                        nlohmann::ordered_json mContent = (data.value("type", "") == "Custom" ?
+                            data.value("customize", defaultJson) : data.value("button", defaultJson));
                         for (int i = 0; i < (int) mContent.size(); i++) {
-                            if (mContent.at(i).at("id").get<std::string>() == mName)
+                            if (mContent.at(i).value("id", "") == mName)
                                 mContent.erase(i);
                         }
-                        data.at("type").get<std::string>() == "Custom" ? data.at("customize") = mContent : data.at("button") = mContent;
+                        (data.value("type", "") == "Custom" ?
+                            data.value("customize", defaultJson) : data.value("button", defaultJson)) = mContent;
                         db->set(uiName, data);
                         db->save();
 
@@ -290,7 +296,7 @@ namespace LOICollection::Plugins::menu {
             ll::form::CustomForm form(tr(mObjectLanguage, "menu.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "menu.gui.label"));
 
-            nlohmann::ordered_json data = db->toJson(uiName).at("command");
+            nlohmann::ordered_json data = db->toJson(uiName).value("command", nlohmann::ordered_json());
             for (int i = 1; i < (int)(data.size() + 1); i++) {
                 std::string mLine = tr(mObjectLanguage, "menu.gui.button3.command.line");
                 ll::string_utils::replaceAll(mLine, "${index}", std::to_string(i));
@@ -303,6 +309,9 @@ namespace LOICollection::Plugins::menu {
                 if (!dt) return MainGui::editAwardContent(pl, uiName);
 
                 nlohmann::ordered_json data = db->toJson(uiName);
+                if (data.empty()) 
+                    return;
+
                 if (std::get<uint64>(dt->at("Toggle1")))
                     data.at("command").push_back("");
                 else if (std::get<uint64>(dt->at("Toggle2")))
@@ -393,57 +402,59 @@ namespace LOICollection::Plugins::menu {
         }
 
         void custom(Player& player, nlohmann::ordered_json& data) {
-            nlohmann::ordered_json mCustomData;
-            ll::form::CustomForm form(translateString(data.at("title").get<std::string>(), player));
-            for (nlohmann::ordered_json& customize : data.at("customize")) {
-                switch (ll::hash_utils::doHash(customize.at("type").get<std::string>())) {
+            nlohmann::ordered_json mCustomData{};
+            ll::form::CustomForm form(translateString(data.value("title", ""), player));
+            for (nlohmann::ordered_json& customize : data.value("customize", nlohmann::ordered_json())) {
+                switch (ll::hash_utils::doHash(customize.value("type", ""))) {
                     case ll::hash_utils::doHash("Label"):
-                        form.appendLabel(translateString(customize.at("title").get<std::string>(), player));
+                        form.appendLabel(translateString(customize.value("title", ""), player));
                         break;
                     case ll::hash_utils::doHash("Input"): {
-                        form.appendInput(customize.at("id").get<std::string>(),
-                            translateString(customize.at("title").get<std::string>(), player), 
-                            customize.at("placeholder").get<std::string>(), customize.at("defaultValue").get<std::string>());
-                        mCustomData[customize.at("id").get<std::string>()] = customize.at("defaultValue").get<std::string>();
+                        form.appendInput(customize.value("id", "ID"),
+                            translateString(customize.value("title", ""), player), 
+                            customize.value("placeholder", ""), customize.value("defaultValue", ""));
+                        mCustomData[customize.value("id", "ID")] = customize.value("defaultValue", "");
                         break;
                     }
                     case ll::hash_utils::doHash("Dropdown"): {
-                        std::vector<std::string> mOptions = customize.at("options").get<std::vector<std::string>>();
+                        std::vector<std::string> mOptions = customize.value("options", std::vector<std::string>());
                         if (mOptions.size() < 1)
                             break;
-                        form.appendDropdown(customize.at("id").get<std::string>(),
-                            translateString(customize.at("title").get<std::string>(), player), 
-                            mOptions, customize.at("defaultValue").get<int>());
-                        mCustomData[customize.at("id").get<std::string>()] = mOptions.at(customize.at("defaultValue").get<int>());
+                        form.appendDropdown(customize.value("id", "ID"),
+                            translateString(customize.value("title", ""), player), 
+                            mOptions, customize.value("defaultValue", 0));
+                        mCustomData[customize.value("id", "ID")] = mOptions.at(customize.value("defaultValue", 0));
                         break;
                     }
                     case ll::hash_utils::doHash("Toggle"): {
-                        form.appendToggle(customize.at("id").get<std::string>(),
-                            translateString(customize.at("title").get<std::string>(), player),
-                            customize.at("defaultValue").get<bool>());
-                        mCustomData[customize.at("id").get<std::string>()] = customize.at("defaultValue").get<bool>();
+                        form.appendToggle(customize.value("id", "ID"),
+                            translateString(customize.value("title", ""), player),
+                            customize.value("defaultValue", false));
+                        mCustomData[customize.value("id", "ID")] = customize.value("defaultValue", false);
                         break;
                     }
                     case ll::hash_utils::doHash("Slider"): {
-                        form.appendSlider(customize.at("id").get<std::string>(), translateString(customize.at("title").get<std::string>(), player),
-                        customize.at("min").get<int>(), customize.at("max").get<int>(), customize.at("step").get<int>(), customize.at("defaultValue").get<int>());
-                        mCustomData[customize.at("id").get<std::string>()] = customize.at("defaultValue").get<int>();
+                        form.appendSlider(customize.value("id", "ID"), 
+                        translateString(customize.value("title", ""), player),
+                        customize.value("min", 0), customize.value("max", 100),
+                        customize.value("step", 1), customize.value("defaultValue", 0));
+                        mCustomData[customize.value("id", "ID")] = customize.value("defaultValue", 0);
                         break;
                     }
                     case ll::hash_utils::doHash("StepSlider"): {
-                        std::vector<std::string> mOptions = customize.at("options").get<std::vector<std::string>>();
+                        std::vector<std::string> mOptions = customize.value("options", std::vector<std::string>());
                         if (mOptions.size() < 2)
                             break;
-                        form.appendStepSlider(customize.at("id").get<std::string>(),
-                            translateString(customize.at("title").get<std::string>(), player),
-                        mOptions, customize.at("defaultValue").get<int>());
-                        mCustomData[customize.at("id").get<std::string>()] = mOptions.at(customize.at("defaultValue").get<int>());
+                        form.appendStepSlider(customize.value("id", "ID"),
+                            translateString(customize.value("title", ""), player),
+                            mOptions, customize.value("defaultValue", 0));
+                        mCustomData[customize.value("id", "ID")] = mOptions.at(customize.value("defaultValue", 0));
                         break;
                     }
                 }
             }
             form.sendTo(player, [mCustomData, data](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-                if (!dt) return McUtils::executeCommand(pl, data.at("exit").get<std::string>());
+                if (!dt) return McUtils::executeCommand(pl, data.value("exit", ""));
 
                 nlohmann::ordered_json mCustom;
                 for (auto& [key, value] : mCustomData.items()) {
@@ -455,8 +466,8 @@ namespace LOICollection::Plugins::menu {
                     if (value.is_boolean()) mCustom[key] = std::get<uint64>(dt->at(key)) ? "true" : "false";
                     if (value.is_number_integer()) mCustom[key] = std::to_string((int) std::get<double>(dt->at(key)));
                 }
-                for (auto c_it = data["command"].begin(); c_it != data["command"].end(); ++c_it) {
-                    std::string result = *c_it;
+                for (const auto& c_it : data.value("command", nlohmann::ordered_json())) {
+                    std::string result = c_it.get<std::string>();
                     for (auto& [key, value] : mCustom.items()) {
                         if (result.find("{" + key + "}") == std::string::npos)
                             continue;
@@ -468,31 +479,32 @@ namespace LOICollection::Plugins::menu {
         }
 
         void simple(Player& player, nlohmann::ordered_json& data) {
-            ll::form::SimpleForm form(translateString(data.at("title").get<std::string>(), player),
-                translateString(data.at("content").get<std::string>(), player));
-            for (nlohmann::ordered_json& button : data.at("button")) {
-                form.appendButton(translateString(button.at("title").get<std::string>(), player), 
-                    button.at("image").get<std::string>(), "path", [data, button](Player& pl) -> void {
+            ll::form::SimpleForm form(translateString(data.value("title", ""), player),
+                translateString(data.value("content", ""), player));
+            for (nlohmann::ordered_json& button : data.value("button", nlohmann::ordered_json())) {
+                form.appendButton(translateString(button.value("title", ""), player), button.value("image", ""), "path", [data, button](Player& pl) -> void {
                     logicalExecution(pl, button, data);
                 });
             }
             form.sendTo(player, [data](Player& pl, int id, ll::form::FormCancelReason) -> void {
-                if (id == -1) return McUtils::executeCommand(pl, data.at("exit").get<std::string>());
+                if (id == -1) return McUtils::executeCommand(pl, data.value("exit", ""));
             });
         }
 
         void modal(Player& player, nlohmann::ordered_json& data) {
-            if (data.at("confirmButton").empty() || data.at("cancelButton").empty())
+            nlohmann::ordered_json mConfirmButton = data.value("confirmButton", nlohmann::ordered_json());
+            nlohmann::ordered_json mCancelButton = data.value("cancelButton", nlohmann::ordered_json());
+            if (mCancelButton.empty() || mConfirmButton.empty())
                 return;
 
-            ll::form::ModalForm form(translateString(data.at("title").get<std::string>(), player),
-                translateString(data.at("content").get<std::string>(), player),
-                translateString(data.at("confirmButton").at("title").get<std::string>(), player),
-                translateString(data.at("cancelButton").at("title").get<std::string>(), player));
-            form.sendTo(player, [data](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
+            ll::form::ModalForm form(translateString(data.value("title", ""), player),
+                translateString(data.value("content", ""), player),
+                translateString(mConfirmButton.value("title", ""), player),
+                translateString(mCancelButton.value("title", ""), player));
+            form.sendTo(player, [data, mConfirmButton, mCancelButton](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
                 if (result == ll::form::ModalFormSelectedButton::Upper) 
-                    return logicalExecution(pl, data.at("confirmButton"), data);
-                logicalExecution(pl, data.at("cancelButton"), data);
+                    return logicalExecution(pl, mConfirmButton, data);
+                logicalExecution(pl, mCancelButton, data);
             });
         }
 
@@ -501,11 +513,11 @@ namespace LOICollection::Plugins::menu {
                 nlohmann::ordered_json data = db->toJson(uiName);
                 if (data.empty()) return;
                 if (data.contains("permission")) {
-                    if ((int) player.getPlayerPermissionLevel() < data["permission"].get<int>())
-                        return McUtils::executeCommand(player, data.at("NoPermission").get<std::string>());
+                    if ((int) player.getPlayerPermissionLevel() < data.value("permission", 0))
+                        return McUtils::executeCommand(player, data.value("NoPermission", ""));
                 }
                 
-                switch (ll::hash_utils::doHash(data.at("type").get<std::string>())) {
+                switch (ll::hash_utils::doHash(data.value("type", ""))) {
                     case ll::hash_utils::doHash("Custom"):
                         custom(player, data);
                         break;
@@ -516,7 +528,7 @@ namespace LOICollection::Plugins::menu {
                         modal(player, data);
                         break;
                     default:
-                        logger->error("Unknown UI type {}.", data.at("type").get<std::string>());
+                        logger->error("Unknown UI type {}.", data.value("type", ""));
                         break;
                 }
                 return;
@@ -596,25 +608,27 @@ namespace LOICollection::Plugins::menu {
         }
     }
 
-    void logicalExecution(Player& player, nlohmann::ordered_json data, nlohmann::ordered_json original) {
+    void logicalExecution(Player& player, nlohmann::ordered_json data, const nlohmann::ordered_json& original) {
         if (data.empty() || !isValid()) 
             return;
 
         if (data.contains("permission")) {
-            if ((int) player.getPlayerPermissionLevel() < data["permission"].get<int>())
-                return McUtils::executeCommand(player, original.at("NoPermission").get<std::string>());
+            if ((int) player.getPlayerPermissionLevel() < data.value("permission", 0))
+                return McUtils::executeCommand(player, original.value("NoPermission", ""));
         }
-        if (data.at("type").get<std::string>() == "button") {
+
+        nlohmann::ordered_json defaultJson{};
+        if (data.value("type", "") == "button") {
             if (!checkModifiedData(player, data))
-                return McUtils::executeCommand(player, original.at("NoScore").get<std::string>());
-            if (data.at("command").is_string())
-                return McUtils::executeCommand(player, data.at("command").get<std::string>());
-            for (nlohmann::ordered_json& command : data.at("command"))
+                return McUtils::executeCommand(player, original.value("NoScore", ""));
+            if (data.value("command", defaultJson).is_string())
+                return McUtils::executeCommand(player, data.value("command", ""));
+            for (nlohmann::ordered_json& command : data.value("command", defaultJson))
                 McUtils::executeCommand(player, command.get<std::string>());
-        } else if (data.at("type").get<std::string>() == "from") {
+        } else if (data.value("type", "") == "from") {
             if (!checkModifiedData(player, data))
-                return McUtils::executeCommand(player, original.at("NoScore").get<std::string>());
-            MainGui::open(player, data.at("menu").get<std::string>());
+                return McUtils::executeCommand(player, original.value("NoScore", ""));
+            MainGui::open(player, data.value("menu", ""));
         }
     }
 

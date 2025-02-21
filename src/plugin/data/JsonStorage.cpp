@@ -58,7 +58,7 @@ std::string JsonStorage::toString(int indent) const {
 }
 
 nlohmann::ordered_json JsonStorage::toJson(std::string_view key) const {
-    return this->d_json.at(key);
+    return this->d_json.value(key, nlohmann::ordered_json());
 }
 
 nlohmann::ordered_json JsonStorage::toJson() const {

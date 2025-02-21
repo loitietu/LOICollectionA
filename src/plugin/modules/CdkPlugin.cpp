@@ -277,36 +277,37 @@ namespace LOICollection::Plugins::cdk {
 
         std::string mObjectLanguage = getLanguage(player);
         if (db->has(convertString)) {
+            nlohmann::ordered_json defaultJson{};
             nlohmann::ordered_json cdkJson = db->toJson(convertString);
             if (cdkJson.contains("time")) {
-                if (SystemUtils::isReach(cdkJson["time"].get<std::string>())) {
+                if (SystemUtils::isReach(cdkJson.value("time", ""))) {
                     player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
                     db->remove(convertString);
                     return;
                 }
             }
-            nlohmann::ordered_json mPlayerList = cdkJson.at("player");
+            nlohmann::ordered_json mPlayerList = cdkJson.value("player", defaultJson);
             if (std::find(mPlayerList.begin(), mPlayerList.end(), player.getUuid().asString()) != mPlayerList.end())
                 return player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips2"));
             if (cdkJson.contains("title")) {
-                nlohmann::ordered_json mTitleList = cdkJson.at("title");
+                nlohmann::ordered_json mTitleList = cdkJson.value("title", defaultJson);
                 for (nlohmann::ordered_json::iterator it = mTitleList.begin(); it != mTitleList.end(); ++it)
                     chat::addChat(player, it.key(), it.value().get<int>());
             }
-            nlohmann::ordered_json mItemList = cdkJson.at("item");
-            nlohmann::ordered_json mScoreboardList = cdkJson.at("scores");
+            nlohmann::ordered_json mItemList = cdkJson.value("item", defaultJson);
+            nlohmann::ordered_json mScoreboardList = cdkJson.value("scores", defaultJson);
             for (nlohmann::ordered_json::iterator it = mScoreboardList.begin(); it != mScoreboardList.end(); ++it)
                 McUtils::scoreboard::addScore(player, it.key(), it.value().get<int>());
             for (nlohmann::ordered_json::iterator it = mItemList.begin(); it != mItemList.end(); ++it) {
-                ItemStack itemStack(it.key(), it.value()["quantity"].get<int>(), it.value()["specialvalue"].get<short>(), nullptr);
-                itemStack.setCustomName(Bedrock::Safety::RedactableString(it.value()["name"].get<std::string>()));
+                ItemStack itemStack(it.key(), it.value().value("quantity", 1), it.value().value("specialvalue", 0), nullptr);
+                itemStack.setCustomName(Bedrock::Safety::RedactableString(it.value().value("name", "")));
                 McUtils::giveItem(player, itemStack, (int)itemStack.mCount);
                 player.refreshInventory();
             }
-            if (cdkJson["personal"].get<bool>()) db->remove(convertString);
+            if (cdkJson.value("personal", false)) db->remove(convertString);
             else {
                 mPlayerList.push_back(player.getUuid().asString());
-                cdkJson["player"] = mPlayerList;
+                cdkJson.value("player", defaultJson) = mPlayerList;
                 db->set(convertString, cdkJson);
             }
             db->save();

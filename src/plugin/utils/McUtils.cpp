@@ -36,6 +36,9 @@
 
 namespace McUtils {
     void executeCommand(const std::string& cmd, int dimension) {
+        if (cmd.empty())
+            return;
+
         ServerCommandOrigin origin = ServerCommandOrigin(
             "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, dimension
         );
@@ -102,6 +105,9 @@ namespace McUtils {
     }
 
     bool isItemPlayerInventory(Player& player, const std::string& mTypeName, int mNumber) {
+        if (mTypeName.empty() || mNumber <= 0)
+            return false;
+        
         Container& mItemInventory = player.getInventory();
         for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
             const ItemStack& mItemObject = mItemInventory.getItem(i);

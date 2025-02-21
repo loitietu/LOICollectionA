@@ -20,8 +20,8 @@ public:
     LOICOLLECTION_A_NDAPI bool isEmpty() const;
 
     template <typename T>
-    T get(std::string_view key) const {
-        return this->d_json.at(key).get<T>();
+    [[nodiscard]] T get(std::string_view key) const {
+        return this->d_json.value(key, T());
     }
 
     template <typename T>
@@ -41,15 +41,3 @@ private:
     std::filesystem::path d_path;
     nlohmann::ordered_json d_json;
 };
-
-template LOICOLLECTION_A_UNAPI void JsonStorage::set<int>(std::string_view, int);
-template LOICOLLECTION_A_UNAPI void JsonStorage::set<bool>(std::string_view, bool);
-template LOICOLLECTION_A_UNAPI void JsonStorage::set<float>(std::string_view, float);
-template LOICOLLECTION_A_UNAPI void JsonStorage::set<std::string>(std::string_view, std::string);
-template LOICOLLECTION_A_UNAPI void JsonStorage::set<nlohmann::ordered_json>(std::string_view, nlohmann::ordered_json);
-
-template LOICOLLECTION_A_UNAPI int JsonStorage::get<int>(std::string_view) const;
-template LOICOLLECTION_A_UNAPI bool JsonStorage::get<bool>(std::string_view) const;
-template LOICOLLECTION_A_UNAPI float JsonStorage::get<float>(std::string_view) const;
-template LOICOLLECTION_A_UNAPI std::string JsonStorage::get<std::string>(std::string_view) const;
-template LOICOLLECTION_A_UNAPI nlohmann::ordered_json JsonStorage::get<nlohmann::ordered_json>(std::string_view) const;

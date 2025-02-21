@@ -23,7 +23,7 @@ LL_TYPE_INSTANCE_HOOK(
     void,
     BinaryStream& stream
 ) {
-    if (std::string feed = mObjectOptions["seed"]; !feed.empty()) {
+    if (std::string feed = mObjectOptions.at("seed"); !feed.empty()) {
         const char* ptr = feed.data();
         char* endpt{};
         int64 result = std::strtoll(ptr, &endpt, 10);
