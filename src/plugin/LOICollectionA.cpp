@@ -139,7 +139,7 @@ namespace LOICollection {
             std::map<std::string, std::variant<std::string, double>> options;
             options["score"] = this->config.Plugins.Wallet.TargetScoreboard;
             options["tax"] = this->config.Plugins.Wallet.ExchangeRate;
-            Plugins::wallet::registery(options);
+            Plugins::wallet::registery(&this->SettingsDB, options);
         }
         if (this->config.Plugins.Chat.ModuleEnabled) {
             std::map<std::string, std::variant<std::string, int>> options;
@@ -154,7 +154,7 @@ namespace LOICollection {
             options["upload"] = this->config.Plugins.Market.MaximumUpload;
             options["blacklist"] = this->config.Plugins.Market.BlacklistUpload;
             options["items"] = this->config.Plugins.Market.ProhibitedItems;
-            Plugins::market::registery(&this->MarketDB, options);
+            Plugins::market::registery(&this->MarketDB, &this->SettingsDB, options);
         }
 
         if (this->config.ProtableTool.BasicHook.ModuleEnabled) {
@@ -173,6 +173,7 @@ namespace LOICollection {
         if (this->config.Plugins.Mute) Plugins::mute::unregistery();
         if (this->config.Plugins.Tpa.ModuleEnabled) Plugins::tpa::unregistery();
         if (this->config.Plugins.Pvp) Plugins::pvp::unregistery();
+        if (this->config.Plugins.Wallet.ModuleEnabled) Plugins::wallet::unregistery();
         if (this->config.Plugins.Notice) Plugins::notice::unregistery();
         if (this->config.Plugins.Menu.ModuleEnabled) Plugins::menu::unregistery();
         if (this->config.Plugins.Monitor.ModuleEnabled) Plugins::monitor::unregistery();

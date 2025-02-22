@@ -52,11 +52,6 @@ using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::blacklist {
-    enum SelectorType : int {
-        ip = 0,
-        uuid = 1,
-        clientid = 2
-    };
     struct BlacklistOP {
         CommandSelector<Player> target;
         SelectorType type;
@@ -169,9 +164,7 @@ namespace LOICollection::Plugins::blacklist {
                         output.error(fmt::runtime(tr({}, "commands.blacklist.error.add")), pl->getRealName());
                         continue;
                     }
-                    addBlacklist(*pl, param.cause, param.time, 
-                        getType(magic_enum::enum_name(param.type).data())
-                    );
+                    addBlacklist(*pl, param.cause, param.time, param.type);
 
                     output.success(fmt::runtime(tr({}, "commands.blacklist.success.add")), pl->getRealName());
                 }
@@ -211,7 +204,7 @@ namespace LOICollection::Plugins::blacklist {
                 [](LOICollection::ServerEvents::LoginPacketEvent& event) -> void {
                     std::string mObjectTips = tr(getLanguage(event.getUUID().asString()), "blacklist.tips");
 
-                    for (BlacklistType mType : magic_enum::enum_values<BlacklistType>()) {
+                    for (SelectorType mType : magic_enum::enum_values<SelectorType>()) {
                         std::string mObject = getResult(
                             event.getIp(), event.getUUID().asString(), 
                             event.getConnectionRequest().getDeviceId(), mType
@@ -235,31 +228,31 @@ namespace LOICollection::Plugins::blacklist {
         }
     }
 
-    BlacklistType getType(const std::string& type) {
+    SelectorType getType(const std::string& type) {
         switch (ll::hash_utils::doHash(type)) {
             case ll::hash_utils::doHash("ip"):
-                return BlacklistType::ip;
+                return SelectorType::ip;
             case ll::hash_utils::doHash("uuid"):
-                return BlacklistType::uuid;
+                return SelectorType::uuid;
             case ll::hash_utils::doHash("clientid"):
-                return BlacklistType::clientid;
+                return SelectorType::clientid;
         }
-        return BlacklistType::ip;
+        return SelectorType::ip;
     }
 
-    std::string getResult(std::string ip, std::string uuid, std::string clientid, BlacklistType type) {
+    std::string getResult(std::string ip, std::string uuid, std::string clientid, SelectorType type) {
         switch (type) {
-            case BlacklistType::ip:
+            case SelectorType::ip:
                 return ip;
-            case BlacklistType::uuid:
+            case SelectorType::uuid:
                 return uuid;
-            case BlacklistType::clientid:
+            case SelectorType::clientid:
                 return clientid;
         }
         return uuid;
     }
 
-    std::string getResult(Player& player, BlacklistType type) {
+    std::string getResult(Player& player, SelectorType type) {
         std::string mObject = player.getIPAndPort();
         std::string ip = mObject.substr(0, mObject.find(':'));
         std::string uuid = player.getUuid().asString();
@@ -267,7 +260,7 @@ namespace LOICollection::Plugins::blacklist {
         return getResult(ip, uuid, clientid, type);
     }
 
-    void addBlacklist(Player& player, std::string cause, int time, BlacklistType type) {
+    void addBlacklist(Player& player, std::string cause, int time, SelectorType type) {
         if ((int) player.getPlayerPermissionLevel() >= 2 || !isValid())
             return;
 

@@ -51,6 +51,7 @@ namespace LOICollection::Plugins::market {
     std::map<std::string, std::variant<std::string, int, std::vector<std::string>>> mObjectOptions;
 
     std::unique_ptr<SQLiteStorage> db;
+    std::shared_ptr<SQLiteStorage> db2;
     std::shared_ptr<ll::io::Logger> logger;
     
     ll::event::ListenerPtr PlayerJoinEventListener;
@@ -81,8 +82,8 @@ namespace LOICollection::Plugins::market {
                     Player* mPlayer = ll::service::getLevel()->getPlayer(db->get(mItemId, "player"));
                     if (!mPlayer) {
                         std::string mObject = mItemId.substr(0, mItemId.find("$ITEMS"));
-                        db->set(mObject, "score", std::to_string(
-                            SystemUtils::toInt(db->get(mObject, "score"), 0) + mScore
+                        db2->set(mObject, "Score", std::to_string(
+                            SystemUtils::toInt(db2->get(mObject, "Score"), 0) + mScore
                         ));
                     } else {
                         mPlayer->sendMessage(ll::string_utils::replaceAll(tr(getLanguage(pl),
@@ -379,20 +380,23 @@ namespace LOICollection::Plugins::market {
                         return;
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (!db->has("Item"))
-                        db->create("Item");
+                    if (!db->has("Item")) db->create("Item");
                     if (!db->has("OBJECT$" + mObject)) {
                         db->create("OBJECT$" + mObject);
                         db->create("OBJECT$" + mObject + "$ITEMS");
-                        db->set("OBJECT$" + mObject, "score", "0");
                         return;
                     }
                     if (!db->has("OBJECT$" + mObject + "$PLAYER"))
                         db->create("OBJECT$" + mObject + "$PLAYER");
-                    int mScore = SystemUtils::toInt(db->get("OBJECT$" + mObject, "score"), 0);
+                    
+                    if (!db2->has("OBJECT$" + mObject)) db2->create("OBJECT$" + mObject);
+                    if (!db2->has("OBJECT$" + mObject, "Score"))
+                        db2->set("OBJECT$" + mObject, "Score", "0");
+
+                    int mScore = SystemUtils::toInt(db2->get("OBJECT$" + mObject, "Score"), 0);
                     if (mScore > 0) {
                         McUtils::scoreboard::addScore(event.self(), std::get<std::string>(mObjectOptions.at("score")), mScore);
-                        db->set("OBJECT$" + mObject, "score", "0");
+                        db2->set("OBJECT$" + mObject, "Score", "0");
                     }
                 }
             );
@@ -448,8 +452,9 @@ namespace LOICollection::Plugins::market {
         return logger != nullptr && db != nullptr;
     }
 
-    void registery(void* database, std::map<std::string, std::variant<std::string, int, std::vector<std::string>>>& options) {
+    void registery(void* database, void* setting, std::map<std::string, std::variant<std::string, int, std::vector<std::string>>>& options) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        db2 = *static_cast<std::shared_ptr<SQLiteStorage>*>(setting);
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         mObjectOptions = std::move(options);
         
