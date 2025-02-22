@@ -256,8 +256,10 @@ namespace LOICollection::Plugins::menu {
                 std::string mName = item.value("id", "");
                 form.appendButton(mName, [mName, uiName](Player& pl) -> void {
                     std::string mObjectLanguage = getLanguage(pl);
+
                     std::string mObjectContent = tr(mObjectLanguage, "menu.gui.button3.remove.content");
                     ll::string_utils::replaceAll(mObjectContent, "${customize}", mName);
+                    
                     ll::form::ModalForm form(tr(mObjectLanguage, "menu.gui.title"), mObjectContent,
                         tr(mObjectLanguage, "menu.gui.button3.remove.yes"),
                         tr(mObjectLanguage, "menu.gui.button3.remove.no")

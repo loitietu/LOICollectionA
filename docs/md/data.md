@@ -373,19 +373,23 @@
 ```
 
 ### notice.json
-> 以下是为 LOICollectionA 1.4.9 的 `notice.json` 结构，对于后续版本的 `notice.json` 结构可能会有所不同。
+> 以下是为 LOICollectionA 1.6.2 的 `notice.json` 结构，对于后续版本的 `notice.json` 结构可能会有所不同。
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `notice.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#notice) 进行编辑
 
 ```json
 {
-    "title": "测试公告123", // 公告标题
-    "content": [ // 公告内容（支持多行）
-        "这是一条测试公告，欢迎使用本插件！", // 第 1 行内容
-        "这是第 2 行内容", // 第 2 行内容
-        "这是第 3 行内容" // 第 3 行内容
-    ]
+    "main": { // 公告ID（不可重复）
+        "title": "测试公告123", // 公告标题
+        "content": [ // 公告内容（支持多行）
+            "这是一条测试公告，欢迎使用本插件！", // 第 1 行内容
+            "这是第 2 行内容", // 第 2 行内容
+            "这是第 3 行内容" // 第 3 行内容
+        ],
+        "priority": 0, // 公告优先级
+        "poiontout": true // 公告是否在玩家上线时弹出显示
+    }
 }
 ```
 

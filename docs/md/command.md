@@ -254,8 +254,9 @@
 - `/notice edit`
   - 打开公告编辑界面（权限等级: GameDirectors）。
 
-- `/notice gui`
+- `/notice gui [uiName: string]`
   - 打开公告 GUI。
+  - 其中 `[uiName: string]` 为公告ID。
 
 - `/notice setting`
   - 打开公告个人设置。

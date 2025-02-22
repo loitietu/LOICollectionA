@@ -232,8 +232,10 @@ namespace LOICollection::Plugins::shop {
                 std::string mName = item.value("title", "");
                 form.appendButton(mName, [mName, uiName](Player& pl) -> void {
                     std::string mObjectLanguage = getLanguage(pl);
+
                     std::string mObjectContent = tr(mObjectLanguage, "shop.gui.button3.remove.content");
                     ll::string_utils::replaceAll(mObjectContent, "${customize}", mName);
+                    
                     ll::form::ModalForm form(tr(mObjectLanguage, "menu.gui.title"), mObjectContent,
                         tr(mObjectLanguage, "shop.gui.button3.remove.yes"), tr(mObjectLanguage, "shop.gui.button3.remove.no"));
                     form.sendTo(pl, [uiName, mName](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
