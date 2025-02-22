@@ -145,7 +145,7 @@ namespace LOICollection::Plugins::wallet {
                     return output.error(tr({}, "commands.generic.target"));
 
                 std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
-                if (McUtils::scoreboard::getScore(player, mScore) < (int)(results.size() * param.score))
+                if (McUtils::scoreboard::getScore(player, mScore) < (int)(results.size() * param.score) || param.score < 0)
                     return output.error(tr({}, "commands.wallet.error.score"));
                 int mMoney = (param.score - (int)(param.score * std::get<double>(mObjectOptions.at("tax"))));
                 for (Player*& target : results)
