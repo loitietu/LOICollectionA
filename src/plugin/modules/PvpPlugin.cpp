@@ -128,12 +128,12 @@ namespace LOICollection::Plugins::pvp {
         if (value) {
             if (db->has("OBJECT$" + mObject))
                 db->set("OBJECT$" + mObject, "Pvp_Enable", "true");
-            logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "pvp.log1"), player));
+            logger->info(LOICollectionAPI::translateString(tr({}, "pvp.log1"), player));
             return;
         }
         if (db->has("OBJECT$" + mObject))
             db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
-        logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "pvp.log2"), player));
+        logger->info(LOICollectionAPI::translateString(tr({}, "pvp.log2"), player));
     }
 
     bool isEnable(Player& player) {

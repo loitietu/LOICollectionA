@@ -216,7 +216,7 @@ namespace LOICollection::Plugins::mute {
             db->set("OBJECT$" + mObject, "time", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
             db->set("OBJECT$" + mObject, "subtime", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         }
-        logger->info(LOICollection::LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "mute.log1"), "${cause}", cause), player)
         );
     }

@@ -78,7 +78,7 @@ namespace LOICollection::Plugins::monitor {
                     co_await ll::chrono::ticks(std::get<int>(options.at("BelowName_RefreshInterval")));
                     for (Player*& player : McUtils::getAllPlayers()) {
                         std::string mMonitorString = std::get<std::string>(options.at("BelowName_Text"));
-                        LOICollection::LOICollectionAPI::translateString(mMonitorString, *player);
+                        LOICollectionAPI::translateString(mMonitorString, *player);
                         player->setNameTag(mMonitorString);
                     }
                 }
@@ -93,7 +93,7 @@ namespace LOICollection::Plugins::monitor {
 
                 if (std::get<bool>(options.at("ServerToast_Enabled"))) {
                     std::string mMonitorString = std::get<std::string>(options.at("ServerToast_JoinText"));
-                    LOICollection::LOICollectionAPI::translateString(mMonitorString, event.self());
+                    LOICollectionAPI::translateString(mMonitorString, event.self());
                     McUtils::broadcastText(mMonitorString);
                 }
             }
@@ -106,7 +106,7 @@ namespace LOICollection::Plugins::monitor {
                 std::string mUuid = event.self().getUuid().asString();
                 if (std::get<bool>(options.at("ServerToast_Enabled"))) {
                     std::string mMonitorString = std::get<std::string>(options.at("ServerToast_ExitText"));
-                    LOICollection::LOICollectionAPI::translateString(mMonitorString, event.self());
+                    LOICollectionAPI::translateString(mMonitorString, event.self());
                     McUtils::broadcastText(mMonitorString);
 
                     mInterceptTextObjectPacket.erase(std::remove(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), mUuid), mInterceptTextObjectPacket.end());

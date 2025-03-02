@@ -282,7 +282,7 @@ namespace LOICollection::Plugins::blacklist {
             player.getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked,
             mObjectTips, {}, false
         );
-        logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "blacklist.log1"), player));
+        logger->info(LOICollectionAPI::translateString(tr({}, "blacklist.log1"), player));
     }
 
     void delBlacklist(const std::string& target) {

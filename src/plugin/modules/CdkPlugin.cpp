@@ -314,7 +314,7 @@ namespace LOICollection::Plugins::cdk {
             
             player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
 
-            logger->info(LOICollection::LOICollectionAPI::translateString(
+            logger->info(LOICollectionAPI::translateString(
                 ll::string_utils::replaceAll(tr({}, "cdk.log3"), "${cdk}", convertString), player
             ));
             return;

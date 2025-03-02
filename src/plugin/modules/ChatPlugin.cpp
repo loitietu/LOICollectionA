@@ -129,14 +129,14 @@ namespace LOICollection::Plugins::chat {
             std::replace(mObject.begin(), mObject.end(), '-', '_');
             
             ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
-            form.appendLabel(LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "chat.gui.setTitle.label"), player));
+            form.appendLabel(LOICollectionAPI::translateString(tr(mObjectLanguage, "chat.gui.setTitle.label"), player));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.setTitle.dropdown"), db->list("OBJECT$" + mObject + "$TITLE"));
             form.sendTo(player, [mObject](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::setting(pl);
 
                 db->set("OBJECT$" + mObject, "title", std::get<std::string>(dt->at("dropdown")));
                 
-                logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "chat.log1"), pl));
+                logger->info(LOICollectionAPI::translateString(tr({}, "chat.log1"), pl));
             });
         }
 
@@ -356,7 +356,7 @@ namespace LOICollection::Plugins::chat {
                     std::string mChat = std::get<std::string>(mObjectOptions.at("chat"));
                     ll::string_utils::replaceAll(mChat, "${chat}", event.message());
 
-                    LOICollection::LOICollectionAPI::translateString(mChat, event.self());
+                    LOICollectionAPI::translateString(mChat, event.self());
                     McUtils::broadcastText(mChat, [&event](Player& player) -> bool {
                         std::string mObject = event.self().getUuid().asString();
                         std::replace(mObject.begin(), mObject.end(), '-', '_');
@@ -364,7 +364,7 @@ namespace LOICollection::Plugins::chat {
                         std::vector<std::string> mList = getBlacklist(player);
                         return std::find(mList.begin(), mList.end(), mObject) == mList.end();
                     });
-                }
+                }, ll::event::EventPriority::Normal
             );
         }
     }
@@ -381,7 +381,7 @@ namespace LOICollection::Plugins::chat {
                 std::string mTimeString = db->get("OBJECT$" + mObject + "$TITLE", i);
                 if (SystemUtils::isReach(mTimeString)) {
                     db->del("OBJECT$" + mObject + "$TITLE", i);
-                    logger->info(LOICollection::LOICollectionAPI::translateString(
+                    logger->info(LOICollectionAPI::translateString(
                         ll::string_utils::replaceAll(tr({}, "chat.log4"), "${title}", i), player
                     ));
                 }
@@ -403,7 +403,7 @@ namespace LOICollection::Plugins::chat {
             db->create("OBJECT$" + mObject + "$TITLE");
         db->set("OBJECT$" + mObject + "$TITLE", text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
 
-        logger->info(LOICollection::LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "chat.log2"), "${title}", text), player
         ));
     }
@@ -420,7 +420,7 @@ namespace LOICollection::Plugins::chat {
         db->set("OBJECT$" + mObject + "$CHAT" + mTargetObject, "name", target.getRealName());
         db->set("OBJECT$" + mObject + "$CHAT" + mTargetObject, "time", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
-        logger->info(LOICollection::LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "chat.log5"), "${target}", mTargetObject), player
         ));
     }
@@ -434,7 +434,7 @@ namespace LOICollection::Plugins::chat {
             db->del("OBJECT$" + mObject + "$TITLE", text);
             update(player);
         }
-        logger->info(LOICollection::LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "chat.log3"), "${title}", text), player
         ));
     }
@@ -446,7 +446,7 @@ namespace LOICollection::Plugins::chat {
         db->del("OBJECT$" + mObject + "$CHAT", target);
         db->remove("OBJECT$" + mObject + "$CHAT" + target);
 
-        logger->info(LOICollection::LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "chat.log6"), "${target}", target), player
         ));
     }

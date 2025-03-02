@@ -32,7 +32,7 @@
 3. After opening, you will see content similar to the following:
 ```json
 {
-    "version": 162,
+    "version": 163,
     "ConsoleLanguage": "system",
     "Plugins": {
         "FakeSeed": "$random",

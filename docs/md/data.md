@@ -9,10 +9,10 @@
 请勿使用记事本等不支持 `.json` 格式的文本编辑器进行编辑，以免导致配置文件结构损坏。
 
 ### 配置文件结构
-> 以下为 LOICollectionA 1.6.2 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以下为 LOICollectionA 1.6.3 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 ```json
 {
-    "version": 162, // 配置文件版本号，请勿修改
+    "version": 163, // 配置文件版本号，请勿修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
         "language": { // 多语言配置
@@ -62,7 +62,10 @@
         "Wallet": { // 钱包配置
             "ModuleEnabled": false, // 是否启用钱包
             "TargetScoreboard": "money", // 钱包指定使用 Score 对象
-            "ExchangeRate": 0.1  // 钱包汇率
+            "ExchangeRate": 0.1,  // 钱包汇率
+            "MaximumRedenvelope": 1, // 玩家单次上传最大红包数量
+            "MinimumAgeTime": 30, // 红包最小存活时间（单位为秒）
+            "MaximumAgeTime": 90 // 红包最大存活时间（单位为秒）
         },
         "Chat": { // 聊天强化配置
             "ModuleEnabled": false, // 是否启用聊天强化

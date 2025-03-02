@@ -295,37 +295,39 @@ namespace LOICollection::Plugins::menu {
         void editAwardCommand(Player& player, const std::string& uiName) {
             std::string mObjectLanguage = getLanguage(player); 
 
+            nlohmann::ordered_json data = db->toJson(uiName);
+            nlohmann::ordered_json content = data.value("command", nlohmann::ordered_json());
+
             ll::form::CustomForm form(tr(mObjectLanguage, "menu.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "menu.gui.label"));
-
-            nlohmann::ordered_json data = db->toJson(uiName).value("command", nlohmann::ordered_json());
-            for (int i = 1; i < (int)(data.size() + 1); i++) {
-                std::string mLine = tr(mObjectLanguage, "menu.gui.button3.command.line");
-                ll::string_utils::replaceAll(mLine, "${index}", std::to_string(i));
-                form.appendInput("Input" + std::to_string(i), mLine, "", data.at(i - 1).get<std::string>());
+            for (int i = 0; i < (int)content.size(); i++) {
+                std::string mLine = ll::string_utils::replaceAll(
+                    tr(mObjectLanguage, "menu.gui.button3.command.line"), "${index}", std::to_string(i + 1)
+                );
+                form.appendInput("Content" + std::to_string(i), mLine, "", content.at(i));
             }
-
             form.appendToggle("Toggle1", tr(mObjectLanguage, "menu.gui.button3.command.addLine"));
             form.appendToggle("Toggle2", tr(mObjectLanguage, "menu.gui.button3.command.removeLine"));
             form.sendTo(player, [uiName](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::editAwardContent(pl, uiName);
 
                 nlohmann::ordered_json data = db->toJson(uiName);
-                if (data.empty()) 
-                    return;
+                nlohmann::ordered_json content = data.value("command", nlohmann::ordered_json());
 
                 if (std::get<uint64>(dt->at("Toggle1")))
-                    data.at("command").push_back("");
+                    content.push_back("");
                 else if (std::get<uint64>(dt->at("Toggle2")))
-                    data.at("command").erase(data.at("command").end() - 1);
+                    content.erase(content.end() - 1);
                 else {
-                    for (int i = 1; i < (int)(data.at("command").size() + 1); i++)
-                        data.at("command").at(i - 1) = std::get<std::string>(dt->at("Input" + std::to_string(i)));
+                    for (int i = 0; i < (int)content.size(); i++)
+                        content.at(i) = std::get<std::string>(dt->at("Content" + std::to_string(i)));
                 }
+                data["command"] = content;
+
                 db->set(uiName, data);
                 db->save();
 
-                MainGui::editAwardContent(pl, uiName);
+                MainGui::editAwardCommand(pl, uiName);
 
                 logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log4"), "${menu}", uiName), pl));
             });

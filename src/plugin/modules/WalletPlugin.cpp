@@ -123,7 +123,7 @@ namespace LOICollection::Plugins::wallet {
                     McUtils::scoreboard::getScore(player,std::get<std::string>(mObjectOptions.at("score")))
                 )
             );
-            McUtils::broadcastText(LOICollection::LOICollectionAPI::translateString(mTipsString, player));
+            McUtils::broadcastText(LOICollectionAPI::translateString(mTipsString, player));
         }
 
         void open(Player& player) {

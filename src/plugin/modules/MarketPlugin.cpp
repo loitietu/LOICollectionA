@@ -92,7 +92,7 @@ namespace LOICollection::Plugins::market {
                     }
                     delItem(mItemId);
 
-                    logger->info(LOICollection::LOICollectionAPI::translateString(
+                    logger->info(LOICollectionAPI::translateString(
                         ll::string_utils::replaceAll(tr({}, "market.log1"), "${item}", mName), pl
                     ));
                     return;
@@ -106,7 +106,7 @@ namespace LOICollection::Plugins::market {
                         "market.gui.sell.sellItem.tips2"), "${item}", mName));
                     delItem(mItemId);
 
-                    logger->info(LOICollection::LOICollectionAPI::translateString(
+                    logger->info(LOICollectionAPI::translateString(
                         ll::string_utils::replaceAll(tr({}, "market.log3"), "${item}", mName), pl
                     ));
                 });
@@ -138,7 +138,7 @@ namespace LOICollection::Plugins::market {
                 pl.refreshInventory();
                 delItem(mItemId);
 
-                logger->info(LOICollection::LOICollectionAPI::translateString(
+                logger->info(LOICollectionAPI::translateString(
                     ll::string_utils::replaceAll(tr({}, "market.log3"), "${item}", mName), pl
                 ));
             });
@@ -193,7 +193,7 @@ namespace LOICollection::Plugins::market {
                 pl.getInventory().removeItem(mSlot, 64);
                 pl.refreshInventory();
 
-                logger->info(LOICollection::LOICollectionAPI::translateString(
+                logger->info(LOICollectionAPI::translateString(
                     ll::string_utils::replaceAll(tr({}, "market.log2"), "${item}", mItemName), pl
                 ));
             });
@@ -415,7 +415,7 @@ namespace LOICollection::Plugins::market {
         db->set("OBJECT$" + mObject + "$PLAYER" + mTargetObject, "name", target.getRealName());
         db->set("OBJECT$" + mObject + "$PLAYER" + mTargetObject, "time", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
-        logger->info(LOICollection::LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "market.log4"), "${target}", mTargetObject), player
         ));
     }
@@ -427,7 +427,7 @@ namespace LOICollection::Plugins::market {
         db->del("OBJECT$" + mObject + "$PLAYER", target);
         db->remove("OBJECT$" + mObject + "$PLAYER" + target);
 
-        logger->info(LOICollection::LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "market.log5"), "${target}", target), player
         ));
     }

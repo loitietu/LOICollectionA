@@ -178,8 +178,8 @@ namespace LOICollection::Plugins::tpa {
             McUtils::scoreboard::reduceScore(player, mScoreboard, mScore);
 
             ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"), (type == TpaType::tpa)
-                ? LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player)
-                : LOICollection::LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player),
+                ? LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player)
+                : LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player),
                 tr(mObjectLanguage, "tpa.yes"), tr(mObjectLanguage, "tpa.no"));
             form.sendTo(target, [type, &player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
@@ -324,7 +324,7 @@ namespace LOICollection::Plugins::tpa {
         db->set("OBJECT$" + mObject + "$PLAYER" + mTargetObject, "name", target.getRealName());
         db->set("OBJECT$" + mObject + "$PLAYER" + mTargetObject, "time", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
-        logger->info(LOICollection::LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "tpa.log2"), "${target}", mTargetObject), player
         ));
     }
@@ -336,7 +336,7 @@ namespace LOICollection::Plugins::tpa {
         db->del("OBJECT$" + mObject + "$PLAYER", target);
         db->remove("OBJECT$" + mObject + "$PLAYER" + target);
 
-        logger->info(LOICollection::LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "tpa.log3"), "${target}", target), player
         ));
     }

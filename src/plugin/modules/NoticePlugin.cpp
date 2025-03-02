@@ -111,7 +111,7 @@ namespace LOICollection::Plugins::notice {
 
                 MainGui::content(pl, uiName);
 
-                logger->info(LOICollection::LOICollectionAPI::translateString(tr({}, "notice.log1"), pl));
+                logger->info(LOICollectionAPI::translateString(tr({}, "notice.log1"), pl));
             });
         }
 
@@ -137,7 +137,7 @@ namespace LOICollection::Plugins::notice {
                 db->set(mObjectId, mObject);
                 db->save();
 
-                logger->info(LOICollection::LOICollectionAPI::translateString(
+                logger->info(LOICollectionAPI::translateString(
                     ll::string_utils::replaceAll(tr({}, "notice.log2"), "${notice}", mObjectId), pl
                 ));
             });
@@ -164,7 +164,7 @@ namespace LOICollection::Plugins::notice {
                         db->remove(key);
                         db->save();
 
-                        logger->info(LOICollection::LOICollectionAPI::translateString(
+                        logger->info(LOICollectionAPI::translateString(
                             ll::string_utils::replaceAll(tr({}, "notice.log3"), "${notice}", key), pl
                         ));
                     });
@@ -208,9 +208,9 @@ namespace LOICollection::Plugins::notice {
             for (const auto& pair : mContent) {
                 nlohmann::ordered_json mObject = data.at(pair.first);
                 
-                ll::form::CustomForm form(LOICollection::LOICollectionAPI::translateString(mObject.value("title", ""), player));
+                ll::form::CustomForm form(LOICollectionAPI::translateString(mObject.value("title", ""), player));
                 for (const auto& line : mObject.value("content", nlohmann::ordered_json::array()))
-                    form.appendLabel(LOICollection::LOICollectionAPI::translateString(line, player));
+                    form.appendLabel(LOICollectionAPI::translateString(line, player));
                 form.sendTo(player);
             }
         }
@@ -223,9 +223,9 @@ namespace LOICollection::Plugins::notice {
 
             nlohmann::ordered_json data = db->toJson(uiName);
 
-            ll::form::CustomForm form(LOICollection::LOICollectionAPI::translateString(data.value("title", ""), player));
+            ll::form::CustomForm form(LOICollectionAPI::translateString(data.value("title", ""), player));
             for (const auto& line : data.value("content", nlohmann::ordered_json::array()))
-                form.appendLabel(LOICollection::LOICollectionAPI::translateString(line, player));
+                form.appendLabel(LOICollectionAPI::translateString(line, player));
             form.sendTo(player);
         }
 
@@ -242,7 +242,7 @@ namespace LOICollection::Plugins::notice {
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "notice.gui.title"), tr(mObjectLanguage, "notice.gui.label"));
             for (const auto& pair : mContent) {
-                form.appendButton(LOICollection::LOICollectionAPI::translateString(data.at(pair.first).value("title", ""), player), [uiName = pair.first](Player& pl) {
+                form.appendButton(LOICollectionAPI::translateString(data.at(pair.first).value("title", ""), player), [uiName = pair.first](Player& pl) {
                     MainGui::notice(pl, uiName);
                 });
             }
