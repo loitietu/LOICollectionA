@@ -5,19 +5,23 @@
 #include <functional>
 #include <unordered_map>
 
-#include <magic_enum.hpp>
+#include <magic_enum/magic_enum.hpp>
 
 #include <ll/api/Versions.h>
 #include <ll/api/memory/Memory.h>
 #include <ll/api/service/Bedrock.h>
 
 #include <mc/util/ProfilerLite.h>
+#include <mc/deps/core/math/Vec2.h>
 #include <mc/deps/core/math/Vec3.h>
 
 #include <mc/world/level/Level.h>
 #include <mc/world/level/BlockPos.h>
+#include <mc/world/actor/BuiltInActorComponents.h>
 #include <mc/world/actor/player/Player.h>
+#include <mc/world/actor/provider/ActorAttribute.h>
 #include <mc/world/attribute/AttributeInstance.h>
+#include <mc/entity/components/ActorRotationComponent.h>
 #include <mc/network/ServerNetworkHandler.h>
 
 #include "include/PvpPlugin.h"
@@ -46,7 +50,7 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string(ll::getNetworkProtocolVersion()); 
         });
         registerVariable("player", [](Player& player) -> std::string {
-            return player.getName();
+            return std::string(player.mName);
         });
         registerVariable("player.title", [](Player& player) -> std::string {
             Plugins::chat::update(player);
@@ -88,16 +92,16 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string((int)player.getPosition().z);
         });
         registerVariable("player.pos.respawn", [](Player& player) -> std::string {
-            return player.hasRespawnPosition() ? player.getSpawnPosition().toString() : "None";
+            return player.hasRespawnPosition() ? player.getExpectedSpawnPosition().toString() : "None";
         });
         registerVariable("player.pos.respawn.x", [](Player& player) -> std::string {
-            return player.hasRespawnPosition() ? std::to_string((int)player.getSpawnPosition().x) : "None";
+            return player.hasRespawnPosition() ? std::to_string((int)player.getExpectedSpawnPosition().x) : "None";
         });
         registerVariable("player.pos.respawn.y", [](Player& player) -> std::string {
-            return player.hasRespawnPosition() ? std::to_string((int)player.getSpawnPosition().y) : "None";
+            return player.hasRespawnPosition() ? std::to_string((int)player.getExpectedSpawnPosition().y) : "None";
         });
         registerVariable("player.pos.respawn.z", [](Player& player) -> std::string {
-            return player.hasRespawnPosition() ? std::to_string((int)player.getSpawnPosition().z) : "None";
+            return player.hasRespawnPosition() ? std::to_string((int)player.getExpectedSpawnPosition().z) : "None";
         });
         registerVariable("player.pos.block", [](Player& player) -> std::string {
             return player.getEyePos().toString();
@@ -121,43 +125,43 @@ namespace LOICollection::LOICollectionAPI {
             return player.canFly() ? "true" : "false";
         });
         registerVariable("player.health", [](Player& player) -> std::string {
-            return std::to_string((int)player.getHealth());
+            return std::to_string(ActorAttribute::getHealth(player.getEntityContext()));
         });
         registerVariable("player.max.health", [](Player& player) -> std::string {
             return std::to_string((int)player.getMaxHealth());
         });
         registerVariable("player.hunger", [](Player& player) -> std::string {
-            return std::to_string((int)player.getAttribute(Player::HUNGER()).getCurrentValue());
+            return std::to_string((int)player.getAttribute(Player::HUNGER()).mCurrentValue);
         });
         registerVariable("player.max.hunger", [](Player& player) -> std::string {
-            return std::to_string((int)player.getAttribute(Player::HUNGER()).getMaxValue());
+            return std::to_string((int)player.getAttribute(Player::HUNGER()).mCurrentMaxValue);
         });
         registerVariable("player.saturation", [](Player& player) -> std::string {
-            return std::to_string((int)player.getAttribute(Player::SATURATION()).getCurrentValue());
+            return std::to_string((int)player.getAttribute(Player::SATURATION()).mCurrentValue);
         });
         registerVariable("player.max.saturation", [](Player& player) -> std::string {
-            return std::to_string((int)player.getAttribute(Player::SATURATION()).getMaxValue());
+            return std::to_string((int)player.getAttribute(Player::SATURATION()).mCurrentMaxValue);
         });
         registerVariable("player.speed", [](Player& player) -> std::string {
             return std::to_string(player.getSpeed());
         });
         registerVariable("player.direction", [](Player& player) -> std::string {
-            return std::to_string(player.getDirection());
+            return player.mBuiltInComponents->mActorRotationComponent->mRotationDegree->toString();
         });
         registerVariable("player.dimension", [](Player& player) -> std::string {
             return std::to_string(player.getDimensionId());
         });
         registerVariable("player.os", [](Player& player) -> std::string {
-            return magic_enum::enum_name(player.getPlatform()).data();
+            return magic_enum::enum_name(player.mBuildPlatform).data();
         });
         registerVariable("player.ip", [](Player& player) -> std::string {
             return player.getIPAndPort();
         });
         registerVariable("player.exp.xp", [](Player& player) -> std::string {
-            return std::to_string(player.getXpEarnedAtCurrentLevel());
+            return std::to_string((int)player.getAttribute(Player::EXPERIENCE()).mCurrentValue);
         });
         registerVariable("player.exp.level", [](Player& player) -> std::string {
-            return std::to_string(player.getPlayerLevel());
+            return std::to_string((int)player.getAttribute(Player::LEVEL()).mCurrentValue);
         });
         registerVariable("player.exp.level.next", [](Player& player) -> std::string {
             return std::to_string(player.getXpNeededForNextLevel());
@@ -181,11 +185,11 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string(player.getNetworkStatus()->mCurrentPacketLoss);
         });
         registerVariable("server.tps", [](Player&) -> std::string {
-            double mMspt = ((double) ProfilerLite::gProfilerLiteInstance().getServerTickTime().count() / 1000000.0);
+            double mMspt = ((double) ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count() / 1000000.0);
             return std::to_string(mMspt <= 50.0 ? 20.0 : (double)(1000.0 / mMspt));
         });
         registerVariable("server.mspt", [](Player&) -> std::string { 
-            return std::to_string((double) ProfilerLite::gProfilerLiteInstance().getServerTickTime().count() / 1000000.0);
+            return std::to_string((double) ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count() / 1000000.0);
         });
         registerVariable("server.time", [](Player&) -> std::string {
             return SystemUtils::getNowTime();

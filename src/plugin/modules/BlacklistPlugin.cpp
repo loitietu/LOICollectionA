@@ -4,7 +4,7 @@
 #include <numeric>
 
 #include <fmt/core.h>
-#include <magic_enum.hpp>
+#include <magic_enum/magic_enum.hpp>
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
@@ -160,7 +160,7 @@ namespace LOICollection::Plugins::blacklist {
                     return output.error(tr({}, "commands.generic.target"));
 
                 for (Player*& pl : results) {
-                    if (isBlacklist(*pl) || (int) pl->getPlayerPermissionLevel() >= 2 || pl->isSimulatedPlayer()) {
+                    if (isBlacklist(*pl) || pl->getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || pl->isSimulatedPlayer()) {
                         output.error(fmt::runtime(tr({}, "commands.blacklist.error.add")), pl->getRealName());
                         continue;
                     }
@@ -261,7 +261,7 @@ namespace LOICollection::Plugins::blacklist {
     }
 
     void addBlacklist(Player& player, std::string cause, int time, SelectorType type) {
-        if ((int) player.getPlayerPermissionLevel() >= 2 || !isValid())
+        if (player.getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || !isValid())
             return;
 
         cause = cause.empty() ? "None" : cause;

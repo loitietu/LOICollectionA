@@ -66,7 +66,7 @@ RedStoneUpdateHookMacro(ObserverBlockHook, ObserverBlock,
 )
 
 BlockSource& getBlockSource(DimensionType mDimensionId) {
-    return ll::service::getLevel()->getOrCreateDimension(mDimensionId)->getBlockSourceFromMainChunkSource();
+    return ll::service::getLevel()->getOrCreateDimension(mDimensionId).lock()->getBlockSourceFromMainChunkSource();
 }
 
 namespace LOICollection::ProtableTool::RedStone {

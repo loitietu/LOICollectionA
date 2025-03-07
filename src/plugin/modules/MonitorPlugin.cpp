@@ -1,14 +1,13 @@
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 #include <variant>
 #include <algorithm>
 
-#include <ll/api/memory/Hook.h>
-#include <ll/api/service/Bedrock.h>
-
 #include <ll/api/coro/CoroTask.h>
 #include <ll/api/chrono/GameChrono.h>
+#include <ll/api/service/Bedrock.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
 #include <ll/api/utils/StringUtils.h>
 
@@ -20,11 +19,15 @@
 
 #include <mc/world/scores/Objective.h>
 
-#include <mc/world/level/Level.h>
 #include <mc/world/actor/Actor.h>
+#include <mc/world/level/Level.h>
+#include <mc/world/actor/DataItem.h>
+#include <mc/world/actor/ActorDataIDs.h>
+#include <mc/world/actor/SynchedActorDataEntityWrapper.h>
 #include <mc/world/actor/player/Player.h>
 
 #include <mc/network/packet/TextPacket.h>
+#include <mc/network/packet/SetActorDataPacket.h>
 
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandContext.h>
@@ -39,26 +42,6 @@
 #include "include/MonitorPlugin.h"
 
 std::vector<std::string> mInterceptTextObjectPacket;
-std::vector<std::string> mInterceptTextObjectName;
-
-LL_TYPE_INSTANCE_HOOK(
-    InterceptGetNameTagHook,
-    HookPriority::Normal,
-    Actor,
-    &Actor::getNameTag,
-    std::string const&
-) {
-    if (!this->isPlayer() || mInterceptTextObjectName.empty())
-        return origin();
-
-    auto player = (Player*) this;
-    if (std::find(mInterceptTextObjectName.begin(), mInterceptTextObjectName.end(), player->getUuid().asString()) != mInterceptTextObjectName.end()) {
-        static std::string mName;
-        mName = player->getRealName();
-        return mName;
-    }
-    return origin();
-};
 
 namespace LOICollection::Plugins::monitor {
     ll::event::ListenerPtr PlayerJoinEventListener;
@@ -79,7 +62,12 @@ namespace LOICollection::Plugins::monitor {
                     for (Player*& player : McUtils::getAllPlayers()) {
                         std::string mMonitorString = std::get<std::string>(options.at("BelowName_Text"));
                         LOICollectionAPI::translateString(mMonitorString, *player);
-                        player->setNameTag(mMonitorString);
+
+                        SynchedActorDataEntityWrapper wrapper(player->getEntityContext());
+                        SetActorDataPacket packet(player->getRuntimeID(), wrapper, nullptr, 0, true);
+                        packet.mPackedItems = std::vector<std::unique_ptr<DataItem>>();
+                        packet.mPackedItems.push_back(DataItem::create(ActorDataIDs::FilteredName, mMonitorString));
+                        packet.sendToClients();
                     }
                 }
             }).launch(ll::thread::ServerThreadExecutor::getDefault());
@@ -111,8 +99,6 @@ namespace LOICollection::Plugins::monitor {
 
                     mInterceptTextObjectPacket.erase(std::remove(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), mUuid), mInterceptTextObjectPacket.end());
                 }
-                if (std::get<bool>(options.at("BelowName_Enabled")))
-                    mInterceptTextObjectName.erase(std::remove(mInterceptTextObjectName.begin(), mInterceptTextObjectName.end(), mUuid), mInterceptTextObjectName.end());
             }
         );
         std::vector<std::string> mObjectScoreboards = std::get<std::vector<std::string>>(options.at("ChangeScore_Scores"));
@@ -120,24 +106,24 @@ namespace LOICollection::Plugins::monitor {
             [options, mObjectScoreboards](LOICollection::ServerEvents::PlayerScoreChangedEvent& event) -> void {
                 using LOICollection::ServerEvents::ScoreChangedType;
 
-                if (event.self().isSimulatedPlayer() || !std::get<bool>(options.at("ChangeScore_Enabled")) || (event.getScoreChangedType() != ScoreChangedType::set && !event.getScore()))
+                if (event.self().isSimulatedPlayer() || !std::get<bool>(options.at("ChangeScore_Enabled")) || !event.getScore())
                     return;
 
                 int mScore = event.getScore();
-                std::string mId = event.getObjective().getName();
+                std::string mId = event.getObjective().mName;
                 ScoreChangedType mType = event.getScoreChangedType();
                 if (mObjectScoreboards.empty() || std::find(mObjectScoreboards.begin(), mObjectScoreboards.end(), mId) != mObjectScoreboards.end()) {
                     int mOriScore = McUtils::scoreboard::getScore(event.self(), mId);
                     std::string mChangedString = std::get<std::string>(options.at("ChangeScore_Text"));
                     ll::string_utils::replaceAll(mChangedString, "${Object}", mId);
-                    ll::string_utils::replaceAll(mChangedString, "${OriMoney}", std::to_string(mOriScore));
+                    ll::string_utils::replaceAll(mChangedString, "${OriMoney}", 
+                        (mType == ScoreChangedType::add ? std::to_string(mOriScore - mScore) :
+                            (mType == ScoreChangedType::reduce ? std::to_string(mOriScore + mScore) : std::to_string(mScore)))
+                    );
                     ll::string_utils::replaceAll(mChangedString, "${SetMoney}", 
                         (mType == ScoreChangedType::add ? "+" : (mType == ScoreChangedType::reduce ? "-" : "")) + std::to_string(mScore)
                     );
-                    ll::string_utils::replaceAll(mChangedString, "${GetMoney}", 
-                        (mType == ScoreChangedType::add ? std::to_string(mOriScore + mScore) :
-                        (mType == ScoreChangedType::reduce ? std::to_string(mOriScore - mScore) : std::to_string(mScore)))
-                    );
+                    ll::string_utils::replaceAll(mChangedString, "${GetMoney}", std::to_string(mOriScore));
                     event.self().sendMessage(mChangedString);
                 }
             }
@@ -152,7 +138,7 @@ namespace LOICollection::Plugins::monitor {
                 if (std::find(mObjectCommands.begin(), mObjectCommands.end(), mCommand) != mObjectCommands.end()) {
                     event.cancel();
 
-                    Actor* entity = event.commandContext().getCommandOrigin().getEntity();
+                    Actor* entity = event.commandContext().mOrigin->getEntity();
                     if (entity == nullptr || !entity->isPlayer())
                         return;
                     auto player = static_cast<Player*>(entity);
@@ -164,14 +150,15 @@ namespace LOICollection::Plugins::monitor {
             [options](LOICollection::ServerEvents::LoginPacketEvent& event) -> void {
                 if (std::get<bool>(options.at("ServerToast_Enabled")))
                     mInterceptTextObjectPacket.push_back(event.getUUID().asString());
-                if (std::get<bool>(options.at("BelowName_Enabled")))
-                    mInterceptTextObjectName.push_back(event.getUUID().asString());
             }
         );
 
         std::vector<std::string> mTextPacketType{"multiplayer.player.joined", "multiplayer.player.left"};
         TextPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::TextPacketEvent>(
-            [mTextPacketType](LOICollection::ServerEvents::TextPacketEvent& event) -> void {
+            [mTextPacketType, options](LOICollection::ServerEvents::TextPacketEvent& event) -> void {
+                if (!std::get<bool>(options.at("ServerToast_Enabled")))
+                    return;
+                
                 bool result = std::any_of(mTextPacketType.begin(), mTextPacketType.end(), [target = event.getPacket().mMessage](const std::string& item) {
                     return target.find(item) != std::string::npos;
                 });
@@ -180,12 +167,11 @@ namespace LOICollection::Plugins::monitor {
                     return;
                 if (Player* player = ll::service::getLevel()->getPlayer(event.getPacket().params.at(0)); player) {
                     std::string mUuid = player->getUuid().asString();
-                    if (std::find(mInterceptTextObjectName.begin(), mInterceptTextObjectName.end(), mUuid) != mInterceptTextObjectName.end())
+                    if (std::find(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), mUuid) != mInterceptTextObjectPacket.end())
                         event.cancel();
                 }
             }
         );
-        InterceptGetNameTagHook::hook();
     }
 
     void unregistery() {
@@ -197,7 +183,6 @@ namespace LOICollection::Plugins::monitor {
         eventBus.removeListener(LoginPacketEventListener);
 
         eventBus.removeListener(TextPacketEventListener);
-        InterceptGetNameTagHook::unhook();
 
         BelowNameTaskRunning = false;
     }

@@ -259,7 +259,7 @@ namespace LOICollection::Plugins::cdk {
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    output.error(tr({}, "commands.generic.permission"));
+                    return output.error(tr({}, "commands.generic.permission"));
                 
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
@@ -299,8 +299,11 @@ namespace LOICollection::Plugins::cdk {
             for (nlohmann::ordered_json::iterator it = mScoreboardList.begin(); it != mScoreboardList.end(); ++it)
                 McUtils::scoreboard::addScore(player, it.key(), it.value().get<int>());
             for (nlohmann::ordered_json::iterator it = mItemList.begin(); it != mItemList.end(); ++it) {
+                Bedrock::Safety::RedactableString mRedactableString;
+                mRedactableString.mUnredactedString = it.value().value("name", "");
+                
                 ItemStack itemStack(it.key(), it.value().value("quantity", 1), it.value().value("specialvalue", 0), nullptr);
-                itemStack.setCustomName(Bedrock::Safety::RedactableString(it.value().value("name", "")));
+                itemStack.setCustomName(mRedactableString);
                 McUtils::giveItem(player, itemStack, (int)itemStack.mCount);
                 player.refreshInventory();
             }

@@ -3,6 +3,7 @@
 #include <string>
 
 #include <fmt/core.h>
+#include <magic_enum/magic_enum.hpp>
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
@@ -517,7 +518,7 @@ namespace LOICollection::Plugins::menu {
                 nlohmann::ordered_json data = db->toJson(uiName);
                 if (data.empty()) return;
                 if (data.contains("permission")) {
-                    if ((int) player.getPlayerPermissionLevel() < data.value("permission", 0))
+                    if (magic_enum::enum_integer(player.getCommandPermissionLevel()) < data.value("permission", 0))
                         return McUtils::executeCommand(player, data.value("NoPermission", ""));
                 }
                 
@@ -559,7 +560,7 @@ namespace LOICollection::Plugins::menu {
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    output.error(tr({}, "commands.generic.permission"));
+                    return output.error(tr({}, "commands.generic.permission"));
                 
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
@@ -617,7 +618,7 @@ namespace LOICollection::Plugins::menu {
             return;
 
         if (data.contains("permission")) {
-            if ((int) player.getPlayerPermissionLevel() < data.value("permission", 0))
+            if (magic_enum::enum_integer(player.getCommandPermissionLevel()) < data.value("permission", 0))
                 return McUtils::executeCommand(player, original.value("NoPermission", ""));
         }
 

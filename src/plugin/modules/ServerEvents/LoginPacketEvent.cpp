@@ -12,7 +12,7 @@
 #include <mc/network/packet/LoginPacket.h>
 
 #include <mc/certificates/Certificate.h>
-#include <mc/certificates/ExtendedCertificate.h>
+#include <mc/certificates/identity/GameServerToken.h>
 
 #include <mc/platform/UUID.h>
 
@@ -60,7 +60,7 @@ namespace LOICollection::ServerEvents {
 
         std::string ipAndPort = identifier.getIPAndPort();
         ConnectionRequest* conn = packet.mConnectionRequest.get();
-        mce::UUID uuid = ExtendedCertificate::getIdentity(*conn->getCertificate());
+        mce::UUID uuid = conn->mGameServerToken->getIdentity();
 
         LoginPacketEvent event(identifier, *conn, uuid, ipAndPort);
         ll::event::EventBus::getInstance().publish(event);

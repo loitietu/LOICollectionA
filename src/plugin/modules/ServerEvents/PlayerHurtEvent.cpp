@@ -13,7 +13,7 @@
 #include <mc/world/actor/ActorDamageSource.h>
 #include <mc/world/actor/player/Player.h>
 
-#include <mc/common/ActorUniqueID.h>
+#include <mc/legacy/ActorUniqueID.h>
 
 #include "include/ServerEvents/PlayerHurtEvent.h"
 

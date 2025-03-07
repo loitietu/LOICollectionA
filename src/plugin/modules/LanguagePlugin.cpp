@@ -111,7 +111,7 @@ namespace LOICollection::Plugins::language {
             return defaultLocale;
 
         if (auto request = player.getConnectionRequest(); request)
-            return request->mRawToken->mDataInfo["LanguageCode"].asString(defaultLocale);
+            return request->mRawToken->mDataInfo.get("LanguageCode", defaultLocale).asString(defaultLocale);
         return defaultLocale;
     }
 

@@ -5,7 +5,6 @@
 #include <ll/api/utils/StringUtils.h>
 
 #include <mc/world/Minecraft.h>
-#include <mc/world/Container.h>
 #include <mc/world/level/Level.h>
 #include <mc/world/scores/Objective.h>
 #include <mc/world/scores/ScoreInfo.h>
@@ -17,6 +16,8 @@
 
 #include <mc/world/item/ItemStack.h>
 #include <mc/world/actor/player/Player.h>
+#include <mc/world/actor/player/PlayerInventory.h>
+#include <mc/world/actor/player/Inventory.h>
 
 #include <mc/util/LootTableUtils.h>
 
@@ -42,7 +43,7 @@ namespace McUtils {
         ServerCommandOrigin origin = ServerCommandOrigin(
             "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, dimension
         );
-        Command* command = ll::service::getMinecraft()->getCommands().compileCommand(
+        Command* command = ll::service::getMinecraft()->mCommands->compileCommand(
             HashedString(cmd), origin, (CurrentCmdVersion)CommandVersion::CurrentVersion(),
             [&](std::string const&) -> void {}
         );
@@ -53,23 +54,20 @@ namespace McUtils {
     }
 
     void executeCommand(Player& player, const std::string& cmd) {
-        executeCommand(
-            ll::string_utils::replaceAll(cmd, "${player}", player.getName()),
-            player.getDimensionId()
-        );
+        executeCommand(ll::string_utils::replaceAll(cmd, "${player}", std::string(player.mName)), player.getDimensionId());
     }
 
     void clearItem(Player& player, const std::string& mTypeName, int mNumber) {
-        Container& mItemInventory = player.getInventory();
-        for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
-            const ItemStack& mItemObject = mItemInventory.getItem(i);
+        auto& mItemInventory = player.mInventory->mInventory;
+        for (int i = 0; i < mItemInventory->getContainerSize(); i++) {
+            const ItemStack& mItemObject = mItemInventory->getItem(i);
             if ((mItemObject || !mItemObject.isNull()) && mTypeName == mItemObject.getTypeName()) {
                 if (mItemObject.mCount >= mNumber) {
-                    mItemInventory.removeItem(i, mNumber);
+                    mItemInventory->removeItem(i, mNumber);
                     return;
                 }
                 mNumber -= mItemObject.mCount;
-                mItemInventory.removeItem(i, mItemObject.mCount);
+                mItemInventory->removeItem(i, mItemObject.mCount);
             }
         }
     }
@@ -108,9 +106,9 @@ namespace McUtils {
         if (mTypeName.empty() || mNumber <= 0)
             return false;
         
-        Container& mItemInventory = player.getInventory();
-        for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
-            const ItemStack& mItemObject = mItemInventory.getItem(i);
+        auto& mItemInventory = player.mInventory->mInventory;
+        for (int i = 0; i < mItemInventory->getContainerSize(); i++) {
+            const ItemStack& mItemObject = mItemInventory->getItem(i);
             if ((mItemObject || !mItemObject.isNull()) && mTypeName == mItemObject.getTypeName()) {
                 if (mNumber <= mItemObject.mCount)
                     return true;
@@ -124,7 +122,7 @@ namespace McUtils {
         int getScore(Player& player, const std::string& name) {
             optional_ref<Level> level = ll::service::getLevel();
             ScoreboardId identity = level->getScoreboard().getScoreboardId(player);
-            if (!identity.isValid())
+            if (identity.mRawID == ScoreboardId::INVALID().mRawID)
                 return 0;
             Objective* obj = level->getScoreboard().getObjective(name);
             return !obj ? 0 : obj->getPlayerScore(identity).mValue;
@@ -150,7 +148,7 @@ namespace McUtils {
 
         void addScore(Player& player, const std::string &name, int score) {
             ScoreboardId identity = ll::service::getLevel()->getScoreboard().getScoreboardId(player);
-            if (!identity.isValid()) 
+            if (identity.mRawID == ScoreboardId::INVALID().mRawID) 
                 identity = ll::service::getLevel()->getScoreboard().createScoreboardId(player);
             
             modifyScore(identity, name, score, ScoreType::add);
@@ -158,7 +156,7 @@ namespace McUtils {
 
         void reduceScore(Player& player, const std::string &name, int score) {
             ScoreboardId identity = ll::service::getLevel()->getScoreboard().getScoreboardId(player);
-            if (!identity.isValid())
+            if (identity.mRawID == ScoreboardId::INVALID().mRawID)
                 identity = ll::service::getLevel()->getScoreboard().createScoreboardId(player);
 
             modifyScore(identity, name, score, ScoreType::reduce);

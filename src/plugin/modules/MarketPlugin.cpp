@@ -24,6 +24,8 @@
 
 #include <mc/world/level/Level.h>
 #include <mc/world/actor/player/Player.h>
+#include <mc/world/actor/player/PlayerInventory.h>
+#include <mc/world/actor/player/Inventory.h>
 
 #include <mc/world/item/ItemStack.h>
 #include <mc/world/item/SaveContext.h>
@@ -99,7 +101,7 @@ namespace LOICollection::Plugins::market {
                 }
                 pl.sendMessage(tr(getLanguage(pl), "market.gui.sell.sellItem.tips3"));
             });
-            if ((int) player.getPlayerPermissionLevel() >= 2) {
+            if (player.getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors) {
                 form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [mItemId](Player& pl) -> void {
                     std::string mName = db->get(mItemId, "name");
                     pl.sendMessage(ll::string_utils::replaceAll(tr(getLanguage(pl), 
@@ -190,7 +192,7 @@ namespace LOICollection::Plugins::market {
                 db->set(mItemListId, "nbt", mNbt);
                 db->set(mItemListId, "player", pl.getRealName());
                 db->set("Item", mItemListId, mObject);
-                pl.getInventory().removeItem(mSlot, 64);
+                pl.mInventory->mInventory->removeItem(mSlot, 64);
                 pl.refreshInventory();
 
                 logger->info(LOICollectionAPI::translateString(
@@ -202,13 +204,13 @@ namespace LOICollection::Plugins::market {
         void sellItemInventory(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
-            Container& mItemInventory = player.getInventory();
+            auto& mItemInventory = player.mInventory->mInventory;
 
             std::vector<std::string> ProhibitedItems = std::get<std::vector<std::string>>(mObjectOptions.at("items"));
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"),
                 tr(mObjectLanguage, "market.gui.sell.sellItem.dropdown"));
-            for (int i = 0; i < mItemInventory.getContainerSize(); i++) {
-                ItemStack mItemStack = mItemInventory.getItem(i);
+            for (int i = 0; i < mItemInventory->getContainerSize(); i++) {
+                ItemStack mItemStack = mItemInventory->getItem(i);
                 
                 if (!mItemStack || mItemStack.isNull() || std::find(ProhibitedItems.begin(), ProhibitedItems.end(), mItemStack.getTypeName()) != ProhibitedItems.end())
                     continue;

@@ -27,7 +27,7 @@ LL_TYPE_INSTANCE_HOOK(
         const char* ptr = feed.data();
         char* endpt{};
         int64 result = std::strtoll(ptr, &endpt, 10);
-        this->mSettings->setRandomSeed(LevelSeed64(ptr == endpt ? ll::random_utils::rand<int64_t>() : result));
+        this->mSettings->mSeed = LevelSeed64(ptr == endpt ? ll::random_utils::rand<int64_t>() : result);
     }
     return origin(stream);
 };

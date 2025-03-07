@@ -142,7 +142,7 @@ namespace LOICollection::Plugins::mute {
                     return output.error(tr({}, "commands.generic.target"));
 
                 for (Player*& pl : results) {
-                    if (isMute(*pl) || (int) pl->getPlayerPermissionLevel() >= 2 || pl->isSimulatedPlayer()) {
+                    if (isMute(*pl) || pl->getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || pl->isSimulatedPlayer()) {
                         output.error(fmt::runtime(tr({}, "commands.mute.error.add")), pl->getRealName());
                         continue;
                     }
@@ -203,7 +203,7 @@ namespace LOICollection::Plugins::mute {
     }
 
     void addMute(Player& player, std::string cause, int time) {
-        if ((int) player.getPlayerPermissionLevel() >= 2 || !isValid())
+        if (player.getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || !isValid())
             return;
 
         cause = cause.empty() ? "None" : cause;

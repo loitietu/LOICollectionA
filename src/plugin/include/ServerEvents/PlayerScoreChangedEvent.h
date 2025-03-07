@@ -11,8 +11,7 @@ class Objective;
 namespace LOICollection::ServerEvents {
     enum class ScoreChangedType {
         add,
-        reduce,
-        set
+        reduce
     };
 
     class PlayerScoreChangedEvent final : public ll::event::Cancellable<ll::event::PlayerEvent> {

@@ -237,7 +237,7 @@ namespace LOICollection::Plugins::chat {
             command.overload<ChatOP>().text("add").required("target").required("titleName").optional("time").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    output.error(tr({}, "commands.generic.permission"));
+                    return output.error(tr({}, "commands.generic.permission"));
 
                 CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
@@ -252,7 +252,7 @@ namespace LOICollection::Plugins::chat {
             command.overload<ChatOP>().text("remove").required("target").required("titleName").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    output.error(tr({}, "commands.generic.permission"));
+                    return output.error(tr({}, "commands.generic.permission"));
 
                 CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
@@ -267,7 +267,7 @@ namespace LOICollection::Plugins::chat {
             command.overload<ChatOP>().text("set").required("target").required("titleName").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    output.error(tr({}, "commands.generic.permission"));
+                    return output.error(tr({}, "commands.generic.permission"));
 
                 CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
@@ -285,7 +285,7 @@ namespace LOICollection::Plugins::chat {
             command.overload<ChatOP>().text("list").required("target").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    output.error(tr({}, "commands.generic.permission"));
+                    return output.error(tr({}, "commands.generic.permission"));
 
                 CommandSelectorResults<Player> results = param.target.results(origin);
                 if (results.empty())
@@ -306,7 +306,7 @@ namespace LOICollection::Plugins::chat {
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    output.error(tr({}, "commands.generic.permission"));
+                    return output.error(tr({}, "commands.generic.permission"));
 
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())

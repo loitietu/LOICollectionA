@@ -455,7 +455,7 @@ namespace LOICollection::Plugins::shop {
             });
             command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    output.error(tr({}, "commands.generic.permission"));
+                    return output.error(tr({}, "commands.generic.permission"));
                 
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
