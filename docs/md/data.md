@@ -62,10 +62,7 @@
         "Wallet": { // 钱包配置
             "ModuleEnabled": false, // 是否启用钱包
             "TargetScoreboard": "money", // 钱包指定使用 Score 对象
-            "ExchangeRate": 0.1,  // 钱包汇率
-            "MaximumRedenvelope": 1, // 玩家单次上传最大红包数量
-            "MinimumAgeTime": 30, // 红包最小存活时间（单位为秒）
-            "MaximumAgeTime": 90 // 红包最大存活时间（单位为秒）
+            "ExchangeRate": 0.1  // 钱包汇率
         },
         "Chat": { // 聊天强化配置
             "ModuleEnabled": false, // 是否启用聊天强化

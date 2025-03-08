@@ -383,11 +383,8 @@ namespace LOICollection::Plugins::market {
                     std::string mObject = event.self().getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
                     if (!db->has("Item")) db->create("Item");
-                    if (!db->has("OBJECT$" + mObject)) {
-                        db->create("OBJECT$" + mObject);
+                    if (!db->has("OBJECT$" + mObject + "$ITEMS"))
                         db->create("OBJECT$" + mObject + "$ITEMS");
-                        return;
-                    }
                     if (!db->has("OBJECT$" + mObject + "$PLAYER"))
                         db->create("OBJECT$" + mObject + "$PLAYER");
                     

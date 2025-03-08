@@ -10,6 +10,25 @@
     <meta name="renderer" content="webkit" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
     <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+    <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
+    <style type="text/css">	
+        .markdown-section pre[data-lang] {
+            overflow: auto !important;
+        }
+        
+        .markdown-section pre[data-lang] code {
+            overflow: visible;
+        }
+    
+        .line-numbers .line-numbers-rows {
+            border-right : 0px solid white;
+            padding: 5px;
+        }
+
+        .markdown-section pre > code {
+            padding: 5px;
+        }
+      </style>
 </head>
 <body>
     <div id="app">Loading...</div>
@@ -17,6 +36,23 @@
         window.$docsify = {
             name: "LOICollectionA",
             repo: "https://github.com/loitietu/LOICollectionA",
+            markdown: {
+                renderer:{
+                    code: function(code, lang) {
+                        if(lang =='html') {
+                            code = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+                        }
+                        return ('<pre data-lang="'+lang+'"><code class="line-numbers language-'+lang+'">'+code+'</code></pre>')
+                    }
+                }	  
+            },
+            plugins: [
+                function (hook, vm) {
+                    hook.doneEach(function (html) {                
+                        Prism.highlightAll();
+                    })
+                }
+            ],
             loadNavbar: false,
             loadSidebar: true,
             subMaxLevel: 3,
@@ -84,7 +120,10 @@
     <script src="//cdn.jsdelivr.net/npm/docsify-copy-code"></script>
 
     <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-cpp.min.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
     <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
     <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-log.min.js"></script>
+
+    <script src="//cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
 </body>
 </html>
