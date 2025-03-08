@@ -66,7 +66,7 @@ std::vector<std::string> SQLiteStorage::list(std::string_view table) {
 
     SQLite::Statement query(database, "SELECT key FROM " + std::string(table) + ";");
     while (query.executeStep())
-        keys.push_back(query.getColumn(0).getText());
+        keys.emplace_back(query.getColumn(0).getText());
     return keys;
 }
 

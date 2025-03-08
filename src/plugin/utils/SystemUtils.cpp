@@ -1,7 +1,6 @@
-#include <ctime>
+#include <chrono>
 #include <string>
 #include <sstream>
-#include <iomanip>
 #include <algorithm>
 
 #include <Windows.h>
@@ -14,46 +13,50 @@ namespace SystemUtils {
         if (!GetUserDefaultLocaleName(buf, LOCALE_NAME_MAX_LENGTH))
             return "";
 
-        int mSize = WideCharToMultiByte(CP_UTF8, 0, buf, -1, NULL, 0, NULL, NULL);
+        int mSize = WideCharToMultiByte(CP_UTF8, 0, buf, -1, nullptr, 0, nullptr, nullptr);
         if (!mSize)
             return "";
 
         std::string locale(mSize - 1, '\0');
-        WideCharToMultiByte(CP_UTF8, 0, buf, -1, &locale[0], mSize, NULL, NULL);
+        WideCharToMultiByte(CP_UTF8, 0, buf, -1, &locale[0], mSize, nullptr, nullptr);
         std::replace(locale.begin(), locale.end(), '-', '_');
         return locale;
     }
 
     std::string getCurrentTimestamp() {
-        std::time_t now = std::time(nullptr);
-        return std::to_string(now);
+        auto mTimeNow = std::chrono::system_clock::now();
+        return std::to_string(mTimeNow.time_since_epoch().count());
     }
 
     std::string getNowTime(const std::string& format) {
-        std::time_t currentTime = std::time(nullptr);
-        std::tm currentTimeInfo{};
-        localtime_s(&currentTimeInfo, &currentTime);
-        char buffer[80];
-        std::strftime(buffer, sizeof(buffer), format.c_str(), &currentTimeInfo);
-        return buffer;
+        auto mTimeNow = std::chrono::system_clock::now();
+        auto mTimeNowSecond = std::chrono::floor<std::chrono::seconds>(mTimeNow); 
+        auto zt = std::chrono::zoned_time(std::chrono::current_zone(), mTimeNowSecond);
+        return std::vformat("{:" + format + "}", std::make_format_args(zt));
     }
 
     std::string formatDataTime(const std::string& timeString) {
-        if (timeString.size() != 14) 
+        if (timeString.size() != 14)
             return "None";
-        return timeString.substr(0, 4) + "-" + timeString.substr(4, 2) + "-" + timeString.substr(6, 2) + " " +
-            timeString.substr(8, 2) + ":" + timeString.substr(10, 2) + ":" + timeString.substr(12, 2);
+        
+        std::chrono::local_seconds mTp;
+        std::istringstream iss(timeString);
+        iss >> std::chrono::parse("%Y%m%d%H%M%S", mTp);
+        if (iss.fail())
+            return "None";
+        
+        return std::format("{:%Y-%m-%d %H:%M:%S}", mTp);
     }
 
     std::string timeCalculate(const std::string& timeString, int hours) {
-        std::tm tm = {};
+        std::chrono::local_seconds mTp;
         std::istringstream iss(timeString);
-        iss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
-        tm.tm_hour += hours;
-        std::mktime(&tm);
-        char buffer[20];
-        std::strftime(buffer, sizeof(buffer), "%Y%m%d%H%M%S", &tm);
-        return buffer;
+        iss >> std::chrono::parse("%Y-%m-%d %H:%M:%S", mTp);
+        if (iss.fail())
+            return "0";
+        
+        mTp += std::chrono::hours(hours);
+        return std::format("{:%Y%m%d%H%M%S}", mTp);
     }
 
     int toInt(const std::string& str, int defaultValue) {
@@ -65,12 +68,15 @@ namespace SystemUtils {
     bool isReach(const std::string& timeString) {
         if (timeString.size() != 14)
             return false;
-        std::tm tm = {};
+        
+        std::chrono::local_seconds mLocalTp;
         std::istringstream iss(timeString);
-        iss >> std::get_time(&tm, "%Y%m%d%H%M%S");
+        iss >> std::chrono::parse("%Y%m%d%H%M%S", mLocalTp);
         if (iss.fail())
             return false;
-        std::time_t targetTime = std::mktime(&tm);
-        return std::difftime(targetTime, std::time(nullptr)) <= 0;
+        
+        auto mTargetSysTp = std::chrono::current_zone()->to_sys(mLocalTp);
+        auto mNowSysTp = std::chrono::system_clock::now();
+        return mTargetSysTp <= mNowSysTp;
     }
 }
