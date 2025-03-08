@@ -36,7 +36,7 @@ LL_TYPE_INSTANCE_HOOK(
     if (packet.getId() == MinecraftPacketIds::ShowModalForm) {
         uint64 identifierHash = identifier.getHash();
 
-        ModalFormRequestPacket& response = (ModalFormRequestPacket&)packet;
+        auto& response = (ModalFormRequestPacket&)packet;
         if (!response.mFormId || response.mFormJSON->empty())
             return origin(identifier, packet, senderSubId);
         if (mFormResponse.contains(identifierHash)) {
@@ -60,7 +60,7 @@ LL_TYPE_INSTANCE_HOOK(
 ) {
     uint64 identifierHash = identifier.getHash();
 
-    ModalFormResponsePacket& response = (ModalFormResponsePacket&)*packet;
+    auto& response = (ModalFormResponsePacket&)*packet;
     if (!mFormResponse.contains(identifierHash))
         return origin(identifier, callback, packet);
     if (response.mFormId != mFormResponse[identifierHash])

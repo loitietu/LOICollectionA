@@ -18,8 +18,7 @@ enum class ScoreType {
 };
 
 namespace McUtils {
-    void executeCommand(const std::string& cmd);
-    void executeCommand(Player& player, const std::string& cmd);
+    void executeCommand(Player& player, std::string cmd);
     void clearItem(Player& player, const std::string& mTypeName, int mNumber);
     void giveItem(Player& player, ItemStack& item, int mNumber);
     void broadcastText(const std::string& text, std::function<bool(Player&)> filter = [](Player&) -> bool { 

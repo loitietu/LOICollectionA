@@ -36,12 +36,14 @@
 #include "McUtils.h"
 
 namespace McUtils {
-    void executeCommand(const std::string& cmd, int dimension) {
+    void executeCommand(Player& player, std::string cmd) {
         if (cmd.empty())
             return;
 
+        ll::string_utils::replaceAll(cmd, "${player}", std::string(player.mName));
+
         ServerCommandOrigin origin = ServerCommandOrigin(
-            "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, dimension
+            "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, player.getDimensionId()
         );
         Command* command = ll::service::getMinecraft()->mCommands->compileCommand(
             HashedString(cmd), origin, (CurrentCmdVersion)CommandVersion::CurrentVersion(),
@@ -51,10 +53,6 @@ namespace McUtils {
             CommandOutput output(CommandOutputType::AllOutput);
             command->run(origin, output);
         }
-    }
-
-    void executeCommand(Player& player, const std::string& cmd) {
-        executeCommand(ll::string_utils::replaceAll(cmd, "${player}", std::string(player.mName)), player.getDimensionId());
     }
 
     void clearItem(Player& player, const std::string& mTypeName, int mNumber) {
