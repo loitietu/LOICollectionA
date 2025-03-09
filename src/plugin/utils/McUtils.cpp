@@ -56,34 +56,27 @@ namespace McUtils {
     }
 
     void clearItem(Player& player, const std::string& mTypeName, int mNumber) {
-        auto& mItemInventory = player.mInventory->mInventory;
-        for (int i = 0; i < mItemInventory->getContainerSize(); i++) {
-            const ItemStack& mItemObject = mItemInventory->getItem(i);
-            if ((mItemObject || !mItemObject.isNull()) && mTypeName == mItemObject.getTypeName()) {
-                if (mItemObject.mCount >= mNumber) {
-                    mItemInventory->removeItem(i, mNumber);
-                    return;
-                }
-                mNumber -= mItemObject.mCount;
-                mItemInventory->removeItem(i, mItemObject.mCount);
+        auto& inventory = player.mInventory->mInventory;
+        for (int i = 0; i < inventory->getContainerSize() && mNumber > 0; ++i) {
+            const ItemStack& mItemObject = inventory->getItem(i);
+            if ((mItemObject || !mItemObject.isNull()) && mItemObject.getTypeName() == mTypeName) {
+                int mCount = std::min((int)mItemObject.mCount, mNumber);
+                inventory->removeItem(i, mCount);
+                mNumber -= mCount;
             }
         }
     }
 
     void giveItem(Player& player, ItemStack& item, int mNumber) {
-        std::vector<ItemStack> items;
-        while (mNumber > 0) {
-            int count = std::min(mNumber, 64);
-            item.mCount = (uchar)count;
-            items.push_back(item);
-            mNumber -= count;
-        }
-        Util::LootTableUtils::givePlayer(player, items, true);
+        std::vector<ItemStack> mItemStacks{};
+        for (int count; mNumber > 0; mNumber -= count)
+            mItemStacks.emplace_back(item).mCount = (uchar)(count = std::min(mNumber, 64));
+        Util::LootTableUtils::givePlayer(player, mItemStacks, true);
     }
 
     void broadcastText(const std::string& text, std::function<bool(Player&)> filter) {
         TextPacket packet = TextPacket::createSystemMessage(text);
-        ll::service::getLevel()->forEachPlayer([packet, filter = std::move(filter)](Player& player) -> bool {
+        ll::service::getLevel()->forEachPlayer([&packet, filter = std::move(filter)](Player& player) -> bool {
             if (filter(player) && packet.isValid())
                 packet.sendTo(player);
             return true;
@@ -92,9 +85,9 @@ namespace McUtils {
 
     std::vector<Player*> getAllPlayers() {
         std::vector<Player*> mObjectLists{};
-        ll::service::getLevel()->forEachPlayer([&](Player& player) -> bool {
+        ll::service::getLevel()->forEachPlayer([&mObjectLists](Player& player) -> bool {
             if (!player.isSimulatedPlayer())
-                mObjectLists.push_back(&player);
+                mObjectLists.emplace_back(&player);
             return true;
         });
         return mObjectLists;
@@ -105,15 +98,12 @@ namespace McUtils {
             return false;
         
         auto& mItemInventory = player.mInventory->mInventory;
-        for (int i = 0; i < mItemInventory->getContainerSize(); i++) {
+        for (int i = 0; i < mItemInventory->getContainerSize() && mNumber > 0; ++i) {
             const ItemStack& mItemObject = mItemInventory->getItem(i);
-            if ((mItemObject || !mItemObject.isNull()) && mTypeName == mItemObject.getTypeName()) {
-                if (mNumber <= mItemObject.mCount)
-                    return true;
-                mNumber -= mItemObject.mCount;
-            }
+            if ((mItemObject || !mItemObject.isNull()) && mTypeName == mItemObject.getTypeName())
+                mNumber -= (int)mItemObject.mCount;
         }
-        return false;
+        return mNumber <= 0;
     }
 
     namespace scoreboard {
