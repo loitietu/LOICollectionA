@@ -8,16 +8,14 @@
 
 #include "JsonStorage.h"
 
-JsonStorage::JsonStorage(const std::filesystem::path& path) : d_path(path) {
-    if (!std::filesystem::exists(path)) {
-        std::ofstream file(path);
-        file << "{}";
-        file.close();
-    }
-    std::ifstream file(path);
-    if (file.is_open()) {
-        file >> this->d_json;
-        file.close();
+JsonStorage::JsonStorage(std::filesystem::path path) : d_path(std::move(path)) {
+    if (std::filesystem::exists(d_path)) {
+        if (std::ifstream file(d_path); file)
+            file >> d_json;
+    } else {
+        std::filesystem::create_directories(d_path.parent_path());
+        d_json = nlohmann::ordered_json::object();
+        save();
     }
 }
 
@@ -38,11 +36,9 @@ void JsonStorage::write(const nlohmann::ordered_json& json) {
 }
 
 void JsonStorage::save() const {
-    std::ofstream file(this->d_path);
-    if (file.is_open()) {
-        file << this->d_json.dump(4);
-        file.close();
-    }
+    std::filesystem::create_directories(d_path.parent_path());
+    if (std::ofstream file{d_path, std::ios::trunc})
+        file << d_json.dump(4);
 }
 
 std::vector<std::string> JsonStorage::keys() const {

@@ -8,19 +8,20 @@
 #include "SystemUtils.h"
 
 namespace SystemUtils {
-    std::string getSystemLocaleCode() {
-        wchar_t buf[LOCALE_NAME_MAX_LENGTH]{};
-        if (!GetUserDefaultLocaleName(buf, LOCALE_NAME_MAX_LENGTH))
-            return "";
-
-        int mSize = WideCharToMultiByte(CP_UTF8, 0, buf, -1, nullptr, 0, nullptr, nullptr);
-        if (!mSize)
-            return "";
-
-        std::string locale(mSize - 1, '\0');
-        WideCharToMultiByte(CP_UTF8, 0, buf, -1, &locale[0], mSize, nullptr, nullptr);
-        std::replace(locale.begin(), locale.end(), '-', '_');
-        return locale;
+    std::string getSystemLocaleCode(std::string defaultValue) {
+        wchar_t localeName[LOCALE_NAME_MAX_LENGTH]{};
+        if (!GetUserDefaultLocaleName(localeName, LOCALE_NAME_MAX_LENGTH))
+            return defaultValue;
+        
+        if (const int size = WideCharToMultiByte(CP_UTF8, 0, localeName, -1, nullptr, 0, nullptr, nullptr); size > 0) {
+            std::string result(size, '\0');
+            if (!WideCharToMultiByte(CP_UTF8, 0, localeName, -1, result.data(), size, nullptr, nullptr))
+                return defaultValue;
+            result.resize(size - 1);
+            std::replace(result.begin(), result.end(), '-', '_');
+            return result;
+        }
+        return defaultValue;
     }
 
     std::string getCurrentTimestamp() {

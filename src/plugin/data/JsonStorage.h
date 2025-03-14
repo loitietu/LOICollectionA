@@ -12,7 +12,7 @@
 
 class JsonStorage {
 public:
-    LOICOLLECTION_A_API   explicit JsonStorage(const std::filesystem::path& path);
+    LOICOLLECTION_A_API   explicit JsonStorage(std::filesystem::path path);
     LOICOLLECTION_A_API   ~JsonStorage() = default;
 
     LOICOLLECTION_A_API   bool remove(std::string_view key);
@@ -20,13 +20,13 @@ public:
     LOICOLLECTION_A_NDAPI bool isEmpty() const;
 
     template <typename T>
-    [[nodiscard]] T get(std::string_view key) const {
-        return this->d_json.value(key, T());
+    [[nodiscard]] T get(std::string_view key, const T& defaultValue = {}) const {
+        return d_json.value(key, defaultValue);
     }
 
     template <typename T>
     void set(std::string_view key, T value) {
-        this->d_json[key] = std::move(value);
+        d_json[key] = std::forward<T>(value);
     }
 
     LOICOLLECTION_A_API   void write(const nlohmann::ordered_json& json);

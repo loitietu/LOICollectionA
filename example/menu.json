@@ -47,7 +47,7 @@
                     "execute as ${player} run say OPButton1"
                 ],
                 "type": "button",
-                "permission": 2
+                "permission": 1
             },
             {
                 "title": "OP From 1",
@@ -55,7 +55,7 @@
                 "id": "Button3",
                 "menu": "Menu1",
                 "type": "from",
-                "permission": 2
+                "permission": 1
             }
         ],
         "permission": 0
@@ -119,10 +119,10 @@
             {
                 "title": "this is a Slider",
                 "id": "Slider",
-                "min": 0,
-                "max": 100,
-                "step": 1,
-                "defaultValue": 50,
+                "min": 0.0,
+                "max": 100.0,
+                "step": 1.0,
+                "defaultValue": 50.0,
                 "type": "Slider"
             },
             {

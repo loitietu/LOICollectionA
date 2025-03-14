@@ -462,21 +462,21 @@ namespace LOICollection::Plugins::menu {
                 if (!dt) return McUtils::executeCommand(pl, data.value("exit", ""));
 
                 nlohmann::ordered_json mCustom;
-                for (auto& [key, value] : mCustomData.items()) {
-                    if (value.is_string()) {
-                        std::string result = std::get<std::string>(dt->at(key));
+                for (auto& item : mCustomData.items()) {
+                    if (item.value().is_string()) {
+                        std::string result = std::get<std::string>(dt->at(item.key()));
                         if (!result.empty())
-                            mCustom[key] = result;
+                            mCustom[item.key()] = result;
                     }
-                    if (value.is_boolean()) mCustom[key] = std::get<uint64>(dt->at(key)) ? "true" : "false";
-                    if (value.is_number_integer()) mCustom[key] = std::to_string((int) std::get<double>(dt->at(key)));
+                    if (item.value().is_boolean()) mCustom[item.key()] = std::get<uint64>(dt->at(item.key())) ? "true" : "false";
+                    if (item.value().is_number_integer()) mCustom[item.key()] = std::to_string((int) std::get<double>(dt->at(item.key())));
                 }
                 for (const auto& c_it : data.value("command", nlohmann::ordered_json())) {
                     std::string result = c_it.get<std::string>();
-                    for (auto& [key, value] : mCustom.items()) {
-                        if (result.find("{" + key + "}") == std::string::npos)
+                    for (auto& item : mCustom.items()) {
+                        if (result.find("{" + item.key() + "}") == std::string::npos)
                             continue;
-                        ll::string_utils::replaceAll(result, "{" + key + "}", value.get<std::string>());
+                        ll::string_utils::replaceAll(result, "{" + item.key() + "}", item.value().get<std::string>());
                     }
                     McUtils::executeCommand(pl, result);
                 }

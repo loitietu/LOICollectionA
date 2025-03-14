@@ -3,7 +3,7 @@
 #include <string>
 
 namespace SystemUtils {
-    std::string getSystemLocaleCode();
+    std::string getSystemLocaleCode(std::string defaultValue = "");
     std::string getCurrentTimestamp();
     std::string getNowTime(const std::string& format = "%Y-%m-%d %H:%M:%S");
     std::string formatDataTime(const std::string& timeString);

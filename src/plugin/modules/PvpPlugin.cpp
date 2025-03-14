@@ -1,3 +1,4 @@
+#include <map>
 #include <memory>
 #include <string>
 
@@ -13,6 +14,7 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
+#include <ll/api/event/player/PlayerDisconnectEvent.h>
 
 #include <mc/world/level/Level.h>
 
@@ -27,6 +29,7 @@
 #include "include/ServerEvents/PlayerHurtEvent.h"
 
 #include "utils/I18nUtils.h"
+#include "utils/SystemUtils.h"
 
 #include "data/SQLiteStorage.h"
 
@@ -35,11 +38,14 @@
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;
 
+std::map<std::string, std::string> mPlayerPvpLists;
+
 namespace LOICollection::Plugins::pvp {
     std::shared_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
 
     ll::event::ListenerPtr PlayerJoinEventListener;
+    ll::event::ListenerPtr PlayerDisconnectEventListener;
     ll::event::ListenerPtr PlayerHurtEventListener;
 
     namespace MainGui {
@@ -103,18 +109,30 @@ namespace LOICollection::Plugins::pvp {
                         db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
                 }
             );
+            PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>(
+                [](ll::event::PlayerDisconnectEvent& event) -> void {
+                    if (event.self().isSimulatedPlayer())
+                        return;
+                    mPlayerPvpLists.erase(event.self().getUuid().asString());
+                }
+            );
             PlayerHurtEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerHurtEvent>(
                 [](LOICollection::ServerEvents::PlayerHurtEvent& event) -> void {
                     if (!event.getSource().isPlayer() || event.getSource().isSimulatedPlayer() || event.self().isSimulatedPlayer())
                         return;
-                    Player& source = static_cast<Player&>(event.getSource());
+                    auto& source = static_cast<Player&>(event.getSource());
+
                     if (!isEnable(event.self())) {
-                        source.sendMessage(tr(getLanguage(source), "pvp.off1"));
+                        if (!mPlayerPvpLists.contains(source.getUuid().asString()) || mPlayerPvpLists[source.getUuid().asString()] != SystemUtils::getNowTime("%Y%m%d%H%M%S"))
+                            source.sendMessage(tr(getLanguage(source), "pvp.off1"));
                         event.cancel();
                     } else if (!isEnable(source)) {
-                        source.sendMessage(tr(getLanguage(source), "pvp.off2"));
+                        if (!mPlayerPvpLists.contains(source.getUuid().asString()) || mPlayerPvpLists[source.getUuid().asString()] != SystemUtils::getNowTime("%Y%m%d%H%M%S"))
+                            source.sendMessage(tr(getLanguage(source), "pvp.off2"));
                         event.cancel();
                     }
+
+                    mPlayerPvpLists[source.getUuid().asString()] = SystemUtils::getNowTime("%Y%m%d%H%M%S");
                 }
             );
         }
@@ -162,5 +180,6 @@ namespace LOICollection::Plugins::pvp {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(PlayerJoinEventListener);
         eventBus.removeListener(PlayerHurtEventListener);
+        eventBus.removeListener(PlayerDisconnectEventListener);
     }
 }

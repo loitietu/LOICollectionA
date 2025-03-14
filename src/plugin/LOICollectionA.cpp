@@ -90,7 +90,7 @@ namespace LOICollection {
         }
         I18nUtils::getInstance() = std::make_unique<I18nUtils>(langFilePath.string());
         I18nUtils::getInstance()->defaultLocale = this->config.ConsoleLanguage == "system" ?
-            SystemUtils::getSystemLocaleCode() : this->config.ConsoleLanguage;
+            SystemUtils::getSystemLocaleCode("zh_CN") : this->config.ConsoleLanguage;
         logger.info("Initialization of language completed.");
 
         logger.info("Initialization of plugins completed.");
