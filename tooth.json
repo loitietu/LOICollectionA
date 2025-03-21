@@ -1,7 +1,7 @@
 {
     "format_version": 2,
     "tooth": "github.com/loitietu/LOICollectionA",
-    "version": "1.6.3",
+    "version": "1.6.4",
     "info": {
         "name": "LOICollectionA",
         "description": "Multifunctional plug-in set",
@@ -18,7 +18,7 @@
     },
     "asset_url": "https://github.com/loitietu/LOICollectionA/releases/download/v$(version)/LOICollectionA-windows-x64.zip",
     "prerequisites": {
-        "github.com/LiteLDev/LeviLamina": "1.1.0"
+        "github.com/LiteLDev/LeviLamina": "1.1.1"
     },
     "files": {
         "place": [
