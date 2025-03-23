@@ -242,7 +242,7 @@ namespace LOICollection::Plugins::shop {
                         if (result == ll::form::ModalFormSelectedButton::Upper) {
                             nlohmann::ordered_json data = db->toJson(uiName);
                             nlohmann::ordered_json mContent = data.value("classiflcation", nlohmann::ordered_json());
-                            for (int i = 0; i < (int) mContent.size(); i++) {
+                            for (int i = ((int) mContent.size() - 1); i >= 0; i--) {
                                 if (mContent.at(i).value("title", "") == mName)
                                     mContent.erase(i);
                             }

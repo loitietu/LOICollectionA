@@ -122,13 +122,9 @@ namespace LOICollection::Plugins::pvp {
                         return;
                     auto& source = static_cast<Player&>(event.getSource());
 
-                    if (!isEnable(event.self())) {
+                    if (!isEnable(event.self()) || !isEnable(source)) {
                         if (!mPlayerPvpLists.contains(source.getUuid().asString()) || mPlayerPvpLists[source.getUuid().asString()] != SystemUtils::getNowTime("%Y%m%d%H%M%S"))
-                            source.sendMessage(tr(getLanguage(source), "pvp.off1"));
-                        event.cancel();
-                    } else if (!isEnable(source)) {
-                        if (!mPlayerPvpLists.contains(source.getUuid().asString()) || mPlayerPvpLists[source.getUuid().asString()] != SystemUtils::getNowTime("%Y%m%d%H%M%S"))
-                            source.sendMessage(tr(getLanguage(source), "pvp.off2"));
+                            source.sendMessage(tr(getLanguage(source), "pvp.off"));
                         event.cancel();
                     }
 

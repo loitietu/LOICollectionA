@@ -79,7 +79,7 @@ namespace LOICollection::Plugins::notice {
             ll::form::CustomForm form(tr(mObjectLanguage, "notice.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "notice.gui.label"));
             form.appendInput("Input1", tr(mObjectLanguage, "notice.gui.edit.title"), "", data.value("title", ""));
-            for (int i = 0; i < (int)content.size(); i++) {
+            for (int i = 0; i < (int) content.size(); i++) {
                 std::string mLine = ll::string_utils::replaceAll(
                     tr(mObjectLanguage, "notice.gui.edit.line"), "${index}", std::to_string(i + 1)
                 );
@@ -101,7 +101,7 @@ namespace LOICollection::Plugins::notice {
                 else if (std::get<uint64>(dt->at("Toggle3")))
                     content.erase(content.end() - 1);
                 else {
-                    for (int i = 0; i < (int)content.size(); i++)
+                    for (int i = 0; i < (int) content.size(); i++)
                         content.at(i) = std::get<std::string>(dt->at("Content" + std::to_string(i)));
                 }
                 data["content"] = content;

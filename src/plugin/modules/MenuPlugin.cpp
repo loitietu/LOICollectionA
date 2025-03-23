@@ -272,12 +272,11 @@ namespace LOICollection::Plugins::menu {
                         nlohmann::ordered_json data = db->toJson(uiName);
                         nlohmann::ordered_json mContent = (data.value("type", "") == "Custom" ?
                             data.value("customize", defaultJson) : data.value("button", defaultJson));
-                        for (int i = 0; i < (int) mContent.size(); i++) {
+                        for (int i = ((int) mContent.size() - 1); i >= 0; i--) {
                             if (mContent.at(i).value("id", "") == mName)
                                 mContent.erase(i);
                         }
-                        (data.value("type", "") == "Custom" ?
-                            data.value("customize", defaultJson) : data.value("button", defaultJson)) = mContent;
+                        (data.value("type", "") == "Custom" ? data["customize"] : data["button"]) = mContent;
                         db->set(uiName, data);
                         db->save();
 
@@ -301,7 +300,7 @@ namespace LOICollection::Plugins::menu {
 
             ll::form::CustomForm form(tr(mObjectLanguage, "menu.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "menu.gui.label"));
-            for (int i = 0; i < (int)content.size(); i++) {
+            for (int i = 0; i < (int) content.size(); i++) {
                 std::string mLine = ll::string_utils::replaceAll(
                     tr(mObjectLanguage, "menu.gui.button3.command.line"), "${index}", std::to_string(i + 1)
                 );
@@ -320,7 +319,7 @@ namespace LOICollection::Plugins::menu {
                 else if (std::get<uint64>(dt->at("Toggle2")))
                     content.erase(content.end() - 1);
                 else {
-                    for (int i = 0; i < (int)content.size(); i++)
+                    for (int i = 0; i < (int) content.size(); i++)
                         content.at(i) = std::get<std::string>(dt->at("Content" + std::to_string(i)));
                 }
                 data["command"] = content;
