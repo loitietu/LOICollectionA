@@ -24,6 +24,9 @@
 #include <mc/entity/components/ActorRotationComponent.h>
 #include <mc/network/ServerNetworkHandler.h>
 
+#include "frontend/Lexer.h"
+#include "frontend/Parser.h"
+
 #include "include/PvpPlugin.h"
 #include "include/MutePlugin.h"
 #include "include/ChatPlugin.h"
@@ -240,6 +243,12 @@ namespace LOICollection::LOICollectionAPI {
         return "None";
     }
 
+    std::string tryGetGrammarResult(const std::string& contentString) {
+        frontend::Lexer mLexer(contentString);
+        frontend::Parser mParser(mLexer);
+        return mParser.parse();
+    }
+
     std::string& translateString(std::string& contentString, Player& player) {
         if (contentString.empty())
             return contentString;
@@ -267,6 +276,15 @@ namespace LOICollection::LOICollectionAPI {
             }
             contentString.replace(mMatchVariable.position(), mMatchVariable.length(), mVariableName);
         }
+
+        std::smatch mMatchGrammar;
+        std::regex mMatchGrammarRegex("\\@(.*?)\\@");
+        while (std::regex_search(contentString, mMatchGrammar, mMatchGrammarRegex)) {
+            std::string mGrammarContent = mMatchGrammar.str(1);
+            std::string mValue = tryGetGrammarResult(mGrammarContent);
+
+            contentString.replace(mMatchGrammar.position(), mMatchGrammar.length(), mValue);
+        };
         return contentString;
     }
 

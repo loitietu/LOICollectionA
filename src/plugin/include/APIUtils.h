@@ -15,6 +15,8 @@ namespace LOICollection::LOICollectionAPI {
     LOICOLLECTION_A_NDAPI std::string getValueForVariable(const std::string& name, Player& player);
     LOICOLLECTION_A_NDAPI std::string getValueForVariable(const std::string& name, Player& player, const std::string& parameter);
 
+    LOICOLLECTION_A_NDAPI std::string tryGetGrammarResult(const std::string& contentString);
+
     LOICOLLECTION_A_API   std::string& translateString(std::string& contentString, Player& player);
     LOICOLLECTION_A_API   std::string& translateString(const std::string& contentString, Player& player);
 }
