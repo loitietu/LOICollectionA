@@ -66,13 +66,17 @@ namespace LOICollection::frontend {
         advance();
 
         if ((first == '&' && current_char == '&') || (first == '|' && current_char == '|')) {
-            std::string op(1, first); op += current_char;
+            std::string op(1, first);
+            op += current_char;
+            
             advance();
             return {TOKEN_BOOL_OP, op, start};
         }
 
         if (current_char == '=') {
-            std::string op(1, first); op += '=';
+            std::string op(1, first);
+            op += '=';
+
             advance();
             return {TOKEN_OP, op, start};
         }

@@ -1,6 +1,7 @@
 # LOICollectionAPI
-> 以下为 `LOICollectionAPI` 的内容列表
+!> 以下为 LOICollectionA 1.6.4 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
 
+## 默认变量
 | LOICollectionAPI | 备注 |
 | --- | --- |
 {version.mc} | 当前服务器 Minecraft 版本
@@ -59,4 +60,31 @@
 {tr(languageId)} | 获取玩家当前语言指定ID的翻译文本
 {entity(typeid)} | 获取指定ID的实体数量
 
-!> 以上为 LOICollectionA 1.6.1 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
+## 判断语句 - if
+> 判断语句用于判断条件是否成立，如果成立则将`result_yes` 的内容替换掉原语句，否则将以 `result_no` 的内容替换掉原语句  
+
+?> 在判断语句中是支持 `if` 嵌套的，但建议不要嵌套过多，否则会导致语句难以阅读
+
+```text
+@if (condition) [result_yes, result_no]@
+```
+
+| 参数 | 备注 |
+| --- | --- |
+| condition | 判断条件 |
+| result_yes | 条件成立时替换的内容 |
+| result_no | 条件不成立时替换的内容 |
+
+> **具体使用实例**  
+
+以下将以不同的颜色展示玩家的平均网络延迟时间
+
+!> 需要注意的是语句的原 `result` 无法解析特殊字符，需要将其整合为字符串类型
+
+```text
+@if({player.ms.avg} <= 50)["§a",if({player.ms.avg} > 50 && {player.ms.avg} <= 250)["§e","§c"]]@{player.ms.avg}§bms
+```
+
+- **当判断条件满足 `{player.ms.avg} <= 50` 时，其会返回 "<span class="green">20</span><span class="blue">ms</span>"**  
+- **当判断条件满足 `{player.ms.avg} > 50 && {player.ms.avg} <= 250` 时，其会返回 "<span class="orange">100</span><span class="blue">ms</span>"**  
+- **当判断条件不满足以上条件时，其会返回 "<span class="red">300</span><span class="blue">ms</span>"**
