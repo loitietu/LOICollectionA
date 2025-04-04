@@ -22,9 +22,8 @@ namespace LOICollection::frontend {
             if (isdigit(current_char)) return parseNumber();
             if (current_char == '(') return makeToken(TOKEN_LPAREN);
             if (current_char == ')') return makeToken(TOKEN_RPAREN);
-            if (current_char == '[') return makeToken(TOKEN_LBRACKET);
-            if (current_char == ']') return makeToken(TOKEN_RBRACKET);
-            if (current_char == ',') return makeToken(TOKEN_COMMA);
+            if (current_char == '?') return makeToken(TOKEN_QUESTION);
+            if (current_char == ':') return makeToken(TOKEN_COLON);
             if (strchr("=><!&|", current_char)) return parseOperator();
 
             throw std::runtime_error("Unexpected character: " + std::string(1, current_char));
@@ -34,11 +33,14 @@ namespace LOICollection::frontend {
 
     Token Lexer::parseString() {
         advance();
+        
         size_t start = position;
         while (current_char != '"' && current_char != 0)
             advance();
+
         if (current_char != '"')
             throw std::runtime_error("Unclosed string");
+
         advance();
         return {TOKEN_STRING, input.substr(start, position - start - 1), start};
     }
@@ -47,9 +49,12 @@ namespace LOICollection::frontend {
         size_t start = position;
         while (isalnum(current_char) || current_char == '_')
             advance();
+
         std::string id = input.substr(start, position - start);
-        if (id == "if")
-            return {TOKEN_IF, id, start};
+
+        if (id == "if") return {TOKEN_IF, id, start};
+        if (id == "true" || id == "false") return {TOKEN_BOOL_LIT, id, start};
+        
         return {TOKEN_IDENT, id, start};
     }
 
@@ -57,12 +62,14 @@ namespace LOICollection::frontend {
         size_t start = position;
         while (isdigit(current_char))
             advance();
+        
         return {TOKEN_NUMBER, input.substr(start, position - start), start};
     }
 
     Token Lexer::parseOperator() {
         size_t start = position;
         char first = current_char;
+
         advance();
 
         if ((first == '&' && current_char == '&') || (first == '|' && current_char == '|')) {

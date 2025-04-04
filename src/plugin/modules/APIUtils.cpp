@@ -26,6 +26,7 @@
 
 #include "frontend/Lexer.h"
 #include "frontend/Parser.h"
+#include "frontend/Evaluator.h"
 
 #include "include/PvpPlugin.h"
 #include "include/MutePlugin.h"
@@ -53,7 +54,7 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string(ll::getNetworkProtocolVersion()); 
         });
         registerVariable("player", [](Player& player) -> std::string {
-            return std::string(player.mName);
+            return std::string{player.mName};
         });
         registerVariable("player.title", [](Player& player) -> std::string {
             Plugins::chat::update(player);
@@ -243,10 +244,14 @@ namespace LOICollection::LOICollectionAPI {
         return "None";
     }
 
-    std::string tryGetGrammarResult(const std::string& contentString) {
+    std::string tryGetGrammarResult(const std::string& contentString) try {
         frontend::Lexer mLexer(contentString);
         frontend::Parser mParser(mLexer);
-        return mParser.parse();
+        frontend::Evaluator mEvaluator;
+        auto mResult = mParser.parse();
+        return mEvaluator.evaluate(*mResult);
+    } catch (...) {
+        return "None";
     }
 
     std::string& translateString(std::string& contentString, Player& player) {

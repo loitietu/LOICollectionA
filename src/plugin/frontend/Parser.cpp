@@ -1,117 +1,149 @@
+#include <set>
 #include <string>
 #include <stdexcept>
-#include <variant>
+#include <memory>
 
-#include "frontend/Lexer.h"
+#include "frontend/AST.h"
 
 #include "frontend/Parser.h"
 
 namespace LOICollection::frontend {
-    std::string Parser::parse() {
-        return parseIfStatement();
+    std::unique_ptr<ASTNode> Parser::parse() {
+        if (current_token.type == TOKEN_IF)
+            return parseIfStatement();
+        return parseResult(TOKEN_EOF);
     }
 
-    std::string Parser::parseIfStatement() {
+    std::unique_ptr<IfNode> Parser::parseIfStatement(TokenType falsePartToken) {
         eat(TOKEN_IF);
         eat(TOKEN_LPAREN);
-        bool condition = parseBoolExpression();
+
+        auto cond = parseBoolExpression();
+
         eat(TOKEN_RPAREN);
-        eat(TOKEN_LBRACKET);
+        eat(TOKEN_QUESTION);
         
-        std::string true_branch = parseResult();
-        eat(TOKEN_COMMA);
-        std::string false_branch = parseResult();
+        auto truePart = parseResult(TOKEN_COLON);
+
+        eat(TOKEN_COLON);
+
+        auto falsePart = parseResult(falsePartToken);
         
-        eat(TOKEN_RBRACKET);
-        return condition ? true_branch : false_branch;
+        return std::make_unique<IfNode>(
+            std::move(cond),
+            std::move(truePart),
+            std::move(falsePart)
+        );
     }
 
-    bool Parser::parseBoolExpression() {
+    std::unique_ptr<ExprNode> Parser::parseBoolExpression() {
         return parseOrExpression();
     }
 
-    bool Parser::parseOrExpression() {
-        bool result = parseAndExpression();
+    std::unique_ptr<ExprNode> Parser::parseOrExpression() {
+        auto left = parseAndExpression();
         while (current_token.type == TOKEN_BOOL_OP && current_token.value == "||") {
             eat(TOKEN_BOOL_OP);
-            bool right = parseAndExpression(); 
-            result = result || right;
+            auto right = parseAndExpression();
+            left = std::make_unique<LogicalNode>(std::move(left), std::move(right), "||");
         }
-        return result;
+        return left;
     }
     
-    bool Parser::parseAndExpression() {
-        bool result = parsePrimary();
+    std::unique_ptr<ExprNode> Parser::parseAndExpression() {
+        auto left = parsePrimary();
         while (current_token.type == TOKEN_BOOL_OP && current_token.value == "&&") {
             eat(TOKEN_BOOL_OP);
-            bool right = parsePrimary();
-            result = result && right;
+            auto right = parsePrimary();
+            left = std::make_unique<LogicalNode>(std::move(left), std::move(right), "&&");
         }
-        return result;
+        return left;
     }
 
-    bool Parser::parsePrimary() {
+    std::unique_ptr<ExprNode> Parser::parsePrimary() {
         if (current_token.type == TOKEN_LPAREN) {
             eat(TOKEN_LPAREN);
-            bool result = parseBoolExpression();
-            if (current_token.type != TOKEN_RPAREN)
-                throw std::runtime_error("Missing closing parenthesis");
+
+            auto expr = parseBoolExpression();
+
             eat(TOKEN_RPAREN);
-            return result;
+            return expr;
         }
         return parseComparison();
     }
 
-    bool Parser::parseComparison() {
+    std::unique_ptr<ExprNode> Parser::parseComparison() {
         auto left = parseValue();
-        std::string op = current_token.value;
-        eat(TOKEN_OP);
-        auto right = parseValue();
+    
+        if (current_token.type == TOKEN_OP) { 
+            std::string op = current_token.value;
 
-        if (op == "==") return left == right;
-        if (op == "!=") return left != right;
-        if (op == ">") return left > right;
-        if (op == "<") return left < right;
-        if (op == ">=") return left >= right;
-        if (op == "<=") return left <= right;
-        
-        throw std::runtime_error("Invalid operator: " + op);
+            eat(TOKEN_OP);
+
+            auto right = parseValue();
+            return std::make_unique<CompareNode>(
+                std::move(left),
+                std::move(right),
+                op
+            );
+        }
+        return left;
     }
 
-    Parser::Value Parser::parseValue() {
-        Parser::Value v;
+    std::unique_ptr<ValueNode> Parser::parseValue() {
         if (current_token.type == TOKEN_NUMBER) {
-            v.data = std::stoi(current_token.value);
+            int value = std::stoi(current_token.value);
+
             eat(TOKEN_NUMBER);
-        } else if (current_token.type == TOKEN_STRING) {
-            v.data = current_token.value;
+            return std::make_unique<ValueNode>(value);
+        }
+        if (current_token.type == TOKEN_STRING) {
+            std::string str = current_token.value;
+
             eat(TOKEN_STRING);
-        } else 
-            throw std::runtime_error("Unexpected value type in condition");
-        return v;
+            return std::make_unique<ValueNode>(str);
+        }
+        if (current_token.type == TOKEN_BOOL_LIT) {
+            bool val = (current_token.value == "true");
+            
+            eat(TOKEN_BOOL_LIT);
+            return std::make_unique<ValueNode>(val ? 1 : 0);
+        }
+        throw std::runtime_error("Unexpected value type: " + current_token.value);
     }
 
-    std::string Parser::parseResult() {
-        std::string result;
-        while (current_token.type != TOKEN_COMMA && 
-               current_token.type != TOKEN_RBRACKET &&
-               current_token.type != TOKEN_EOF) {
-            if (current_token.type == TOKEN_IF)
-                result += parseIfStatement();
-            else {
-                result += current_token.value;
+    std::unique_ptr<ASTNode> Parser::parseResult(TokenType stopToken) {
+        auto tpl = std::make_unique<TemplateNode>();
+
+        std::string buffer;
+        while (current_token.type != stopToken && current_token.type != TOKEN_EOF) {
+            if (current_token.type == TOKEN_IF) {
+                if (!buffer.empty()) {
+                    tpl->addPart(std::make_unique<ValueNode>(buffer));
+                    buffer.clear();
+                }
+                tpl->addPart(parseIfStatement(stopToken));
+            } else {
+                buffer += current_token.value;
                 eat(current_token.type);
                 
-                if (current_token.type == TOKEN_IDENT || 
-                    current_token.type == TOKEN_STRING ||
-                    current_token.type == TOKEN_NUMBER) {
-                    result += " ";
-                }
+                if (shouldAddSpaceAfter(current_token.type))
+                    buffer += " ";
             }
         }
-        if (!result.empty() && result.back() == ' ')
-            result.pop_back();
-        return result;
+        if (!buffer.empty()) {
+            tpl->addPart(std::make_unique<ValueNode>(buffer));
+            buffer.clear();
+        }
+        
+        return tpl;
+    }
+
+    bool Parser::shouldAddSpaceAfter(TokenType type) {
+        static const std::set<TokenType> spaceAfterTokens = {
+            TOKEN_IDENT, TOKEN_NUMBER, TOKEN_STRING, TOKEN_BOOL_LIT
+        };
+        return spaceAfterTokens.count(type) > 0;
     }
 
     void Parser::eat(TokenType expected) {
@@ -123,7 +155,7 @@ namespace LOICollection::frontend {
     }
     
     std::string Parser::getTokenName(TokenType type) {
-        const char* names[] = {"IF", "(", ")", "[", "]", ",", "IDENT", "NUMBER", "STRING", "OP", "BOOL_OP", "EOF"};
+        const char* names[] = {"IF", "(", ")", "IDENT", "NUMBER", "STRING", "OP", "BOOL_OP", "EOF", "?", ":"};
         return names[type];
     }
 }

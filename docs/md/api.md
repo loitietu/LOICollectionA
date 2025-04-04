@@ -66,7 +66,7 @@
 ?> 在判断语句中是支持 `if` 嵌套的，但建议不要嵌套过多，否则会导致语句难以阅读
 
 ```text
-@if (condition) [result_yes, result_no]@
+@if (condition) ? result_yes : result_no@
 ```
 
 | 参数 | 备注 |
@@ -82,9 +82,9 @@
 !> 需要注意的是语句的原 `result` 无法解析特殊字符，需要将其整合为字符串类型
 
 ```text
-@if({player.ms.avg} <= 50)["§a",if({player.ms.avg} > 50 && {player.ms.avg} <= 250)["§e","§c"]]@{player.ms.avg}§bms
+@if({player.ms.avg} <= 50) ? "§a" : if({player.ms.avg} > 50 && {player.ms.avg} <= 250) ? "§e" : "§c"@{player.ms.avg}§bms
 ```
 
-- **当判断条件满足 `{player.ms.avg} <= 50` 时，其会返回 "<span class="green">20</span><span class="blue">ms</span>"**  
-- **当判断条件满足 `{player.ms.avg} > 50 && {player.ms.avg} <= 250` 时，其会返回 "<span class="orange">100</span><span class="blue">ms</span>"**  
-- **当判断条件不满足以上条件时，其会返回 "<span class="red">300</span><span class="blue">ms</span>"**
+- **当判断条件满足 `{player.ms.avg} <= 50` 时，其会返回 "<span class="green">{player.ms.avg}</span><span class="blue">ms</span>"**  
+- **当判断条件满足 `{player.ms.avg} > 50 && {player.ms.avg} <= 250` 时，其会返回 "<span class="orange">{player.ms.avg}</span><span class="blue">ms</span>"**  
+- **当判断条件不满足以上条件时，其会返回 "<span class="red">{player.ms.avg}</span><span class="blue">ms</span>"**

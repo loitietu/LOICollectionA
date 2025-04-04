@@ -1,9 +1,9 @@
 #pragma once
 
+#include <memory>
 #include <string>
-#include <stdexcept>
-#include <variant>
 
+#include "frontend/AST.h"
 #include "frontend/Lexer.h"
 
 namespace LOICollection::frontend {
@@ -16,47 +16,21 @@ namespace LOICollection::frontend {
             current_token = lexer.getNextToken();
         }
 
-        std::string parse();
+        std::unique_ptr<ASTNode> parse();
     private:
-        std::string parseIfStatement();
+        std::unique_ptr<IfNode> parseIfStatement(TokenType falsePartToken = TOKEN_EOF);
 
-        bool parseBoolExpression();
-        bool parseOrExpression();
-        bool parseAndExpression();
-        bool parsePrimary();
-        bool parseComparison();
+        std::unique_ptr<ExprNode> parseBoolExpression();
+        std::unique_ptr<ExprNode> parseOrExpression();
+        std::unique_ptr<ExprNode> parseAndExpression();
+        std::unique_ptr<ExprNode> parsePrimary();
+        std::unique_ptr<ExprNode> parseComparison();
 
-        struct Value {
-            std::variant<int, std::string> data;
-            
-            bool operator>(const Value& other) const {
-                if (auto l = std::get_if<int>(&data)) {
-                    if (auto r = std::get_if<int>(&other.data))
-                        return *l > *r;
-                }
-                throw std::runtime_error("> operator between incompatible types");
-            }
+        std::unique_ptr<ValueNode> parseValue();
 
-            bool operator<(const Value& other) const {
-                if (auto l = std::get_if<int>(&data)) {
-                    if (auto r = std::get_if<int>(&other.data))
-                        return *l < *r;
-                }
-                throw std::runtime_error("< operator between incompatible types");
-            }
+        std::unique_ptr<ASTNode> parseResult(TokenType stopToken = TOKEN_EOF); 
 
-            bool operator==(const Value& other) const {
-                return data == other.data;
-            }
-
-            bool operator!=(const Value& other) const { return !(*this == other); }
-            bool operator>=(const Value& other) const { return *this > other || *this == other; }
-            bool operator<=(const Value& other) const { return *this < other || *this == other; }
-        };
-
-        Value parseValue();
-
-        std::string parseResult();
+        bool shouldAddSpaceAfter(TokenType type);
 
         void eat(TokenType expected);
 
