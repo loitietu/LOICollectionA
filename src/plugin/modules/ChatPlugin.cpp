@@ -26,6 +26,8 @@
 #include <mc/world/actor/ActorDefinitionIdentifier.h>
 #include <mc/world/actor/player/Player.h>
 
+#include <mc/network/packet/TextPacket.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandSelector.h>
@@ -355,15 +357,17 @@ namespace LOICollection::Plugins::chat {
                     
                     std::string mChat = std::get<std::string>(mObjectOptions.at("chat"));
                     ll::string_utils::replaceAll(mChat, "${chat}", event.message());
-
                     LOICollectionAPI::translateString(mChat, event.self());
-                    McUtils::broadcastText(mChat, [&event](Player& player) -> bool {
-                        std::string mObject = event.self().getUuid().asString();
-                        std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-                        std::vector<std::string> mList = getBlacklist(player);
-                        return std::find(mList.begin(), mList.end(), mObject) == mList.end();
-                    });
+                    TextPacket packet = TextPacket::createChat(
+                        "", mChat, "", event.self().getXuid(), ""
+                    );
+
+                    for (Player*& player : McUtils::getAllPlayers()) {
+                        if (isBlacklist(*player, event.self()))
+                            continue;
+                        packet.sendTo(*player);
+                    }
                 }, ll::event::EventPriority::Normal
             );
         }
@@ -489,6 +493,18 @@ namespace LOICollection::Plugins::chat {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject + "$TITLE"))
             return db->has("OBJECT$" + mObject + "$TITLE", text);
+        return false;
+    }
+
+    bool isBlacklist(Player& player, Player& target) {
+        if (!isValid()) return false;
+
+        std::string mObject = player.getUuid().asString();
+        std::string mTargetObject = target.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
+        if (db->has("OBJECT$" + mObject + "$CHAT"))
+            return db->has("OBJECT$" + mObject + "$CHAT", mTargetObject);
         return false;
     }
 

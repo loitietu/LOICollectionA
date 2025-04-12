@@ -35,6 +35,7 @@ namespace LOICollection::Plugins::chat {
     LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(Player& player);
 
     LOICOLLECTION_A_NDAPI bool isChat(Player& player, const std::string& text); 
+    LOICOLLECTION_A_NDAPI bool isBlacklist(Player& player, Player& target);
     LOICOLLECTION_A_NDAPI bool isValid();
 
     LOICOLLECTION_A_API   void registery(void* database, std::map<std::string, std::variant<std::string, int>> options);

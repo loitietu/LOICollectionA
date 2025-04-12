@@ -30,9 +30,6 @@
 #include <mc/server/commands/ServerCommandOrigin.h>
 #include <mc/server/commands/MinecraftCommands.h>
 
-#include <mc/network/packet/TextPacket.h>
-#include <mc/network/packet/TextPacketType.h>
-
 #include "McUtils.h"
 
 namespace McUtils {
@@ -72,15 +69,6 @@ namespace McUtils {
         for (int count; mNumber > 0; mNumber -= count)
             mItemStacks.emplace_back(item).mCount = (uchar)(count = std::min(mNumber, 64));
         Util::LootTableUtils::givePlayer(player, mItemStacks, true);
-    }
-
-    void broadcastText(const std::string& text, std::function<bool(Player&)> filter) {
-        TextPacket packet = TextPacket::createSystemMessage(text);
-        ll::service::getLevel()->forEachPlayer([&packet, filter = std::move(filter)](Player& player) -> bool {
-            if (filter(player) && packet.isValid())
-                packet.sendTo(player);
-            return true;
-        });
     }
 
     std::vector<Player*> getAllPlayers() {

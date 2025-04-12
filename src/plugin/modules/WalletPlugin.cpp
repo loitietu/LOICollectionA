@@ -26,6 +26,8 @@
 #include <mc/world/actor/ActorDefinitionIdentifier.h>
 #include <mc/world/actor/player/Player.h>
 
+#include <mc/network/packet/TextPacket.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandSelector.h>
@@ -123,7 +125,7 @@ namespace LOICollection::Plugins::wallet {
                     McUtils::scoreboard::getScore(player,std::get<std::string>(mObjectOptions.at("score")))
                 )
             );
-            McUtils::broadcastText(LOICollectionAPI::translateString(mTipsString, player));
+            TextPacket::createSystemMessage(LOICollectionAPI::translateString(mTipsString, player)).sendToClients();
         }
 
         void open(Player& player) {

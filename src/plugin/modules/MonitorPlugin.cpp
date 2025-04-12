@@ -82,7 +82,7 @@ namespace LOICollection::Plugins::monitor {
                 if (std::get<bool>(options.at("ServerToast_Enabled"))) {
                     std::string mMonitorString = std::get<std::string>(options.at("ServerToast_JoinText"));
                     LOICollectionAPI::translateString(mMonitorString, event.self());
-                    McUtils::broadcastText(mMonitorString);
+                    TextPacket::createSystemMessage(mMonitorString).sendToClients();
                 }
             }
         );
@@ -95,7 +95,7 @@ namespace LOICollection::Plugins::monitor {
                 if (std::get<bool>(options.at("ServerToast_Enabled"))) {
                     std::string mMonitorString = std::get<std::string>(options.at("ServerToast_ExitText"));
                     LOICollectionAPI::translateString(mMonitorString, event.self());
-                    McUtils::broadcastText(mMonitorString);
+                    TextPacket::createSystemMessage(mMonitorString).sendToClients();
 
                     mInterceptTextObjectPacket.erase(std::remove(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), mUuid), mInterceptTextObjectPacket.end());
                 }
