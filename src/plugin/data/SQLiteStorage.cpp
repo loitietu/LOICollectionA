@@ -7,6 +7,10 @@
 
 #include "SQLiteStorage.h"
 
+SQLiteStorage::SQLiteStorage(const std::filesystem::path& dbPath) : database(dbPath.string(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
+    database.exec("VACUUM;");
+}
+
 void SQLiteStorage::create(std::string_view table) {
     database.exec("CREATE TABLE IF NOT EXISTS " + std::string(table) + " (key TEXT PRIMARY KEY, value TEXT);");
 }

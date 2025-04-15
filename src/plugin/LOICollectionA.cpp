@@ -80,6 +80,7 @@ namespace LOICollection {
         this->CdkDB = std::make_unique<JsonStorage>(configDataPath / "cdk.json");
         this->MenuDB = std::make_unique<JsonStorage>(configDataPath / "menu.json");
         this->ShopDB = std::make_unique<JsonStorage>(configDataPath / "shop.json");
+
         logger.info("Initialization of database completed.");
         
         std::filesystem::create_directory(langFilePath);
