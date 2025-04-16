@@ -8,6 +8,8 @@
 #include "SQLiteStorage.h"
 
 SQLiteStorage::SQLiteStorage(const std::filesystem::path& dbPath) : database(dbPath.string(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
+    database.exec("PRAGMA journal_mode = MEMORY;");
+    database.exec("PRAGMA synchronous = NORMAL;");
     database.exec("VACUUM;");
 }
 
