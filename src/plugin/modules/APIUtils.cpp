@@ -189,11 +189,11 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string(player.getNetworkStatus()->mCurrentPacketLoss);
         });
         registerVariable("server.tps", [](Player&) -> std::string {
-            double mMspt = ((double) ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count() / 1000000.0);
+            double mMspt = ((double) ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count() / 1e6);
             return std::to_string(mMspt <= 50.0 ? 20.0 : (double)(1000.0 / mMspt));
         });
         registerVariable("server.mspt", [](Player&) -> std::string { 
-            return std::to_string((double) ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count() / 1000000.0);
+            return std::to_string((double) ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count() / 1e6);
         });
         registerVariable("server.time", [](Player&) -> std::string {
             return SystemUtils::getNowTime();
@@ -260,8 +260,11 @@ namespace LOICollection::LOICollectionAPI {
 
         std::smatch mMatchVariable;
         std::smatch mMatchParameter;
-        std::regex mMatchVariableRegex("\\{(.*?)\\}");
-        std::regex mMatchParameterRegex("(.*?)\\((.*?)\\)");
+        std::smatch mMatchGrammar;
+
+        static const std::regex mMatchVariableRegex(R"(\{(.*?)\})");
+        static const std::regex mMatchParameterRegex(R"((.*?)\((.*?)\))");
+        static const std::regex mMatchGrammarRegex(R"(\@(.*?)\@)");
 
         while (std::regex_search(contentString, mMatchVariable, mMatchVariableRegex)) {
             std::string mVariableName = mMatchVariable.str(1);
@@ -281,9 +284,7 @@ namespace LOICollection::LOICollectionAPI {
             }
             contentString.replace(mMatchVariable.position(), mMatchVariable.length(), mVariableName);
         }
-
-        std::smatch mMatchGrammar;
-        std::regex mMatchGrammarRegex("\\@(.*?)\\@");
+        
         while (std::regex_search(contentString, mMatchGrammar, mMatchGrammarRegex)) {
             std::string mGrammarContent = mMatchGrammar.str(1);
             std::string mValue = tryGetGrammarResult(mGrammarContent);

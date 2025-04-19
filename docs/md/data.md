@@ -411,7 +411,11 @@
             "minecraft:apple": { // 物品 ID
                 "name": "apple", // 物品名称
                 "quantity": 1, // 物品数量
-                "specialvalue": 0 // 物品特殊值
+                "specialvalue": 0, // 物品特殊值
+                "type": "universal" // 物品解析类型
+            },
+            "{Count:2b,Damage:0s,Name:'minecraft:apple',WasPickedUp:0b}": {
+                "type": "nbt"
             }
         },
         "title": { // CDK 给予的称号（可选）

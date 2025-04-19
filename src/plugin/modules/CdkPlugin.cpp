@@ -13,8 +13,12 @@
 #include <ll/api/command/CommandRegistrar.h>
 #include <ll/api/utils/StringUtils.h>
 
+#include <mc/nbt/Tag.h>
+#include <mc/nbt/CompoundTag.h>
+
 #include <mc/world/item/ItemStack.h>
 #include <mc/world/actor/player/Player.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
@@ -151,22 +155,28 @@ namespace LOICollection::Plugins::cdk {
             
             ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
+            form.appendDropdown("dropdown1", tr(mObjectLanguage, "cdk.gui.remove.dropdown"), db->keys());
             form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.item.input1"), "", "minecraft:apple");
             form.appendInput("Input2", tr(mObjectLanguage, "cdk.gui.award.item.input2"), "", "apple");
             form.appendInput("Input3", tr(mObjectLanguage, "cdk.gui.award.item.input3"), "", "1");
             form.appendInput("Input4", tr(mObjectLanguage, "cdk.gui.award.item.input4"), "", "0");
+            form.appendDropdown("dropdown2", tr(mObjectLanguage, "cdk.gui.award.item.dropdown"), { "universal", "nbt" });
             form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::cdkAward(pl);
 
-                std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
+                std::string mObjectCdk = std::get<std::string>(dt->at("dropdown1"));
+                std::string mObjectType = std::get<std::string>(dt->at("dropdown2"));
 
                 nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
-                mObjectData["item"][std::get<std::string>(dt->at("Input1"))] = {
-                    { "name", std::get<std::string>(dt->at("Input2")) },
-                    { "quantity", SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 1) },
-                    { "specialvalue", SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0) }
-                };
+
+                std::string mItemId = std::get<std::string>(dt->at("Input1"));
+                if (mObjectType == "universal") {
+                    mObjectData["item"][mItemId]["name"] = std::get<std::string>(dt->at("Input2"));
+                    mObjectData["item"][mItemId]["quantity"] = SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 1);
+                    mObjectData["item"][mItemId]["specialvalue"] = SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
+                }
+                mObjectData["item"][mItemId]["type"] = mObjectType;
+
                 db->set(mObjectCdk, mObjectData);
                 db->save();
             });
@@ -299,12 +309,18 @@ namespace LOICollection::Plugins::cdk {
             for (nlohmann::ordered_json::iterator it = mScoreboardList.begin(); it != mScoreboardList.end(); ++it)
                 McUtils::scoreboard::addScore(player, it.key(), it.value().get<int>());
             for (nlohmann::ordered_json::iterator it = mItemList.begin(); it != mItemList.end(); ++it) {
-                Bedrock::Safety::RedactableString mRedactableString;
-                mRedactableString.mUnredactedString = it.value().value("name", "");
-                
-                ItemStack itemStack(it.key(), it.value().value("quantity", 1), it.value().value("specialvalue", 0), nullptr);
-                itemStack.setCustomName(mRedactableString);
-                McUtils::giveItem(player, itemStack, (int)itemStack.mCount);
+                if (it.value().value("type", "") == "nbt") {
+                    ItemStack itemStack = ItemStack::fromTag(CompoundTag::fromSnbt(it.key())->mTags);
+                    McUtils::giveItem(player, itemStack, (int)itemStack.mCount);
+                } else {
+                    Bedrock::Safety::RedactableString mRedactableString;
+                    mRedactableString.mUnredactedString = it.value().value("name", "");
+                    
+                    ItemStack itemStack(it.key(), 1, it.value().value("specialvalue", 0), nullptr);
+                    itemStack.setCustomName(mRedactableString);
+                    
+                    McUtils::giveItem(player, itemStack, it.value().value("quantity", 1));
+                }
                 player.refreshInventory();
             }
             if (cdkJson.value("personal", false)) db->remove(convertString);
