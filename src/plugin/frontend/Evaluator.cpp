@@ -12,22 +12,31 @@ namespace LOICollection::frontend {
     }
 
     Evaluator::Value Evaluator::evalExpr(const ExprNode& expr) {
-        if (const auto* v = dynamic_cast<const ValueNode*>(&expr)) {
-            return v->value;
-        } else if (const auto* cmp = dynamic_cast<const CompareNode*>(&expr)) {
-            Value left = evalExpr(*cmp->left);
-            Value right = evalExpr(*cmp->right);
-            return applyComparison(left, right, cmp->op);
-        } else if (const auto* log = dynamic_cast<const LogicalNode*>(&expr)) {
-            bool left = valueToBool(evalExpr(*log->left));
+        switch (expr.getType()) {
+            case ASTNode::Type::Value: {
+                const auto& v = static_cast<const ValueNode&>(expr);
+                return v.value;
+            }
+            case ASTNode::Type::Compare: {
+                const auto& cmp = static_cast<const CompareNode&>(expr);
+                Value left = evalExpr(*cmp.left);
+                Value right = evalExpr(*cmp.right);
+                return applyComparison(left, right, cmp.op);
+            }
+            case ASTNode::Type::Logical: {
+                const auto& log = static_cast<const LogicalNode&>(expr);
+                
+                bool left = valueToBool(evalExpr(*log.left));
+
+                if (log.op == "&&" && !left) return false;
+                if (log.op == "||" && left) return true;
             
-            if (log->op == "&&" && !left) return false;
-            if (log->op == "||" && left) return true;
-            
-            bool right = valueToBool(evalExpr(*log->right));
-            return (log->op == "&&") ? (left && right) : (left || right);
+                bool right = valueToBool(evalExpr(*log.right));
+                return (log.op == "&&") ? (left && right) : (left || right);
+            }
+            default:
+                throw std::runtime_error("Unsupported expression node type");
         }
-        throw std::runtime_error("Unsupported expression node type");
     }
 
     bool Evaluator::evalCondition(const ExprNode& expr) {
@@ -42,16 +51,24 @@ namespace LOICollection::frontend {
     }
 
     std::string Evaluator::evalNode(const ASTNode& node) {
-        if (const auto* val = dynamic_cast<const ValueNode*>(&node)) {
-            return valueToString(val->value);
-        } else if (const auto* ifNode = dynamic_cast<const IfNode*>(&node)) {
-            return evalCondition(*ifNode->condition) ? 
-                evalNode(*ifNode->trueBranch) : 
-                evalNode(*ifNode->falseBranch);
-        } else if (const auto* tpl = dynamic_cast<const TemplateNode*>(&node)) {
-            return evalTemplate(*tpl);
+        switch (node.getType()) {
+            case ASTNode::Type::Value: {
+                const auto& val = static_cast<const ValueNode&>(node);
+                return valueToString(val.value);
+            }
+            case ASTNode::Type::If: {
+                const auto& ifNode = static_cast<const IfNode&>(node);
+                return evalCondition(*ifNode.condition) ? 
+                    evalNode(*ifNode.trueBranch) : 
+                    evalNode(*ifNode.falseBranch);
+            }
+            case ASTNode::Type::Template: {
+                const auto& tpl = static_cast<const TemplateNode&>(node);
+                return evalTemplate(tpl);
+            }
+            default:
+                throw std::runtime_error("Unsupported AST node type");
         }
-        throw std::runtime_error("Unsupported AST node type");
     }
 
     std::string Evaluator::valueToString(const Value& val) {

@@ -248,8 +248,7 @@ namespace LOICollection::LOICollectionAPI {
         frontend::Lexer mLexer(contentString);
         frontend::Parser mParser(mLexer);
         frontend::Evaluator mEvaluator;
-        auto mResult = mParser.parse();
-        return mEvaluator.evaluate(*mResult);
+        return mEvaluator.evaluate(*mParser.parse());
     } catch (...) {
         return "None";
     }
@@ -291,6 +290,7 @@ namespace LOICollection::LOICollectionAPI {
 
             contentString.replace(mMatchGrammar.position(), mMatchGrammar.length(), mValue);
         };
+
         return contentString;
     }
 

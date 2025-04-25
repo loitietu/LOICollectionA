@@ -59,6 +59,7 @@ namespace LOICollection::Plugins::monitor {
             ll::coro::keepThis([options]() -> ll::coro::CoroTask<> {
                 while (BelowNameTaskRunning) {
                     co_await ll::chrono::ticks(std::get<int>(options.at("BelowName_RefreshInterval")));
+
                     for (Player*& player : McUtils::getAllPlayers()) {
                         std::string mMonitorString = std::get<std::string>(options.at("BelowName_Text"));
                         LOICollectionAPI::translateString(mMonitorString, *player);

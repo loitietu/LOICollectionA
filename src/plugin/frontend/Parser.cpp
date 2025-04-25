@@ -155,7 +155,7 @@ namespace LOICollection::frontend {
     }
     
     std::string Parser::getTokenName(TokenType type) {
-        const char* names[] = {"IF", "(", ")", "IDENT", "NUMBER", "STRING", "OP", "BOOL_OP", "EOF", "?", ":"};
+        const char* names[] = {"IF", "(", ")", "IDENT", "NUMBER", "STRING", "OP", "BOOL_OP", "EOF", "?", ":", "BOOL_LIT"};
         return names[type];
     }
 }
