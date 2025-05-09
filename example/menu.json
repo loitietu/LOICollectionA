@@ -6,7 +6,21 @@
         "NoPermission": "execute as ${player} run say You do not have permission to use this button",
         "NoScore": "execute as ${player} run say You do not have enough score to use this button",
         "type": "Simple",
-        "button": [
+        "customize": [
+            {
+                "title": "Header",
+                "id": "Header",
+                "type": "header"
+            },
+            {
+                "title": "Label",
+                "id": "Label",
+                "type": "label"
+            },
+            {
+                "id": "Divider",
+                "type": "divider"
+            },
             {
                 "title": "Button 1",
                 "image": "",
@@ -92,9 +106,18 @@
         "type": "Custom",
         "customize": [
             {
+                "title": "Test is a Header",
+                "id": "Header",
+                "type": "header"
+            },
+            {
                 "title": "This is a Menu 2",
                 "id": "Label",
                 "type": "Label"
+            },
+            {
+                "id": "Divider",
+                "type": "divider"
             },
             {
                 "title": "This is a Input",

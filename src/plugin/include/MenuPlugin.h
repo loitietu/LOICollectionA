@@ -33,9 +33,8 @@ namespace LOICollection::Plugins::menu {
         LOICOLLECTION_A_API void open(Player& player, std::string uiName);
     }
 
-    LOICOLLECTION_A_API   void logicalExecution(Player& player, nlohmann::ordered_json data, const nlohmann::ordered_json& original);
+    LOICOLLECTION_A_API   void handleAction(Player& player, const nlohmann::ordered_json& action, const nlohmann::ordered_json& original);
 
-    LOICOLLECTION_A_NDAPI bool checkModifiedData(Player& player, nlohmann::ordered_json& data);
     LOICOLLECTION_A_NDAPI bool isValid();
 
     LOICOLLECTION_A_API   void registery(void* database, std::map<std::string, std::string>& options);

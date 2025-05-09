@@ -99,7 +99,7 @@
 ?> 通常情况下，您不需要手动修改数据文件，因为在使用 `LOICollectionA` 的过程中，对于指定数据文件是存在内部编辑器的，您可以通过它们进行更加快捷的编辑。
 
 ### menu.json 
-> 以下是为 LOICollectionA 1.4.9 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。 
+> 以下是为 LOICollectionA 1.6.4 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。 
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `menu.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#menu) 进行编辑
@@ -115,6 +115,20 @@
         "NoScore": "execute as ${player} run say You do not have enough score to use this button", // 使用部分按钮时，玩家没有足够 Score 时所执行命令
         "type": "Simple", // 表单类型 （Simple 类似于按钮列表）
         "button": [ // 按钮列表
+            {
+                "title": "Header", // 控件标题
+                "id": "Header", // 控件 ID（不可重复）
+                "type": "header" // 控件类型（header 为标题）
+            },
+            {
+                "title": "Label", // 控件标题
+                "id": "Label", // 控件 ID（不可重复）
+                "type": "label" // 控件类型（label 为标签）
+            },
+            {
+                "id": "Divider", // 控件 ID（不可重复）
+                "type": "divider" // 控件类型（divider 为分割线）
+            },
             {
                 "title": "Button 1", // 按钮标题
                 "image": "",  // 按钮图标（可选，只支持 path 类型）
@@ -200,9 +214,18 @@
         "type": "Custom", // 表单类型 （Custom 类似于自定义表单）
         "customize": [ // 自定义表单组件列表
             {
+                "title": "Test is a Header", // 组件标题
+                "id": "Header", // 组件 ID（不可重复）
+                "type": "header" // 组件类型（header 为标题）
+            },
+            {
                 "title": "This is a Menu 2", // 组件标题
                 "id": "Label", // 组件 ID（不可重复）
                 "type": "Label" // 组件类型（Label 为标签）
+            },
+            {
+                "id": "Divider", // 组件 ID（不可重复）
+                "type": "divider" // 组件类型（divider 为分割线）
             },
             {
                 "title": "This is a Input",
