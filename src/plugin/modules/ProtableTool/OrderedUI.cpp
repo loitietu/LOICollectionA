@@ -76,7 +76,7 @@ LL_TYPE_INSTANCE_HOOK(
 
     origin(identifier, callback, packet);
     auto it = std::prev(mFormLists[identifierHash].end());
-    ModalFormRequestPacket(it->first, it->second).sendToClient(identifier, packet->mClientSubId);
+    ModalFormRequestPacket(it->first, it->second).sendToClient(identifier, packet->mSenderSubId);
     mFormLists[identifierHash].erase(it);
 };
 

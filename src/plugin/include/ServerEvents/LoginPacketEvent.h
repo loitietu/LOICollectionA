@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 
 #include <ll/api/event/Event.h>
 
@@ -26,8 +27,8 @@ namespace LOICollection::ServerEvents {
             const NetworkIdentifier& networkIdentifier,
             const ConnectionRequest& connectionRequest,
             const mce::UUID& uuid,
-            const std::string& ipAndPort
-        ) : mNetworkIdentifier(networkIdentifier), mConnectionRequest(connectionRequest) , mUUID(uuid), mIpAndPort(ipAndPort) {}
+            std::string ipAndPort
+        ) : mNetworkIdentifier(networkIdentifier), mConnectionRequest(connectionRequest) , mUUID(uuid), mIpAndPort(std::move(ipAndPort)) {}
 
         LOICOLLECTION_A_NDAPI const NetworkIdentifier& getNetworkIdentifier() const;
         LOICOLLECTION_A_NDAPI const ConnectionRequest& getConnectionRequest() const;

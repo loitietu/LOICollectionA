@@ -35,7 +35,6 @@
     "version": 164,
     "ConsoleLanguage": "system",
     "Plugins": {
-        "FakeSeed": "$random",
         "language": {
             "FileUpdate": true
         },

@@ -258,12 +258,10 @@ namespace LOICollection::LOICollectionAPI {
             return contentString;
 
         std::smatch mMatchVariable;
-        std::smatch mMatchParameter;
         std::smatch mMatchGrammar;
 
-        static const std::regex mMatchVariableRegex(R"(\{(.*?)\})");
-        static const std::regex mMatchParameterRegex(R"((.*?)\((.*?)\))");
-        static const std::regex mMatchGrammarRegex(R"(\@(.*?)\@)");
+        static const std::regex mMatchVariableRegex(R"(\{([^{}]+)\})");
+        static const std::regex mMatchGrammarRegex(R"(@([^@]+)@)");
 
         while (std::regex_search(contentString, mMatchVariable, mMatchVariableRegex)) {
             std::string mVariableName = mMatchVariable.str(1);
@@ -272,9 +270,9 @@ namespace LOICollection::LOICollectionAPI {
                 contentString.replace(mMatchVariable.position(), mMatchVariable.length(), mValue);
                 continue;
             }
-            if (std::regex_match(mVariableName, mMatchParameter, mMatchParameterRegex)) {
-                std::string mVariableParameterName = mMatchParameter.str(1);
-                std::string mVariableParameterValue = mMatchParameter.str(2);
+            if (mVariableName.find('(') != std::string::npos && mVariableName.back() == ')') {
+                std::string mVariableParameterName = mVariableName.substr(0, mVariableName.find('('));
+                std::string mVariableParameterValue = mVariableName.substr(mVariableName.find('(') + 1, mVariableName.length() - mVariableName.find('(') - 2);
                 if (auto it = mVariableMapParameter.find(mVariableParameterName); it != mVariableMapParameter.end()) {
                     std::string mValue = getValueForVariable(mVariableParameterName, player, mVariableParameterValue);
                     contentString.replace(mMatchVariable.position(), mMatchVariable.length(), mValue);
