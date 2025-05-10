@@ -114,7 +114,7 @@
         "NoPermission": "execute as ${player} run say You do not have permission to use this button", // 使用部分按钮时，玩家没有权限时所执行命令
         "NoScore": "execute as ${player} run say You do not have enough score to use this button", // 使用部分按钮时，玩家没有足够 Score 时所执行命令
         "type": "Simple", // 表单类型 （Simple 类似于按钮列表）
-        "button": [ // 按钮列表
+        "customize": [ // 按钮列表
             {
                 "title": "Header", // 控件标题
                 "id": "Header", // 控件 ID（不可重复）
