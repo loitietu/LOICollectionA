@@ -45,7 +45,7 @@ namespace LOICollection::ServerEvents {
         bool knock,
         bool ignite
     ) {
-        if (!this->isPlayer() || !source.isEntitySource())
+        if (!this->isPlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
             return origin(source, damage, knock, ignite);
         Actor* mSource = ll::service::getLevel()->fetchEntity(
             source.isChildEntitySource() ? source.getEntityUniqueID() : source.getDamagingEntityUniqueID(), false
@@ -71,7 +71,7 @@ namespace LOICollection::ServerEvents {
         bool knock,
         bool ignite
     ) {
-        if (!this->isPlayer() || !source.isEntitySource())
+        if (!this->isPlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
             return origin(source, damage, knock, ignite);
         Actor* mSource = ll::service::getLevel()->fetchEntity(
             source.isChildEntitySource() ? source.getEntityUniqueID() : source.getDamagingEntityUniqueID(), false
@@ -95,7 +95,7 @@ namespace LOICollection::ServerEvents {
         ActorDamageSource const& source,
         float damage
     ) {
-        if (!this->isPlayer() || !source.isEntitySource())
+        if (!this->isPlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
             return origin(source, damage);
         Actor* mSource = ll::service::getLevel()->fetchEntity(
             source.isChildEntitySource() ? source.getEntityUniqueID() : source.getDamagingEntityUniqueID(), false
