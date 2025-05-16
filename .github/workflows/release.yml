@@ -1,0 +1,199 @@
+name: Release Workflow
+
+on:
+    release:
+        types: [published]
+
+jobs:
+    build:
+        strategy:
+            fail-fast: false
+            matrix:
+                shared:
+                    - true
+                    - false
+                mode:
+                    - debug
+                    - release
+
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: xmake-io/github-action-setup-xmake@v1
+            - uses: actions/cache@v4
+              with:
+                path: |
+                    ~/AppData/Local/.xmake
+                key: xmake-${{ hashFiles('xmake.lua') }}
+                restore-keys: |
+                    xmake-
+            
+            - run: |
+                xmake repo -u
+            
+            - run: |
+                xmake lua scripts/project.lua
+            
+            - run: |
+                xmake f -a x64 -m ${{ matrix.mode }} -p windows -v -y --shared=${{ matrix.shared }}
+            
+            - run: |
+                xmake -v -y
+            
+            - run: |
+                mkdir -p build/bin/SDK/include/base
+                mkdir -p build/bin/SDK/lib
+            
+            - run: |
+                xcopy /E /I "${{ github.workspace }}\src\plugin\data\*.h" "${{ github.workspace }}\build\bin\SDK\include"
+                xcopy /E /I "${{ github.workspace }}\src\plugin\include\*.h" "${{ github.workspace }}\build\bin\SDK\include"
+            
+            - run: |
+                copy "${{ github.workspace }}\*.md" "${{ github.workspace }}\build\bin"
+                copy "${{ github.workspace }}\src\plugin\base\Macro.h" "${{ github.workspace }}\build\bin\SDK\include\base"
+                copy "${{ github.workspace }}\build\windows\*.lib" "${{ github.workspace }}\build\bin\SDK\lib"
+
+            - uses: actions/upload-artifact@v4
+              with:
+                name: ${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}${{ matrix.mode }}-windows-x64-${{ github.sha }}
+                path: |
+                    build/bin/
+
+    generate-notes:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                fetch-depth: 0
+
+            - name: Determine Release Tags
+              id: get-tags
+              run: |
+                set -eo pipefail
+                TAGS=$(git tag --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')
+                if [ -z "$TAGS" ]; then
+                    echo "previous_tag=$(git rev-list --max-parents=0 HEAD)" >> $GITHUB_OUTPUT
+                    echo "current_tag=HEAD" >> $GITHUB_OUTPUT
+                else
+                    LATEST_TAG=$(echo "$TAGS" | head -n1)
+                    PREV_TAG=$(echo "$TAGS" | sed -n 2p)
+                    if [ -z "$PREV_TAG" ]; then
+                    PREV_TAG=$(git describe --tags --abbrev=0 $LATEST_TAG^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
+                    fi
+                    echo "current_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+                    echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+                fi
+
+            - name: Extract Conventional Commits
+              id: extract-commits
+              run: |
+                set -eo pipefail
+                declare -A categories=(
+                    ["feat"]="Features" ["fix"]="Bug Fixes" ["docs"]="Documentation"
+                    ["perf"]="Performance" ["refactor"]="Refactors" ["chore"]="Maintenance"
+                    ["revert"]="Reverts" ["ci"]="CI/CD" ["build"]="Build System"
+                    ["style"]="Code Style" ["test"]="Tests"
+                )
+
+                mapfile -t COMMITS < <(git log --pretty=format:"%s||%h||%an" ${{ steps.get-tags.outputs.previous_tag }}..${{ steps.get-tags.outputs.current_tag }})
+                echo "" > categorized.txt
+
+                for type in "${!categories[@]}"; do
+                    filtered=$(printf "%s\n" "${COMMITS[@]}" | grep -iE "^$type(\(.*\))?:")
+                    if [ -n "$filtered" ]; then
+                    notes=$(echo "$filtered" | awk -F'||' -v type="$type" '{
+                        gsub(/^[^:]+:/, "", $1);
+                        print "- " $1 " (`" $2 "` by " $3 ")"
+                    }')
+                    echo "${categories[$type]}||$notes" >> categorized.txt
+                    fi
+                done
+
+                breaking=$(printf "%s\n" "${COMMITS[@]}" | grep -i "BREAKING CHANGE:" | sed 's/.*BREAKING CHANGE: //')
+                if [ -n "$breaking" ]; then
+                    echo "BREAKING CHANGES||$breaking" >> categorized.txt
+                fi
+
+                echo "categorized=$(cat categorized.txt)" >> $GITHUB_OUTPUT
+
+            - name: Compile Release Notes
+              id: compile-notes
+              run: |
+                set -eo pipefail
+                NOTES="## ${{ steps.get-tags.outputs.current_tag }} Release Notes\n\n"
+                NOTES+="**Date:** $(date -u +'%Y-%m-%d')\n\n"
+                NOTES+="**Compare:** ${{ steps.get-tags.outputs.previous_tag }}...${{ steps.get-tags.outputs.current_tag }}\n\n"
+
+                PRIORITY_ORDER=(
+                    "BREAKING CHANGES" "Features" "Bug Fixes" "Performance"
+                    "Refactors" "Documentation" "CI/CD" "Build System"
+                    "Tests" "Code Style" "Maintenance" "Reverts"
+                )
+
+                declare -A sorted_categories
+                while IFS= read -r entry; do
+                    if [[ -n "$entry" ]]; then
+                    category=$(echo "$entry" | cut -d'||' -f1)
+                    content=$(echo "$entry" | cut -d'||' -f2-)
+                    sorted_categories["$category"]="$content"
+                    fi
+                done <<< "$(cat categorized.txt)"
+
+                for category in "${PRIORITY_ORDER[@]}"; do
+                    if [[ -n "${sorted_categories[$category]}" ]]; then
+                    NOTES+="### ${category}\n${sorted_categories[$category]}\n\n"
+                    fi
+                done
+
+                NOTES+="---\n*Generated from [Conventional Commits](https://www.conventionalcommits.org/)*"
+                echo "release-notes=${NOTES}" >> $GITHUB_OUTPUT
+
+            - uses: softprops/action-gh-release@v2
+              with:
+                body: |-
+                    ${{ steps.compile-notes.outputs.release-notes }}
+
+                    | File | SHA256 |
+                    | ---- | ------ |
+
+    upload-release-notes:
+        needs: 
+            - build
+            - generate-notes
+        permissions:
+            contents: write
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                shared: 
+                    - true
+                    - false
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Download Artifact
+              uses: actions/download-artifact@v4
+              with:
+                name: ${{ github.event.repository.name }}-${{ matrix.shared && '' || 'ES-' }}release-windows-x64-${{ github.sha }}
+                path: artifact
+
+            - name: Create ZIP Archive
+              run: |
+                zip -r ../${{ github.event.repository.name }}-${{ matrix.shared && '' || 'ES-' }}release-windows-x64.zip *
+              working-directory: artifact
+
+            - name: Calculate SHA256
+              id: sha256
+              run: |
+                echo "release=$(sha256sum ${{ github.event.repository.name }}-${{ matrix.shared && '' || 'ES-' }}release-windows-x64.zip | awk '{print $1}')" >> $GITHUB_OUTPUT
+
+            - name: Update Release Assets
+              uses: softprops/action-gh-release@v2
+              with:
+                append_body: true
+                body: |-
+                    | ${{ github.event.repository.name }}-${{ matrix.shared && '' || 'ES-' }}release-windows-x64.zip | ${{ steps.sha256.outputs.release }} |
+                files: |
+                    ${{ github.event.repository.name }}-${{ matrix.shared && '' || 'ES-' }}release-windows-x64.zip
