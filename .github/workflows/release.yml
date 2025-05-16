@@ -60,7 +60,7 @@ jobs:
                     build/bin/
 
     generate-notes:
-        runs-on: ubuntu-latest
+        runs-on: windows-latest
         permissions:
             contents: write
         outputs:
@@ -75,89 +75,135 @@ jobs:
             - name: Determine Release Tags
               id: get-tags
               run: |
-                set -euo pipefail
-                TAGS=$(git tag --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')
-                if [ -z "$TAGS" ]; then
-                    echo "::error::No valid semantic tags (vX.Y.Z) found. Release aborted."
+                $ErrorActionPreference = 'Stop'
+
+                $tags = git tag --sort=-creatordate | Where-Object { $_ -match '^v\d+\.\d+\.\d+$' }
+
+                if (-not $tags) {
+                    Write-Error "::error::No valid semantic tags (vX.Y.Z) found. Release aborted."
                     exit 1
-                else
-                    LATEST_TAG=$(echo "$TAGS" | head -n1)
-                    PREV_TAG=$(echo "$TAGS" | sed -n 2p)
-                    if [ -z "$PREV_TAG" ]; then
-                        PREV_TAG=$(git rev-list --max-parents=0 HEAD)
-                    fi
-                    echo "current_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-                    echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
-                fi
+                } else {
+                    $latestTag = $tags[0]
+                    
+                    if ($tags.Count -gt 1) {
+                        $prevTag = $tags[1]
+                    } else {
+                        $prevTag = git rev-list --max-parents=0 HEAD
+                    }
+
+                    "current_tag=$latestTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+                    "previous_tag=$prevTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+                }
 
             - name: Extract Conventional Commits
               id: extract-commits
               run: |
-                set -euo pipefail
-                declare -A categories=(
-                    ["feat"]="Features" ["fix"]="Bug Fixes" ["docs"]="Documentation"
-                    ["perf"]="Performance" ["refactor"]="Refactors" ["chore"]="Maintenance"
-                    ["revert"]="Reverts" ["ci"]="CI/CD" ["build"]="Build System"
-                    ["style"]="Code Style" ["test"]="Tests"
-                )
+                $ErrorActionPreference = 'Stop'
 
-                COMMITS=()
-                while IFS= read -r line; do
-                    COMMITS+=("$line")
-                done < <(git log --pretty=format:"%s\x1F%h\x1F%an" ${{ steps.get-tags.outputs.previous_tag }}..${{ steps.get-tags.outputs.current_tag }})
+                $categories = @{
+                    "feat"     = "Features"
+                    "fix"      = "Bug Fixes"
+                    "docs"     = "Documentation"
+                    "perf"     = "Performance"
+                    "refactor" = "Refactors"
+                    "chore"    = "Maintenance"
+                    "revert"   = "Reverts"
+                    "ci"       = "CI/CD"
+                    "build"    = "Build System"
+                    "style"    = "Code Style"
+                    "test"     = "Tests"
+                }
 
-                echo "" > categorized.txt
+                $separator = [char]0x1F
 
-                for type in "${!categories[@]}"; do
-                    filtered=$(printf "%s\n" "${COMMITS[@]}" | grep -iE "^$type(\([a-zA-Z0-9-]+\))?:")
-                    if [ -n "$filtered" ]; then
-                        notes=$(echo "$filtered" | awk -F'\x1F' -v type="$type" '{
-                            gsub(/^[^:]+:/, "", $1);
-                            print "- " $1 " (`" $2 "` by " $3 ")"
-                        }')
-                        echo "${categories[$type]}||$notes" >> categorized.txt
-                    fi
-                done
+                $format = "%s${separator}%h${separator}%an"
+                $commits = git log --pretty=format:$format "${{ steps.get-tags.outputs.previous_tag }}..${{ steps.get-tags.outputs.current_tag }}"
+                $commitList = $commits -Split "`n"
 
-                breaking=$(git log --pretty=format:"%B" ${{ steps.get-tags.outputs.previous_tag }}..${{ steps.get-tags.outputs.current_tag }} \
-                    | awk '/BREAKING CHANGE:/ {flag=1; next} flag {if (NF==0) exit; print "- " $0}')
-                if [ -n "$breaking" ]; then
-                    echo "BREAKING CHANGES||$breaking" >> categorized.txt
-                fi
+                "" | Out-File categorized.txt -Encoding utf8
 
-                echo "categorized=$(cat categorized.txt)" >> $GITHUB_OUTPUT
+                foreach ($type in $categories.Keys) {
+                    $filtered = $commitList | Where-Object { $_ -imatch "^$type(\([a-zA-Z0-9-]+\))?:" }
+                    
+                    if ($filtered) {
+                        $notes = $filtered | ForEach-Object {
+                            $parts = $_ -Split $separator
+                            $message = $parts[0] -ireplace "^$type(\([^\)]+\))?:", ""
+                            $message = $message.Trim()
+                            "- ${message} ``$($parts[1])`` by $($parts[2])"
+                        }
+                        
+                        "$($categories[$type])||$($notes -Join "`n")" | Out-File -Append categorized.txt -Encoding utf8
+                    }
+                }
+
+                $breaking = git log --pretty=format:"%B" "${{ steps.get-tags.outputs.previous_tag }}..${{ steps.get-tags.outputs.current_tag }}" | ForEach-Object {
+                    if ($_ -match "BREAKING CHANGE:") { 
+                        $capture = $true
+                        ""
+                    } elseif ($capture) {
+                        if ($_.Trim() -eq "") { $capture = $false }
+                        else { "- $_" }
+                    }
+                } | Where-Object { $_ }
+
+                if ($breaking) {
+                    "BREAKING CHANGES||$($breaking -Join "`n")" | Out-File -Append categorized.txt -Encoding utf8
+                }
+
+                "categorized=$(Get-Content categorized.txt -Raw | Out-String)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
             - name: Compile Release Notes
               id: compile-notes
               run: |
-                set -euo pipefail
-                NOTES="## ${{ steps.get-tags.outputs.current_tag }} Release Notes\n\n"
-                NOTES+="**Date:** $(date -u +'%Y-%m-%d')\n\n"
-                NOTES+="**Compare:** ${{ steps.get-tags.outputs.previous_tag }}...${{ steps.get-tags.outputs.current_tag }}\n\n"
+                $ErrorActionPreference = 'Stop'
 
-                PRIORITY_ORDER=(
-                    "BREAKING CHANGES" "Features" "Bug Fixes" "Performance"
-                    "Refactors" "Documentation" "CI/CD" "Build System"
-                    "Tests" "Code Style" "Maintenance" "Reverts"
+                $NOTES = "## ${{ steps.get-tags.outputs.current_tag }} Release Notes`n`n"
+                $NOTES += "**Date:** $(Get-Date -Format 'yyyy-MM-dd')`n`n"
+                $NOTES += "**Compare:** ${{ steps.get-tags.outputs.previous_tag }}...${{ steps.get-tags.outputs.current_tag }}`n`n"
+
+                $priorityOrder = @(
+                    "BREAKING CHANGES", "Features", "Bug Fixes", "Performance",
+                    "Refactors", "Documentation", "CI/CD", "Build System",
+                    "Tests", "Code Style", "Maintenance", "Reverts"
                 )
 
-                declare -A sorted_categories
-                while IFS= read -r entry; do
-                    if [[ -n "$entry" ]]; then
-                        category=$(echo "$entry" | cut -d'||' -f1)
-                        content=$(echo "$entry" | cut -d'||' -f2-)
-                        sorted_categories["$category"]="$content"
-                    fi
-                done <<< "$(cat categorized.txt)"
+                $sortedCategories = @{}
+                $currentCategory = $null
 
-                for category in "${PRIORITY_ORDER[@]}"; do
-                    if [[ -n "${sorted_categories[$category]}" ]]; then
-                        NOTES+="### ${category}\n${sorted_categories[$category]}\n\n"
-                    fi
-                done
+                Get-Content .\categorized.txt -Encoding UTF8 | 
+                Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | 
+                ForEach-Object {
+                    $line = $_.Trim()
+                    
+                    if ($line -match '^(.*?)\|\|(.*)') {
+                        $currentCategory = $Matches[1].Trim()
+                        $content = $Matches[2].Trim()
+                        
+                        if (-not $sortedCategories.ContainsKey($currentCategory)) {
+                            $sortedCategories[$currentCategory] = @()
+                        }
+                        $sortedCategories[$currentCategory] += "- $content"
+                    } else {
+                        if ($currentCategory -ne $null) {
+                            $sortedCategories[$currentCategory] += "- $line"
+                        }
+                    }
+                }
 
-                NOTES+="---\n*Generated from [Conventional Commits](https://www.conventionalcommits.org/)*"
-                echo "release-notes=${NOTES}" >> $GITHUB_OUTPUT
+                foreach ($category in $priorityOrder) {
+                    if ($sortedCategories.ContainsKey($category) -and $sortedCategories[$category].Count -gt 0) {
+                        $NOTES += "### $category`n$($sortedCategories[$category] -join "`n")`n`n"
+                    }
+                }
+
+                $sortedCategories.Keys | Where-Object { $priorityOrder -notcontains $_ } | ForEach-Object {
+                    $NOTES += "### $_`n$($sortedCategories[$_] -join "`n")`n`n"
+                }
+
+                $NOTES += "---`n*Generated from [Conventional Commits](https://www.conventionalcommits.org/)*"
+
+                "release-notes=$NOTES" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
             - uses: softprops/action-gh-release@v2
               with:
