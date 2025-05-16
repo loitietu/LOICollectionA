@@ -80,7 +80,7 @@ jobs:
                     LATEST_TAG=$(echo "$TAGS" | head -n1)
                     PREV_TAG=$(echo "$TAGS" | sed -n 2p)
                     if [ -z "$PREV_TAG" ]; then
-                    PREV_TAG=$(git describe --tags --abbrev=0 $LATEST_TAG^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
+                        PREV_TAG=$(git describe --tags --abbrev=0 $LATEST_TAG^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
                     fi
                     echo "current_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
                     echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
@@ -103,11 +103,11 @@ jobs:
                 for type in "${!categories[@]}"; do
                     filtered=$(printf "%s\n" "${COMMITS[@]}" | grep -iE "^$type(\(.*\))?:")
                     if [ -n "$filtered" ]; then
-                    notes=$(echo "$filtered" | awk -F'||' -v type="$type" '{
-                        gsub(/^[^:]+:/, "", $1);
-                        print "- " $1 " (`" $2 "` by " $3 ")"
-                    }')
-                    echo "${categories[$type]}||$notes" >> categorized.txt
+                        notes=$(echo "$filtered" | awk -F'||' -v type="$type" '{
+                            gsub(/^[^:]+:/, "", $1);
+                            print "- " $1 " (`" $2 "` by " $3 ")"
+                        }')
+                        echo "${categories[$type]}||$notes" >> categorized.txt
                     fi
                 done
 
@@ -135,15 +135,15 @@ jobs:
                 declare -A sorted_categories
                 while IFS= read -r entry; do
                     if [[ -n "$entry" ]]; then
-                    category=$(echo "$entry" | cut -d'||' -f1)
-                    content=$(echo "$entry" | cut -d'||' -f2-)
-                    sorted_categories["$category"]="$content"
+                        category=$(echo "$entry" | cut -d'||' -f1)
+                        content=$(echo "$entry" | cut -d'||' -f2-)
+                        sorted_categories["$category"]="$content"
                     fi
                 done <<< "$(cat categorized.txt)"
 
                 for category in "${PRIORITY_ORDER[@]}"; do
                     if [[ -n "${sorted_categories[$category]}" ]]; then
-                    NOTES+="### ${category}\n${sorted_categories[$category]}\n\n"
+                        NOTES+="### ${category}\n${sorted_categories[$category]}\n\n"
                     fi
                 done
 
