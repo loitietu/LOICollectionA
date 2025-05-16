@@ -45,13 +45,13 @@ jobs:
                 mkdir -p build/bin/SDK/lib
             
             - run: |
-                xcopy /E /I "${{ github.workspace }}\src\plugin\data\*.h" "${{ github.workspace }}\build\bin\SDK\include"
-                xcopy /E /I "${{ github.workspace }}\src\plugin\include\*.h" "${{ github.workspace }}\build\bin\SDK\include"
-            
+                xcopy /E /I "${{ github.workspace }}/src/plugin/data/*.h" "${{ github.workspace }}/build/bin/SDK/include"
+                xcopy /E /I "${{ github.workspace }}/src/plugin/include/*.h" "${{ github.workspace }}/build/bin/SDK/include"
+
             - run: |
-                copy "${{ github.workspace }}\*.md" "${{ github.workspace }}\build\bin"
-                copy "${{ github.workspace }}\src\plugin\base\Macro.h" "${{ github.workspace }}\build\bin\SDK\include\base"
-                copy "${{ github.workspace }}\build\windows\*.lib" "${{ github.workspace }}\build\bin\SDK\lib"
+                copy "${{ github.workspace }}/*.md" "${{ github.workspace }}/build/bin"
+                copy "${{ github.workspace }}/src/plugin/base/Macro.h" "${{ github.workspace }}/build/bin/SDK/include/base"
+                copy "${{ github.workspace }}/build/windows/*.lib" "${{ github.workspace }}/build/bin/SDK/lib"
 
             - uses: actions/upload-artifact@v4
               with:
@@ -63,6 +63,10 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: write
+        outputs:
+            release-notes: ${{ steps.compile-notes.outputs.release-notes }}
+            current_tag: ${{ steps.get-tags.outputs.current_tag }}
+            previous_tag: ${{ steps.get-tags.outputs.previous_tag }}
         steps:
             - uses: actions/checkout@v4
               with:
@@ -71,16 +75,16 @@ jobs:
             - name: Determine Release Tags
               id: get-tags
               run: |
-                set -eo pipefail
+                set -euo pipefail
                 TAGS=$(git tag --sort=-creatordate | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')
                 if [ -z "$TAGS" ]; then
-                    echo "previous_tag=$(git rev-list --max-parents=0 HEAD)" >> $GITHUB_OUTPUT
-                    echo "current_tag=HEAD" >> $GITHUB_OUTPUT
+                    echo "::error::No valid semantic tags (vX.Y.Z) found. Release aborted."
+                    exit 1
                 else
                     LATEST_TAG=$(echo "$TAGS" | head -n1)
                     PREV_TAG=$(echo "$TAGS" | sed -n 2p)
                     if [ -z "$PREV_TAG" ]; then
-                        PREV_TAG=$(git describe --tags --abbrev=0 $LATEST_TAG^ 2>/dev/null || git rev-list --max-parents=0 HEAD)
+                        PREV_TAG=$(git rev-list --max-parents=0 HEAD)
                     fi
                     echo "current_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
                     echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
@@ -89,7 +93,7 @@ jobs:
             - name: Extract Conventional Commits
               id: extract-commits
               run: |
-                set -eo pipefail
+                set -euo pipefail
                 declare -A categories=(
                     ["feat"]="Features" ["fix"]="Bug Fixes" ["docs"]="Documentation"
                     ["perf"]="Performance" ["refactor"]="Refactors" ["chore"]="Maintenance"
@@ -97,13 +101,17 @@ jobs:
                     ["style"]="Code Style" ["test"]="Tests"
                 )
 
-                mapfile -t COMMITS < <(git log --pretty=format:"%s||%h||%an" ${{ steps.get-tags.outputs.previous_tag }}..${{ steps.get-tags.outputs.current_tag }})
+                COMMITS=()
+                while IFS= read -r line; do
+                    COMMITS+=("$line")
+                done < <(git log --pretty=format:"%s\x1F%h\x1F%an" ${{ steps.get-tags.outputs.previous_tag }}..${{ steps.get-tags.outputs.current_tag }})
+
                 echo "" > categorized.txt
 
                 for type in "${!categories[@]}"; do
-                    filtered=$(printf "%s\n" "${COMMITS[@]}" | grep -iE "^$type(\(.*\))?:")
+                    filtered=$(printf "%s\n" "${COMMITS[@]}" | grep -iE "^$type(\([a-zA-Z0-9-]+\))?:")
                     if [ -n "$filtered" ]; then
-                        notes=$(echo "$filtered" | awk -F'||' -v type="$type" '{
+                        notes=$(echo "$filtered" | awk -F'\x1F' -v type="$type" '{
                             gsub(/^[^:]+:/, "", $1);
                             print "- " $1 " (`" $2 "` by " $3 ")"
                         }')
@@ -111,7 +119,8 @@ jobs:
                     fi
                 done
 
-                breaking=$(printf "%s\n" "${COMMITS[@]}" | grep -i "BREAKING CHANGE:" | sed 's/.*BREAKING CHANGE: //')
+                breaking=$(git log --pretty=format:"%B" ${{ steps.get-tags.outputs.previous_tag }}..${{ steps.get-tags.outputs.current_tag }} \
+                    | awk '/BREAKING CHANGE:/ {flag=1; next} flag {if (NF==0) exit; print "- " $0}')
                 if [ -n "$breaking" ]; then
                     echo "BREAKING CHANGES||$breaking" >> categorized.txt
                 fi
@@ -121,7 +130,7 @@ jobs:
             - name: Compile Release Notes
               id: compile-notes
               run: |
-                set -eo pipefail
+                set -euo pipefail
                 NOTES="## ${{ steps.get-tags.outputs.current_tag }} Release Notes\n\n"
                 NOTES+="**Date:** $(date -u +'%Y-%m-%d')\n\n"
                 NOTES+="**Compare:** ${{ steps.get-tags.outputs.previous_tag }}...${{ steps.get-tags.outputs.current_tag }}\n\n"
