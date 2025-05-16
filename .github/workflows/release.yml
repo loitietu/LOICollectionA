@@ -45,13 +45,13 @@ jobs:
                 mkdir -p build/bin/SDK/lib
             
             - run: |
-                xcopy /E /I "${{ github.workspace }}/src/plugin/data/*.h" "${{ github.workspace }}/build/bin/SDK/include"
-                xcopy /E /I "${{ github.workspace }}/src/plugin/include/*.h" "${{ github.workspace }}/build/bin/SDK/include"
+                xcopy /E /I "${{ github.workspace }}\src\plugin\data\*.h" "${{ github.workspace }}\build\bin\SDK\include\"
+                xcopy /E /I "${{ github.workspace }}\src\plugin\include\*.h" "${{ github.workspace }}\build\bin\SDK\include\"
 
             - run: |
-                copy "${{ github.workspace }}/*.md" "${{ github.workspace }}/build/bin"
-                copy "${{ github.workspace }}/src/plugin/base/Macro.h" "${{ github.workspace }}/build/bin/SDK/include/base"
-                copy "${{ github.workspace }}/build/windows/*.lib" "${{ github.workspace }}/build/bin/SDK/lib"
+                copy "${{ github.workspace }}\*.md" "${{ github.workspace }}\build\bin\"
+                copy "${{ github.workspace }}\src\plugin\base\Macro.h" "${{ github.workspace }}\build\bin\SDK\include\base\"
+                copy "${{ github.workspace }}\build\windows\*.lib" "${{ github.workspace }}\build\bin\SDK\lib\"
 
             - uses: actions/upload-artifact@v4
               with:
@@ -130,7 +130,7 @@ jobs:
                             $parts = $_ -Split $separator
                             $message = $parts[0] -ireplace "^$type(\([^\)]+\))?:", ""
                             $message = $message.Trim()
-                            "- ${message} ``$($parts[1])`` by $($parts[2])"
+                            "- ${message} ```$($parts[1])``` by $($parts[2])"
                         }
                         
                         "$($categories[$type])||$($notes -Join "`n")" | Out-File -Append categorized.txt -Encoding utf8
