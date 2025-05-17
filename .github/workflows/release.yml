@@ -12,9 +12,6 @@ jobs:
                 shared:
                     - true
                     - false
-                mode:
-                    - debug
-                    - release
 
         runs-on: windows-latest
         steps:
@@ -35,7 +32,7 @@ jobs:
                 xmake lua scripts/project.lua
             
             - run: |
-                xmake f -a x64 -m ${{ matrix.mode }} -p windows -v -y --shared=${{ matrix.shared }}
+                xmake f -a x64 -m release -p windows -v -y --shared=${{ matrix.shared }}
             
             - run: |
                 xmake -v -y
@@ -56,7 +53,7 @@ jobs:
 
             - uses: actions/upload-artifact@v4
               with:
-                name: ${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}${{ matrix.mode }}-windows-x64-${{ github.sha }}
+                name: ${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}release-windows-x64-${{ github.sha }}
                 path: |
                     build/bin/
 
