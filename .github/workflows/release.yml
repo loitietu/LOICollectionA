@@ -75,6 +75,7 @@ jobs:
 
             - name: Determine Release Tags
               id: get-tags
+              shell: pwsh
               run: |
                 $ErrorActionPreference = 'Stop'
 
@@ -98,6 +99,7 @@ jobs:
 
             - name: Extract Conventional Commits
               id: extract-commits
+              shell: pwsh
               run: |
                 $ErrorActionPreference = 'Stop'
 
@@ -131,7 +133,7 @@ jobs:
                             $parts = $_ -Split $separator
                             $message = $parts[0] -ireplace "^$type(\([^\)]+\))?:", ""
                             $message = $message.Trim()
-                            '- ' + $message + ' ``' + $parts[1] + '`` by ' + $parts[2]
+                            '- ' + $message + ' `' + $parts[1] + '` by ' + $parts[2]
                         }
                         
                         "$($categories[$type])||$($notes -Join "`n")" | Out-File -Append categorized.txt -Encoding utf8
@@ -156,6 +158,7 @@ jobs:
 
             - name: Compile Release Notes
               id: compile-notes
+              shell: pwsh
               run: |
                 $ErrorActionPreference = 'Stop'
 
