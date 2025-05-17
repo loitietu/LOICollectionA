@@ -78,6 +78,7 @@ jobs:
               shell: pwsh
               run: |
                 $ErrorActionPreference = 'Stop'
+                $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
 
                 $tags = git tag --sort=-creatordate | Where-Object { $_ -match '^v\d+\.\d+\.\d+$' }
 
@@ -93,8 +94,8 @@ jobs:
                         $prevTag = git rev-list --max-parents=0 HEAD
                     }
 
-                    "current_tag=$latestTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-                    "previous_tag=$prevTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+                    "current_tag=$latestTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+                    "previous_tag=$prevTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
                 }
 
             - name: Extract Conventional Commits
@@ -102,6 +103,7 @@ jobs:
               shell: pwsh
               run: |
                 $ErrorActionPreference = 'Stop'
+                $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
 
                 $categories = @{
                     "feat"     = "Features"
@@ -123,7 +125,7 @@ jobs:
                 $commits = git log --pretty=format:$format "${{ steps.get-tags.outputs.previous_tag }}..${{ steps.get-tags.outputs.current_tag }}"
                 $commitList = $commits -Split "`n"
 
-                "" | Out-File categorized.txt -Encoding utf8
+                "" | Out-File categorized.txt
 
                 foreach ($type in $categories.Keys) {
                     $filtered = $commitList | Where-Object { $_ -imatch "^$type(\([a-zA-Z0-9-]+\))?:" }
@@ -136,7 +138,7 @@ jobs:
                             '- ' + $message + ' `' + $parts[1] + '` by ' + $parts[2]
                         }
                         
-                        "$($categories[$type])||$($notes -Join "`n")" | Out-File -Append categorized.txt -Encoding utf8
+                        "$($categories[$type])||$($notes -Join "`n")" | Out-File -Append categorized.txt
                     }
                 }
 
@@ -151,16 +153,20 @@ jobs:
                 } | Where-Object { $_ }
 
                 if ($breaking) {
-                    "BREAKING CHANGES||$($breaking -Join "`n")" | Out-File -Append categorized.txt -Encoding utf8
+                    "BREAKING CHANGES||$($breaking -Join "`n")" | Out-File -Append categorized.txt
                 }
 
-                "categorized=$(Get-Content categorized.txt -Raw | Out-String -Width 9999)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+                $EOF = (New-Guid).Guid
+                "categorized<<$EOF" >> $env:GITHUB_OUTPUT
+                $(Get-Content categorized.txt -Raw | Out-String -Width 9999) >> $env:GITHUB_OUTPUT
+                "$EOF" >> $env:GITHUB_OUTPUT
 
             - name: Compile Release Notes
               id: compile-notes
               shell: pwsh
               run: |
                 $ErrorActionPreference = 'Stop'
+                $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
 
                 $NOTES = "## ${{ steps.get-tags.outputs.current_tag }} Release Notes`n`n"
                 $NOTES += "**Date:** $(Get-Date -Format 'yyyy-MM-dd')`n`n"
@@ -175,7 +181,7 @@ jobs:
                 $sortedCategories = @{}
                 $currentCategory = $null
 
-                Get-Content .\categorized.txt -Encoding UTF8 | 
+                Get-Content .\categorized.txt | 
                 Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | 
                 ForEach-Object {
                     $line = $_.Trim()
@@ -207,7 +213,10 @@ jobs:
 
                 $NOTES += "---`n*Generated from [Conventional Commits](https://www.conventionalcommits.org/)*"
 
-                "release-notes=$NOTES" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+                $EOF = (New-Guid).Guid
+                "release-notes<<$EOF" >> $env:GITHUB_OUTPUT 
+                $NOTES >> $env:GITHUB_OUTPUT
+                "$EOF" >> $env:GITHUB_OUTPUT
 
             - uses: softprops/action-gh-release@v2
               with:
