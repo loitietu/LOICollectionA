@@ -241,24 +241,24 @@ jobs:
             - name: Download Artifact
               uses: actions/download-artifact@v4
               with:
-                name: ${{ github.event.repository.name }}-${{ matrix.shared && '' || 'ES-' }}release-windows-x64-${{ github.sha }}
+                name: ${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}release-windows-x64-${{ github.sha }}
                 path: artifact
 
             - name: Create ZIP Archive
               run: |
-                zip -r ../${{ github.event.repository.name }}-${{ matrix.shared && '' || 'ES-' }}release-windows-x64.zip *
+                zip -r ../${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}release-windows-x64.zip *
               working-directory: artifact
 
             - name: Calculate SHA256
               id: sha256
               run: |
-                echo "release=$(sha256sum ${{ github.event.repository.name }}-${{ matrix.shared && '' || 'ES-' }}release-windows-x64.zip | awk '{print $1}')" >> $GITHUB_OUTPUT
+                echo "release=$(sha256sum ${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}release-windows-x64.zip | awk '{print $1}')" >> $GITHUB_OUTPUT
 
             - name: Update Release Assets
               uses: softprops/action-gh-release@v2
               with:
                 append_body: true
                 body: |-
-                    | ${{ github.event.repository.name }}-${{ matrix.shared && '' || 'ES-' }}release-windows-x64.zip | ${{ steps.sha256.outputs.release }} |
+                    | ${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}release-windows-x64.zip | ${{ steps.sha256.outputs.release }} |
                 files: |
-                    ${{ github.event.repository.name }}-${{ matrix.shared && '' || 'ES-' }}release-windows-x64.zip
+                    ${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}release-windows-x64.zip
