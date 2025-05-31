@@ -7,8 +7,8 @@
 
 #include <ll/api/coro/CoroTask.h>
 #include <ll/api/chrono/GameChrono.h>
-#include <ll/api/service/Bedrock.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
+#include <ll/api/service/Bedrock.h>
 #include <ll/api/utils/StringUtils.h>
 
 #include <ll/api/event/EventBus.h>
@@ -37,7 +37,7 @@
 #include "include/ServerEvents/LoginPacketEvent.h"
 #include "include/ServerEvents/PlayerScoreChangedEvent.h"
 
-#include "utils/McUtils.h"
+#include "utils/ScoreboardUtils.h"
 
 #include "include/MonitorPlugin.h"
 
@@ -60,16 +60,21 @@ namespace LOICollection::Plugins::monitor {
                 while (BelowNameTaskRunning) {
                     co_await ll::chrono::ticks(std::get<int>(options.at("BelowName_RefreshInterval")));
 
-                    for (Player*& player : McUtils::getAllPlayers()) {
-                        std::string mMonitorString = std::get<std::string>(options.at("BelowName_Text"));
-                        LOICollectionAPI::translateString(mMonitorString, *player);
+                    ll::service::getLevel()->forEachPlayer([options](Player& mTarget) -> bool {
+                        if (mTarget.isSimulatedPlayer())
+                            return true;
 
-                        SynchedActorDataEntityWrapper wrapper(player->getEntityContext());
-                        SetActorDataPacket packet(player->getRuntimeID(), wrapper, nullptr, 0, true);
+                        std::string mMonitorString = std::get<std::string>(options.at("BelowName_Text"));
+                        LOICollectionAPI::translateString(mMonitorString, mTarget);
+
+                        SynchedActorDataEntityWrapper wrapper(mTarget.getEntityContext());
+                        SetActorDataPacket packet(mTarget.getRuntimeID(), wrapper, nullptr, 0, true);
                         packet.mPackedItems = std::vector<std::unique_ptr<DataItem>>();
                         packet.mPackedItems.push_back(DataItem::create(ActorDataIDs::FilteredName, mMonitorString));
                         packet.sendToClients();
-                    }
+
+                        return true;
+                    });
                 }
             }).launch(ll::thread::ServerThreadExecutor::getDefault());
         }
@@ -114,7 +119,7 @@ namespace LOICollection::Plugins::monitor {
                 std::string mId = event.getObjective().mName;
                 ScoreChangedType mType = event.getScoreChangedType();
                 if (mObjectScoreboards.empty() || std::find(mObjectScoreboards.begin(), mObjectScoreboards.end(), mId) != mObjectScoreboards.end()) {
-                    int mOriScore = McUtils::scoreboard::getScore(event.self(), mId);
+                    int mOriScore = ScoreboardUtils::getScore(event.self(), mId);
                     std::string mChangedString = std::get<std::string>(options.at("ChangeScore_Text"));
                     ll::string_utils::replaceAll(mChangedString, "${Object}", mId);
                     ll::string_utils::replaceAll(mChangedString, "${OriMoney}", 

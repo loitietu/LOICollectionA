@@ -40,7 +40,6 @@
 #include "include/LanguagePlugin.h"
 #include "include/ServerEvents/LoginPacketEvent.h"
 
-#include "utils/McUtils.h"
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
@@ -109,11 +108,15 @@ namespace LOICollection::Plugins::blacklist {
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.add.title"),
                 tr(mObjectLanguage, "blacklist.gui.add.label"));
-            for (Player*& mTarget : McUtils::getAllPlayers()) {
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void  {
-                    MainGui::content(pl, *mTarget);
+            ll::service::getLevel()->forEachPlayer([&form](Player& mTarget) -> bool {
+                if (mTarget.isSimulatedPlayer())
+                    return true;
+
+                form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
+                    MainGui::content(pl, mTarget);
                 });
-            }
+                return true;
+            });
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::open(pl);
             });

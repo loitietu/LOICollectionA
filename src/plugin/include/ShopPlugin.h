@@ -30,6 +30,8 @@ namespace LOICollection::Plugins::shop {
         LOICOLLECTION_A_API void open(Player& player, std::string uiName);
     }
 
+    LOICOLLECTION_A_API   void executeCommand(Player& player, std::string cmd);
+
     LOICOLLECTION_A_NDAPI bool checkModifiedData(Player& player, nlohmann::ordered_json data, int number);
     LOICOLLECTION_A_NDAPI bool isValid();
 

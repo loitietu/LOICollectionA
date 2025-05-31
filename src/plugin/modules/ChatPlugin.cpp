@@ -23,6 +23,7 @@
 
 #include <mc/deps/core/string/HashedString.h>
 
+#include <mc/world/level/Level.h>
 #include <mc/world/actor/ActorDefinitionIdentifier.h>
 #include <mc/world/actor/player/Player.h>
 
@@ -38,7 +39,6 @@
 #include "include/LanguagePlugin.h"
 #include "include/MutePlugin.h"
 
-#include "utils/McUtils.h"
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
@@ -100,11 +100,15 @@ namespace LOICollection::Plugins::chat {
             std::string mObjectLanguage = getLanguage(player);
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.add.label"));
-            for (Player*& mTarget : McUtils::getAllPlayers()) {
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
-                    MainGui::contentAdd(pl, *mTarget);
+            ll::service::getLevel()->forEachPlayer([&form](Player& mTarget) -> bool {
+                if (mTarget.isSimulatedPlayer())
+                    return true;
+
+                form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
+                    MainGui::contentAdd(pl, mTarget);
                 });
-            }
+                return true;
+            });
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::open(pl);
             });
@@ -114,11 +118,15 @@ namespace LOICollection::Plugins::chat {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.remove.label"));
-            for (Player*& mTarget : McUtils::getAllPlayers()) {
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
-                    MainGui::contentRemove(pl, *mTarget);
+            ll::service::getLevel()->forEachPlayer([&form](Player& mTarget) -> bool {
+                if (mTarget.isSimulatedPlayer())
+                    return true;
+
+                form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
+                    MainGui::contentRemove(pl, mTarget);
                 });
-            }
+                return true;
+            });
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::open(pl);
             });
@@ -175,14 +183,15 @@ namespace LOICollection::Plugins::chat {
             }
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.setBlacklist.add.label"));
-            for (Player*& mTarget : McUtils::getAllPlayers()) {
-                if (mTarget->getUuid() == player.getUuid())
-                    continue;
-                
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
-                    addBlacklist(pl, *mTarget);
+            ll::service::getLevel()->forEachPlayer([&form, &player](Player& mTarget) -> bool {
+                if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
+                    return true;
+
+                form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
+                    addBlacklist(pl, mTarget);
                 });
-            }
+                return true;
+            });
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::blacklist(pl);
             });
@@ -363,11 +372,11 @@ namespace LOICollection::Plugins::chat {
                         "", mChat, "", event.self().getXuid(), ""
                     );
 
-                    for (Player*& player : McUtils::getAllPlayers()) {
-                        if (isBlacklist(*player, event.self()))
-                            continue;
-                        packet.sendTo(*player);
-                    }
+                    ll::service::getLevel()->forEachPlayer([packet, &player = event.self()](Player& mTarget) -> bool {
+                        if (!mTarget.isSimulatedPlayer() && !isBlacklist(mTarget, player))
+                            packet.sendTo(mTarget);
+                        return true;
+                    });
                 }, ll::event::EventPriority::Normal
             );
         }

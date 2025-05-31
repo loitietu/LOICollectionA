@@ -37,7 +37,7 @@
 #include "include/APIUtils.h"
 #include "include/LanguagePlugin.h"
 
-#include "utils/McUtils.h"
+#include "utils/ScoreboardUtils.h"
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
@@ -71,7 +71,7 @@ namespace LOICollection::Plugins::wallet {
 
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label") + "\n" + tr(mObjectLanguage, "wallet.gui.transfer.label2");
             ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%%");
-            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(McUtils::scoreboard::getScore(player, mScore)));
+            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(ScoreboardUtils::getScore(player, mScore)));
             ll::string_utils::replaceAll(mLabel, "${target}", mTargetName);
 
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
@@ -81,7 +81,7 @@ namespace LOICollection::Plugins::wallet {
                 if (!dt) return MainGui::transfer(pl, type);
 
                 int mMoney = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
-                if (McUtils::scoreboard::getScore(pl, mScore) < mMoney || mMoney <= 0)
+                if (ScoreboardUtils::getScore(pl, mScore) < mMoney || mMoney <= 0)
                     return pl.sendMessage(tr(getLanguage(pl), "wallet.tips"));
 
                 wallet::transfer(pl, target, mMoney, type);
@@ -100,11 +100,15 @@ namespace LOICollection::Plugins::wallet {
             ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), tr(mObjectLanguage, "wallet.gui.transfer.label1"));
             switch (type) {
                 case TransferType::online:
-                    for (Player*& mTarget : McUtils::getAllPlayers()) {
-                        form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
-                            MainGui::content(pl, mTarget->getUuid(), TransferType::online);
+                    ll::service::getLevel()->forEachPlayer([&form](Player& mTarget) -> bool {
+                        if (mTarget.isSimulatedPlayer())
+                            return true;
+
+                        form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
+                            MainGui::content(pl, mTarget.getUuid(), TransferType::online);
                         });
-                    }
+                        return true;
+                    });
                     break;
                 case TransferType::offline:
                     for (const ll::service::PlayerInfo::PlayerInfoEntry& mTarget : ll::service::PlayerInfo::getInstance().entries()) {
@@ -121,9 +125,7 @@ namespace LOICollection::Plugins::wallet {
 
         void wealth(Player& player) {
             std::string mTipsString = ll::string_utils::replaceAll(tr(getLanguage(player), "wallet.showOff"), 
-                "${money}", std::to_string(
-                    McUtils::scoreboard::getScore(player,std::get<std::string>(mObjectOptions.at("score")))
-                )
+                "${money}", std::to_string(ScoreboardUtils::getScore(player,std::get<std::string>(mObjectOptions.at("score"))))
             );
             TextPacket::createSystemMessage(LOICollectionAPI::translateString(mTipsString, player)).sendToClients();
         }
@@ -133,7 +135,7 @@ namespace LOICollection::Plugins::wallet {
 
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
             ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%%");
-            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(McUtils::scoreboard::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
+            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(ScoreboardUtils::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), mLabel);
             form.appendButton(tr(mObjectLanguage, "wallet.gui.transfer"), "textures/ui/MCoin", "path", [](Player& pl) -> void {
@@ -174,12 +176,12 @@ namespace LOICollection::Plugins::wallet {
                     return output.error(tr({}, "commands.generic.target"));
 
                 std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
-                if (McUtils::scoreboard::getScore(player, mScore) < (int)(results.size() * param.score) || param.score < 0)
+                if (ScoreboardUtils::getScore(player, mScore) < (int)(results.size() * param.score) || param.score < 0)
                     return output.error(tr({}, "commands.wallet.error.score"));
                 int mMoney = (param.score - (int)(param.score * std::get<double>(mObjectOptions.at("tax"))));
                 for (Player*& target : results)
-                    McUtils::scoreboard::addScore(*target, mScore, mMoney);
-                McUtils::scoreboard::reduceScore(player, mScore, (int)(results.size() * param.score));
+                    ScoreboardUtils::addScore(*target, mScore, mMoney);
+                ScoreboardUtils::reduceScore(player, mScore, (int)(results.size() * param.score));
 
                 output.success(fmt::runtime(tr({}, "commands.wallet.success.transfer")), param.score, results.size());
             });
@@ -209,7 +211,7 @@ namespace LOICollection::Plugins::wallet {
 
                     int mScore = SystemUtils::toInt(db->get("OBJECT$" + mObject, "Score"), 0);
                     if (mScore > 0) {
-                        McUtils::scoreboard::addScore(event.self(), std::get<std::string>(mObjectOptions.at("score")), mScore);
+                        ScoreboardUtils::addScore(event.self(), std::get<std::string>(mObjectOptions.at("score")), mScore);
                         db->set("OBJECT$" + mObject, "Score", "0");
                     }
                 }
@@ -221,10 +223,10 @@ namespace LOICollection::Plugins::wallet {
         std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
         int mTargetMoney = score - (int)(score * std::get<double>(mObjectOptions.at("tax")));
 
-        if (isReduce) McUtils::scoreboard::reduceScore(player, mScore, score);
+        if (isReduce) ScoreboardUtils::reduceScore(player, mScore, score);
         if (type == TransferType::online) {
             Player* mObject = ll::service::getLevel()->getPlayer(target);
-            McUtils::scoreboard::addScore(*mObject, mScore, mTargetMoney);
+            ScoreboardUtils::addScore(*mObject, mScore, mTargetMoney);
         } else {
             std::string mObject = target.asString();
             std::replace(mObject.begin(), mObject.end(), '-', '_');

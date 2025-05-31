@@ -22,6 +22,7 @@
 
 #include <mc/deps/core/string/HashedString.h>
 
+#include <mc/world/level/Level.h>
 #include <mc/world/actor/ActorDefinitionIdentifier.h>
 #include <mc/world/actor/player/Player.h>
 
@@ -34,7 +35,7 @@
 #include "include/APIUtils.h"
 #include "include/LanguagePlugin.h"
 
-#include "utils/McUtils.h"
+#include "utils/ScoreboardUtils.h"
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
@@ -114,14 +115,15 @@ namespace LOICollection::Plugins::tpa {
             }
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), tr(mObjectLanguage, "tpa.gui.setting.blacklist.add.label"));
-            for (Player*& mTarget : McUtils::getAllPlayers()) {
-                if (mTarget->getUuid() == player.getUuid())
-                    continue;
-                
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
-                    addBlacklist(pl, *mTarget);
+            ll::service::getLevel()->forEachPlayer([&form, &player](Player& mTarget) -> bool {
+                if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
+                    return true;
+
+                form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
+                    addBlacklist(pl, mTarget);
                 });
-            }
+                return true;
+            });
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::blacklist(pl);
             });
@@ -169,13 +171,13 @@ namespace LOICollection::Plugins::tpa {
 
             int mScore = std::get<int>(mObjectOptions.at("required"));
             std::string mScoreboard = std::get<std::string>(mObjectOptions.at("score"));
-            if (mScore && McUtils::scoreboard::getScore(player, mScoreboard) < mScore) {
+            if (mScore && ScoreboardUtils::getScore(player, mScoreboard) < mScore) {
                 player.sendMessage(ll::string_utils::replaceAll(
                     tr(getLanguage(player), "tpa.tips1"), "${score}", std::to_string(mScore)
                 ));
                 return;
             }
-            McUtils::scoreboard::reduceScore(player, mScoreboard, mScore);
+            ScoreboardUtils::reduceScore(player, mScoreboard, mScore);
 
             ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"), (type == TpaType::tpa)
                 ? LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player)
@@ -224,15 +226,16 @@ namespace LOICollection::Plugins::tpa {
             std::replace(mObject.begin(), mObject.end(), '-', '_');
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.title"), tr(mObjectLanguage, "tpa.gui.label2"));
-            for (Player*& mTarget : McUtils::getAllPlayers()) {
-                std::vector<std::string> mList = getBlacklist(*mTarget);
-                if (std::find(mList.begin(), mList.end(), mObject) != mList.end())
-                    continue;
+            ll::service::getLevel()->forEachPlayer([&form, mObject](Player& mTarget) -> bool {
+                std::vector<std::string> mList = getBlacklist(mTarget);
+                if (mTarget.isSimulatedPlayer() || std::find(mList.begin(), mList.end(), mObject) != mList.end())
+                    return true;
 
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
-                    MainGui::content(pl, *mTarget);
+                form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
+                    MainGui::content(pl, mTarget);
                 });
-            }
+                return true;
+            });
             form.sendTo(player);
         }
     }
@@ -258,7 +261,7 @@ namespace LOICollection::Plugins::tpa {
                 int mScore = std::get<int>(mObjectOptions.at("required"));
                 std::string mScoreboard = std::get<std::string>(mObjectOptions.at("score"));
                 for (Player*& pl : results) {
-                    if (McUtils::scoreboard::getScore(*pl, mScoreboard) < mScore) {
+                    if (ScoreboardUtils::getScore(*pl, mScoreboard) < mScore) {
                         output.error(fmt::runtime(tr({}, "commands.tpa.error.invite")), mScore);
                         break;
                     }

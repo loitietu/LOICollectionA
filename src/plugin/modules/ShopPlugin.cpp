@@ -20,12 +20,19 @@
 #include <mc/nbt/Tag.h>
 #include <mc/nbt/CompoundTag.h>
 
+#include <mc/world/Minecraft.h>
 #include <mc/world/item/ItemStack.h>
 #include <mc/world/actor/player/Player.h>
 
+#include <mc/deps/core/string/HashedString.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
+#include <mc/server/commands/CommandVersion.h>
+#include <mc/server/commands/CurrentCmdVersion.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
+#include <mc/server/commands/ServerCommandOrigin.h>
+#include <mc/server/commands/MinecraftCommands.h>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -34,7 +41,8 @@
 #include "include/LanguagePlugin.h"
 #include "include/ChatPlugin.h"
 
-#include "utils/McUtils.h"
+#include "utils/InventoryUtils.h"
+#include "utils/ScoreboardUtils.h"
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
@@ -352,7 +360,7 @@ namespace LOICollection::Plugins::shop {
                 });
             }
             form.sendTo(player, [data](Player& pl, int id, ll::form::FormCancelReason) -> void {
-                if (id == -1) return McUtils::executeCommand(pl, data.value("exit", ""));
+                if (id == -1) return executeCommand(pl, data.value("exit", ""));
             });
         }
 
@@ -361,7 +369,7 @@ namespace LOICollection::Plugins::shop {
             form.appendLabel(translateString(data.value("introduce", ""), player));
             form.appendInput("Input", translateString(data.value("number", ""), player), "", "1");
             form.sendTo(player, [data, original, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-                if (!dt) return McUtils::executeCommand(pl, original.value("exit", ""));
+                if (!dt) return executeCommand(pl, original.value("exit", ""));
 
                 int mNumber = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
                 if (mNumber > 2304 || mNumber <= 0)
@@ -370,21 +378,21 @@ namespace LOICollection::Plugins::shop {
                     if (checkModifiedData(pl, data, mNumber)) {
                         ItemStack itemStack = data.contains("nbt") ? ItemStack::fromTag(CompoundTag::fromSnbt(data.value("nbt", ""))->mTags)
                             : ItemStack(data.value("id", ""), 1, 0, nullptr);
-                        McUtils::giveItem(pl, itemStack, mNumber);
+                        InventoryUtils::giveItem(pl, itemStack, mNumber);
                         pl.refreshInventory();
                         return;
                     }
-                    return McUtils::executeCommand(pl, original.value("NoScore", ""));
+                    return executeCommand(pl, original.value("NoScore", ""));
                 }
-                if (McUtils::isItemPlayerInventory(pl, data.value("id", ""), mNumber)) {
+                if (InventoryUtils::isItemInInventory(pl, data.value("id", ""), mNumber)) {
                     nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json());
                     for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
-                        McUtils::scoreboard::addScore(pl, it.key(), (it.value().get<int>() * mNumber));
-                    McUtils::clearItem(pl, data.value("id", ""), mNumber);
+                        ScoreboardUtils::addScore(pl, it.key(), (it.value().get<int>() * mNumber));
+                    InventoryUtils::clearItem(pl, data.value("id", ""), mNumber);
                     pl.refreshInventory();
                     return;
                 }
-                McUtils::executeCommand(pl, original.value("NoItem", ""));
+                executeCommand(pl, original.value("NoItem", ""));
             });
         }
 
@@ -402,15 +410,15 @@ namespace LOICollection::Plugins::shop {
                                 return chat::addChat(pl, id, data.value("time", 0));
                             return chat::addChat(pl, id, 0);
                         }
-                        return McUtils::executeCommand(pl, original.value("NoScore", ""));
+                        return executeCommand(pl, original.value("NoScore", ""));
                     }
                     if (chat::isChat(pl, id)) {
                         nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json());
                         for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
-                            McUtils::scoreboard::addScore(pl, it.key(), it.value().get<int>());
+                            ScoreboardUtils::addScore(pl, it.key(), it.value().get<int>());
                         return chat::delChat(pl, id);
                     }
-                    McUtils::executeCommand(pl, original.value("NoTitle", ""));
+                    executeCommand(pl, original.value("NoTitle", ""));
                 }
             });
         }
@@ -468,16 +476,34 @@ namespace LOICollection::Plugins::shop {
         }
     }
 
+    void executeCommand(Player& player, std::string cmd) {
+        ll::string_utils::replaceAll(cmd, "${player}", std::string(player.mName));
+
+        ServerCommandOrigin origin = ServerCommandOrigin(
+            "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, player.getDimensionId()
+        );
+        Command* command = ll::service::getMinecraft()->mCommands->compileCommand(
+            HashedString(cmd), origin, (CurrentCmdVersion)CommandVersion::CurrentVersion(),
+            [&](std::string const& message) -> void {
+                logger->error(message + " >> Shop");
+            }
+        );
+        if (command) {
+            CommandOutput output(CommandOutputType::AllOutput);
+            command->run(origin, output);
+        }
+    }
+
     bool checkModifiedData(Player& player, nlohmann::ordered_json data, int number) {
         if (!data.contains("scores") || !isValid())
             return true;
 
         for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it) {
-            if ((it.value().get<int>() * number) > McUtils::scoreboard::getScore(player, it.key()))
+            if ((it.value().get<int>() * number) > ScoreboardUtils::getScore(player, it.key()))
                 return false;
         }
         for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
-            McUtils::scoreboard::reduceScore(player, it.key(), (it.value().get<int>() * number));
+            ScoreboardUtils::reduceScore(player, it.key(), (it.value().get<int>() * number));
         return true;
     }
 

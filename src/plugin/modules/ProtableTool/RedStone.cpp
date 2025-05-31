@@ -87,9 +87,9 @@ namespace LOICollection::ProtableTool::RedStone {
                 co_await ll::chrono::ticks(20);
                 if (mRedStoneMap.empty()) 
                     continue;
-                for (auto it = mRedStoneMap.begin(); it != mRedStoneMap.end(); ++it) {
-                    for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2)
-                        if (it2->second >= mRedStoneTick) ll::service::getLevel()->destroyBlock(getBlockSource(it->first), it2->first, true);
+                for (auto& it : mRedStoneMap) {
+                    for (auto it2 = it.second.begin(); it2 != it.second.end(); ++it2)
+                        if (it2->second >= mRedStoneTick) ll::service::getLevel()->destroyBlock(getBlockSource(it.first), it2->first, true);
                 }
                 mRedStoneMap.clear();
             }

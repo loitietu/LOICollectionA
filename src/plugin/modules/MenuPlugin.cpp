@@ -20,12 +20,19 @@
 #include <ll/api/utils/StringUtils.h>
 #include <ll/api/utils/HashUtils.h>
 
+#include <mc/world/Minecraft.h>
 #include <mc/world/item/ItemStack.h>
 #include <mc/world/actor/player/Player.h>
 
+#include <mc/deps/core/string/HashedString.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
+#include <mc/server/commands/CommandVersion.h>
+#include <mc/server/commands/CurrentCmdVersion.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
+#include <mc/server/commands/ServerCommandOrigin.h>
+#include <mc/server/commands/MinecraftCommands.h>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -33,7 +40,8 @@
 #include "include/APIUtils.h"
 #include "include/LanguagePlugin.h"
 
-#include "utils/McUtils.h"
+#include "utils/InventoryUtils.h"
+#include "utils/ScoreboardUtils.h"
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
@@ -459,7 +467,7 @@ namespace LOICollection::Plugins::menu {
                 }
             }
             form.sendTo(player, [mCustomData, data](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-                if (!dt) return McUtils::executeCommand(pl, data.value("exit", ""));
+                if (!dt) return executeCommand(pl, data.value("exit", ""));
 
                 nlohmann::ordered_json mCustom;
                 for (auto& item : mCustomData.items()) {
@@ -478,7 +486,7 @@ namespace LOICollection::Plugins::menu {
                             continue;
                         ll::string_utils::replaceAll(result, "{" + item.key() + "}", item.value().get<std::string>());
                     }
-                    McUtils::executeCommand(pl, result);
+                    executeCommand(pl, result);
                 }
             });
         }
@@ -506,7 +514,7 @@ namespace LOICollection::Plugins::menu {
                 }
             }
             form.sendTo(player, [data](Player& pl, int id, ll::form::FormCancelReason) -> void {
-                if (id == -1) return McUtils::executeCommand(pl, data.value("exit", ""));
+                if (id == -1) return executeCommand(pl, data.value("exit", ""));
             });
         }
 
@@ -533,7 +541,7 @@ namespace LOICollection::Plugins::menu {
                 if (data.empty()) return;
                 if (data.contains("permission")) {
                     if ((int) player.getCommandPermissionLevel() < data.value("permission", 0))
-                        return McUtils::executeCommand(player, data.value("NoPermission", ""));
+                        return executeCommand(player, data.value("NoPermission", ""));
                 }
                 
                 switch (ll::hash_utils::doHash(data.value("type", ""))) {
@@ -593,10 +601,10 @@ namespace LOICollection::Plugins::menu {
 
                 if (!itemStack || itemStack.isNull())
                     return output.error(tr({}, "commands.menu.error.item.null"));
-                if (McUtils::isItemPlayerInventory(player, mObjectOptions.at("MenuItemId"), 1))
+                if (InventoryUtils::isItemInInventory(player, mObjectOptions.at("MenuItemId"), 1))
                     return output.error(fmt::runtime(tr({}, "commands.menu.error.item.give")), player.getRealName());
 
-                McUtils::giveItem(player, itemStack, 1);
+                InventoryUtils::giveItem(player, itemStack, 1);
                 player.refreshInventory();
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -618,12 +626,30 @@ namespace LOICollection::Plugins::menu {
                     if (event.self().isSimulatedPlayer())
                         return;
                     ItemStack itemStack(mObjectOptions.at("MenuItemId"), 1, 0, nullptr);
-                    if (!itemStack || McUtils::isItemPlayerInventory(event.self(), mObjectOptions.at("MenuItemId"), 1))
+                    if (!itemStack || InventoryUtils::isItemInInventory(event.self(), mObjectOptions.at("MenuItemId"), 1))
                         return;
-                    McUtils::giveItem(event.self(), itemStack, 1);
+                    InventoryUtils::giveItem(event.self(), itemStack, 1);
                     event.self().refreshInventory();
                 }
             );
+        }
+    }
+
+    void executeCommand(Player& player, std::string cmd) {
+        ll::string_utils::replaceAll(cmd, "${player}", std::string(player.mName));
+
+        ServerCommandOrigin origin = ServerCommandOrigin(
+            "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, player.getDimensionId()
+        );
+        Command* command = ll::service::getMinecraft()->mCommands->compileCommand(
+            HashedString(cmd), origin, (CurrentCmdVersion)CommandVersion::CurrentVersion(),
+            [&](std::string const& message) -> void {
+                logger->error(message + " >> Menu");
+            }
+        );
+        if (command) {
+            CommandOutput output(CommandOutputType::AllOutput);
+            command->run(origin, output);
         }
     }
 
@@ -633,23 +659,23 @@ namespace LOICollection::Plugins::menu {
 
         if (action.contains("permission")) {
             if ((int) player.getCommandPermissionLevel() < action["permission"])
-                return McUtils::executeCommand(player, original.value("NoPermission", ""));
+                return executeCommand(player, original.value("NoPermission", ""));
         }
 
         if (action.contains("scores")) {
             for (const auto& [key, value] : action["scores"].items()) {
-                if (value.get<int>() > McUtils::scoreboard::getScore(player, key))
-                    return McUtils::executeCommand(player, original.value("NoScore", ""));
+                if (value.get<int>() > ScoreboardUtils::getScore(player, key))
+                    return executeCommand(player, original.value("NoScore", ""));
             }
             for (const auto& [key, value] : action["scores"].items())
-                McUtils::scoreboard::reduceScore(player, key, value.get<int>());
+                ScoreboardUtils::reduceScore(player, key, value.get<int>());
         }
 
         if (action.value("type", "") == "button") {
             if (action["command"].is_string())
-                return McUtils::executeCommand(player, action["command"].get<std::string>());
+                return executeCommand(player, action["command"].get<std::string>());
             for (const auto& cmd : action["command"])
-                McUtils::executeCommand(player, cmd.get<std::string>());
+                executeCommand(player, cmd.get<std::string>());
             return;
         }
         if (action.value("type", "") == "from")

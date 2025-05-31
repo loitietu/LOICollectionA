@@ -1,7 +1,7 @@
 {
     "format_version": 2,
     "tooth": "github.com/loitietu/LOICollectionA",
-    "version": "1.6.4",
+    "version": "1.6.5",
     "info": {
         "name": "LOICollectionA",
         "description": "Multifunctional plug-in set",

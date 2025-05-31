@@ -29,7 +29,6 @@
 #include "include/APIUtils.h"
 #include "include/LanguagePlugin.h"
 
-#include "utils/McUtils.h"
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 

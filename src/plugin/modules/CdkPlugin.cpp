@@ -32,7 +32,8 @@
 #include "include/LanguagePlugin.h"
 #include "include/ChatPlugin.h"
 
-#include "utils/McUtils.h"
+#include "utils/InventoryUtils.h"
+#include "utils/ScoreboardUtils.h"
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
@@ -307,11 +308,11 @@ namespace LOICollection::Plugins::cdk {
             nlohmann::ordered_json mItemList = cdkJson.value("item", defaultJson);
             nlohmann::ordered_json mScoreboardList = cdkJson.value("scores", defaultJson);
             for (nlohmann::ordered_json::iterator it = mScoreboardList.begin(); it != mScoreboardList.end(); ++it)
-                McUtils::scoreboard::addScore(player, it.key(), it.value().get<int>());
+                ScoreboardUtils::addScore(player, it.key(), it.value().get<int>());
             for (nlohmann::ordered_json::iterator it = mItemList.begin(); it != mItemList.end(); ++it) {
                 if (it.value().value("type", "") == "nbt") {
                     ItemStack itemStack = ItemStack::fromTag(CompoundTag::fromSnbt(it.key())->mTags);
-                    McUtils::giveItem(player, itemStack, (int)itemStack.mCount);
+                    InventoryUtils::giveItem(player, itemStack, (int)itemStack.mCount);
                 } else {
                     Bedrock::Safety::RedactableString mRedactableString;
                     mRedactableString.mUnredactedString = it.value().value("name", "");
@@ -319,7 +320,7 @@ namespace LOICollection::Plugins::cdk {
                     ItemStack itemStack(it.key(), 1, it.value().value("specialvalue", 0), nullptr);
                     itemStack.setCustomName(mRedactableString);
                     
-                    McUtils::giveItem(player, itemStack, it.value().value("quantity", 1));
+                    InventoryUtils::giveItem(player, itemStack, it.value().value("quantity", 1));
                 }
                 player.refreshInventory();
             }

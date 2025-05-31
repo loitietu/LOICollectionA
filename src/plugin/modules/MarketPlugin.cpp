@@ -38,7 +38,8 @@
 #include "include/APIUtils.h"
 #include "include/LanguagePlugin.h"
 
-#include "utils/McUtils.h"
+#include "utils/InventoryUtils.h"
+#include "utils/ScoreboardUtils.h"
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
@@ -72,13 +73,13 @@ namespace LOICollection::Plugins::market {
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.buy.button1"), [mItemId](Player& pl) -> void {
                 std::string mObjectScore = std::get<std::string>(mObjectOptions.at("score"));
                 int mScore = SystemUtils::toInt(db->get(mItemId, "score"), 0);
-                if (McUtils::scoreboard::getScore(pl, mObjectScore) >= mScore) {
-                    McUtils::scoreboard::reduceScore(pl, mObjectScore, mScore);
+                if (ScoreboardUtils::getScore(pl, mObjectScore) >= mScore) {
+                    ScoreboardUtils::reduceScore(pl, mObjectScore, mScore);
                     std::string mName = db->get(mItemId, "name");
                     std::string mNbt = db->get(mItemId, "nbt");
 
                     ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mNbt)->mTags);
-                    McUtils::giveItem(pl, mItemStack, (int)mItemStack.mCount);
+                    InventoryUtils::giveItem(pl, mItemStack, (int)mItemStack.mCount);
                     pl.refreshInventory();
 
                     Player* mPlayer = ll::service::getLevel()->getPlayer(db->get(mItemId, "player"));
@@ -90,7 +91,7 @@ namespace LOICollection::Plugins::market {
                     } else {
                         mPlayer->sendMessage(ll::string_utils::replaceAll(tr(getLanguage(pl),
                             "market.gui.sell.sellItem.tips1"), "${item}", mName));
-                        McUtils::scoreboard::addScore(*mPlayer, mObjectScore, mScore);
+                        ScoreboardUtils::addScore(*mPlayer, mObjectScore, mScore);
                     }
                     delItem(mItemId);
 
@@ -136,7 +137,7 @@ namespace LOICollection::Plugins::market {
                     "market.gui.sell.sellItem.tips2"), "${item}", mName));
                 
                 ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mNbt)->mTags);
-                McUtils::giveItem(pl, mItemStack, (int)mItemStack.mCount);
+                InventoryUtils::giveItem(pl, mItemStack, (int)mItemStack.mCount);
                 pl.refreshInventory();
                 delItem(mItemId);
 
@@ -281,14 +282,15 @@ namespace LOICollection::Plugins::market {
             }
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.sell.blacklist.add.label"));
-            for (Player*& mTarget : McUtils::getAllPlayers()) {
-                if (mTarget->getUuid() == player.getUuid())
-                    continue;
-                
-                form.appendButton(mTarget->getRealName(), [mTarget](Player& pl) -> void {
-                    addBlacklist(pl, *mTarget);
+            ll::service::getLevel()->forEachPlayer([&form, &player](Player& mTarget) -> bool {
+                if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
+                    return true;
+
+                form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
+                    addBlacklist(pl, mTarget);
                 });
-            }
+                return true;
+            });
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
                 if (id == -1) MainGui::blacklist(pl);
             });
@@ -394,7 +396,7 @@ namespace LOICollection::Plugins::market {
 
                     int mScore = SystemUtils::toInt(db2->get("OBJECT$" + mObject, "Score"), 0);
                     if (mScore > 0) {
-                        McUtils::scoreboard::addScore(event.self(), std::get<std::string>(mObjectOptions.at("score")), mScore);
+                        ScoreboardUtils::addScore(event.self(), std::get<std::string>(mObjectOptions.at("score")), mScore);
                         db2->set("OBJECT$" + mObject, "Score", "0");
                     }
                 }

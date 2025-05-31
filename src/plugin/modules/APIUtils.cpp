@@ -33,7 +33,7 @@
 #include "include/ChatPlugin.h"
 #include "include/LanguagePlugin.h"
 
-#include "utils/McUtils.h"
+#include "utils/ScoreboardUtils.h"
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
@@ -208,7 +208,7 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string(ll::service::getLevel()->getRuntimeActorList().size());
         });
         registerVariable("score", [](Player& player, const std::string& name) -> std::string {
-            return std::to_string(McUtils::scoreboard::getScore(player, name));
+            return std::to_string(ScoreboardUtils::getScore(player, name));
         });
         registerVariable("tr", [](Player& player, const std::string& name) -> std::string {
             return I18nUtils::getInstance()->get(Plugins::language::getLanguage(player), name);
