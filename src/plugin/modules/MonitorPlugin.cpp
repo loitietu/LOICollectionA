@@ -48,7 +48,7 @@ namespace LOICollection::Plugins::monitor {
     ll::event::ListenerPtr PlayerDisconnectEventListener;
     ll::event::ListenerPtr PlayerScoreChangedEventListener;
     ll::event::ListenerPtr LoginPacketEventListener;
-    ll::event::ListenerPtr ExecuteCommandEvent;
+    ll::event::ListenerPtr ExecuteCommandEventListener;
 
     ll::event::ListenerPtr TextPacketEventListener;
 
@@ -92,6 +92,7 @@ namespace LOICollection::Plugins::monitor {
                 }
             }
         );
+
         PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>(
             [options](ll::event::PlayerDisconnectEvent& event) -> void {
                 if (event.self().isSimulatedPlayer())
@@ -107,6 +108,7 @@ namespace LOICollection::Plugins::monitor {
                 }
             }
         );
+
         std::vector<std::string> mObjectScoreboards = std::get<std::vector<std::string>>(options.at("ChangeScore_Scores"));
         PlayerScoreChangedEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerScoreChangedEvent>(
             [options, mObjectScoreboards](LOICollection::ServerEvents::PlayerScoreChangedEvent& event) -> void {
@@ -134,8 +136,9 @@ namespace LOICollection::Plugins::monitor {
                 }
             }
         );
+
         std::vector<std::string> mObjectCommands = std::get<std::vector<std::string>>(options.at("DisableCommand_List"));
-        ExecuteCommandEvent = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>(
+        ExecuteCommandEventListener = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>(
             [mObjectCommands, options](ll::event::ExecutingCommandEvent& event) -> void {
                 if (!std::get<bool>(options.at("DisableCommand_Enabled")))
                     return;
@@ -152,6 +155,7 @@ namespace LOICollection::Plugins::monitor {
                 }
             }
         );
+
         LoginPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::LoginPacketEvent>(
             [options](LOICollection::ServerEvents::LoginPacketEvent& event) -> void {
                 if (std::get<bool>(options.at("ServerToast_Enabled")))
@@ -185,7 +189,7 @@ namespace LOICollection::Plugins::monitor {
         eventBus.removeListener(PlayerJoinEventListener);
         eventBus.removeListener(PlayerDisconnectEventListener);
         eventBus.removeListener(PlayerScoreChangedEventListener);
-        eventBus.removeListener(ExecuteCommandEvent);
+        eventBus.removeListener(ExecuteCommandEventListener);
         eventBus.removeListener(LoginPacketEventListener);
 
         eventBus.removeListener(TextPacketEventListener);

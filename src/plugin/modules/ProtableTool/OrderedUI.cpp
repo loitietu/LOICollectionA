@@ -52,7 +52,7 @@ LL_TYPE_INSTANCE_HOOK(
     ModalFormResponsePacketHook,
     HookPriority::Highest,
     PacketHandlerDispatcherInstance<ModalFormResponsePacket>,
-    &PacketHandlerDispatcherInstance<ModalFormResponsePacket>::handle,
+    &PacketHandlerDispatcherInstance<ModalFormResponsePacket>::$handle,
     void,
     NetworkIdentifier const& identifier,
     NetEventCallback& callback,
