@@ -54,12 +54,12 @@ namespace LOICollection::ServerEvents {
         &ServerNetworkHandler::$handle,
         void,
         NetworkIdentifier const& identifier,
-        LoginPacket const& packet
+        std::shared_ptr<::LoginPacket> packet
     ) {
         origin(identifier, packet);
 
         std::string ipAndPort = identifier.getIPAndPort();
-        ConnectionRequest* conn = packet.mConnectionRequest.get();
+        ConnectionRequest* conn = packet->mConnectionRequest.get();
         mce::UUID uuid = conn->mGameServerToken->getIdentity();
 
         LoginPacketEvent event(identifier, *conn, uuid, ipAndPort);
