@@ -6,6 +6,8 @@ on:
 
 jobs:
     build:
+        env:
+            sentry: ${{ secrets.SENTRY_DSN }} 
         strategy:
             fail-fast: false
             matrix:
@@ -40,6 +42,29 @@ jobs:
             - run: |
                 mkdir -p build/bin/SDK/include/base
                 mkdir -p build/bin/SDK/lib
+            
+            - name: Update manifest.json if Sentry DSN exists
+              shell: pwsh
+              run: |
+                $manifestPath = "${{ github.workspace }}\build\bin\manifest.json"
+                if (Test-Path $manifestPath) {
+                    $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+                    
+                    if (-not [string]::IsNullOrEmpty($env:sentry)) {
+                        if (-not $manifest.PSObject.Properties['extraInfo']) {
+                            $manifest | Add-Member -MemberType NoteProperty -Name "extraInfo" -Value @{}
+                        }
+                        $manifest.extraInfo.sentryDsn = $env:sentry
+                        $manifest.extraInfo.sentryUploadType = "all"
+                        
+                        $manifest | ConvertTo-Json -Depth 10 | Set-Content $manifestPath
+                        Write-Host "Added Sentry DSN to manifest.json"
+                    } else {
+                        Write-Host "Sentry DSN not found, skipping manifest.json update"
+                    }
+                } else {
+                    Write-Host "manifest.json not found at $manifestPath"
+                }
             
             - run: |
                 xcopy /E /I "${{ github.workspace }}\src\plugin\data\*.h" "${{ github.workspace }}\build\bin\SDK\include\"
@@ -77,7 +102,7 @@ jobs:
                 $ErrorActionPreference = 'Stop'
                 $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
 
-                $tags = git tag --sort=-creatordate | Where-Object { $_ -match '^v\d+\.\d+\.\d+$' }
+                $tags = git tag --sort=-v:refname | Where-Object { $_ -match '^v\d+\.\d+\.\d+$' }
 
                 if (-not $tags) {
                     Write-Error "::error::No valid semantic tags (vX.Y.Z) found. Release aborted."
@@ -235,6 +260,7 @@ jobs:
                 shared: 
                     - true
                     - false
+            max-parallel: 1
         steps:
             - uses: actions/checkout@v4
 
