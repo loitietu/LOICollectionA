@@ -7,6 +7,10 @@ on:
         paths:
             - ".github/workflows/build-docs.yml"
             - "docs/**"
+        branches:
+            - "**" 
+        tags-ignore:
+            - "**"
     workflow_dispatch:
 
 permissions:

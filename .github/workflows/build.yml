@@ -9,6 +9,10 @@ on:
             - ".github/workflows/build.yml"
             - "src/**"
             - "xmake.lua"
+        branches:
+            - "**" 
+        tags-ignore:
+            - "**"
     workflow_dispatch:
 
 jobs:

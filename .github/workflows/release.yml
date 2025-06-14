@@ -46,7 +46,8 @@ jobs:
             - name: Update manifest.json if Sentry DSN exists
               shell: pwsh
               run: |
-                $manifestPath = "${{ github.workspace }}\build\bin\manifest.json"
+                $repoName = "${{ github.repository }}".Split('/')[1]
+                $manifestPath = "${{ github.workspace }}\build\bin\$repoName\manifest.json"
                 if (Test-Path $manifestPath) {
                     $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
                     
