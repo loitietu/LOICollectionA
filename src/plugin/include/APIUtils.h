@@ -8,6 +8,12 @@
 class Player;
 
 namespace LOICollection::LOICollectionAPI {
+    struct VarOccurrence {
+        size_t start; 
+        size_t length; 
+        std::string replacement;
+    };
+
     LOICOLLECTION_A_API   void initialization();
     LOICOLLECTION_A_API   void registerVariable(const std::string& name, std::function<std::string(Player&)> callback);
     LOICOLLECTION_A_API   void registerVariable(const std::string& name, std::function<std::string(Player&, std::string)> callback);

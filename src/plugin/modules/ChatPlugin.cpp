@@ -388,21 +388,31 @@ namespace LOICollection::Plugins::chat {
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (db->has("OBJECT$" + mObject + "$TITLE")) {
-            for (std::string& i : db->list("OBJECT$" + mObject + "$TITLE")) {
-                if (i == "None") continue;
-                
-                std::string mTimeString = db->get("OBJECT$" + mObject + "$TITLE", i);
-                if (SystemUtils::isReach(mTimeString)) {
-                    db->del("OBJECT$" + mObject + "$TITLE", i);
-                    logger->info(LOICollectionAPI::translateString(
-                        ll::string_utils::replaceAll(tr({}, "chat.log4"), "${title}", i), player
-                    ));
-                }
+            std::vector<std::string> mDeleteList;
+
+            for (const auto& [title, timeString] : db->get("OBJECT$" + mObject + "$TITLE")) {
+                if (title == "None") continue;
+
+                if (SystemUtils::isReach(timeString)) 
+                    mDeleteList.push_back(title);
+            }
+
+            if (mDeleteList.empty())
+                return;
+            
+            db->del("OBJECT$" + mObject + "$TITLE", mDeleteList);
+            
+            for (const auto& title : mDeleteList) {
+                if (title == "None") continue;
+
+                logger->info(LOICollectionAPI::translateString(
+                    ll::string_utils::replaceAll(tr({}, "chat.log4"), "${title}", title), player
+                ));
             }
         }
         if (db->has("OBJECT$" + mObject)) {
-            std::string mTitle = db->get("OBJECT$" + mObject, "title");
-            if (!db->has("OBJECT$" + mObject + "$TITLE", mTitle))
+            std::string mTitle = db->get("OBJECT$" + mObject, "title", "None");
+            if (mTitle != "None" || !db->has("OBJECT$" + mObject + "$TITLE", mTitle))
                 db->set("OBJECT$" + mObject, "title", "None");
         }
     }

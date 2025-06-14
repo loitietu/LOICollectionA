@@ -1,4 +1,3 @@
-#include <regex>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -63,9 +62,7 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("player.title.time", [](Player& player) -> std::string {
             Plugins::chat::update(player);
             return SystemUtils::formatDataTime(
-                Plugins::chat::getTitleTime(player, 
-                    Plugins::chat::getTitle(player)
-                )
+                Plugins::chat::getTitleTime(player, Plugins::chat::getTitle(player))
             );
         });
         registerVariable("player.pvp", [](Player& player) -> std::string {
@@ -254,41 +251,84 @@ namespace LOICollection::LOICollectionAPI {
     }
 
     std::string& translateString(std::string& contentString, Player& player) {
-        if (contentString.empty())
+        if (contentString.empty() || contentString.find_first_of("{}@") == std::string::npos)
             return contentString;
 
-        std::smatch mMatchVariable;
-        std::smatch mMatchGrammar;
+        std::string FinalResult;
+        std::string InitialResult;
+        std::vector<VarOccurrence> occurrences;
+        
+        FinalResult.reserve(contentString.size() * 2);
+        InitialResult.reserve(contentString.size() * 2);
+        occurrences.reserve(30);
 
-        static const std::regex mMatchVariableRegex(R"(\{([^{}]+)\})");
-        static const std::regex mMatchGrammarRegex(R"(@([^@]+)@)");
-
-        while (std::regex_search(contentString, mMatchVariable, mMatchVariableRegex)) {
-            std::string mVariableName = mMatchVariable.str(1);
-            if (auto it = mVariableMap.find(mVariableName); it != mVariableMap.end()) {
-                std::string mValue = getValueForVariable(mVariableName, player);
-                contentString.replace(mMatchVariable.position(), mMatchVariable.length(), mValue);
+        size_t mStartPos = 0;
+        while (mStartPos < contentString.size()) {
+            if (contentString[mStartPos] != '{') {
+                mStartPos++;
                 continue;
             }
-            if (mVariableName.find('(') != std::string::npos && mVariableName.back() == ')') {
-                std::string mVariableParameterName = mVariableName.substr(0, mVariableName.find('('));
-                std::string mVariableParameterValue = mVariableName.substr(mVariableName.find('(') + 1, mVariableName.length() - mVariableName.find('(') - 2);
-                if (auto it = mVariableMapParameter.find(mVariableParameterName); it != mVariableMapParameter.end()) {
-                    std::string mValue = getValueForVariable(mVariableParameterName, player, mVariableParameterValue);
-                    contentString.replace(mMatchVariable.position(), mMatchVariable.length(), mValue);
-                    continue;
+
+            if (size_t mEndPos = contentString.find('}', mStartPos + 1); mEndPos != std::string::npos) {
+                std::string mVariableName = contentString.substr(mStartPos + 1, mEndPos - mStartPos - 1);
+                
+                if (auto it = mVariableMap.find(mVariableName); it != mVariableMap.end()) {
+                    std::string mValue = getValueForVariable(mVariableName, player);
+                    occurrences.push_back({mStartPos, mEndPos - mStartPos + 1, mValue});
+                } else if (mVariableName.find('(') != std::string::npos && mVariableName.back() == ')') {
+                    std::string mVariableParameterName = mVariableName.substr(0, mVariableName.find('('));
+                    std::string mVariableParameterValue = mVariableName.substr(mVariableName.find('(') + 1, mVariableName.length() - mVariableName.find('(') - 2);
+                    if (auto itp = mVariableMapParameter.find(mVariableParameterName); itp != mVariableMapParameter.end()) {
+                        std::string mValue = getValueForVariable(mVariableParameterName, player, mVariableParameterValue);
+                        occurrences.push_back({mStartPos, mEndPos - mStartPos + 1, mValue});
+                    }
                 }
+
+                mStartPos = mEndPos + 1;
             }
-            contentString.replace(mMatchVariable.position(), mMatchVariable.length(), mVariableName);
         }
-        
-        while (std::regex_search(contentString, mMatchGrammar, mMatchGrammarRegex)) {
-            std::string mGrammarContent = mMatchGrammar.str(1);
-            std::string mValue = tryGetGrammarResult(mGrammarContent);
 
-            contentString.replace(mMatchGrammar.position(), mMatchGrammar.length(), mValue);
-        };
+        size_t mInitialPos = 0;
+        for (const auto& occ : occurrences) {
+            InitialResult.append(contentString, mInitialPos, occ.start - mInitialPos);
+            InitialResult.append(occ.replacement);
+            mInitialPos = occ.start + occ.length;
+        }
 
+        if (mInitialPos < contentString.size())
+            InitialResult.append(contentString, mInitialPos, contentString.size() - mInitialPos);
+
+        occurrences.clear();
+
+        size_t mGrammarStartPos = 0;
+        while (mGrammarStartPos < InitialResult.size()) {
+            if (InitialResult[mGrammarStartPos] != '@') {
+                mGrammarStartPos++;
+                continue;
+            }
+
+            size_t mGrammarEndPos = InitialResult.find('@', mGrammarStartPos + 1);
+            if (mGrammarEndPos == std::string::npos) 
+                break;
+
+            std::string mGrammarName = InitialResult.substr(mGrammarStartPos + 1, mGrammarEndPos - mGrammarStartPos - 1);
+            std::string mValue = tryGetGrammarResult(mGrammarName);
+            occurrences.push_back({mGrammarStartPos, mGrammarEndPos - mGrammarStartPos + 1, mValue});
+
+            mGrammarStartPos = mGrammarEndPos + 1;
+        }
+
+        size_t mFinalPos = 0;
+        for (const auto& occ : occurrences) {
+            FinalResult.append(InitialResult, mFinalPos, occ.start - mFinalPos);
+            FinalResult.append(occ.replacement);
+            mFinalPos = occ.start + occ.length;
+        }
+
+        if (mFinalPos < InitialResult.size())
+            FinalResult.append(InitialResult, mFinalPos, InitialResult.size() - mFinalPos);
+
+        contentString.swap(FinalResult);
         return contentString;
     }
 
