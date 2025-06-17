@@ -272,16 +272,16 @@ namespace LOICollection::LOICollectionAPI {
             if (size_t mEndPos = contentString.find('}', mStartPos + 1); mEndPos != std::string::npos) {
                 std::string mVariableName = contentString.substr(mStartPos + 1, mEndPos - mStartPos - 1);
                 
-                if (auto it = mVariableMap.find(mVariableName); it != mVariableMap.end()) {
-                    std::string mValue = getValueForVariable(mVariableName, player);
-                    occurrences.push_back({mStartPos, mEndPos - mStartPos + 1, mValue});
-                } else if (mVariableName.find('(') != std::string::npos && mVariableName.back() == ')') {
+                if (mVariableName.find('(') != std::string::npos && mVariableName.back() == ')') {
                     std::string mVariableParameterName = mVariableName.substr(0, mVariableName.find('('));
                     std::string mVariableParameterValue = mVariableName.substr(mVariableName.find('(') + 1, mVariableName.length() - mVariableName.find('(') - 2);
                     if (auto itp = mVariableMapParameter.find(mVariableParameterName); itp != mVariableMapParameter.end()) {
                         std::string mValue = getValueForVariable(mVariableParameterName, player, mVariableParameterValue);
                         occurrences.push_back({mStartPos, mEndPos - mStartPos + 1, mValue});
                     }
+                } else if (auto it = mVariableMap.find(mVariableName); it != mVariableMap.end()) {
+                    std::string mValue = getValueForVariable(mVariableName, player);
+                    occurrences.push_back({mStartPos, mEndPos - mStartPos + 1, mValue});
                 }
 
                 mStartPos = mEndPos + 1;

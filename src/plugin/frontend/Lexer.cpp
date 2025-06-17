@@ -52,10 +52,10 @@ namespace LOICollection::frontend {
 
         std::string id = input.substr(start, position - start);
 
-        if (id == "if") return {TOKEN_IF, id, start};
-        if (id == "true" || id == "false") return {TOKEN_BOOL_LIT, id, start};
+        if (id == "if") return {TOKEN_IF, std::move(id), start};
+        if (id == "true" || id == "false") return {TOKEN_BOOL_LIT, std::move(id), start};
         
-        return {TOKEN_IDENT, id, start};
+        return {TOKEN_IDENT, std::move(id), start};
     }
 
     Token Lexer::parseNumber() {

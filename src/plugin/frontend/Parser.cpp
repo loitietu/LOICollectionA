@@ -1,6 +1,6 @@
-#include <set>
 #include <string>
 #include <stdexcept>
+#include <unordered_set>
 #include <memory>
 
 #include "frontend/AST.h"
@@ -98,7 +98,7 @@ namespace LOICollection::frontend {
             return std::make_unique<ValueNode>(value);
         }
         if (current_token.type == TOKEN_STRING) {
-            std::string str = current_token.value;
+            std::string str = std::move(current_token.value);
 
             eat(TOKEN_STRING);
             return std::make_unique<ValueNode>(str);
@@ -140,10 +140,10 @@ namespace LOICollection::frontend {
     }
 
     bool Parser::shouldAddSpaceAfter(TokenType type) {
-        static const std::set<TokenType> spaceAfterTokens = {
+        static const std::unordered_set<TokenType> spaceAfterTokens = {
             TOKEN_IDENT, TOKEN_NUMBER, TOKEN_STRING, TOKEN_BOOL_LIT
         };
-        return spaceAfterTokens.count(type) > 0;
+        return spaceAfterTokens.find(type) != spaceAfterTokens.end();
     }
 
     void Parser::eat(TokenType expected) {
@@ -155,7 +155,20 @@ namespace LOICollection::frontend {
     }
     
     std::string Parser::getTokenName(TokenType type) {
-        const char* names[] = {"IF", "(", ")", "IDENT", "NUMBER", "STRING", "OP", "BOOL_OP", "EOF", "?", ":", "BOOL_LIT"};
-        return names[type];
+        switch (type) {
+            case TOKEN_IF: return "IF";
+            case TOKEN_LPAREN: return "(";
+            case TOKEN_RPAREN: return ")";
+            case TOKEN_IDENT: return "IDENT";
+            case TOKEN_NUMBER: return "NUMBER";
+            case TOKEN_STRING: return "STRING";
+            case TOKEN_OP: return "OP";
+            case TOKEN_BOOL_OP: return "BOOL_OP";
+            case TOKEN_EOF: return "EOF";
+            case TOKEN_QUESTION: return "?";
+            case TOKEN_COLON: return ":";
+            case TOKEN_BOOL_LIT: return "BOOL_LIT";
+            default: return "UNKNOWN";
+        }
     }
 }
