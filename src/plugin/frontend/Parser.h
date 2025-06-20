@@ -33,6 +33,7 @@ namespace LOICollection::frontend {
         bool shouldAddSpaceAfter(TokenType type);
 
         void eat(TokenType expected);
+        void flushBuffer(std::string& buffer, std::unique_ptr<TemplateNode>& tpl);
 
         std::string getTokenName(TokenType type);
     };

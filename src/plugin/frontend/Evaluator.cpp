@@ -1,4 +1,4 @@
-#include <sstream>
+#include <string>
 #include <stdexcept>
 #include <variant>
 
@@ -6,8 +6,6 @@
 
 namespace LOICollection::frontend {
     std::string Evaluator::evaluate(const ASTNode& root) {
-        if (auto* tpl = dynamic_cast<const TemplateNode*>(&root))
-            return evalTemplate(*tpl);
         return evalNode(root);
     }
 
@@ -44,10 +42,10 @@ namespace LOICollection::frontend {
     }
 
     std::string Evaluator::evalTemplate(const TemplateNode& tpl) {
-        std::ostringstream oss;
+        std::string result;
         for (const auto& part : tpl.parts)
-            oss << evalNode(*part);
-        return oss.str();
+            result.append(evalNode(*part));
+        return result;
     }
 
     std::string Evaluator::evalNode(const ASTNode& node) {
@@ -72,44 +70,44 @@ namespace LOICollection::frontend {
     }
 
     std::string Evaluator::valueToString(const Value& val) {
-        if (std::holds_alternative<int>(val))
-            return std::to_string(std::get<int>(val));
-        return std::get<std::string>(val);
+        return std::visit([](auto&& arg) -> std::string {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, int>)
+                return std::to_string(arg);
+            else if constexpr (std::is_same_v<T, std::string>)
+                return arg;
+        }, val);
     }
 
     bool Evaluator::valueToBool(const Value& val) {
-        if (std::holds_alternative<int>(val))
-            return std::get<int>(val) != 0;
-        return !std::get<std::string>(val).empty();
+        return std::visit([](auto&& arg) -> bool {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, int>)
+                return arg != 0;
+            else if constexpr (std::is_same_v<T, std::string>)
+                return !arg.empty();
+        }, val);
     }
 
     bool Evaluator::applyComparison(const Value& left, const Value& right, const std::string& op) {
-        if (left.index() != right.index())
-            throw std::runtime_error("Type mismatch in comparison");
+        return std::visit([&](auto&& l, auto&& r) -> bool {
+            using T = std::decay_t<decltype(l)>;
+            using U = std::decay_t<decltype(r)>;
+            
+            if constexpr (!std::is_same_v<T, U>)
+                throw std::runtime_error("Type mismatch in comparison");
+            else {
+                auto cmp = l <=> r;
 
-        if (std::holds_alternative<int>(left)) {
-            int l = std::get<int>(left);
-            int r = std::get<int>(right);
-            
-            if (op == "==") return l == r;
-            if (op == "!=") return l != r;
-            if (op == ">")  return l > r;
-            if (op == "<")  return l < r;
-            if (op == ">=") return l >= r;
-            if (op == "<=") return l <= r;
-            
-        } else if (std::holds_alternative<std::string>(left)) {
-            const auto& l = std::get<std::string>(left);
-            const auto& r = std::get<std::string>(right);
-            
-            if (op == "==") return l == r;
-            if (op == "!=") return l != r;
-            if (op == ">")  return l > r;
-            if (op == "<")  return l < r;
-            if (op == ">=") return l >= r;
-            if (op == "<=") return l <= r;
-        }
-        
-        throw std::runtime_error("Unsupported comparison operator: " + op);
+                if (op == "==") return cmp == 0;
+                if (op == "!=") return cmp != 0;
+                if (op == ">") return cmp > 0;
+                if (op == "<") return cmp < 0;
+                if (op == ">=") return cmp >= 0;
+                if (op == "<=") return cmp <= 0;
+                
+                throw std::runtime_error("Unsupported comparison operator: " + op);
+            }
+        }, left, right);
     }
 }

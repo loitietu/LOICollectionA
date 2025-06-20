@@ -101,7 +101,7 @@ namespace LOICollection::frontend {
             std::string str = std::move(current_token.value);
 
             eat(TOKEN_STRING);
-            return std::make_unique<ValueNode>(str);
+            return std::make_unique<ValueNode>(std::move(str));
         }
         if (current_token.type == TOKEN_BOOL_LIT) {
             bool val = (current_token.value == "true");
@@ -118,10 +118,8 @@ namespace LOICollection::frontend {
         std::string buffer;
         while (current_token.type != stopToken && current_token.type != TOKEN_EOF) {
             if (current_token.type == TOKEN_IF) {
-                if (!buffer.empty()) {
-                    tpl->addPart(std::make_unique<ValueNode>(buffer));
-                    buffer.clear();
-                }
+                flushBuffer(buffer, tpl);
+                
                 tpl->addPart(parseIfStatement(stopToken));
             } else {
                 buffer += current_token.value;
@@ -131,10 +129,7 @@ namespace LOICollection::frontend {
                     buffer += " ";
             }
         }
-        if (!buffer.empty()) {
-            tpl->addPart(std::make_unique<ValueNode>(buffer));
-            buffer.clear();
-        }
+        flushBuffer(buffer, tpl);
         
         return tpl;
     }
@@ -152,6 +147,14 @@ namespace LOICollection::frontend {
                 + ": Expected " + getTokenName(expected) + ", got " + getTokenName(current_token.type));
         }
         current_token = lexer.getNextToken();
+    }
+
+    void Parser::flushBuffer(std::string& buffer, std::unique_ptr<TemplateNode>& tpl) {
+        if (buffer.empty())
+            return;
+
+        tpl->addPart(std::make_unique<ValueNode>(buffer));
+        buffer.clear();
     }
     
     std::string Parser::getTokenName(TokenType type) {
