@@ -67,10 +67,11 @@ namespace LOICollection::Plugins::monitor {
                         std::string mMonitorString = std::get<std::string>(options.at("BelowName_Text"));
                         LOICollectionAPI::translateString(mMonitorString, mTarget);
 
-                        SynchedActorDataEntityWrapper wrapper(mTarget.getEntityContext());
-                        SetActorDataPacket packet(mTarget.getRuntimeID(), wrapper, nullptr, 0, true);
-                        packet.mPackedItems = std::vector<std::unique_ptr<DataItem>>();
-                        packet.mPackedItems.push_back(DataItem::create(ActorDataIDs::FilteredName, mMonitorString));
+                        SetActorDataPacket packet(mTarget.getRuntimeID(), mTarget.mEntityData, 
+                            nullptr, mTarget.mLevel->getCurrentTick().tickID, false
+                        );
+                        packet.mPackedItems.clear();
+                        packet.mPackedItems.emplace_back(DataItem::create(ActorDataIDs::FilteredName, mMonitorString));
                         packet.sendToClients();
 
                         return true;

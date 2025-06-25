@@ -1,31 +1,42 @@
 {
-    "format_version": 2,
+    "format_version": 3,
+    "format_uuid": "289f771f-2c9a-4d73-9f3f-8492495a924d",
     "tooth": "github.com/loitietu/LOICollectionA",
-    "version": "1.6.5",
+    "version": "1.6.6",
     "info": {
         "name": "LOICollectionA",
         "description": "Multifunctional plug-in set",
-        "author": "tietu",
-        "source": "github.com/loitietu/LOICollectionA",
         "tags": [
-            "levilamina",
-            "mod",
             "collection",
             "loistudio",
             "loi",
-            "tietu"
-        ]
+            "tietu",
+            "platform:levilamina",
+            "type:mod"
+        ],
+        "avatar_url": ""
     },
-    "asset_url": "https://github.com/loitietu/LOICollectionA/releases/download/v$(version)/LOICollectionA-windows-x64.zip",
-    "prerequisites": {
-        "github.com/LiteLDev/LeviLamina": "1.3.1"
-    },
-    "files": {
-        "place": [
-            {
-                "src": "LOICollectionA/*",
-                "dest": "plugins/LOICollectionA/"
-            }
-        ]
-    }
+    "variants": [
+        {
+            "platform": "win-x64",
+            "dependencies": {
+                "github.com/LiteLDev/LeviLamina": "1.3.*"
+            },
+            "assets": [
+                {
+                    "type": "zip",
+                    "urls": [
+                        "https://{{tooth}}/releases/download/v{{version}}/LOICollectionA-windows-x64.zip"
+                    ],
+                    "placements": [
+                        {
+                            "type": "dir",
+                            "src": "LOICollectionA/",
+                            "dest": "plugins/LOICollectionA/"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
 }
