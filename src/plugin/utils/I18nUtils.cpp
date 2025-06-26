@@ -23,6 +23,12 @@ I18nUtils::I18nUtils(const std::string& path) {
     }
 }
 
+void I18nUtils::set(const std::string& local, const std::string& key, const std::string& value) {
+    if (this->data.find(local) == this->data.end())
+        this->data[local] = std::unordered_map<std::string, std::string>{};
+    this->data[local].insert({key, value});
+}
+
 std::string I18nUtils::get(const std::string& local, const std::string& key) {
     if (auto localIt = this->data.find(local); localIt != data.end()) {
         const std::unordered_map<std::string, std::string>& translations = localIt->second;

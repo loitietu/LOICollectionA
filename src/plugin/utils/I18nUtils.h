@@ -14,11 +14,7 @@ public:
     explicit I18nUtils(const std::string& path);
     ~I18nUtils() = default;
 
-    inline void set(const std::string& local, const std::string& key, const std::string& value) {
-        if (this->data.find(local) == this->data.end())
-            this->data[local] = std::unordered_map<std::string, std::string>{};
-        this->data[local].insert({key, value});
-    }
+    void set(const std::string& local, const std::string& key, const std::string& value);
 
     std::string get(const std::string& local, const std::string& key);
 public:

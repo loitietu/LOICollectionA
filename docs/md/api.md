@@ -1,5 +1,6 @@
 # LOICollectionAPI
-!> 以下为 LOICollectionA 1.6.4 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
+> [!NOTE]
+> 以下内容取自 LOICollectionA 1.6.4 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
 
 ## 默认变量
 | LOICollectionAPI | 备注 |
@@ -63,7 +64,8 @@
 ## 判断语句 - if
 > 判断语句用于判断条件是否成立，如果成立则将`result_yes` 的内容替换掉原语句，否则将以 `result_no` 的内容替换掉原语句  
 
-?> 在判断语句中是支持 `if` 嵌套的，但建议不要嵌套过多，否则会导致语句难以阅读
+> [!TIP]
+> 在判断语句中是支持 `if` 嵌套的，但建议不要嵌套过多，否则会导致语句难以阅读
 
 ```text
 @if (condition) ? result_yes : result_no@

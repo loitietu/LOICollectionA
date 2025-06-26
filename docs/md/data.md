@@ -9,7 +9,8 @@
 请勿使用记事本等不支持 `.json` 格式的文本编辑器进行编辑，以免导致配置文件结构损坏。
 
 ### 配置文件结构
-> 以下为 LOICollectionA 1.6.4 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> [!NOTE]
+> 以下内容取自 LOICollectionA 1.6.4 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 ```json
 {
     "version": 164, // 配置文件版本号，请勿修改
@@ -89,7 +90,8 @@
 }
 ```
 
-?> 在更改时请按照 `Json规范`(https://www.json.org/) 进行更改
+> [!TIP]
+> 在更改时请按照 `Json规范`(https://www.json.org/) 进行更改
 
 ## 数据文件
 
@@ -99,7 +101,8 @@
 ?> 通常情况下，您不需要手动修改数据文件，因为在使用 `LOICollectionA` 的过程中，对于指定数据文件是存在内部编辑器的，您可以通过它们进行更加快捷的编辑。
 
 ### menu.json 
-> 以下是为 LOICollectionA 1.6.4 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。 
+> [!NOTE]
+> 以下内容取自 LOICollectionA 1.6.4 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。 
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `menu.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#menu) 进行编辑
@@ -277,7 +280,8 @@
 ```
 
 ### shop.json
-> 以下是为 LOICollectionA 1.5.0 的 `shop.json` 结构，对于后续版本的 `shop.json` 结构可能会有所不同。
+> [!NOTE]
+> 以下内容取自 LOICollectionA 1.5.0 的 `shop.json` 结构，对于后续版本的 `shop.json` 结构可能会有所不同。
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `shop.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#shop) 进行编辑
@@ -396,7 +400,8 @@
 ```
 
 ### notice.json
-> 以下是为 LOICollectionA 1.6.2 的 `notice.json` 结构，对于后续版本的 `notice.json` 结构可能会有所不同。
+> [!NOTE]
+> 以下内容取自 LOICollectionA 1.6.2 的 `notice.json` 结构，对于后续版本的 `notice.json` 结构可能会有所不同。
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `notice.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#notice) 进行编辑
@@ -417,7 +422,8 @@
 ```
 
 ### cdk.json
-> 以下是为 LOICollectionA 1.4.9 的 `cdk.json` 结构，对于后续版本的 `cdk.json` 结构可能会有所不同。
+> [!NOTE]
+> 以下内容取自 LOICollectionA 1.4.9 的 `cdk.json` 结构，对于后续版本的 `cdk.json` 结构可能会有所不同。
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `cdk.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#cdk) 进行编辑
@@ -451,6 +457,8 @@
 
 ---
 
-!> 在服务器启动时，请不要直接修改数据文件，否则极有可能丢失数据内容。
+> [!DANGER]
+> 在服务器启动时，请不要直接修改数据文件，否则极有可能丢失数据内容。
 
-?> 以上内容均可通过 `命令` 的方式进行全 GUI 配置。
+> [!TIP]
+> 以上内容均可通过 `命令` 的方式进行全 GUI 配置。
