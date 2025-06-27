@@ -160,7 +160,7 @@ namespace LOICollection::Plugins::chat {
             ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
             ll::string_utils::replaceAll(mObjectLabel, "${player}", db->get("OBJECT$" + mObject + "$CHAT" + target, "name", "None"));
             ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(
-                db->get("OBJECT$" + mObject + "$CHAT" + target, "time", "None")
+                db->get("OBJECT$" + mObject + "$CHAT" + target, "time", "None"), "None"
             ));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), mObjectLabel);
@@ -424,7 +424,7 @@ namespace LOICollection::Plugins::chat {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         if (!db->has("OBJECT$" + mObject + "$TITLE"))
             db->create("OBJECT$" + mObject + "$TITLE");
-        db->set("OBJECT$" + mObject + "$TITLE", text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
+        db->set("OBJECT$" + mObject + "$TITLE", text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "0") : "0");
 
         logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "chat.log2"), "${title}", text), player

@@ -72,8 +72,8 @@ namespace LOICollection::Plugins::blacklist {
             ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
             ll::string_utils::replaceAll(mObjectLabel, "${player}", db->get("OBJECT$" + target, "player", "None"));
             ll::string_utils::replaceAll(mObjectLabel, "${cause}", db->get("OBJECT$" + target, "cause", "None"));
-            ll::string_utils::replaceAll(mObjectLabel, "${subtime}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "subtime", "None")));
-            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "time", "None")));
+            ll::string_utils::replaceAll(mObjectLabel, "${subtime}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "subtime", "None"), "None"));
+            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + target, "time", "None"), "None"));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), mObjectLabel);
             form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [target](Player&) -> void {
@@ -218,7 +218,7 @@ namespace LOICollection::Plugins::blacklist {
                             if (SystemUtils::isReach(db->get("OBJECT$" + mObject, "time")))
                                 return delBlacklist(mObject);
                             ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("OBJECT$" + mObject, "cause"));
-                            ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
+                            ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObject, "time"), "None"));
                             ll::service::getServerNetworkHandler()->disconnectClient(
                                 event.getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked,
                                 mObjectTips, {}, false
@@ -275,12 +275,12 @@ namespace LOICollection::Plugins::blacklist {
             db->create("OBJECT$" + mObject);
             db->set("OBJECT$" + mObject, "player", player.getRealName());
             db->set("OBJECT$" + mObject, "cause", cause);
-            db->set("OBJECT$" + mObject, "time", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time) : "0");
+            db->set("OBJECT$" + mObject, "time", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "0") : "0");
             db->set("OBJECT$" + mObject, "subtime", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         }
         std::string mObjectTips = tr(getLanguage(player), "blacklist.tips");
         ll::string_utils::replaceAll(mObjectTips, "${cause}", cause);
-        ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObject, "time")));
+        ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("OBJECT$" + mObject, "time"), "None"));
         ll::service::getServerNetworkHandler()->disconnectClient(
             player.getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked,
             mObjectTips, {}, false

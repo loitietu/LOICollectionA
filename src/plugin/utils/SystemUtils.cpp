@@ -36,25 +36,25 @@ namespace SystemUtils {
         return std::vformat("{:" + format + "}", std::make_format_args(zt));
     }
 
-    std::string formatDataTime(const std::string& timeString) {
+    std::string formatDataTime(const std::string& timeString, const std::string& defaultValue) {
         if (timeString.size() != 14)
-            return "None";
+            return defaultValue;
         
         std::chrono::local_seconds mTp;
         std::istringstream iss(timeString);
         iss >> std::chrono::parse("%Y%m%d%H%M%S", mTp);
         if (iss.fail())
-            return "None";
+            return defaultValue;
         
         return std::format("{:%Y-%m-%d %H:%M:%S}", mTp);
     }
 
-    std::string timeCalculate(const std::string& timeString, int hours) {
+    std::string timeCalculate(const std::string& timeString, int hours, const std::string& defaultValue) {
         std::chrono::local_seconds mTp;
         std::istringstream iss(timeString);
         iss >> std::chrono::parse("%Y-%m-%d %H:%M:%S", mTp);
         if (iss.fail())
-            return "0";
+            return defaultValue;
         
         mTp += std::chrono::hours(hours);
         return std::format("{:%Y%m%d%H%M%S}", mTp);

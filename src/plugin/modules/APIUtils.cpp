@@ -62,7 +62,7 @@ namespace LOICollection::LOICollectionAPI {
         registerVariable("player.title.time", [](Player& player) -> std::string {
             Plugins::chat::update(player);
             return SystemUtils::formatDataTime(
-                Plugins::chat::getTitleTime(player, Plugins::chat::getTitle(player))
+                Plugins::chat::getTitleTime(player, Plugins::chat::getTitle(player)), "None"
             );
         });
         registerVariable("player.pvp", [](Player& player) -> std::string {

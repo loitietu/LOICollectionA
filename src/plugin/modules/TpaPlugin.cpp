@@ -92,7 +92,7 @@ namespace LOICollection::Plugins::tpa {
             ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
             ll::string_utils::replaceAll(mObjectLabel, "${player}", db->get("OBJECT$" + mObject + "$PLAYER" + target, "name", "None"));
             ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(
-                db->get("OBJECT$" + mObject + "$PLAYER" + target, "time", "None")
+                db->get("OBJECT$" + mObject + "$PLAYER" + target, "time", "None"), "None"
             ));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), mObjectLabel);
