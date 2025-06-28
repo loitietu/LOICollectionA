@@ -204,6 +204,11 @@ namespace LOICollection::Plugins::mute {
                 }, ll::event::EventPriority::Highest
             );
         }
+
+        void unlistenEvent() {
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+            eventBus.removeListener(PlayerChatEventListener);
+        }
     }
 
     void addMute(Player& player, std::string cause, int time) {
@@ -262,7 +267,8 @@ namespace LOICollection::Plugins::mute {
     }
     
     void unregistery() {
-        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerChatEventListener);
+        unlistenEvent();
+
+        db->exec("VACUUM;");
     }
 }

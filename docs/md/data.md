@@ -10,10 +10,10 @@
 
 ### 配置文件结构
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.6.4 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以下内容取自 LOICollectionA 1.6.6 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 ```json
 {
-    "version": 164, // 配置文件版本号，请勿修改
+    "version": 166, // 配置文件版本号，请勿修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
         "language": { // 多语言配置
@@ -77,7 +77,8 @@
             "MaximumUpload": 20, // 玩家市场最大上传数量
             "BlacklistUpload": 10, // 玩家黑名单目标最大上传数量
             "ProhibitedItems": [] // 玩家市场禁止上传的物品
-        }
+        },
+        "Sidebar": false // 是否启用侧边栏
     },
     "ProtableTool": { // 便携工具配置
         "BasicHook": { // 基础功能配置
@@ -409,11 +410,11 @@
 ```json
 {
     "main": { // 公告ID（不可重复）
-        "title": "测试公告123", // 公告标题
+        "title": "Test Notice 123", // 公告标题
         "content": [ // 公告内容（支持多行）
-            "这是一条测试公告，欢迎使用本插件！", // 第 1 行内容
-            "这是第 2 行内容", // 第 2 行内容
-            "这是第 3 行内容" // 第 3 行内容
+            "This is a test text 1", // 第 1 行内容
+            "This is a test text 2", // 第 2 行内容
+            "This is a test text 3" // 第 3 行内容
         ],
         "priority": 0, // 公告优先级
         "poiontout": true // 公告是否在玩家上线时弹出显示
@@ -459,6 +460,3 @@
 
 > [!DANGER]
 > 在服务器启动时，请不要直接修改数据文件，否则极有可能丢失数据内容。
-
-> [!TIP]
-> 以上内容均可通过 `命令` 的方式进行全 GUI 配置。

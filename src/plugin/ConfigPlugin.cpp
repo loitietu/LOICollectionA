@@ -56,9 +56,7 @@ namespace Config {
         nlohmann::ordered_json mPatchJson = nlohmann::ordered_json::parse(
             ll::reflection::serialize<nlohmann::ordered_json>(config)->dump()
         );
-        nlohmann::ordered_json mConfigJson = mConfigObject.toJson();
-        mergeJson(mPatchJson, mConfigJson);
-        mConfigObject.write(mConfigJson);
+        mergeJson(mPatchJson, mConfigObject.get());
         mConfigObject.save();
     }
 }

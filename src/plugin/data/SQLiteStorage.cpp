@@ -20,12 +20,14 @@ SQLite::Statement& SQLiteStorage::getCachedStatement(const std::string& sql) {
 }
 
 SQLiteStorage::SQLiteStorage(const std::filesystem::path& dbPath) : database(dbPath.string(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
-    database.exec("VACUUM;");
-
     database.exec("PRAGMA journal_mode = MEMORY;");
     database.exec("PRAGMA synchronous = NORMAL;");
     database.exec("PRAGMA temp_store = MEMORY;");
     database.exec("PRAGMA cache_size = 8096;"); 
+}
+
+void SQLiteStorage::exec(std::string_view sql) {
+    database.exec(std::string(sql));
 }
 
 void SQLiteStorage::create(std::string_view table) {

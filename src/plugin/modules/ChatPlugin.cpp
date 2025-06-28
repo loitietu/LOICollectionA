@@ -380,6 +380,12 @@ namespace LOICollection::Plugins::chat {
                 }, ll::event::EventPriority::Normal
             );
         }
+
+        void unlistenEvent() {
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+            eventBus.removeListener(PlayerJoinEventListener);
+            eventBus.removeListener(PlayerChatEventListener);
+        }
     }
 
     void update(Player& player) {
@@ -541,8 +547,8 @@ namespace LOICollection::Plugins::chat {
     }
 
     void unregistery() {
-        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerJoinEventListener);
-        eventBus.removeListener(PlayerChatEventListener);
+        unlistenEvent();
+
+        db->exec("VACUUM;");
     }
 }

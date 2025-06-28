@@ -402,6 +402,11 @@ namespace LOICollection::Plugins::market {
                 }
             );
         }
+
+        void unlistenEvent() {
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+            eventBus.removeListener(PlayerJoinEventListener);
+        }
     }
 
     void addBlacklist(Player& player, Player& target) {
@@ -464,7 +469,8 @@ namespace LOICollection::Plugins::market {
     }
 
     void unregistery() {
-        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerJoinEventListener);
+        unlistenEvent();
+
+        db->exec("VACUUM;");
     }
 }
