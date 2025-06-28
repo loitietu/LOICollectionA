@@ -23,4 +23,5 @@ namespace LOICollection::Plugins::cdk {
     LOICOLLECTION_A_NDAPI bool isValid();
 
     LOICOLLECTION_A_API   void registery(void* database);
+    LOICOLLECTION_A_API   void unregistery();
 }

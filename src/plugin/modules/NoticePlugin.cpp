@@ -72,29 +72,28 @@ namespace LOICollection::Plugins::notice {
         void content(Player& player, const std::string& uiName) {
             std::string mObjectLanguage = getLanguage(player);
 
-            nlohmann::ordered_json data = db->toJson(uiName);
-            nlohmann::ordered_json content = data.value("content", nlohmann::ordered_json::array());
-
             ll::form::CustomForm form(tr(mObjectLanguage, "notice.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "notice.gui.label"));
-            form.appendInput("Input1", tr(mObjectLanguage, "notice.gui.edit.title"), "", data.value("title", ""));
+            form.appendInput("Input1", tr(mObjectLanguage, "notice.gui.edit.title"), "", db->get_ptr<std::string>("/" + uiName + "/title", ""));
+
+            auto content = db->get_ptr<nlohmann::ordered_json>("/" + uiName + "/content");
             for (int i = 0; i < (int) content.size(); i++) {
                 std::string mLine = ll::string_utils::replaceAll(
                     tr(mObjectLanguage, "notice.gui.edit.line"), "${index}", std::to_string(i + 1)
                 );
                 form.appendInput("Content" + std::to_string(i), mLine, "", content.at(i));
             }
-            form.appendToggle("Toggle1", tr(mObjectLanguage, "notice.gui.edit.show"), data.value("poiontout", false));
+
+            form.appendToggle("Toggle1", tr(mObjectLanguage, "notice.gui.edit.show"), db->get_ptr<bool>("/" + uiName + "/poiontout", false));
             form.appendToggle("Toggle2", tr(mObjectLanguage, "notice.gui.edit.add"), false);
             form.appendToggle("Toggle3", tr(mObjectLanguage, "notice.gui.edit.remove"), false);
             form.sendTo(player, [uiName](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::edit(pl);
 
-                nlohmann::ordered_json data = db->toJson(uiName);
-                data["title"] = std::get<std::string>(dt->at("Input1"));
-                data["poiontout"] = (bool)std::get<uint64>(dt->at("Toggle1"));
+                db->set_ptr("/" + uiName + "/title", std::get<std::string>(dt->at("Input1")));
+                db->set_ptr("/" + uiName + "/poiontout", (bool) std::get<uint64>(dt->at("Toggle1")));
 
-                nlohmann::ordered_json content = data.value("content", nlohmann::ordered_json::array());
+                auto content = db->get_ptr<nlohmann::ordered_json>("/" + uiName + "/content");
                 if (std::get<uint64>(dt->at("Toggle2")))
                     content.push_back("");
                 else if (std::get<uint64>(dt->at("Toggle3")))
@@ -103,9 +102,8 @@ namespace LOICollection::Plugins::notice {
                     for (int i = 0; i < (int) content.size(); i++)
                         content.at(i) = std::get<std::string>(dt->at("Content" + std::to_string(i)));
                 }
-                data["content"] = content;
 
-                db->set(uiName, data);
+                db->set_ptr("/" + uiName + "/content", content);
                 db->save();
 
                 MainGui::content(pl, uiName);
@@ -193,7 +191,7 @@ namespace LOICollection::Plugins::notice {
         }
 
         void notice(Player& player) {
-            nlohmann::ordered_json data = db->toJson();
+            nlohmann::ordered_json data = db->get();
 
             std::vector<std::pair<std::string, int>> mContent;
             for (auto it = data.begin(); it != data.end(); ++it) {
@@ -220,16 +218,14 @@ namespace LOICollection::Plugins::notice {
                 return;
             }
 
-            nlohmann::ordered_json data = db->toJson(uiName);
-
-            ll::form::CustomForm form(LOICollectionAPI::translateString(data.value("title", ""), player));
-            for (const auto& line : data.value("content", nlohmann::ordered_json::array()))
+            ll::form::CustomForm form(LOICollectionAPI::translateString(db->get_ptr<std::string>("/" + uiName + "/title", ""), player));
+            for (const auto& line : db->get_ptr<nlohmann::ordered_json>("/" + uiName + "/content"))
                 form.appendLabel(LOICollectionAPI::translateString(line, player));
             form.sendTo(player);
         }
 
         void open(Player& player) {
-            nlohmann::ordered_json data = db->toJson();
+            nlohmann::ordered_json data = db->get();
 
             std::vector<std::pair<std::string, int>> mContent;
             for (auto it = data.begin(); it != data.end(); ++it)
@@ -306,6 +302,11 @@ namespace LOICollection::Plugins::notice {
                 }
             );
         }
+
+        void unlistenEvent() {
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+            eventBus.removeListener(PlayerJoinEventListener);
+        }
     }
 
     bool isClose(Player& player) {
@@ -332,7 +333,8 @@ namespace LOICollection::Plugins::notice {
     }
 
     void unregistery() {
-        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerJoinEventListener);
+        unlistenEvent();
+
+        db->save();
     }
 }

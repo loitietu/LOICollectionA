@@ -146,35 +146,34 @@ namespace LOICollection::Plugins::shop {
         void editAwardSetting(Player& player, const std::string& uiName, ShopType type) {
             std::string mObjectLanguage = getLanguage(player);
 
-            nlohmann::ordered_json data = db->toJson(uiName);
             ll::form::CustomForm form(tr(mObjectLanguage, "shop.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "shop.gui.label"));
-            form.appendInput("Input7", tr(mObjectLanguage, "shop.gui.button1.input7"), "", data.value("title", ""));
-            form.appendInput("Input6", tr(mObjectLanguage, "shop.gui.button1.input6"), "", data.value("content", ""));
-            form.appendInput("Input2", tr(mObjectLanguage, "shop.gui.button1.input2"), "", data.value("exit", ""));
+            form.appendInput("Input7", tr(mObjectLanguage, "shop.gui.button1.input7"), "", db->get_ptr<std::string>("/" + uiName + "/title", ""));
+            form.appendInput("Input6", tr(mObjectLanguage, "shop.gui.button1.input6"), "", db->get_ptr<std::string>("/" + uiName + "/content", ""));
+            form.appendInput("Input2", tr(mObjectLanguage, "shop.gui.button1.input2"), "", db->get_ptr<std::string>("/" + uiName + "/exit", ""));
             if (type == ShopType::buy)
-                form.appendInput("Input5", tr(mObjectLanguage, "shop.gui.button1.input5"), "", data.value("NoScore", ""));
+                form.appendInput("Input5", tr(mObjectLanguage, "shop.gui.button1.input5"), "", db->get_ptr<std::string>("/" + uiName + "/NoScore", ""));
             if (type == ShopType::sell) {
-                form.appendInput("Input3", tr(mObjectLanguage, "shop.gui.button1.input3"), "", data.value("NoTitle", ""));
-                form.appendInput("Input4", tr(mObjectLanguage, "shop.gui.button1.input4"), "", data.value("NoItem", ""));
+                form.appendInput("Input3", tr(mObjectLanguage, "shop.gui.button1.input3"), "", db->get_ptr<std::string>("/" + uiName + "/NoTitle", ""));
+                form.appendInput("Input4", tr(mObjectLanguage, "shop.gui.button1.input4"), "", db->get_ptr<std::string>("/" + uiName + "/NoItem", ""));
             }
             form.sendTo(player, [uiName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::editAwardContent(pl, uiName);
 
-                nlohmann::ordered_json data = db->toJson(uiName);
-                data["title"] = std::get<std::string>(dt->at("Input6"));
-                data["content"] = std::get<std::string>(dt->at("Input7"));
-                data["exit"] = std::get<std::string>(dt->at("Input2"));
+                db->set_ptr("/" + uiName + "/title", std::get<std::string>(dt->at("Input7")));
+                db->set_ptr("/" + uiName + "/content", std::get<std::string>(dt->at("Input6")));
+                db->set_ptr("/" + uiName + "/exit", std::get<std::string>(dt->at("Input2")));
+
                 switch (type) {
                     case ShopType::buy:
-                        data["NoScore"] = std::get<std::string>(dt->at("Input5"));
+                        db->set_ptr("/" + uiName + "/NoScore", std::get<std::string>(dt->at("Input5")));
                         break;
                     case ShopType::sell:
-                        data["NoTitle"] = std::get<std::string>(dt->at("Input3"));
-                        data["NoItem"] = std::get<std::string>(dt->at("Input4"));
+                        db->set_ptr("/" + uiName + "/NoTitle", std::get<std::string>(dt->at("Input3")));
+                        db->set_ptr("/" + uiName + "/NoItem", std::get<std::string>(dt->at("Input4")));
                         break;
                 };
-                db->set(uiName, data);
+                
                 db->save();
 
                 logger->info(translateString(ll::string_utils::replaceAll(tr({}, "shop.log4"), "${menu}", uiName), pl));
@@ -223,7 +222,7 @@ namespace LOICollection::Plugins::shop {
                     data["scores"][mObjectInput4] = SystemUtils::toInt((mObjectInput5.empty() ? "100" : mObjectInput5), 0);
                 data["type"] = mObjectType;
 
-                nlohmann::ordered_json mContent = db->toJson(uiName);
+                auto mContent = db->get_ptr<nlohmann::ordered_json>("/" + uiName);
                 mContent["classiflcation"].push_back(data);
                 db->set(uiName, mContent);
                 db->save();
@@ -236,7 +235,7 @@ namespace LOICollection::Plugins::shop {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "shop.gui.title"), tr(mObjectLanguage, "shop.gui.label"));
-            for (nlohmann::ordered_json& item : db->toJson(uiName).value("classiflcation", nlohmann::ordered_json())) {
+            for (nlohmann::ordered_json& item : db->get_ptr<nlohmann::ordered_json>("/" + uiName + "/classiflcation")) {
                 std::string mName = item.value("title", "");
                 form.appendButton(mName, [mName, uiName](Player& pl) -> void {
                     std::string mObjectLanguage = getLanguage(pl);
@@ -248,14 +247,13 @@ namespace LOICollection::Plugins::shop {
                         tr(mObjectLanguage, "shop.gui.button3.remove.yes"), tr(mObjectLanguage, "shop.gui.button3.remove.no"));
                     form.sendTo(pl, [uiName, mName](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
                         if (result == ll::form::ModalFormSelectedButton::Upper) {
-                            nlohmann::ordered_json data = db->toJson(uiName);
-                            nlohmann::ordered_json mContent = data.value("classiflcation", nlohmann::ordered_json());
+                            auto mContent = db->get_ptr<nlohmann::ordered_json>("/" + uiName + "/classiflcation");
                             for (int i = ((int) mContent.size() - 1); i >= 0; i--) {
                                 if (mContent.at(i).value("title", "") == mName)
                                     mContent.erase(i);
                             }
-                            data["classiflcation"] = mContent;
-                            db->set(uiName, data);
+
+                            db->set_ptr("/" + uiName + "/classiflcation", mContent);
                             db->save();
 
                             std::string logString = tr({}, "shop.log3");
@@ -275,7 +273,8 @@ namespace LOICollection::Plugins::shop {
             std::string mObjectLanguage = getLanguage(player);
 
             std::string mObjectLabel = tr(mObjectLanguage, "shop.gui.button3.label");
-            std::string mObjectType = db->toJson(uiName).value("type", "");
+
+            auto mObjectType = db->get_ptr<std::string>("/" + uiName + "/type", "buy");
 
             ll::string_utils::replaceAll(mObjectLabel, "${menu}", uiName);
             ll::form::SimpleForm form(tr(mObjectLanguage, "shop.gui.title"), mObjectLabel);
@@ -425,7 +424,7 @@ namespace LOICollection::Plugins::shop {
 
         void open(Player& player, std::string uiName) {
             if (db->has(uiName)) {
-                nlohmann::ordered_json data = db->toJson(uiName);
+                nlohmann::ordered_json data = db->get_ptr<nlohmann::ordered_json>("/" + uiName);
 
                 if (data.empty())
                     return;
@@ -516,5 +515,9 @@ namespace LOICollection::Plugins::shop {
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         
         registerCommand();
+    }
+
+    void unregistery() {
+        db->save();
     }
 }

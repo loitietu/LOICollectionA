@@ -86,7 +86,7 @@ namespace LOICollection {
         std::filesystem::create_directory(langFilePath);
         if (this->config.Plugins.language.FileUpdate) {
             JsonStorage mObjectLanguage(langFilePath / "zh_CN.json");
-            mObjectLanguage.write(CNLangData);
+            mObjectLanguage.get() = CNLangData;
             mObjectLanguage.save();
         }
         I18nUtils::getInstance() = std::make_unique<I18nUtils>(langFilePath.string());
@@ -172,11 +172,13 @@ namespace LOICollection {
         Plugins::language::unregistery();
         if (this->config.Plugins.Blacklist) Plugins::blacklist::unregistery();
         if (this->config.Plugins.Mute) Plugins::mute::unregistery();
+        if (this->config.Plugins.Cdk) Plugins::cdk::unregistery();
         if (this->config.Plugins.Tpa.ModuleEnabled) Plugins::tpa::unregistery();
         if (this->config.Plugins.Pvp) Plugins::pvp::unregistery();
         if (this->config.Plugins.Wallet.ModuleEnabled) Plugins::wallet::unregistery();
         if (this->config.Plugins.Notice) Plugins::notice::unregistery();
         if (this->config.Plugins.Menu.ModuleEnabled) Plugins::menu::unregistery();
+        if (this->config.Plugins.Shop) Plugins::shop::unregistery();
         if (this->config.Plugins.Monitor.ModuleEnabled) Plugins::monitor::unregistery();
         if (this->config.Plugins.Chat.ModuleEnabled) Plugins::chat::unregistery();
         if (this->config.Plugins.Market.ModuleEnabled) Plugins::market::unregistery();

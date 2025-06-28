@@ -217,6 +217,11 @@ namespace LOICollection::Plugins::wallet {
                 }
             );
         }
+
+        void unlistenEvent() {
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+            eventBus.removeListener(PlayerJoinEventListener);
+        }
     }
 
     void transfer(Player& player, mce::UUID target, int score, TransferType type, bool isReduce) {
@@ -250,7 +255,6 @@ namespace LOICollection::Plugins::wallet {
     }
 
     void unregistery() {
-        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerJoinEventListener);
+        unlistenEvent();
     }
 }

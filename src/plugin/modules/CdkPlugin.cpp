@@ -101,7 +101,7 @@ namespace LOICollection::Plugins::cdk {
         void cdkRemove(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
-            if (db->isEmpty()) {
+            if (db->get().empty()) {
                 player.sendMessage(tr(mObjectLanguage, "cdk.tips"));
                 return MainGui::open(player);
             }
@@ -123,7 +123,7 @@ namespace LOICollection::Plugins::cdk {
         void cdkAwardScore(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
-            if (db->isEmpty()) {
+            if (db->get().empty()) {
                 player.sendMessage(tr(mObjectLanguage, "cdk.tips"));
                 return MainGui::cdkAward(player);
             }
@@ -138,18 +138,18 @@ namespace LOICollection::Plugins::cdk {
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
 
-                nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
-                mObjectData["scores"][std::get<std::string>(dt->at("Input1"))] = 
-                    SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                db->set(mObjectCdk, mObjectData);
-                db->save();
+                std::string mObjective = std::get<std::string>(dt->at("Input1"));
+                int mScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+
+                db->set_ptr("/" + mObjectCdk + "/scores/" + mObjective, mScore);
+                db->save(); 
             });
         }
 
         void cdkAwardItem(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
-            if (db->isEmpty()) {
+            if (db->get().empty()) {
                 player.sendMessage(tr(mObjectLanguage, "cdk.tips"));
                 return MainGui::cdkAward(player);
             }
@@ -168,17 +168,18 @@ namespace LOICollection::Plugins::cdk {
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown1"));
                 std::string mObjectType = std::get<std::string>(dt->at("dropdown2"));
 
-                nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
-
                 std::string mItemId = std::get<std::string>(dt->at("Input1"));
-                if (mObjectType == "universal") {
-                    mObjectData["item"][mItemId]["name"] = std::get<std::string>(dt->at("Input2"));
-                    mObjectData["item"][mItemId]["quantity"] = SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 1);
-                    mObjectData["item"][mItemId]["specialvalue"] = SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
-                }
-                mObjectData["item"][mItemId]["type"] = mObjectType;
 
-                db->set(mObjectCdk, mObjectData);
+                if (mObjectType == "universal") {
+                    nlohmann::ordered_json mItemData = {
+                        { "name", std::get<std::string>(dt->at("Input2")) },
+                        { "quantity", SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 1) },
+                        { "specialvalue", SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0) }
+                    };
+                    db->set_ptr("/" + mObjectCdk + "/item/" + mItemId, mItemData);
+                }
+                db->set_ptr("/" + mObjectCdk + "/item/" + mItemId + "/type", mObjectType);
+                
                 db->save();
             });
         }
@@ -186,7 +187,7 @@ namespace LOICollection::Plugins::cdk {
         void cdkAwardTitle(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
             
-            if (db->isEmpty()) {
+            if (db->get().empty()) {
                 player.sendMessage(tr(mObjectLanguage, "cdk.tips"));
                 return MainGui::cdkAward(player);
             }
@@ -201,11 +202,10 @@ namespace LOICollection::Plugins::cdk {
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
 
-                nlohmann::ordered_json mObjectData = db->toJson(mObjectCdk);
-                !mObjectData.contains("title") ? mObjectData["title"] = {} : nullptr;
-                mObjectData["title"][std::get<std::string>(dt->at("Input1"))] =
-                    SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                db->set(mObjectCdk, mObjectData);
+                std::string mObjectTitle = std::get<std::string>(dt->at("Input1"));
+                int mObjectData = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+                
+                db->set_ptr("/" + mObjectCdk + "/title/" + mObjectTitle, mObjectData);
                 db->save();
             });
         }
@@ -288,27 +288,29 @@ namespace LOICollection::Plugins::cdk {
 
         std::string mObjectLanguage = getLanguage(player);
         if (db->has(convertString)) {
-            nlohmann::ordered_json defaultJson{};
-            nlohmann::ordered_json cdkJson = db->toJson(convertString);
-            if (cdkJson.contains("time")) {
-                if (SystemUtils::isReach(cdkJson.value("time", ""))) {
+            if (db->has_ptr("/" + convertString + "/time")) {
+                if (SystemUtils::isReach(db->get_ptr<std::string>("/" + convertString + "/time", ""))) {
                     player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
+
                     db->remove(convertString);
                     return;
                 }
             }
-            nlohmann::ordered_json mPlayerList = cdkJson.value("player", defaultJson);
+
+            auto mPlayerList = db->get_ptr<nlohmann::ordered_json>("/" + convertString + "/player");
             if (std::find(mPlayerList.begin(), mPlayerList.end(), player.getUuid().asString()) != mPlayerList.end())
                 return player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips2"));
-            if (cdkJson.contains("title")) {
-                nlohmann::ordered_json mTitleList = cdkJson.value("title", defaultJson);
+            if (db->has_ptr("/" + convertString + "/title")) {
+                auto mTitleList = db->get_ptr<nlohmann::ordered_json>("/" + convertString + "/title");
                 for (nlohmann::ordered_json::iterator it = mTitleList.begin(); it != mTitleList.end(); ++it)
                     chat::addChat(player, it.key(), it.value().get<int>());
             }
-            nlohmann::ordered_json mItemList = cdkJson.value("item", defaultJson);
-            nlohmann::ordered_json mScoreboardList = cdkJson.value("scores", defaultJson);
+
+            auto mScoreboardList = db->get_ptr<nlohmann::ordered_json>("/" + convertString + "/scores");
             for (nlohmann::ordered_json::iterator it = mScoreboardList.begin(); it != mScoreboardList.end(); ++it)
                 ScoreboardUtils::addScore(player, it.key(), it.value().get<int>());
+
+            auto mItemList = db->get_ptr<nlohmann::ordered_json>("/" + convertString + "/item");
             for (nlohmann::ordered_json::iterator it = mItemList.begin(); it != mItemList.end(); ++it) {
                 if (it.value().value("type", "") == "nbt") {
                     ItemStack itemStack = ItemStack::fromTag(CompoundTag::fromSnbt(it.key())->mTags);
@@ -324,11 +326,10 @@ namespace LOICollection::Plugins::cdk {
                 }
                 player.refreshInventory();
             }
-            if (cdkJson.value("personal", false)) db->remove(convertString);
+            if (db->get_ptr<bool>("/" + convertString + "/personal", false)) db->remove(convertString);
             else {
                 mPlayerList.push_back(player.getUuid().asString());
-                cdkJson.value("player", defaultJson) = mPlayerList;
-                db->set(convertString, cdkJson);
+                db->set_ptr("/" + convertString + "/player", mPlayerList);
             }
             db->save();
             
@@ -351,5 +352,9 @@ namespace LOICollection::Plugins::cdk {
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
 
         registerCommand();
+    }
+
+    void unregistery() {
+        db->save();
     }
 }

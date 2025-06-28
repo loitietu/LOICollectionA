@@ -15,6 +15,8 @@ public:
     LOICOLLECTION_A_API   explicit SQLiteStorage(const std::filesystem::path& dbPath);
     LOICOLLECTION_A_API   ~SQLiteStorage() = default;
 
+    LOICOLLECTION_A_API   void exec(std::string_view sql);
+
     LOICOLLECTION_A_API   void create(std::string_view table);
     LOICOLLECTION_A_API   void remove(std::string_view table);
     LOICOLLECTION_A_API   void set(std::string_view table, std::string_view key, std::string_view val);

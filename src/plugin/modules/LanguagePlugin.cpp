@@ -102,6 +102,11 @@ namespace LOICollection::Plugins::language {
                 }
             );
         }
+
+        void unlistenEvent() {
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+            eventBus.removeListener(PlayerJoinEventListener);
+        }
     }
 
     std::string getLanguageCode(Player& player) {
@@ -134,7 +139,8 @@ namespace LOICollection::Plugins::language {
     }
 
     void unregistery() {
-        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerJoinEventListener);
+        unlistenEvent();
+
+        db->exec("VACUUM;");
     }
 }

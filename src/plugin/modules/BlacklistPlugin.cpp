@@ -229,6 +229,11 @@ namespace LOICollection::Plugins::blacklist {
                 }
             );
         }
+
+        void unlistenEvent() {
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+            eventBus.removeListener(LoginPacketEventListener);
+        }
     }
 
     SelectorType getType(const std::string& type) {
@@ -321,7 +326,8 @@ namespace LOICollection::Plugins::blacklist {
     }
 
     void unregistery() {
-        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(LoginPacketEventListener);
+        unlistenEvent();
+
+        db->exec("VACUUM;");
     }
 }

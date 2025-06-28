@@ -2,17 +2,19 @@ add_rules("mode.debug", "mode.release")
 
 add_repositories("liteldev-repo https://github.com/LiteLDev/xmake-repo.git")
 
+set_xmakever("3.0.0")
+
 option("shared")
     set_default(true)
     set_showmenu(true)
     set_description("Build shared library")
 option_end()
 
-add_requires("sqlitecpp 3.3.2", {configs = {shared = get_config("shared")}})
+add_requires("sqlitecpp 3.3.3", {configs = {shared = get_config("shared")}})
 add_requires(
     "levilamina 1.3.2",
     "levibuildscript",
-    "nlohmann_json 3.11.3"
+    "nlohmann_json 3.12.0"
 )
 
 if not has_config("vs_runtime") then

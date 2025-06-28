@@ -132,6 +132,13 @@ namespace LOICollection::Plugins::pvp {
                 }
             );
         }
+
+        void unlistenEvent() {
+            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+            eventBus.removeListener(PlayerJoinEventListener);
+            eventBus.removeListener(PlayerDisconnectEventListener);
+            eventBus.removeListener(PlayerHurtEventListener);
+        }
     }
 
     void enable(Player& player, bool value) {
@@ -173,9 +180,8 @@ namespace LOICollection::Plugins::pvp {
     }
 
     void unregistery() {
-        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerJoinEventListener);
-        eventBus.removeListener(PlayerHurtEventListener);
-        eventBus.removeListener(PlayerDisconnectEventListener);
+        unlistenEvent();
+
+        db->exec("VACUUM;");
     }
 }

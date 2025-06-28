@@ -311,8 +311,8 @@ namespace LOICollection::LOICollectionAPI {
             if (mGrammarEndPos == std::string::npos) 
                 break;
 
-            std::string mGrammarName = InitialResult.substr(mGrammarStartPos + 1, mGrammarEndPos - mGrammarStartPos - 1);
-            std::string mValue = tryGetGrammarResult(mGrammarName);
+            std::string mGrammar = InitialResult.substr(mGrammarStartPos + 1, mGrammarEndPos - mGrammarStartPos - 1);
+            std::string mValue = tryGetGrammarResult(mGrammar);
             occurrences.push_back({mGrammarStartPos, mGrammarEndPos - mGrammarStartPos + 1, mValue});
 
             mGrammarStartPos = mGrammarEndPos + 1;
