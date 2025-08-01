@@ -47,6 +47,8 @@
 
 #include "data/JsonStorage.h"
 
+#include "ConfigPlugin.h"
+
 #include "include/MenuPlugin.h"
 
 using I18nUtilsTools::tr;
@@ -55,10 +57,10 @@ using LOICollection::LOICollectionAPI::translateString;
 
 namespace LOICollection::Plugins::menu {
     struct MenuOP {
-        std::string uiName;
+        std::string Id;
     };
 
-    std::map<std::string, std::string> mObjectOptions;
+    C_Config::C_Plugins::C_Menu options;
     
     std::unique_ptr<JsonStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
@@ -238,7 +240,7 @@ namespace LOICollection::Plugins::menu {
                 data["type"] = mObjectType;
                 data["permission"] = (int) std::get<double>(dt->at("Slider"));
 
-                nlohmann::ordered_json mContent = db->get_ptr<nlohmann::ordered_json>("/" + uiName);
+                auto mContent = db->get_ptr<nlohmann::ordered_json>("/" + uiName);
                 type == MenuType::Simple ? mContent["customize"].push_back(data)
                     : (void)((std::get<std::string>(dt->at("dropdown2")) == "Upper" ?
                         mContent.at("confirmButton") : mContent.at("cancelButton")) = data);
@@ -565,14 +567,15 @@ namespace LOICollection::Plugins::menu {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("menu", tr({}, "commands.menu.description"), CommandPermissionLevel::Any);
-            command.overload<MenuOP>().text("gui").optional("uiName").execute(
+            command.overload<MenuOP>().text("gui").optional("Id").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, MenuOP const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
-                MainGui::open(player, param.uiName.empty() ? 
-                    mObjectOptions.at("EntranceKey") : param.uiName
+
+                MainGui::open(player, param.Id.empty() ? 
+                    options.EntranceKey : param.Id
                 );
                 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -585,6 +588,7 @@ namespace LOICollection::Plugins::menu {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
+
                 MainGui::edit(player);
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -594,11 +598,11 @@ namespace LOICollection::Plugins::menu {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
-                ItemStack itemStack(mObjectOptions.at("MenuItemId"), 1, 0, nullptr);
 
+                ItemStack itemStack(options.MenuItemId, 1, 0, nullptr);
                 if (!itemStack || itemStack.isNull())
                     return output.error(tr({}, "commands.menu.error.item.null"));
-                if (InventoryUtils::isItemInInventory(player, mObjectOptions.at("MenuItemId"), 1))
+                if (InventoryUtils::isItemInInventory(player, options.MenuItemId, 1))
                     return output.error(fmt::runtime(tr({}, "commands.menu.error.item.give")), player.getRealName());
 
                 InventoryUtils::giveItem(player, itemStack, 1);
@@ -610,25 +614,22 @@ namespace LOICollection::Plugins::menu {
 
         void listenEvent() {
             ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            PlayerUseItemEventListener = eventBus.emplaceListener<ll::event::PlayerUseItemEvent>(
-                [](ll::event::PlayerUseItemEvent& event) -> void {
-                    if (event.self().isSimulatedPlayer())
-                        return;
-                    if (event.item().getTypeName() == mObjectOptions.at("MenuItemId"))
-                        MainGui::open(event.self(), "main");
-                }
-            );
-            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) -> void {
-                    if (event.self().isSimulatedPlayer())
-                        return;
-                    ItemStack itemStack(mObjectOptions.at("MenuItemId"), 1, 0, nullptr);
-                    if (!itemStack || InventoryUtils::isItemInInventory(event.self(), mObjectOptions.at("MenuItemId"), 1))
-                        return;
-                    InventoryUtils::giveItem(event.self(), itemStack, 1);
-                    event.self().refreshInventory();
-                }
-            );
+            PlayerUseItemEventListener = eventBus.emplaceListener<ll::event::PlayerUseItemEvent>([](ll::event::PlayerUseItemEvent& event) -> void {
+                if (event.self().isSimulatedPlayer())
+                    return;
+                if (event.item().getTypeName() == options.MenuItemId)
+                    MainGui::open(event.self(), "main");
+            });
+            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([](ll::event::PlayerJoinEvent& event) -> void {
+                if (event.self().isSimulatedPlayer())
+                    return;
+
+                ItemStack itemStack(options.MenuItemId, 1, 0, nullptr);
+                if (!itemStack || InventoryUtils::isItemInInventory(event.self(), options.MenuItemId, 1))
+                    return;
+                InventoryUtils::giveItem(event.self(), itemStack, 1);
+                event.self().refreshInventory();
+            });
         }
 
         void unlistenEvent() {
@@ -689,10 +690,11 @@ namespace LOICollection::Plugins::menu {
         return logger != nullptr && db != nullptr;
     }
 
-    void registery(void* database, std::map<std::string, std::string>& options) {     
+    void registery(void* database) {     
         db = std::move(*static_cast<std::unique_ptr<JsonStorage>*>(database));
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        mObjectOptions = std::move(options);
+
+        options = Config::GetBaseConfigContext().Plugins.Menu;
         
         registerCommand();
         listenEvent();

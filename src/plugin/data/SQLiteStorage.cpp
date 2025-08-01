@@ -1,11 +1,9 @@
 #include <vector>
 #include <string>
 #include <string_view>
-#include <algorithm>
 #include <unordered_map>
 
 #include <SQLiteCpp/SQLiteCpp.h>
-#include <SQLiteCpp/Statement.h>
 
 #include "base/ScopeGuard.h"
 
@@ -42,8 +40,7 @@ void SQLiteStorage::remove(std::string_view table) {
 
 void SQLiteStorage::set(std::string_view table, std::string_view key, std::string_view value) {
     auto& stmt = getCachedStatement(
-        "INSERT INTO " + std::string(table) + " (key, value) VALUES (?, ?) "
-        "ON CONFLICT(key) DO UPDATE SET value = excluded.value;"
+        "INSERT INTO " + std::string(table) + " (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value;"
     );
 
     auto guard = make_scope_guard([&] { stmt.reset(); });
@@ -64,31 +61,15 @@ void SQLiteStorage::del(std::string_view table, std::string_view key) {
     stmt.exec();
 }
 
-void SQLiteStorage::del(std::string_view table, const std::vector<std::string>& keys) {
-    std::string mBaseSql = "DELETE FROM " + std::string(table) + " WHERE key IN (";
+void SQLiteStorage::delByPrefix(std::string_view table, std::string_view prefix) {
+    auto& stmt = getCachedStatement(
+        "DELETE FROM " + std::string(table) + " WHERE key LIKE ? ESCAPE '\\';"
+    );
 
-    SQLite::Transaction transaction(database);
-    
-    size_t processed = 0;
-    while (processed < keys.size()) {
-        const size_t remaining = keys.size() - processed;
-        const size_t batchSize = std::min(remaining, (size_t)500);
+    auto guard = make_scope_guard([&] { stmt.reset(); });
 
-        std::string sql = mBaseSql;
-        for (size_t i = 0; i < batchSize; ++i) {
-            sql += "?";
-            if (i < batchSize - 1)
-                sql += ", ";
-        }
-        sql += ")";
-
-        SQLite::Statement stmt(database, sql);
-        for (size_t i = 0; i < batchSize; ++i)
-            stmt.bind((int)i + 1, keys[processed + i]);
-        stmt.exec();
-    }
-
-    transaction.commit();
+    stmt.bind(1, std::string(prefix) + "%");
+    stmt.exec();
 }
 
 bool SQLiteStorage::has(std::string_view table, std::string_view key) {
@@ -99,6 +80,7 @@ bool SQLiteStorage::has(std::string_view table, std::string_view key) {
     auto guard = make_scope_guard([&] { stmt.reset(); });
     
     stmt.bind(1, std::string(key));
+
     return stmt.executeStep();
 }
 
@@ -110,7 +92,22 @@ bool SQLiteStorage::has(std::string_view table) {
     auto guard = make_scope_guard([&] { stmt.reset(); });
     
     stmt.bind(1, std::string(table));
+
     return stmt.executeStep();
+}
+
+bool SQLiteStorage::hasByPrefix(std::string_view table, std::string_view prefix, int size) {
+    auto& stmt = getCachedStatement(
+        "SELECT COUNT(*) FROM " + std::string(table) + " WHERE key LIKE ? ESCAPE '\\';"
+    );
+
+    auto guard = make_scope_guard([&] { stmt.reset(); });
+    stmt.bind(1, std::string(prefix) + "%");
+
+    if (!stmt.executeStep())
+        return false;
+
+    return stmt.getColumn(0).getInt() == size;
 }
 
 std::unordered_map<std::string, std::string> SQLiteStorage::get(std::string_view table) {
@@ -128,12 +125,33 @@ std::unordered_map<std::string, std::string> SQLiteStorage::get(std::string_view
             stmt.getColumn(1).getText()
         );
     }
+    
     return result;
 }
 
-std::string SQLiteStorage::get(std::string_view table, std::string_view key, std::string_view default_val) {
+std::unordered_map<std::string, std::string> SQLiteStorage::getByPrefix(std::string_view table, std::string_view prefix) {
+    std::unordered_map<std::string, std::string> mResult;
+
+    auto& stmt = getCachedStatement(
+        "SELECT key, value FROM " + std::string(table) + " WHERE key LIKE ? ESCAPE '\\';"
+    );
+
+    auto guard = make_scope_guard([&] { stmt.reset(); });
+    
+    stmt.bind(1, std::string(prefix) + "%");
+    while (stmt.executeStep()) {
+        mResult.emplace(
+            stmt.getColumn(0).getText(),
+            stmt.getColumn(1).getText()
+        );
+    }
+
+    return mResult;
+}
+
+std::string SQLiteStorage::get(std::string_view table, std::string_view key, std::string_view defaultValue) {
     if (!has(table))
-        return std::string(default_val);
+        return std::string(defaultValue);
     
     auto& stmt = getCachedStatement(
         "SELECT value FROM " + std::string(table) + " WHERE key = ?;"
@@ -144,7 +162,8 @@ std::string SQLiteStorage::get(std::string_view table, std::string_view key, std
     stmt.bind(1, std::string(key));
     if (stmt.executeStep()) 
         return stmt.getColumn(0).getText();
-    return std::string(default_val);
+
+    return std::string(defaultValue);
 }
 
 std::vector<std::string> SQLiteStorage::list(std::string_view table) {
@@ -158,6 +177,7 @@ std::vector<std::string> SQLiteStorage::list(std::string_view table) {
     
     while (stmt.executeStep())
         keys.emplace_back(stmt.getColumn(0).getText());
+
     return keys;
 }
 
@@ -172,5 +192,48 @@ std::vector<std::string> SQLiteStorage::list() {
     
     while (stmt.executeStep())
         tables.emplace_back(stmt.getColumn(0).getText());
+
     return tables;
+}
+
+std::vector<std::string> SQLiteStorage::listByPrefix(std::string_view table, std::string_view prefix) {
+    std::vector<std::string> keys;
+
+    auto& stmt = getCachedStatement(
+        "SELECT key FROM " + std::string(table) + " WHERE key LIKE ? ESCAPE '\\';"
+    );
+
+    auto guard = make_scope_guard([&] { stmt.reset(); });
+
+    stmt.bind(1, std::string(prefix) + "%");
+    while (stmt.executeStep())
+        keys.emplace_back(stmt.getColumn(0).getText());
+
+    return keys;
+}
+
+void SQLiteStorageBatch::set(std::string_view table, std::string_view key, std::unordered_map<std::string, std::string> value) {
+    const std::string mBaseSql = "INSERT INTO " + std::string(table) + " (key, value) VALUES ";
+        
+    auto it = value.begin();
+    while (it != value.end()) {
+        const size_t remaining = std::distance(it, value.end());
+        const size_t batchSize = std::min(remaining, (size_t) 500);
+
+        std::string placeholders;
+        placeholders.reserve(batchSize * 8);
+
+        for (size_t i = 0; i < batchSize; ++i)
+            placeholders += (i == 0) ? "(?, ?)" : ", (?, ?)";
+
+        SQLite::Statement stmt(database, mBaseSql + placeholders + " ON CONFLICT(key) DO UPDATE SET value = excluded.value;");
+
+        for (size_t i = 0; i < batchSize; ++i) {
+            stmt.bind(static_cast<int>(i * 2 + 1), std::string(key) + "." + it->first);
+            stmt.bind(static_cast<int>(i * 2 + 2), it->second);
+            ++it;
+        }
+
+        stmt.exec();
+    }
 }

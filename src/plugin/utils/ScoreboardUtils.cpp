@@ -8,6 +8,7 @@
 #include <mc/world/scores/ScoreInfo.h>
 #include <mc/world/scores/Scoreboard.h>
 #include <mc/world/scores/ScoreboardId.h>
+#include <mc/world/scores/ScoreboardOperationResult.h>
 #include <mc/world/scores/PlayerScoreSetFunction.h>
 
 #include "ScoreboardUtils.h"
@@ -32,8 +33,8 @@ namespace ScoreboardUtils {
             ));
         }
 
-        bool succes;
-        level->getScoreboard().modifyPlayerScore(succes, identity, *obj, score, 
+        ScoreboardOperationResult result;
+        level->getScoreboard().modifyPlayerScore(result, identity, *obj, score, 
             action == ScoreType::set ? PlayerScoreSetFunction::Set : 
             action == ScoreType::add ? PlayerScoreSetFunction::Add : 
             PlayerScoreSetFunction::Subtract

@@ -42,7 +42,7 @@ using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::notice {
     struct NoticeOP {
-        std::string uiName;
+        std::string Id;
     };
 
     std::unique_ptr<JsonStorage> db;
@@ -63,6 +63,7 @@ namespace LOICollection::Plugins::notice {
 
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
+
                 db2->set("OBJECT$" + mObject, "Notice_Toggle1", 
                     std::get<uint64>(dt->at("Toggle1")) ? "true" : "false"
                 );
@@ -249,15 +250,17 @@ namespace LOICollection::Plugins::notice {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("notice", tr({}, "commands.notice.description"), CommandPermissionLevel::Any);
-            command.overload<NoticeOP>().text("gui").optional("uiName").execute(
+            command.overload<NoticeOP>().text("gui").optional("Id").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, NoticeOP const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
-                if (param.uiName.empty())
+
+                if (param.Id.empty())
                     MainGui::open(player);
-                else MainGui::notice(player, param.uiName);
+                else
+                    MainGui::notice(player, param.Id);
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
@@ -269,6 +272,7 @@ namespace LOICollection::Plugins::notice {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
+
                 MainGui::edit(player);
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -278,6 +282,7 @@ namespace LOICollection::Plugins::notice {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
+
                 MainGui::setting(player);
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -286,21 +291,21 @@ namespace LOICollection::Plugins::notice {
 
         void listenEvent() {
             ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) -> void {
-                    if (event.self().isSimulatedPlayer())
-                        return;
-                    std::string mObject = event.self().getUuid().asString();
-                    std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (!db2->has("OBJECT$" + mObject)) db2->create("OBJECT$" + mObject);
-                    if (!db2->has("OBJECT$" + mObject, "Notice_Toggle1"))
-                        db2->set("OBJECT$" + mObject, "Notice_Toggle1", "false");
-                    
-                    if (isClose(event.self()))
-                        return;
-                    MainGui::notice(event.self());
-                }
-            );
+            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([](ll::event::PlayerJoinEvent& event) -> void {
+                if (event.self().isSimulatedPlayer())
+                    return;
+
+                std::string mObject = event.self().getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+                if (!db2->has("OBJECT$" + mObject)) db2->create("OBJECT$" + mObject);
+                if (!db2->has("OBJECT$" + mObject, "Notice_Toggle1"))
+                    db2->set("OBJECT$" + mObject, "Notice_Toggle1", "false");
+                
+                if (isClose(event.self()))
+                    return;
+                MainGui::notice(event.self());
+            });
         }
 
         void unlistenEvent() {

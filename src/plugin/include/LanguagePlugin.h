@@ -12,7 +12,7 @@ namespace LOICollection::Plugins::language {
     }
 
     LOICOLLECTION_A_NDAPI std::string getLanguageCode(Player& player);
-    LOICOLLECTION_A_NDAPI std::string getLanguage(std::string mObject);
+    LOICOLLECTION_A_NDAPI std::string getLanguage(const std::string& mObject);
     LOICOLLECTION_A_NDAPI std::string getLanguage(Player& player);
 
     LOICOLLECTION_A_API   void registery(void* database);

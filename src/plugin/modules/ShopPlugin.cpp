@@ -56,7 +56,7 @@ using LOICollection::LOICollectionAPI::translateString;
 
 namespace LOICollection::Plugins::shop {
     struct ShopOP {
-        std::string uiName;
+        std::string Id;
     };
 
     std::unique_ptr<JsonStorage> db;
@@ -406,16 +406,16 @@ namespace LOICollection::Plugins::shop {
                     if (type == ShopType::buy) {
                         if (checkModifiedData(pl, data, 1)) {
                             if (data.contains("time"))
-                                return chat::addChat(pl, id, data.value("time", 0));
-                            return chat::addChat(pl, id, 0);
+                                return chat::addTitle(pl, id, data.value("time", 0));
+                            return chat::addTitle(pl, id, 0);
                         }
                         return executeCommand(pl, original.value("NoScore", ""));
                     }
-                    if (chat::isChat(pl, id)) {
+                    if (chat::isTitle(pl, id)) {
                         nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json());
                         for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
                             ScoreboardUtils::addScore(pl, it.key(), it.value().get<int>());
-                        return chat::delChat(pl, id);
+                        return chat::delTitle(pl, id);
                     }
                     executeCommand(pl, original.value("NoTitle", ""));
                 }
@@ -450,13 +450,14 @@ namespace LOICollection::Plugins::shop {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("shop", tr({}, "commands.shop.description"), CommandPermissionLevel::Any);
-            command.overload<ShopOP>().text("gui").required("uiName").execute(
+            command.overload<ShopOP>().text("gui").required("Id").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ShopOP const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
-                MainGui::open(player, param.uiName);
+
+                MainGui::open(player, param.Id);
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
@@ -468,6 +469,7 @@ namespace LOICollection::Plugins::shop {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
+                
                 MainGui::edit(player);
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());

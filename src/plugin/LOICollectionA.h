@@ -32,6 +32,7 @@ namespace LOICollection {
 
         C_Config config;
         std::shared_ptr<SQLiteStorage> SettingsDB;
+        std::unique_ptr<SQLiteStorage> BehaviorEventDB;
         std::unique_ptr<SQLiteStorage> BlacklistDB;
         std::unique_ptr<SQLiteStorage> MuteDB;
         std::unique_ptr<SQLiteStorage> TpaDB;

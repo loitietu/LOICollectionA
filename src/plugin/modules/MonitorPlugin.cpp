@@ -1,8 +1,5 @@
-#include <map>
 #include <memory>
 #include <string>
-#include <vector>
-#include <variant>
 #include <algorithm>
 
 #include <ll/api/coro/CoroTask.h>
@@ -33,11 +30,14 @@
 #include <mc/server/commands/CommandContext.h>
 
 #include "include/APIUtils.h"
+
 #include "include/ServerEvents/TextPacketEvent.h"
 #include "include/ServerEvents/LoginPacketEvent.h"
 #include "include/ServerEvents/PlayerScoreChangedEvent.h"
 
 #include "utils/ScoreboardUtils.h"
+
+#include "ConfigPlugin.h"
 
 #include "include/MonitorPlugin.h"
 
@@ -54,24 +54,25 @@ namespace LOICollection::Plugins::monitor {
 
     bool BelowNameTaskRunning = true;
 
-    void registery(std::map<std::string, std::variant<std::string, std::vector<std::string>, int, bool>>& options) {
-        if (std::get<bool>(options.at("BelowName_Enabled"))) {
-            ll::coro::keepThis([options]() -> ll::coro::CoroTask<> {
-                while (BelowNameTaskRunning) {
-                    co_await ll::chrono::ticks(std::get<int>(options.at("BelowName_RefreshInterval")));
+    void registery() {
+        C_Config::C_Plugins::C_Monitor& options = Config::GetBaseConfigContext().Plugins.Monitor;
 
-                    ll::service::getLevel()->forEachPlayer([options](Player& mTarget) -> bool {
+        if (options.BelowName.ModuleEnabled) {
+            ll::coro::keepThis([option = options.BelowName]() -> ll::coro::CoroTask<> {
+                while (BelowNameTaskRunning) {
+                    co_await ll::chrono::ticks(option.RefreshInterval);
+
+                    ll::service::getLevel()->forEachPlayer([mName = option.FormatText](Player& mTarget) -> bool {
                         if (mTarget.isSimulatedPlayer())
                             return true;
 
-                        std::string mMonitorString = std::get<std::string>(options.at("BelowName_Text"));
-                        LOICollectionAPI::translateString(mMonitorString, mTarget);
+                        LOICollectionAPI::translateString(mName, mTarget);
 
                         SetActorDataPacket packet(mTarget.getRuntimeID(), mTarget.mEntityData, 
                             nullptr, mTarget.mLevel->getCurrentTick().tickID, false
                         );
                         packet.mPackedItems.clear();
-                        packet.mPackedItems.emplace_back(DataItem::create(ActorDataIDs::FilteredName, mMonitorString));
+                        packet.mPackedItems.emplace_back(DataItem::create(ActorDataIDs::FilteredName, mName));
                         packet.sendToClients();
 
                         return true;
@@ -81,108 +82,102 @@ namespace LOICollection::Plugins::monitor {
         }
 
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-            [options](ll::event::PlayerJoinEvent& event) -> void {
-                if (event.self().isSimulatedPlayer())
+        PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([option = options.ServerToast](ll::event::PlayerJoinEvent& event) -> void {
+            if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
+                return;
+
+            std::string mMessage = option.FormatText.join;
+
+            LOICollectionAPI::translateString(mMessage, event.self());
+            TextPacket::createSystemMessage(mMessage).sendToClients();
+        });
+
+        PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([option = options.ServerToast](ll::event::PlayerDisconnectEvent& event) -> void {
+            if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
+                return;
+
+            std::string mMessage = option.FormatText.exit;
+
+            LOICollectionAPI::translateString(mMessage, event.self());
+            TextPacket::createSystemMessage(mMessage).sendToClients();
+
+            mInterceptTextObjectPacket.erase(std::remove(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), event.self().getUuid().asString()), mInterceptTextObjectPacket.end());
+        });
+
+        PlayerScoreChangedEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerScoreChangedEvent>([option = options.ChangeScore](LOICollection::ServerEvents::PlayerScoreChangedEvent& event) -> void {
+            using LOICollection::ServerEvents::ScoreChangedType;
+
+            if (event.self().isSimulatedPlayer() || !option.ModuleEnabled || !event.getScore())
+                return;
+
+            int mScore = event.getScore();
+            std::string mId = event.getObjective().mName;
+            ScoreChangedType mType = event.getScoreChangedType();
+
+            std::vector<std::string> mObjectScoreboards = option.ScoreboardLists;
+            if (mObjectScoreboards.empty() || std::find(mObjectScoreboards.begin(), mObjectScoreboards.end(), mId) != mObjectScoreboards.end()) {
+                int mOriScore = ScoreboardUtils::getScore(event.self(), mId);
+
+                std::string mMessage = option.FormatText;
+                ll::string_utils::replaceAll(mMessage, "${Object}", mId);
+                ll::string_utils::replaceAll(mMessage, "${OriMoney}", 
+                    (mType == ScoreChangedType::add ? std::to_string(mOriScore - mScore) :
+                        (mType == ScoreChangedType::reduce ? std::to_string(mOriScore + mScore) : std::to_string(mScore)))
+                );
+                ll::string_utils::replaceAll(mMessage, "${SetMoney}", 
+                    (mType == ScoreChangedType::add ? "+" : (mType == ScoreChangedType::reduce ? "-" : "")) + std::to_string(mScore)
+                );
+                ll::string_utils::replaceAll(mMessage, "${GetMoney}", std::to_string(mOriScore));
+
+                LOICollectionAPI::translateString(mMessage, event.self());
+                
+                event.self().sendMessage(mMessage);
+            }
+        });
+
+        ExecuteCommandEventListener = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>([option = options.DisableCommand](ll::event::ExecutingCommandEvent& event) -> void {
+            std::string mCommandOriginal = event.commandContext().mCommand;
+            std::string mCommand = ll::string_utils::replaceAll(mCommandOriginal, "/", "");
+
+            if (!option.ModuleEnabled || event.commandContext().mOrigin == nullptr || mCommand.empty())
+                return;
+
+            std::vector<std::string> mObjectCommands = option.CommandLists;
+            if (std::find(mObjectCommands.begin(), mObjectCommands.end(), ll::string_utils::splitByPattern(mCommand, " ")[0]) != mObjectCommands.end()) {
+                event.cancel();
+
+                Actor* entity = event.commandContext().mOrigin->getEntity();
+                if (entity == nullptr || !entity->isPlayer())
                     return;
+                auto player = static_cast<Player*>(entity);
 
-                if (std::get<bool>(options.at("ServerToast_Enabled"))) {
-                    std::string mMonitorString = std::get<std::string>(options.at("ServerToast_JoinText"));
-                    LOICollectionAPI::translateString(mMonitorString, event.self());
-                    TextPacket::createSystemMessage(mMonitorString).sendToClients();
-                }
+                player->sendMessage(LOICollectionAPI::translateString(option.FormatText, *player));
             }
-        );
+        });
 
-        PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>(
-            [options](ll::event::PlayerDisconnectEvent& event) -> void {
-                if (event.self().isSimulatedPlayer())
-                    return;
-
-                std::string mUuid = event.self().getUuid().asString();
-                if (std::get<bool>(options.at("ServerToast_Enabled"))) {
-                    std::string mMonitorString = std::get<std::string>(options.at("ServerToast_ExitText"));
-                    LOICollectionAPI::translateString(mMonitorString, event.self());
-                    TextPacket::createSystemMessage(mMonitorString).sendToClients();
-
-                    mInterceptTextObjectPacket.erase(std::remove(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), mUuid), mInterceptTextObjectPacket.end());
-                }
-            }
-        );
-
-        std::vector<std::string> mObjectScoreboards = std::get<std::vector<std::string>>(options.at("ChangeScore_Scores"));
-        PlayerScoreChangedEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerScoreChangedEvent>(
-            [options, mObjectScoreboards](LOICollection::ServerEvents::PlayerScoreChangedEvent& event) -> void {
-                using LOICollection::ServerEvents::ScoreChangedType;
-
-                if (event.self().isSimulatedPlayer() || !std::get<bool>(options.at("ChangeScore_Enabled")) || !event.getScore())
-                    return;
-
-                int mScore = event.getScore();
-                std::string mId = event.getObjective().mName;
-                ScoreChangedType mType = event.getScoreChangedType();
-                if (mObjectScoreboards.empty() || std::find(mObjectScoreboards.begin(), mObjectScoreboards.end(), mId) != mObjectScoreboards.end()) {
-                    int mOriScore = ScoreboardUtils::getScore(event.self(), mId);
-                    std::string mChangedString = std::get<std::string>(options.at("ChangeScore_Text"));
-                    ll::string_utils::replaceAll(mChangedString, "${Object}", mId);
-                    ll::string_utils::replaceAll(mChangedString, "${OriMoney}", 
-                        (mType == ScoreChangedType::add ? std::to_string(mOriScore - mScore) :
-                            (mType == ScoreChangedType::reduce ? std::to_string(mOriScore + mScore) : std::to_string(mScore)))
-                    );
-                    ll::string_utils::replaceAll(mChangedString, "${SetMoney}", 
-                        (mType == ScoreChangedType::add ? "+" : (mType == ScoreChangedType::reduce ? "-" : "")) + std::to_string(mScore)
-                    );
-                    ll::string_utils::replaceAll(mChangedString, "${GetMoney}", std::to_string(mOriScore));
-                    event.self().sendMessage(mChangedString);
-                }
-            }
-        );
-
-        std::vector<std::string> mObjectCommands = std::get<std::vector<std::string>>(options.at("DisableCommand_List"));
-        ExecuteCommandEventListener = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>(
-            [mObjectCommands, options](ll::event::ExecutingCommandEvent& event) -> void {
-                if (!std::get<bool>(options.at("DisableCommand_Enabled")))
-                    return;
-
-                std::string mCommand = ll::string_utils::replaceAll(std::string(ll::string_utils::splitByPattern(event.commandContext().mCommand, " ")[0]), "/", "");
-                if (std::find(mObjectCommands.begin(), mObjectCommands.end(), mCommand) != mObjectCommands.end()) {
-                    event.cancel();
-
-                    Actor* entity = event.commandContext().mOrigin->getEntity();
-                    if (entity == nullptr || !entity->isPlayer())
-                        return;
-                    auto player = static_cast<Player*>(entity);
-                    player->sendMessage(std::get<std::string>(options.at("DisableCommand_Text")));
-                }
-            }
-        );
-
-        LoginPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::LoginPacketEvent>(
-            [options](LOICollection::ServerEvents::LoginPacketEvent& event) -> void {
-                if (std::get<bool>(options.at("ServerToast_Enabled")))
-                    mInterceptTextObjectPacket.push_back(event.getUUID().asString());
-            }
-        );
+        LoginPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::LoginPacketEvent>([option = options.ServerToast](LOICollection::ServerEvents::LoginPacketEvent& event) -> void {
+            if (option.ModuleEnabled)
+                mInterceptTextObjectPacket.push_back(event.getUUID().asString());
+        });
 
         std::vector<std::string> mTextPacketType{"multiplayer.player.joined", "multiplayer.player.left"};
-        TextPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::TextPacketEvent>(
-            [mTextPacketType, options](LOICollection::ServerEvents::TextPacketEvent& event) -> void {
-                if (!std::get<bool>(options.at("ServerToast_Enabled")))
-                    return;
-                
-                bool result = std::any_of(mTextPacketType.begin(), mTextPacketType.end(), [target = event.getPacket().mMessage](const std::string& item) {
-                    return target.find(item) != std::string::npos;
-                });
+        TextPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::TextPacketEvent>([mTextPacketType, option = options.ServerToast](LOICollection::ServerEvents::TextPacketEvent& event) -> void {
+            if (!option.ModuleEnabled)
+                return;
+            
+            bool result = std::any_of(mTextPacketType.begin(), mTextPacketType.end(), [target = event.getPacket().mMessage](const std::string& item) {
+                return target.find(item) != std::string::npos;
+            });
 
-                if (!result || !(event.getPacket().params.size() > 0))
-                    return;
-                if (Player* player = ll::service::getLevel()->getPlayer(event.getPacket().params.at(0)); player) {
-                    std::string mUuid = player->getUuid().asString();
-                    if (std::find(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), mUuid) != mInterceptTextObjectPacket.end())
-                        event.cancel();
-                }
+            if (!result || !(event.getPacket().params.size() > 0))
+                return;
+            
+            if (Player* player = ll::service::getLevel()->getPlayer(event.getPacket().params.at(0)); player) {
+                std::string mUuid = player->getUuid().asString();
+                if (std::find(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), mUuid) != mInterceptTextObjectPacket.end())
+                    event.cancel();
             }
-        );
+        });
     }
 
     void unregistery() {

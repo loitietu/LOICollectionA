@@ -1,9 +1,5 @@
 #pragma once
 
-#include <map>
-#include <string>
-#include <variant>
-
 #include "base/Macro.h"
 
 class Player;
@@ -29,6 +25,6 @@ namespace LOICollection::Plugins::wallet {
 
     LOICOLLECTION_A_NDAPI bool isValid();
 
-    LOICOLLECTION_A_API   void registery(void* setting, std::map<std::string, std::variant<std::string, double>>& options);
+    LOICOLLECTION_A_API   void registery(void* setting);
     LOICOLLECTION_A_API   void unregistery();
 }

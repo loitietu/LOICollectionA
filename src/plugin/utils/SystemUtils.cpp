@@ -2,13 +2,14 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
+#include <unordered_set>
 
 #include <Windows.h>
 
 #include "SystemUtils.h"
 
 namespace SystemUtils {
-    std::string getSystemLocaleCode(std::string defaultValue) {
+    std::string getSystemLocaleCode(const std::string& defaultValue) {
         wchar_t localeName[LOCALE_NAME_MAX_LENGTH]{};
         if (!GetUserDefaultLocaleName(localeName, LOCALE_NAME_MAX_LENGTH))
             return defaultValue;
@@ -25,8 +26,8 @@ namespace SystemUtils {
     }
 
     std::string getCurrentTimestamp() {
-        auto mTimeNow = std::chrono::system_clock::now();
-        return std::to_string(mTimeNow.time_since_epoch().count());
+        auto mTimeNow = std::chrono::high_resolution_clock::now();
+        return std::to_string(std::chrono::duration_cast<std::chrono::nanoseconds>(mTimeNow.time_since_epoch()).count());
     }
 
     std::string getNowTime(const std::string& format) {
@@ -58,6 +59,17 @@ namespace SystemUtils {
         
         mTp += std::chrono::hours(hours);
         return std::format("{:%Y%m%d%H%M%S}", mTp);
+    }
+
+    std::vector<std::string> getIntersection(const std::vector<std::vector<std::string>>& elements) {
+        std::unordered_set<std::string> mCommonSet(elements.front().begin(), elements.front().end());
+        for (auto iter = std::next(elements.begin()); iter != elements.end() && !mCommonSet.empty(); ++iter) {
+            const std::unordered_set<std::string> mCurrentSet(iter->begin(), iter->end());
+            std::erase_if(mCommonSet, [&](const auto& element) {
+                return !mCurrentSet.contains(element);
+            });
+        }
+        return std::vector<std::string>(mCommonSet.begin(), mCommonSet.end());
     }
 
     int toInt(const std::string& str, int defaultValue) {

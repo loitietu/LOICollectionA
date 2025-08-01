@@ -61,6 +61,7 @@ namespace LOICollection::Plugins::language {
 
                 std::string mObject = pl.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
+
                 db->set("OBJECT$" + mObject, "language", std::get<std::string>(dt->at("dropdown")));
                 
                 logger->info(LOICollectionAPI::translateString(tr({}, "language.log"), pl));
@@ -77,6 +78,7 @@ namespace LOICollection::Plugins::language {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
+
                 MainGui::open(player);
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -85,22 +87,22 @@ namespace LOICollection::Plugins::language {
 
         void listenEvent() {
             ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) -> void {
-                    if (event.self().isSimulatedPlayer())
-                        return;
+            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([](ll::event::PlayerJoinEvent& event) -> void {
+                if (event.self().isSimulatedPlayer())
+                    return;
 
-                    std::string langcode = getLanguageCode(event.self());
-                    if (auto data = I18nUtils::getInstance()->data; data.find(langcode) == data.end())
-                        langcode = I18nUtils::getInstance()->defaultLocale;
+                std::string langcode = getLanguageCode(event.self());
+                if (auto data = I18nUtils::getInstance()->data; data.find(langcode) == data.end())
+                    langcode = I18nUtils::getInstance()->defaultLocale;
 
-                    std::string mObject = event.self().getUuid().asString();
-                    std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (!db->has("OBJECT$" + mObject)) db->create("OBJECT$" + mObject);
-                    if (!db->has("OBJECT$" + mObject, "language"))
-                        db->set("OBJECT$" + mObject, "language", langcode);
-                }
-            );
+                std::string mObject = event.self().getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+                if (!db->has("OBJECT$" + mObject))
+                    db->create("OBJECT$" + mObject);
+                if (!db->has("OBJECT$" + mObject, "language"))
+                    db->set("OBJECT$" + mObject, "language", langcode);
+            });
         }
 
         void unlistenEvent() {
@@ -120,14 +122,17 @@ namespace LOICollection::Plugins::language {
         return defaultLocale;
     }
 
-    std::string getLanguage(std::string mObject) {
+    std::string getLanguage(const std::string& mObject) {
         std::string defaultLocale = I18nUtils::getInstance()->defaultLocale;
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        
         return db->get("OBJECT$" + mObject, "language", defaultLocale);
     }
 
     std::string getLanguage(Player& player) {
-        return getLanguage(player.getUuid().asString());
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+        return getLanguage(mObject);
     }
 
     void registery(void* database) {

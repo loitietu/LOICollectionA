@@ -69,6 +69,79 @@ struct C_Config {
             int BlacklistUpload = 10;
             std::vector<std::string> ProhibitedItems{};
         } Market;
+        struct C_BehaviorEvent {
+            bool ModuleEnabled = false;
+            int OrganizeDatabaseInterval = 144;
+            int CleanDatabaseInterval = 1;
+            int RefreshIntervalInMinutes = 5;
+            struct C_Events {
+                struct C_onPlayerConnect {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerConnect;
+                struct C_onPlayerDisconnect {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerDisconnect;
+                struct C_onPlayerChat {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerChat;
+                struct C_onPlayerAddExperience {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerAddExperience;
+                struct C_onPlayerAttack {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerAttack;
+                struct C_onPlayerChangePerm {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerChangePerm;
+                struct C_onPlayerDestroyBlock {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerDestroyBlock;
+                struct C_onPlayerPlaceBlock {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerPlaceBlock;
+                struct C_onPlayerDie {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerDie;
+                struct C_onPlayerPickUpItem {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerPickUpItem;
+                struct C_onPlayerInteractBlock {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerInteractBlock;
+                struct C_onPlayerRespawn {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerRespawn;
+                struct C_onPlayerUseItem {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerUseItem;
+            } Events;
+        } BehaviorEvent;
     } Plugins;
     struct C_ProtableTool {
         struct C_BasicHook {
@@ -81,8 +154,11 @@ struct C_Config {
 };
 
 namespace Config {
-    std::string getVersion();
+    std::string GetVersion();
 
+    C_Config& GetBaseConfigContext();
+
+    void SetBaseConfigContext(C_Config& config);
     void SynchronousPluginConfigVersion(C_Config& config);
     void SynchronousPluginConfigType(C_Config& config, const std::string& path);
 }

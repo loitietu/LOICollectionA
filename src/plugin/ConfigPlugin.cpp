@@ -15,11 +15,21 @@
 #include "ConfigPlugin.h"
 
 namespace Config {
-    std::string getVersion() {
+    C_Config mConfig;
+
+    std::string GetVersion() {
         return LOICollection::A::getInstance().getSelf().getManifest().version->to_string();
     }
 
-    void insertJson(int pos, nlohmann::ordered_json::iterator& source, nlohmann::ordered_json& target) {
+    C_Config& GetBaseConfigContext() {
+        return mConfig;
+    }
+
+    void SetBaseConfigContext(C_Config& config) {
+        mConfig = config;
+    }
+
+    void InsertJson(int pos, nlohmann::ordered_json::iterator& source, nlohmann::ordered_json& target) {
         nlohmann::ordered_json mInsertJson;
         for (auto it = target.begin(); it != target.end(); ++it) {
             if ((int)std::distance(target.begin(), it) == pos)
@@ -31,14 +41,14 @@ namespace Config {
         target = mInsertJson;
     }
 
-    void mergeJson(nlohmann::ordered_json& source, nlohmann::ordered_json& target) {
+    void MergeJson(nlohmann::ordered_json& source, nlohmann::ordered_json& target) {
         for (auto it = source.begin(); it != source.end(); ++it) {
             if (!target.contains(it.key())) {
-                insertJson((int)std::distance(source.begin(), it), it, target);
+                InsertJson((int)std::distance(source.begin(), it), it, target);
                 continue;
             }
             if (it.value().is_object() && target[it.key()].is_object()) {
-                mergeJson(it.value(), target[it.key()]);
+                MergeJson(it.value(), target[it.key()]);
                 continue;
             }
             if (it->type() != target[it.key()].type()) target[it.key()] = it.value();
@@ -47,7 +57,7 @@ namespace Config {
 
     void SynchronousPluginConfigVersion(C_Config& config) {
         config.version = std::stoi(ll::string_utils::replaceAll(
-            getVersion(), ".", ""
+            GetVersion(), ".", ""
         ));
     }
 
@@ -56,7 +66,7 @@ namespace Config {
         nlohmann::ordered_json mPatchJson = nlohmann::ordered_json::parse(
             ll::reflection::serialize<nlohmann::ordered_json>(config)->dump()
         );
-        mergeJson(mPatchJson, mConfigObject.get());
+        MergeJson(mPatchJson, mConfigObject.get());
         mConfigObject.save();
     }
 }

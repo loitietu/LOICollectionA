@@ -1,4 +1,3 @@
-#include <map>
 #include <string>
 
 #include <ll/api/memory/Hook.h>
@@ -13,7 +12,7 @@
 
 #include "include/ProtableTool/BasicHook.h"
 
-std::map<std::string, std::string> mObjectOptions;
+std::string mFakeSeed;
 
 LL_TYPE_INSTANCE_HOOK(
     ServerStartGamePacketHook,
@@ -23,8 +22,8 @@ LL_TYPE_INSTANCE_HOOK(
     void,
     BinaryStream& stream
 ) {
-    if (std::string feed = mObjectOptions.at("seed"); !feed.empty()) {
-        const char* ptr = feed.data();
+    if (!mFakeSeed.empty()) {
+        const char* ptr = mFakeSeed.data();
         char* endpt{};
         int64 result = std::strtoll(ptr, &endpt, 10);
         this->mSettings->mSeed = LevelSeed64(ptr == endpt ? ll::random_utils::rand<int64_t>() : result);
@@ -33,8 +32,8 @@ LL_TYPE_INSTANCE_HOOK(
 };
 
 namespace LOICollection::ProtableTool::BasicHook {
-    void registery(std::map<std::string, std::string>& options) {
-        mObjectOptions = std::move(options);
+    void registery(const std::string& fakeSeed) {
+        mFakeSeed = fakeSeed;
 
         ServerStartGamePacketHook::hook();
     }

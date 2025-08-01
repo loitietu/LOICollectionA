@@ -46,7 +46,7 @@ using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::cdk {
     struct CDKOP {
-        std::string convertString;
+        std::string Id;
     };
 
     std::unique_ptr<JsonStorage> db;
@@ -62,8 +62,7 @@ namespace LOICollection::Plugins::cdk {
             form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return;
 
-                std::string convertString = std::get<std::string>(dt->at("Input"));
-                cdkConvert(pl, convertString.empty() ? "default" : convertString);
+                cdk::convert(pl, std::get<std::string>(dt->at("Input")));
             });
         }
 
@@ -82,14 +81,16 @@ namespace LOICollection::Plugins::cdk {
                 if (!db->has(mObjectCdk)) {
                     int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                     std::string mObjectTime = time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "0") : "0";
+
                     nlohmann::ordered_json dataList = {
                         { "personal", (bool)std::get<uint64>(dt->at("Toggle")) },
                         { "player", nlohmann::ordered_json::array() },
                         { "scores", nlohmann::ordered_json::object() },
-                        { "item", nlohmann::ordered_json::object() },
+                        { "item", nlohmann::ordered_json::array() },
                         { "title", nlohmann::ordered_json::object() },
                         { "time", mObjectTime }
                     };
+
                     db->set(mObjectCdk, dataList);
                     db->save();
                 }
@@ -113,6 +114,7 @@ namespace LOICollection::Plugins::cdk {
                 if (!dt) return MainGui::open(pl);
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
+
                 db->remove(mObjectCdk);
                 db->save();
 
@@ -137,8 +139,8 @@ namespace LOICollection::Plugins::cdk {
                 if (!dt) return MainGui::cdkAward(pl);
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
-
                 std::string mObjective = std::get<std::string>(dt->at("Input1"));
+
                 int mScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
 
                 db->set_ptr("/" + mObjectCdk + "/scores/" + mObjective, mScore);
@@ -168,18 +170,17 @@ namespace LOICollection::Plugins::cdk {
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown1"));
                 std::string mObjectType = std::get<std::string>(dt->at("dropdown2"));
 
-                std::string mItemId = std::get<std::string>(dt->at("Input1"));
-
+                nlohmann::ordered_json mItemData = {
+                    { "id", std::get<std::string>(dt->at("Input1")) },
+                    { "type", mObjectType }
+                };
                 if (mObjectType == "universal") {
-                    nlohmann::ordered_json mItemData = {
-                        { "name", std::get<std::string>(dt->at("Input2")) },
-                        { "quantity", SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 1) },
-                        { "specialvalue", SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0) }
-                    };
-                    db->set_ptr("/" + mObjectCdk + "/item/" + mItemId, mItemData);
+                    mItemData["name"] = std::get<std::string>(dt->at("Input2"));
+                    mItemData["quantity"] = SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 1);
+                    mItemData["specialvalue"] = SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
                 }
-                db->set_ptr("/" + mObjectCdk + "/item/" + mItemId + "/type", mObjectType);
-                
+
+                db->get_ptr<nlohmann::ordered_json>("/" + mObjectCdk + "/item/").push_back(mItemData);
                 db->save();
             });
         }
@@ -201,8 +202,8 @@ namespace LOICollection::Plugins::cdk {
                 if (!dt) return MainGui::cdkAward(pl);
 
                 std::string mObjectCdk = std::get<std::string>(dt->at("dropdown"));
-
                 std::string mObjectTitle = std::get<std::string>(dt->at("Input1"));
+
                 int mObjectData = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 
                 db->set_ptr("/" + mObjectCdk + "/title/" + mObjectTitle, mObjectData);
@@ -249,21 +250,23 @@ namespace LOICollection::Plugins::cdk {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("cdk", tr({}, "commands.cdk.description"), CommandPermissionLevel::Any);
-            command.overload<CDKOP>().text("convert").required("convertString").execute(
+            command.overload<CDKOP>().text("convert").required("Id").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, CDKOP const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
-                cdkConvert(player, param.convertString);
+
+                convert(player, param.Id);
                 
-                output.success(fmt::runtime(tr({}, "commands.cdk.success.convert")), player.getRealName(), param.convertString);
+                output.success(fmt::runtime(tr({}, "commands.cdk.success.convert")), player.getRealName(), param.Id);
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
+
                 MainGui::convert(player);
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -276,6 +279,7 @@ namespace LOICollection::Plugins::cdk {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
+
                 MainGui::open(player);
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -283,64 +287,63 @@ namespace LOICollection::Plugins::cdk {
         }
     }
 
-    void cdkConvert(Player& player, const std::string& convertString) {
-        if (!isValid()) return;
+    void convert(Player& player, const std::string& id) {
+        if (!isValid()) 
+            return;
 
         std::string mObjectLanguage = getLanguage(player);
-        if (db->has(convertString)) {
-            if (db->has_ptr("/" + convertString + "/time")) {
-                if (SystemUtils::isReach(db->get_ptr<std::string>("/" + convertString + "/time", ""))) {
-                    player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
+        
+        if (!db->has(id))
+            return player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
 
-                    db->remove(convertString);
-                    return;
-                }
-            }
+        if (SystemUtils::isReach(db->get_ptr<std::string>("/" + id + "/time", ""))) {
+            db->remove(id);
 
-            auto mPlayerList = db->get_ptr<nlohmann::ordered_json>("/" + convertString + "/player");
-            if (std::find(mPlayerList.begin(), mPlayerList.end(), player.getUuid().asString()) != mPlayerList.end())
-                return player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips2"));
-            if (db->has_ptr("/" + convertString + "/title")) {
-                auto mTitleList = db->get_ptr<nlohmann::ordered_json>("/" + convertString + "/title");
-                for (nlohmann::ordered_json::iterator it = mTitleList.begin(); it != mTitleList.end(); ++it)
-                    chat::addChat(player, it.key(), it.value().get<int>());
-            }
-
-            auto mScoreboardList = db->get_ptr<nlohmann::ordered_json>("/" + convertString + "/scores");
-            for (nlohmann::ordered_json::iterator it = mScoreboardList.begin(); it != mScoreboardList.end(); ++it)
-                ScoreboardUtils::addScore(player, it.key(), it.value().get<int>());
-
-            auto mItemList = db->get_ptr<nlohmann::ordered_json>("/" + convertString + "/item");
-            for (nlohmann::ordered_json::iterator it = mItemList.begin(); it != mItemList.end(); ++it) {
-                if (it.value().value("type", "") == "nbt") {
-                    ItemStack itemStack = ItemStack::fromTag(CompoundTag::fromSnbt(it.key())->mTags);
-                    InventoryUtils::giveItem(player, itemStack, (int)itemStack.mCount);
-                } else {
-                    Bedrock::Safety::RedactableString mRedactableString;
-                    mRedactableString.mUnredactedString = it.value().value("name", "");
-                    
-                    ItemStack itemStack(it.key(), 1, it.value().value("specialvalue", 0), nullptr);
-                    itemStack.setCustomName(mRedactableString);
-                    
-                    InventoryUtils::giveItem(player, itemStack, it.value().value("quantity", 1));
-                }
-                player.refreshInventory();
-            }
-            if (db->get_ptr<bool>("/" + convertString + "/personal", false)) db->remove(convertString);
-            else {
-                mPlayerList.push_back(player.getUuid().asString());
-                db->set_ptr("/" + convertString + "/player", mPlayerList);
-            }
-            db->save();
-            
-            player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
-
-            logger->info(LOICollectionAPI::translateString(
-                ll::string_utils::replaceAll(tr({}, "cdk.log3"), "${cdk}", convertString), player
-            ));
-            return;
+            return player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
         }
-        player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
+
+        auto mPlayerList = db->get_ptr<nlohmann::ordered_json>("/" + id + "/player");
+        auto mTitleList = db->get_ptr<nlohmann::ordered_json>("/" + id + "/title");
+        auto mScoreboardList = db->get_ptr<nlohmann::ordered_json>("/" + id + "/scores");
+        auto mItemList = db->get_ptr<nlohmann::ordered_json>("/" + id + "/item");
+
+        if (std::find(mPlayerList.begin(), mPlayerList.end(), player.getUuid().asString()) != mPlayerList.end())
+            return player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips2"));
+
+        for (nlohmann::ordered_json::iterator it = mTitleList.begin(); it != mTitleList.end(); ++it)
+            chat::addTitle(player, it.key(), it.value().get<int>());
+
+        for (nlohmann::ordered_json::iterator it = mScoreboardList.begin(); it != mScoreboardList.end(); ++it)
+            ScoreboardUtils::addScore(player, it.key(), it.value().get<int>());
+
+        for (nlohmann::ordered_json::iterator it = mItemList.begin(); it != mItemList.end(); ++it) {
+            if (it.value().value("type", "") == "nbt") {
+                ItemStack itemStack = ItemStack::fromTag(CompoundTag::fromSnbt(it.value().value("id", ""))->mTags);
+                InventoryUtils::giveItem(player, itemStack, (int)itemStack.mCount);
+            } else {
+                Bedrock::Safety::RedactableString mRedactableString;
+                mRedactableString.mUnredactedString = it.value().value("name", "");
+                
+                ItemStack itemStack(it.value().value("id", ""), 1, it.value().value("specialvalue", 0), nullptr);
+                itemStack.setCustomName(mRedactableString);
+                
+                InventoryUtils::giveItem(player, itemStack, it.value().value("quantity", 1));
+            }
+        }
+
+        player.refreshInventory();
+
+        if (db->get_ptr<bool>("/" + id + "/personal", false))
+            db->remove(id);
+        else 
+            db->get_ptr<nlohmann::ordered_json>("/" + id + "/player").push_back(player.getUuid().asString());
+        db->save();
+
+        player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
+
+        logger->info(LOICollectionAPI::translateString(
+            ll::string_utils::replaceAll(tr({}, "cdk.log3"), "${cdk}", id), player
+        ));
     }
 
     bool isValid() {

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <map>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -38,6 +37,6 @@ namespace LOICollection::Plugins::menu {
 
     LOICOLLECTION_A_NDAPI bool isValid();
 
-    LOICOLLECTION_A_API   void registery(void* database, std::map<std::string, std::string>& options);
+    LOICOLLECTION_A_API   void registery(void* database);
     LOICOLLECTION_A_API   void unregistery();
 }

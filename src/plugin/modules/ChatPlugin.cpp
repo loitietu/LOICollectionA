@@ -1,8 +1,6 @@
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <variant>
 #include <numeric>
 
 #include <fmt/core.h>
@@ -44,6 +42,8 @@
 
 #include "data/SQLiteStorage.h"
 
+#include "ConfigPlugin.h"
+
 #include "include/ChatPlugin.h"
 
 using I18nUtilsTools::tr;
@@ -51,14 +51,15 @@ using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::chat {
     struct ChatOP {
-        CommandSelector<Player> target;
-        std::string titleName;
-        int time = 0;
+        CommandSelector<Player> Target;
+        std::string Title;
+        int Time = 0;
     };
 
-    std::map<std::string, std::variant<std::string, int>> mObjectOptions;
+    C_Config::C_Plugins::C_Chat options;
 
     std::unique_ptr<SQLiteStorage> db;
+    std::shared_ptr<SQLiteStorage> db2;
     std::shared_ptr<ll::io::Logger> logger;
     
     ll::event::ListenerPtr PlayerChatEventListener;
@@ -75,8 +76,7 @@ namespace LOICollection::Plugins::chat {
             form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::add(pl);
 
-                addChat(target, std::get<std::string>(dt->at("Input1")),
-                    SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0));
+                addTitle(target, std::get<std::string>(dt->at("Input1")), SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0));
             });
         }
         
@@ -92,7 +92,7 @@ namespace LOICollection::Plugins::chat {
             form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::remove(pl);
 
-                delChat(target, std::get<std::string>(dt->at("dropdown")));
+                delTitle(target, std::get<std::string>(dt->at("dropdown")));
             });
         }
 
@@ -134,17 +134,17 @@ namespace LOICollection::Plugins::chat {
 
         void title(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
-
-            std::string mObject = player.getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
             
             ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
             form.appendLabel(LOICollectionAPI::translateString(tr(mObjectLanguage, "chat.gui.setTitle.label"), player));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.setTitle.dropdown"), db->list("OBJECT$" + mObject + "$TITLE"));
-            form.sendTo(player, [mObject](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.setTitle.dropdown"), getTitles(player));
+            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::setting(pl);
 
-                db->set("OBJECT$" + mObject, "title", std::get<std::string>(dt->at("dropdown")));
+                std::string mObject = pl.getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+                db2->set("OBJECT$" + mObject, "Chat_Title", std::get<std::string>(dt->at("dropdown")));
                 
                 logger->info(LOICollectionAPI::translateString(tr({}, "chat.log1"), pl));
             });
@@ -158,9 +158,9 @@ namespace LOICollection::Plugins::chat {
 
             std::string mObjectLabel = tr(mObjectLanguage, "chat.gui.setBlacklist.set.label");
             ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
-            ll::string_utils::replaceAll(mObjectLabel, "${player}", db->get("OBJECT$" + mObject + "$CHAT" + target, "name", "None"));
+            ll::string_utils::replaceAll(mObjectLabel, "${player}", db->get("Blacklist", mObject + "." + target + "_NAME", "None"));
             ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(
-                db->get("OBJECT$" + mObject + "$CHAT" + target, "time", "None"), "None"
+                db->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None"
             ));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), mObjectLabel);
@@ -175,10 +175,9 @@ namespace LOICollection::Plugins::chat {
         void blacklistAdd(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
-            int mSize = std::get<int>(mObjectOptions.at("blacklist"));
-            if (((int) getBlacklist(player).size()) >= mSize) {
+            if (((int) getBlacklist(player).size()) >= options.BlacklistUpload) {
                 return player.sendMessage(ll::string_utils::replaceAll(
-                    tr(mObjectLanguage, "chat.gui.setBlacklist.tips1"), "${size}", std::to_string(mSize)
+                    tr(mObjectLanguage, "chat.gui.setBlacklist.tips1"), "${size}", std::to_string(options.BlacklistUpload)
                 ));
             }
             
@@ -245,70 +244,66 @@ namespace LOICollection::Plugins::chat {
         void registerCommand() {
             ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
                 .getOrCreateCommand("chat", tr({}, "commands.chat.description"), CommandPermissionLevel::Any);
-            command.overload<ChatOP>().text("add").required("target").required("titleName").optional("time").execute(
+            command.overload<ChatOP>().text("add").required("Target").required("Title").optional("Time").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                     return output.error(tr({}, "commands.generic.permission"));
 
-                CommandSelectorResults<Player> results = param.target.results(origin);
+                CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
                     return output.error(tr({}, "commands.generic.target"));
 
                 for (Player*& pl : results) {
-                    addChat(*pl, param.titleName, param.time);
+                    addTitle(*pl, param.Title, param.Time);
 
-                    output.success(fmt::runtime(tr({}, "commands.chat.success.add")), param.titleName, pl->getRealName());
+                    output.success(fmt::runtime(tr({}, "commands.chat.success.add")), param.Title, pl->getRealName());
                 }
             });
-            command.overload<ChatOP>().text("remove").required("target").required("titleName").execute(
+            command.overload<ChatOP>().text("remove").required("Target").required("Title").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                     return output.error(tr({}, "commands.generic.permission"));
 
-                CommandSelectorResults<Player> results = param.target.results(origin);
+                CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
                     return output.error(tr({}, "commands.generic.target"));
 
                 for (Player*& pl : results) {
-                    delChat(*pl, param.titleName);
+                    delTitle(*pl, param.Title);
 
-                    output.success(fmt::runtime(tr({}, "commands.chat.success.remove")), pl->getRealName(), param.titleName);
+                    output.success(fmt::runtime(tr({}, "commands.chat.success.remove")), pl->getRealName(), param.Title);
                 }
             });
-            command.overload<ChatOP>().text("set").required("target").required("titleName").execute(
+            command.overload<ChatOP>().text("set").required("Target").required("Title").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                     return output.error(tr({}, "commands.generic.permission"));
 
-                CommandSelectorResults<Player> results = param.target.results(origin);
+                CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
                     return output.error(tr({}, "commands.generic.target"));
 
                 for (Player*& pl : results) {
                     std::string mObject = pl->getUuid().asString();
                     std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (db->has("OBJECT$" + mObject + "$TITLE", param.titleName))
-                        db->set("OBJECT$" + mObject, "title", param.titleName);
+                    
+                    db2->set("OBJECT$" + mObject, "Chat_Title", param.Title);
 
-                    output.success(fmt::runtime(tr({}, "commands.chat.success.set")), pl->getRealName(), param.titleName);
+                    output.success(fmt::runtime(tr({}, "commands.chat.success.set")), pl->getRealName(), param.Title);
                 }
             });
-            command.overload<ChatOP>().text("list").required("target").execute(
+            command.overload<ChatOP>().text("list").required("Target").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                     return output.error(tr({}, "commands.generic.permission"));
 
-                CommandSelectorResults<Player> results = param.target.results(origin);
+                CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
                     return output.error(tr({}, "commands.generic.target"));
 
                 for (Player*& player : results) {
-                    std::string mObject = player->getUuid().asString();
-                    std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-                    std::vector<std::string> mObjectList = db->list("OBJECT$" + mObject + "$TITLE");
-                    std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), 
-                        [](std::string a, const std::string& b) -> std::string {
+                    std::vector<std::string> mObjectList = getTitles(*player);
+                    std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), [](std::string a, const std::string& b) -> std::string {
                         return a.append(a.empty() ? "" : ", ").append(b);
                     });
 
@@ -340,34 +335,27 @@ namespace LOICollection::Plugins::chat {
 
         void listenEvent() {
             ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) -> void {
-                    if (event.self().isSimulatedPlayer())
-                        return;
-                    std::string mObject = event.self().getUuid().asString();
-                    std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (!db->has("OBJECT$" + mObject)) {
-                        db->create("OBJECT$" + mObject);
-                        db->set("OBJECT$" + mObject, "title", "None");
-                    }
-                    if (!db->has("OBJECT$" + mObject + "$TITLE")) {
-                        db->create("OBJECT$" + mObject + "$TITLE");
-                        db->set("OBJECT$" + mObject + "$TITLE", "None", "0");
-                    }
-                    if (!db->has("OBJECT$" + mObject + "$CHAT"))
-                        db->create("OBJECT$" + mObject + "$CHAT");
-                }
-            );
+            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([](ll::event::PlayerJoinEvent& event) -> void {
+                if (event.self().isSimulatedPlayer())
+                    return;
+
+                std::string mObject = event.self().getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+                if (!db2->has("OBJECT$" + mObject, "Chat_Title"))
+                    db2->set("OBJECT$" + mObject, "Chat_Title", "None");
+            });
             PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>(
                 [](ll::event::PlayerChatEvent& event) -> void {
                     if (event.self().isSimulatedPlayer() || mute::isMute(event.self()))
                         return;
-                    event.cancel();
-                    
-                    std::string mChat = std::get<std::string>(mObjectOptions.at("chat"));
-                    ll::string_utils::replaceAll(mChat, "${chat}", event.message());
-                    LOICollectionAPI::translateString(mChat, event.self());
 
+                    event.cancel();
+
+                    std::string mChat = options.FormatText;
+                    ll::string_utils::replaceAll(mChat, "${chat}", event.message());
+                    
+                    LOICollectionAPI::translateString(mChat, event.self());
                     TextPacket packet = TextPacket::createChat(
                         "", mChat, "", event.self().getXuid(), ""
                     );
@@ -388,92 +376,64 @@ namespace LOICollection::Plugins::chat {
         }
     }
 
-    void update(Player& player) {
-        if (!isValid()) return;
+    void addTitle(Player& player, const std::string& text, int time) {
+        if (!isValid()) 
+            return;
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject + "$TITLE")) {
-            std::vector<std::string> mDeleteList;
-
-            for (const auto& [title, timeString] : db->get("OBJECT$" + mObject + "$TITLE")) {
-                if (title == "None") continue;
-
-                if (SystemUtils::isReach(timeString)) 
-                    mDeleteList.push_back(title);
-            }
-
-            if (mDeleteList.empty())
-                return;
-            
-            db->del("OBJECT$" + mObject + "$TITLE", mDeleteList);
-            
-            for (const auto& title : mDeleteList) {
-                if (title == "None") continue;
-
-                logger->info(LOICollectionAPI::translateString(
-                    ll::string_utils::replaceAll(tr({}, "chat.log4"), "${title}", title), player
-                ));
-            }
-        }
-        if (db->has("OBJECT$" + mObject)) {
-            std::string mTitle = db->get("OBJECT$" + mObject, "title", "None");
-            if (mTitle != "None" || !db->has("OBJECT$" + mObject + "$TITLE", mTitle))
-                db->set("OBJECT$" + mObject, "title", "None");
-        }
-    }
-
-    void addChat(Player& player, const std::string& text, int time) {
-        if (!isValid()) return;
-
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (!db->has("OBJECT$" + mObject + "$TITLE"))
-            db->create("OBJECT$" + mObject + "$TITLE");
-        db->set("OBJECT$" + mObject + "$TITLE", text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "0") : "0");
-
+        
+        db->set("Titles", mObject + "." + text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
+        
         logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "chat.log2"), "${title}", text), player
         ));
     }
 
     void addBlacklist(Player& player, Player& target) {
+        if (!isValid())
+            return;
+
         std::string mObject = player.getUuid().asString();
         std::string mTargetObject = target.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
 
-        db->set("OBJECT$" + mObject + "$CHAT", mTargetObject, "blacklist");
-        
-        db->create("OBJECT$" + mObject + "$CHAT" + mTargetObject);
-        db->set("OBJECT$" + mObject + "$CHAT" + mTargetObject, "name", target.getRealName());
-        db->set("OBJECT$" + mObject + "$CHAT" + mTargetObject, "time", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
+        db->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
+        db->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
         logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "chat.log5"), "${target}", mTargetObject), player
         ));
     }
 
-    void delChat(Player& player, const std::string& text) {
-        if (!isValid()) return;
+    void delTitle(Player& player, const std::string& text) {
+        if (!isValid())
+             return;
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject) && text != "None") {
-            db->del("OBJECT$" + mObject + "$TITLE", text);
-            update(player);
-        }
+
+        if (db->has("Titles", mObject + "." + text))
+            db->del("Titles", mObject + "." + text);
+
+        if (db2->get("OBJECT$" + mObject, "Chat_Title", "None") == text)
+            db2->set("OBJECT$" + mObject, "Chat_Title", "None");
+
         logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "chat.log3"), "${title}", text), player
         ));
     }
 
     void delBlacklist(Player& player, const std::string& target) {
+        if (!isValid())
+            return;
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-        db->del("OBJECT$" + mObject + "$CHAT", target);
-        db->remove("OBJECT$" + mObject + "$CHAT" + target);
+        if (db->hasByPrefix("Blacklist", mObject + "." + target + "_TIME", 2))
+            db->delByPrefix("Blacklist", mObject + "." + target);
 
         logger->info(LOICollectionAPI::translateString(
             ll::string_utils::replaceAll(tr({}, "chat.log6"), "${target}", target), player
@@ -481,66 +441,103 @@ namespace LOICollection::Plugins::chat {
     }
 
     std::string getTitle(Player& player) {
-        if (!isValid()) return "None";
+        if (!isValid())
+            return "None";
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject))
-            return db->get("OBJECT$" + mObject, "title");
-        return "None";
+
+        std::string mTitle = db2->get("OBJECT$" + mObject, "Chat_Title", "None");
+        
+        if (SystemUtils::isReach(db->get("Titles", mObject + "." + mTitle, "None"))) {
+            db2->set("OBJECT$" + mObject, "Chat_Title", "None");
+            db->del("Titles", mObject + "." + mTitle);
+            
+            return "None";
+        }
+
+        return mTitle;
     }
 
     std::string getTitleTime(Player& player, const std::string& text) {
-        if (!isValid()) return "None";
+        if (!isValid())
+            return "None";
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject + "$TITLE")) {
-            std::string mTimeString = db->get("OBJECT$" + mObject + "$TITLE", text);
-            if (mTimeString != "0")
-                return mTimeString;
-        }
-        return "None";
+
+        return db->get("Titles", mObject + "." + text, "None"); 
+    }
+
+    std::vector<std::string> getTitles(Player& player) {
+        if (!isValid())
+            return {};
+
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+        std::vector<std::string> mResult;
+        for (auto& mTarget : db->listByPrefix("Titles", mObject + "."))
+            mResult.push_back(mTarget.substr(mTarget.find_first_of('.') + 1));
+
+        return mResult;
     }
 
     std::vector<std::string> getBlacklist(Player& player) {
-        if (!isValid()) return {};
+        if (!isValid()) 
+            return {};
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        return db->list("OBJECT$" + mObject + "$CHAT");
+
+        std::vector<std::string> mResult;
+        for (auto& mTarget : db->listByPrefix("Blacklist", mObject + ".")) {
+            std::string mKey = mTarget.substr(mTarget.find_first_of('.') + 1);
+
+            mResult.push_back(mKey.substr(0, mKey.find_first_of('_')));
+        }
+
+        std::sort(mResult.begin(), mResult.end());
+        mResult.erase(std::unique(mResult.begin(), mResult.end()), mResult.end());
+
+        return mResult;
     }
 
-    bool isChat(Player& player, const std::string& text) {
-        if (!isValid()) return false;
+    bool isTitle(Player& player, const std::string& text) {
+        if (!isValid()) 
+            return false;
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject + "$TITLE"))
-            return db->has("OBJECT$" + mObject + "$TITLE", text);
-        return false;
+
+        return db->has("Titles", mObject + "." + text);
     }
 
     bool isBlacklist(Player& player, Player& target) {
-        if (!isValid()) return false;
+        if (!isValid()) 
+            return false;
 
-        std::string mObject = player.getUuid().asString();
+        std::string mObjcet = player.getUuid().asString();
         std::string mTargetObject = target.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        std::replace(mObjcet.begin(), mObjcet.end(), '-', '_');
         std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
-        if (db->has("OBJECT$" + mObject + "$CHAT"))
-            return db->has("OBJECT$" + mObject + "$CHAT", mTargetObject);
-        return false;
+
+        return db->has("Blacklist", mObjcet + "." + mTargetObject + "_TIME");
     }
 
     bool isValid() {
         return logger != nullptr && db != nullptr;
     }
 
-    void registery(void* database, std::map<std::string, std::variant<std::string, int>> options) {
+    void registery(void* database, void* setting) {
         db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
+        db2 = *static_cast<std::shared_ptr<SQLiteStorage>*>(setting);
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        mObjectOptions = std::move(options);
+        
+        options = Config::GetBaseConfigContext().Plugins.Chat;
+
+        db->create("Blacklist");
+        db->create("Titles");
         
         registerCommand();
         listenEvent();
@@ -552,3 +549,12 @@ namespace LOICollection::Plugins::chat {
         db->exec("VACUUM;");
     }
 }
+
+/*
+    Database:
+    -> Blacklist
+        -> UUID.UUID_TIME: BLACKLIST_TIME
+        -> UUID.UUID_NAME: BLACKLIST_NAME
+    -> TItles
+        -> UUID.TITLE: TIME
+*/ 

@@ -1,8 +1,5 @@
-#include <map>
 #include <memory>
 #include <string>
-#include <vector>
-#include <variant>
 #include <filesystem>
 
 #include <ll/api/Config.h>
@@ -30,6 +27,7 @@
 #include "include/ChatPlugin.h"
 #include "include/NoticePlugin.h"
 #include "include/MarketPlugin.h"
+#include "include/BehaviorEventPlugin.h"
 
 #include "include/ProtableTool/BasicHook.h"
 #include "include/ProtableTool/RedStone.h"
@@ -48,7 +46,7 @@ namespace LOICollection {
         const std::filesystem::path& configFilePath = configDataPath / "config.json";
 
         Config::SynchronousPluginConfigVersion(this->config);
-        logger.info("Loading LOICollection - A (Version {})", Config::getVersion());
+        logger.info("Loading LOICollection - A (Version {})", Config::GetVersion());
         logger.info("Protocol - Mojang Eula (https://account.mojang.com/documents/minecraft_eula)");
         
         if (!std::filesystem::exists(configFilePath)) {
@@ -67,10 +65,12 @@ namespace LOICollection {
                 return false;
             }
         }
+        Config::SetBaseConfigContext(this->config);
         logger.info("Initialization of configurations completed.");
 
         std::filesystem::create_directory(dataFilePath);
         this->SettingsDB = std::make_unique<SQLiteStorage>(dataFilePath / "settings.db");
+        this->BehaviorEventDB = std::make_unique<SQLiteStorage>(dataFilePath / "behaviorevent.db");
         this->BlacklistDB = std::make_unique<SQLiteStorage>(dataFilePath / "blacklist.db");
         this->MuteDB = std::make_unique<SQLiteStorage>(dataFilePath / "mute.db");
         this->TpaDB = std::make_unique<SQLiteStorage>(dataFilePath / "tpa.db");
@@ -105,64 +105,18 @@ namespace LOICollection {
         if (this->config.Plugins.Blacklist) Plugins::blacklist::registery(&this->BlacklistDB);
         if (this->config.Plugins.Mute) Plugins::mute::registery(&this->MuteDB);
         if (this->config.Plugins.Cdk) Plugins::cdk::registery(&this->CdkDB);
-        if (this->config.Plugins.Menu.ModuleEnabled) {
-            std::map<std::string, std::string> options;
-            options["MenuItemId"] = this->config.Plugins.Menu.MenuItemId;
-            options["EntranceKey"] = this->config.Plugins.Menu.EntranceKey;
-            Plugins::menu::registery(&this->MenuDB, options);
-        }
-        if (this->config.Plugins.Tpa.ModuleEnabled) {
-            std::map<std::string, std::variant<std::string, int>> options;
-            options["score"] = this->config.Plugins.Tpa.TargetScoreboard;
-            options["required"] = this->config.Plugins.Tpa.RequestRequired;
-            options["blacklist"] = this->config.Plugins.Tpa.BlacklistUpload;
-            Plugins::tpa::registery(&this->TpaDB, &this->SettingsDB, options);
-        }
+        if (this->config.Plugins.Menu.ModuleEnabled) Plugins::menu::registery(&this->MenuDB);
+        if (this->config.Plugins.Tpa.ModuleEnabled) Plugins::tpa::registery(&this->TpaDB, &this->SettingsDB);
         if (this->config.Plugins.Shop) Plugins::shop::registery(&this->ShopDB);
-        if (this->config.Plugins.Monitor.ModuleEnabled) {
-            std::map<std::string, std::variant<std::string, std::vector<std::string>, int, bool>> options;
-            options["BelowName_Enabled"] = this->config.Plugins.Monitor.BelowName.ModuleEnabled;
-            options["BelowName_RefreshInterval"] = this->config.Plugins.Monitor.BelowName.RefreshInterval;
-            options["BelowName_Text"] = this->config.Plugins.Monitor.BelowName.FormatText;
-            options["ServerToast_Enabled"] = this->config.Plugins.Monitor.ServerToast.ModuleEnabled;
-            options["ServerToast_JoinText"] = this->config.Plugins.Monitor.ServerToast.FormatText.join;
-            options["ServerToast_ExitText"] = this->config.Plugins.Monitor.ServerToast.FormatText.exit;
-            options["ChangeScore_Enabled"] = this->config.Plugins.Monitor.ChangeScore.ModuleEnabled;
-            options["ChangeScore_Scores"] = this->config.Plugins.Monitor.ChangeScore.ScoreboardLists;
-            options["ChangeScore_Text"] = this->config.Plugins.Monitor.ChangeScore.FormatText;
-            options["DisableCommand_Enabled"] = this->config.Plugins.Monitor.DisableCommand.ModuleEnabled;
-            options["DisableCommand_Text"] = this->config.Plugins.Monitor.DisableCommand.FormatText;
-            options["DisableCommand_List"] = this->config.Plugins.Monitor.DisableCommand.CommandLists;
-            Plugins::monitor::registery(options);
-        }
+        if (this->config.Plugins.Monitor.ModuleEnabled) Plugins::monitor::registery();
         if (this->config.Plugins.Pvp) Plugins::pvp::registery(&this->SettingsDB);
-        if (this->config.Plugins.Wallet.ModuleEnabled) {
-            std::map<std::string, std::variant<std::string, double>> options;
-            options["score"] = this->config.Plugins.Wallet.TargetScoreboard;
-            options["tax"] = this->config.Plugins.Wallet.ExchangeRate;
-            Plugins::wallet::registery(&this->SettingsDB, options);
-        }
-        if (this->config.Plugins.Chat.ModuleEnabled) {
-            std::map<std::string, std::variant<std::string, int>> options;
-            options["chat"] = this->config.Plugins.Chat.FormatText;
-            options["blacklist"] = this->config.Plugins.Chat.BlacklistUpload;
-            Plugins::chat::registery(&this->ChatDB, options);
-        }
+        if (this->config.Plugins.Wallet.ModuleEnabled) Plugins::wallet::registery(&this->SettingsDB);
+        if (this->config.Plugins.Chat.ModuleEnabled) Plugins::chat::registery(&this->ChatDB, &this->SettingsDB);
         if (this->config.Plugins.Notice) Plugins::notice::registery(&this->NoticeDB, &this->SettingsDB);
-        if (this->config.Plugins.Market.ModuleEnabled) {
-            std::map<std::string, std::variant<std::string, int, std::vector<std::string>>> options;
-            options["score"] = this->config.Plugins.Market.TargetScoreboard;
-            options["upload"] = this->config.Plugins.Market.MaximumUpload;
-            options["blacklist"] = this->config.Plugins.Market.BlacklistUpload;
-            options["items"] = this->config.Plugins.Market.ProhibitedItems;
-            Plugins::market::registery(&this->MarketDB, &this->SettingsDB, options);
-        }
+        if (this->config.Plugins.Market.ModuleEnabled) Plugins::market::registery(&this->MarketDB, &this->SettingsDB);
+        if (this->config.Plugins.BehaviorEvent.ModuleEnabled) Plugins::behaviorevent::registery(&this->BehaviorEventDB);
 
-        if (this->config.ProtableTool.BasicHook.ModuleEnabled) {
-            std::map<std::string, std::string> options;
-            options["seed"] = this->config.ProtableTool.BasicHook.FakeSeed;
-            ProtableTool::BasicHook::registery(options);
-        }
+        if (this->config.ProtableTool.BasicHook.ModuleEnabled) ProtableTool::BasicHook::registery(this->config.ProtableTool.BasicHook.FakeSeed);
         if (this->config.ProtableTool.RedStone) ProtableTool::RedStone::registery(this->config.ProtableTool.RedStone);
         if (this->config.ProtableTool.OrderedUI) ProtableTool::OrderedUI::registery();
         return true;
@@ -182,6 +136,7 @@ namespace LOICollection {
         if (this->config.Plugins.Monitor.ModuleEnabled) Plugins::monitor::unregistery();
         if (this->config.Plugins.Chat.ModuleEnabled) Plugins::chat::unregistery();
         if (this->config.Plugins.Market.ModuleEnabled) Plugins::market::unregistery();
+        if (this->config.Plugins.BehaviorEvent.ModuleEnabled) Plugins::behaviorevent::unregistery();
 
         if (this->config.ProtableTool.RedStone) ProtableTool::RedStone::unregistery();
         if (this->config.ProtableTool.OrderedUI) ProtableTool::OrderedUI::unregistery();

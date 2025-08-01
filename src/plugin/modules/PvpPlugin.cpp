@@ -72,6 +72,7 @@ namespace LOICollection::Plugins::pvp {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
+
                 MainGui::open(player);
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -81,6 +82,7 @@ namespace LOICollection::Plugins::pvp {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
+
                 enable(player, false);
 
                 output.success(tr({}, "commands.pvp.success.disable"));
@@ -90,6 +92,7 @@ namespace LOICollection::Plugins::pvp {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
+                
                 enable(player, true);
 
                 output.success(tr({}, "commands.pvp.success.enable"));
@@ -98,39 +101,34 @@ namespace LOICollection::Plugins::pvp {
 
         void listenEvent() {
             ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) -> void {
-                    if (event.self().isSimulatedPlayer())
-                        return;
-                    std::string mObject = event.self().getUuid().asString();
-                    std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    if (!db->has("OBJECT$" + mObject)) db->create("OBJECT$" + mObject);
-                    if (!db->has("OBJECT$" + mObject, "Pvp_Enable"))
-                        db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
-                }
-            );
-            PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>(
-                [](ll::event::PlayerDisconnectEvent& event) -> void {
-                    if (event.self().isSimulatedPlayer())
-                        return;
-                    mPlayerPvpLists.erase(event.self().getUuid().asString());
-                }
-            );
-            PlayerHurtEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerHurtEvent>(
-                [](LOICollection::ServerEvents::PlayerHurtEvent& event) -> void {
-                    if (!event.getSource().isPlayer() || event.getSource().isSimulatedPlayer() || event.self().isSimulatedPlayer())
-                        return;
-                    auto& source = static_cast<Player&>(event.getSource());
+            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([](ll::event::PlayerJoinEvent& event) -> void {
+                if (event.self().isSimulatedPlayer())
+                    return;
 
-                    if (!isEnable(event.self()) || !isEnable(source)) {
-                        if (!mPlayerPvpLists.contains(source.getUuid().asString()) || mPlayerPvpLists[source.getUuid().asString()] != SystemUtils::getNowTime("%Y%m%d%H%M%S"))
-                            source.sendMessage(tr(getLanguage(source), "pvp.off"));
-                        event.cancel();
-                    }
+                std::string mObject = event.self().getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+                
+                if (!db->has("OBJECT$" + mObject, "Pvp_Enable"))
+                    db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
+            });
+            PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([](ll::event::PlayerDisconnectEvent& event) -> void {
+                if (event.self().isSimulatedPlayer())
+                    return;
+                mPlayerPvpLists.erase(event.self().getUuid().asString());
+            });
+            PlayerHurtEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerHurtEvent>([](LOICollection::ServerEvents::PlayerHurtEvent& event) -> void {
+                if (!event.getSource().isPlayer() || event.getSource().isSimulatedPlayer() || event.self().isSimulatedPlayer())
+                    return;
+                auto& source = static_cast<Player&>(event.getSource());
 
-                    mPlayerPvpLists[source.getUuid().asString()] = SystemUtils::getNowTime("%Y%m%d%H%M%S");
+                if (!isEnable(event.self()) || !isEnable(source)) {
+                    if (!mPlayerPvpLists.contains(source.getUuid().asString()) || mPlayerPvpLists[source.getUuid().asString()] != SystemUtils::getNowTime("%Y%m%d%H%M%S"))
+                        source.sendMessage(tr(getLanguage(source), "pvp.off"));
+                    event.cancel();
                 }
-            );
+
+                mPlayerPvpLists[source.getUuid().asString()] = SystemUtils::getNowTime("%Y%m%d%H%M%S");
+            });
         }
 
         void unlistenEvent() {

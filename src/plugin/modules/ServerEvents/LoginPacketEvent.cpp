@@ -12,7 +12,7 @@
 #include <mc/network/packet/LoginPacket.h>
 
 #include <mc/certificates/Certificate.h>
-#include <mc/certificates/identity/GameServerToken.h>
+#include <mc/certificates/identity/LegacyMultiplayerToken.h>
 
 #include <mc/platform/UUID.h>
 
@@ -37,12 +37,14 @@ namespace LOICollection::ServerEvents {
 
     std::string LoginPacketEvent::getIp() const {
         std::string ipAndport = getIpAndPort();
+
         size_t pos = ipAndport.find(':');
         return ipAndport.substr(0, pos);
     }
 
     std::string LoginPacketEvent::getPort() const {
         std::string ipAndport = getIpAndPort();
+        
         size_t pos = ipAndport.find(':');
         return ipAndport.substr(pos + 1);
     }
@@ -59,10 +61,10 @@ namespace LOICollection::ServerEvents {
         origin(identifier, packet);
 
         std::string ipAndPort = identifier.getIPAndPort();
-        ConnectionRequest* conn = packet->mConnectionRequest.get();
-        mce::UUID uuid = conn->mGameServerToken->getIdentity();
+        ConnectionRequest& conn = *packet->mConnectionRequest.get();
+        mce::UUID uuid = conn.mLegacyMultiplayerToken->getIdentity();
 
-        LoginPacketEvent event(identifier, *conn, uuid, ipAndPort);
+        LoginPacketEvent event(identifier, conn, uuid, ipAndPort);
         ll::event::EventBus::getInstance().publish(event);
     };
 

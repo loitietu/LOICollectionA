@@ -56,11 +56,9 @@ namespace LOICollection::LOICollectionAPI {
             return std::string{player.mName};
         });
         registerVariable("player.title", [](Player& player) -> std::string {
-            Plugins::chat::update(player);
             return Plugins::chat::getTitle(player);
         });
         registerVariable("player.title.time", [](Player& player) -> std::string {
-            Plugins::chat::update(player);
             return SystemUtils::formatDataTime(
                 Plugins::chat::getTitleTime(player, Plugins::chat::getTitle(player)), "None"
             );

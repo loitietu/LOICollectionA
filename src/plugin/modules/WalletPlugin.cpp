@@ -1,7 +1,5 @@
-#include <map>
 #include <memory>
 #include <string>
-#include <variant>
 
 #include <fmt/core.h>
 
@@ -43,6 +41,8 @@
 
 #include "data/SQLiteStorage.h"
 
+#include "ConfigPlugin.h"
+
 #include "include/WalletPlugin.h"
 
 using I18nUtilsTools::tr;
@@ -50,11 +50,11 @@ using LOICollection::Plugins::language::getLanguage;
 
 namespace LOICollection::Plugins::wallet {
     struct WalletOP {
-        CommandSelector<Player> target;
-        int score = 0;
+        CommandSelector<Player> Target;
+        int Score = 0;
     };
 
-    std::map<std::string, std::variant<std::string, double>> mObjectOptions;
+    C_Config::C_Plugins::C_Wallet options;
     
     std::shared_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
@@ -64,24 +64,23 @@ namespace LOICollection::Plugins::wallet {
     namespace MainGui {
         void content(Player& player, mce::UUID target, TransferType type) {
             std::string mObjectLanguage = getLanguage(player);
-            std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
 
             std::string mTargetName = type == TransferType::online ? 
                 ll::service::getLevel()->getPlayer(target)->getRealName() : ll::service::PlayerInfo::getInstance().fromUuid(target)->name;
 
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label") + "\n" + tr(mObjectLanguage, "wallet.gui.transfer.label2");
-            ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%%");
-            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(ScoreboardUtils::getScore(player, mScore)));
+            ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(options.ExchangeRate * 100) + "%%");
+            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(ScoreboardUtils::getScore(player, options.TargetScoreboard)));
             ll::string_utils::replaceAll(mLabel, "${target}", mTargetName);
 
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
             form.appendLabel(mLabel);
             form.appendInput("Input", tr(mObjectLanguage, "wallet.gui.transfer.input"), "", "100");
-            form.sendTo(player, [target, mTargetName, type, mScore](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            form.sendTo(player, [target, mTargetName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::transfer(pl, type);
 
                 int mMoney = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
-                if (ScoreboardUtils::getScore(pl, mScore) < mMoney || mMoney <= 0)
+                if (ScoreboardUtils::getScore(pl, options.TargetScoreboard) < mMoney || mMoney <= 0)
                     return pl.sendMessage(tr(getLanguage(pl), "wallet.tips"));
 
                 wallet::transfer(pl, target, mMoney, type);
@@ -125,7 +124,7 @@ namespace LOICollection::Plugins::wallet {
 
         void wealth(Player& player) {
             std::string mTipsString = ll::string_utils::replaceAll(tr(getLanguage(player), "wallet.showOff"), 
-                "${money}", std::to_string(ScoreboardUtils::getScore(player,std::get<std::string>(mObjectOptions.at("score"))))
+                "${money}", std::to_string(ScoreboardUtils::getScore(player, options.TargetScoreboard))
             );
             TextPacket::createSystemMessage(LOICollectionAPI::translateString(mTipsString, player)).sendToClients();
         }
@@ -134,8 +133,8 @@ namespace LOICollection::Plugins::wallet {
             std::string mObjectLanguage = getLanguage(player);
 
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
-            ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(std::get<double>(mObjectOptions.at("tax")) * 100) + "%%");
-            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(ScoreboardUtils::getScore(player, std::get<std::string>(mObjectOptions.at("score")))));
+            ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(options.ExchangeRate * 100) + "%%");
+            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(ScoreboardUtils::getScore(player, options.TargetScoreboard)));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), mLabel);
             form.appendButton(tr(mObjectLanguage, "wallet.gui.transfer"), "textures/ui/MCoin", "path", [](Player& pl) -> void {
@@ -160,36 +159,38 @@ namespace LOICollection::Plugins::wallet {
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
+
                 MainGui::open(player);
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
             });
-            command.overload<WalletOP>().text("transfer").required("target").required("score").execute(
+            command.overload<WalletOP>().text("transfer").required("Target").required("Score").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, WalletOP const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
-                CommandSelectorResults<Player> results = param.target.results(origin);
+                CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
                     return output.error(tr({}, "commands.generic.target"));
 
-                std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
-                if (ScoreboardUtils::getScore(player, mScore) < (int)(results.size() * param.score) || param.score < 0)
+                if (ScoreboardUtils::getScore(player, options.TargetScoreboard) < (int)(results.size() * param.Score) || param.Score < 0)
                     return output.error(tr({}, "commands.wallet.error.score"));
-                int mMoney = (param.score - (int)(param.score * std::get<double>(mObjectOptions.at("tax"))));
-                for (Player*& target : results)
-                    ScoreboardUtils::addScore(*target, mScore, mMoney);
-                ScoreboardUtils::reduceScore(player, mScore, (int)(results.size() * param.score));
 
-                output.success(fmt::runtime(tr({}, "commands.wallet.success.transfer")), param.score, results.size());
+                int mMoney = (param.Score - (int)(param.Score * options.ExchangeRate));
+                for (Player*& target : results)
+                    ScoreboardUtils::addScore(*target, options.TargetScoreboard, mMoney);
+                ScoreboardUtils::reduceScore(player, options.TargetScoreboard, (int)(results.size() * param.Score));
+
+                output.success(fmt::runtime(tr({}, "commands.wallet.success.transfer")), param.Score, results.size());
             });
             command.overload().text("wealth").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return output.error(tr({}, "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
+
                 MainGui::wealth(player);
 
                 output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -198,24 +199,22 @@ namespace LOICollection::Plugins::wallet {
 
         void listenEvent() {
             ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>(
-                [](ll::event::PlayerJoinEvent& event) -> void {
-                    if (event.self().isSimulatedPlayer())
-                        return;
-                    std::string mObject = event.self().getUuid().asString();
-                    std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    
-                    if (!db->has("OBJECT$" + mObject)) db->create("OBJECT$" + mObject);
-                    if (!db->has("OBJECT$" + mObject, "Score"))
-                        db->set("OBJECT$" + mObject, "Score", "0");
+            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([](ll::event::PlayerJoinEvent& event) -> void {
+                if (event.self().isSimulatedPlayer())
+                    return;
 
-                    int mScore = SystemUtils::toInt(db->get("OBJECT$" + mObject, "Score"), 0);
-                    if (mScore > 0) {
-                        ScoreboardUtils::addScore(event.self(), std::get<std::string>(mObjectOptions.at("score")), mScore);
-                        db->set("OBJECT$" + mObject, "Score", "0");
-                    }
+                std::string mObject = event.self().getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+                
+                if (!db->has("OBJECT$" + mObject, "Wallet_Score"))
+                    db->set("OBJECT$" + mObject, "Wallet_Score", "0");
+
+                if (int mScore = SystemUtils::toInt(db->get("OBJECT$" + mObject, "Wallet_Score"), 0); mScore > 0) {
+                    ScoreboardUtils::addScore(event.self(), options.TargetScoreboard, mScore);
+
+                    db->set("OBJECT$" + mObject, "Wallet_Score", "0");
                 }
-            );
+            });
         }
 
         void unlistenEvent() {
@@ -225,18 +224,19 @@ namespace LOICollection::Plugins::wallet {
     }
 
     void transfer(Player& player, mce::UUID target, int score, TransferType type, bool isReduce) {
-        std::string mScore = std::get<std::string>(mObjectOptions.at("score"));
-        int mTargetMoney = score - (int)(score * std::get<double>(mObjectOptions.at("tax")));
+        int mTargetMoney = score - (int)(score * options.ExchangeRate);
 
-        if (isReduce) ScoreboardUtils::reduceScore(player, mScore, score);
+        if (isReduce) 
+            ScoreboardUtils::reduceScore(player, options.TargetScoreboard, score);
         if (type == TransferType::online) {
             Player* mObject = ll::service::getLevel()->getPlayer(target);
-            ScoreboardUtils::addScore(*mObject, mScore, mTargetMoney);
+            ScoreboardUtils::addScore(*mObject, options.TargetScoreboard, mTargetMoney);
         } else {
             std::string mObject = target.asString();
             std::replace(mObject.begin(), mObject.end(), '-', '_');
-            db->set("OBJECT$" + mObject, "Score", std::to_string(
-                SystemUtils::toInt(db->get("OBJECT$" + mObject, "Score"), 0) + mTargetMoney
+
+            db->set("OBJECT$" + mObject, "Wallet_Score", std::to_string(
+                SystemUtils::toInt(db->get("OBJECT$" + mObject, "Wallet_Score"), 0) + mTargetMoney
             ));
         }
     }
@@ -245,10 +245,11 @@ namespace LOICollection::Plugins::wallet {
         return logger != nullptr && db != nullptr;
     }
 
-    void registery(void* setting, std::map<std::string, std::variant<std::string, double>>& options) {
+    void registery(void* setting) {
         db = *static_cast<std::shared_ptr<SQLiteStorage>*>(setting);
         logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        mObjectOptions = std::move(options);
+        
+        options = Config::GetBaseConfigContext().Plugins.Wallet;
         
         registerCommand();
         listenEvent();
