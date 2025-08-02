@@ -1,9 +1,23 @@
 # LOICollectionA
-## Minecraft Bedrock Server LeviLamina Plugin
+> **A Minecraft Server Plugin For LeviLamina**
 
-### [English](README.md) | [简体中文](README.zh.md)
+![Release](https://img.shields.io/github/v/release/loitietu/LOICollectionA?style=flat-square)
+![Stars](https://img.shields.io/github/stars/loitietu/LOICollectionA?style=social)
+![Downloads](https://img.shields.io/github/downloads/loitietu/LOICollectionA/total?style=flat-square)
+[![License](https://img.shields.io/github/license/loitietu/LOICollectionA)](LICENSE)
 
-## Implemented Features
+[![English](https://img.shields.io/badge/English-inactive?style=for-the-badge)](README.md)
+![简体中文](https://img.shields.io/badge/简体中文-informational?style=for-the-badge)
+
+LOICollectionA is a plugin that originated from LOICollection and has evolved through a comprehensive refactoring. This process also served as an opportunity to adapt it for LeviLamina.
+
+It inherits the functional diversity of LOICollection while introducing numerous optimizations. The plugin adopts a `data-centric` architecture for its functional modules, enhancing flexibility and extensibility.
+
+Future developments will provide more API interfaces to empower plugin developers with richer functionality.
+
+## Implemented Modules
+> All modules below can be enabled/disabled in the configuration file.
+
 - [x] Blacklist
 - [x] Mute
 - [x] Cdk
@@ -16,103 +30,22 @@
 - [x] Chat
 - [x] Notice
 - [x] Market
+- [x] BehaviorEvent
 
-### How to Install the Plugin?
-1. Execute the command in the server directory:
-   ```cmd
-   lip install github.com/loitietu/LOICollectionA
-   ```
-2. Start the server.
-3. Wait for the output loading text.
-4. Installation is complete.
-
-### How to Configure the File?
-1. Open the plugin directory `LOICollectionA`.
-2. Open the file `config.json`.
-3. After opening, you will see content similar to the following:
-```json
-{
-    "version": 166,
-    "ConsoleLanguage": "system",
-    "Plugins": {
-        "language": {
-            "FileUpdate": true
-        },
-        "Blacklist": false,
-        "Mute": false, 
-        "Cdk": false,
-        "Menu": {
-            "ModuleEnabled": false,
-            "MenuItemId": "minecraft:clock",
-            "EntranceKey": "main"
-        },
-        "Tpa": {
-            "ModuleEnabled": false,
-            "TargetScoreboard": "money",
-            "BlacklistUpload": 10,
-            "RequestRequired": 100
-        },
-        "Shop": false,
-        "Monitor": {
-            "ModuleEnabled": false,
-            "BelowName": {
-                "ModuleEnabled": true,
-                "RefreshInterval": 20,
-                "FormatText": "{player}"
-            },
-            "ServerToast": {
-                "ModuleEnabled": true,
-                "FormatText": {
-                    "join": "{player} has joined the server",
-                    "exit": "{player} has left the server"
-                }
-            },
-            "ChangeScore": {
-                "ModuleEnabled": true,
-                "ScoreboardLists": [],
-                "FormatText": "§e§lDetected Score §f${Object}§e Change §bOriginal Value: §f${OriMoney} §aChange: §f${SetMoney} §eCurrent Value: §f${GetScore}"
-            },
-            "DisableCommand": {
-                "ModuleEnabled": true,
-                "FormatText": "This command has been disabled",
-                "CommandLists": []
-            }
-        },
-        "Pvp": false,
-        "Wallet": {
-            "ModuleEnabled": false,
-            "TargetScoreboard": "money",
-            "ExchangeRate": 0.1
-        },
-        "Chat": {
-            "ModuleEnabled": false,
-            "FormatText": "<{player}> ${chat}",
-            "BlacklistMaximumUpload": 10
-        },
-        "Notice": false,
-        "Market": {
-            "ModuleEnabled": false,
-            "TargetScoreboard": "money",
-            "MaximumUpload": 20,
-            "BlacklistMaximumUpload": 10,
-            "ProhibitedItems": []
-        }
-    },
-    "ProtableTool": {
-        "BasicHook": {
-            "ModuleEnabled": false,
-            "FakeSeed": "$random"
-        },
-        "RedStone": 0,
-        "OrderedUI": false
-    }
-}
+## Installation
+1. Execute the following command in your server directory:
+```cmd
+lip install github.com/loitietu/LOICollectionA
 ```
-- Please make changes according to the Json specification (https://www.json.org/).
-4. You can freely make changes and save.
+2. Start the server.
+3. Wait for the loading confirmation message.
+4. Installation complete.
 
-### How to Compile Locally?
-Open the local command prompt (cmd) and execute the following commands:
+> [!TIP]
+> For more information, visit [Github Pages](https://loitietu.github.io/LOICollectionA/)
+
+## Local Compilation
+Open Command Prompt (`cmd`) and execute:
 ```cmd
 git clone https://github.com/loitietu/LOICollectionA.git
 cd LOICollectionA
@@ -121,5 +54,8 @@ xmake lua scripts/project.lua
 xmake
 ```
 
-### LICENSE
-- This plugin is licensed under the [GPL-3.0](LICENSE) license.
+## Contributing
+We welcome `PRs` and `Issues` to help improve this plugin.
+
+## License
+- Licensed under the [GPL-3.0](LICENSE) license.

@@ -1,9 +1,23 @@
 # LOICollectionA
-## Minecraft Bedrock Server LeviLamina Plugin
+> **A Minecraft Server Plugin For LeviLamina**
 
-### [English](README.md) | [简体中文](README.zh.md)
+![Release](https://img.shields.io/github/v/release/loitietu/LOICollectionA?style=flat-square)
+![Stars](https://img.shields.io/github/stars/loitietu/LOICollectionA?style=social)
+![Downloads](https://img.shields.io/github/downloads/loitietu/LOICollectionA/total?style=flat-square)
+[![License](https://img.shields.io/github/license/loitietu/LOICollectionA)](LICENSE)
 
-## 实现插件
+[![English](https://img.shields.io/badge/English-inactive?style=for-the-badge)](README.md)
+![中文](https://img.shields.io/badge/简体中文-informational?style=for-the-badge)
+
+LOICollectionA 是源于插件 LOICollection 所演化而来的内容，其在原有的基础上对于整体进行了一次完整的重构，并由此为契机进行了对 LeviLamina 的适配。
+
+而其在整体上及继承了 LOICollection 的功能多样性，同时也对其进行了许多优化。并且在功能模块方面实现了以 `数据` 为核心的插件架构，使得插件的功能更加灵活，更加容易扩展。
+
+同时未来也将会提供更多 API 接口，以便于插件开发者进行添加更加丰富的功能。
+
+## 实现功能模块
+> 以下功能模块均可在配置文件中进行配置开启或关闭。
+
 - [x] Blacklist
 - [x] Mute
 - [x] Cdk
@@ -16,8 +30,9 @@
 - [x] Chat
 - [x] Notice
 - [x] Market
+- [x] BehaviorEvent
 
-### 如何安装插件？
+## 安装插件
 1. 在服务器目录中执行命令
 ```cmd
 lip install github.com/loitietu/LOICollectionA
@@ -26,93 +41,11 @@ lip install github.com/loitietu/LOICollectionA
 3. 等待输出加载文本。
 4. 完成安装。
 
-### 如何配置文件？
-1. 打开插件目录 `LOICollectionA`。
-2. 打开文件 `config.json`。
-3. 打开后，您会看到类似以下内容的内容：
-```json
-{
-    "version": 166,
-    "ConsoleLanguage": "system",
-    "Plugins": {
-        "language": {
-            "FileUpdate": true
-        },
-        "Blacklist": false,
-        "Mute": false, 
-        "Cdk": false,
-        "Menu": {
-            "ModuleEnabled": false,
-            "MenuItemId": "minecraft:clock",
-            "EntranceKey": "main"
-        },
-        "Tpa": {
-            "ModuleEnabled": false,
-            "TargetScoreboard": "money",
-            "BlacklistUpload": 10,
-            "RequestRequired": 100
-        },
-        "Shop": false,
-        "Monitor": {
-            "ModuleEnabled": false,
-            "BelowName": {
-                "ModuleEnabled": true,
-                "RefreshInterval": 20,
-                "FormatText": "{player}"
-            },
-            "ServerToast": {
-                "ModuleEnabled": true,
-                "FormatText": {
-                    "join": "{player} 加入了服务器",
-                    "exit": "{player} 退出了服务器"
-                }
-            },
-            "ChangeScore": {
-                "ModuleEnabled": true,
-                "ScoreboardLists": [],
-                "FormatText": "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}"
-            },
-            "DisableCommand": {
-                "ModuleEnabled": true,
-                "FormatText": "§c该指令已被禁用",
-                "CommandLists": []
-            }
-        },
-        "Pvp": false,
-        "Wallet": {
-            "ModuleEnabled": false,
-            "TargetScoreboard": "money",
-            "ExchangeRate": 0.1
-        },
-        "Chat": {
-            "ModuleEnabled": false,
-            "FormatText": "<{player}> ${chat}",
-            "BlacklistUpload": 10
-        },
-        "Notice": false,
-        "Market": {
-            "ModuleEnabled": false,
-            "TargetScoreboard": "money",
-            "MaximumUpload": 20,
-            "BlacklistUpload": 10,
-            "ProhibitedItems": []
-        }
-    },
-    "ProtableTool": {
-        "BasicHook": {
-            "ModuleEnabled": false,
-            "FakeSeed": "$random"
-        },
-        "RedStone": 0,
-        "OrderedUI": false
-    }
-}
-```
-- 请按照 Json 规范 (https://www.json.org/) 进行更改。
-4. 您可以自由地进行更改并保存。
+> [!TIP]
+> 更多信息请访问 [Github Pages](https://loitietu.github.io/LOICollectionA/)
 
-### 如何在本地编译？
-打开本地命令提示符(cmd)并执行以下命令：
+## 本地编译
+打开本地命令提示符(`cmd`)并执行以下命令：
 ```cmd
 git clone https://github.com/loitietu/LOICollectionA.git
 cd LOICollectionA
@@ -121,5 +54,8 @@ xmake lua scripts/project.lua
 xmake
 ```
 
-### LICENSE
-- 本插件根据 [GPL-3.0](LICENSE) 许可证进行许可。
+## 贡献
+欢迎提交 `PR` 或者 `Issue` 帮助一起完善这个插件。
+
+## LICENSE
+- 该插件根据 [GPL-3.0](LICENSE) 许可证进行许可。
