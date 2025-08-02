@@ -6,8 +6,8 @@
 ![Downloads](https://img.shields.io/github/downloads/loitietu/LOICollectionA/total?style=flat-square)
 [![License](https://img.shields.io/github/license/loitietu/LOICollectionA)](LICENSE)
 
-[![English](https://img.shields.io/badge/English-inactive?style=for-the-badge)](README.md)
-![简体中文](https://img.shields.io/badge/简体中文-informational?style=for-the-badge)
+![English](https://img.shields.io/badge/English-inactive?style=for-the-badge)
+[![简体中文](https://img.shields.io/badge/简体中文-informational?style=for-the-badge)](README.zh.md)
 
 LOICollectionA is a plugin that originated from LOICollection and has evolved through a comprehensive refactoring. This process also served as an opportunity to adapt it for LeviLamina.
 
