@@ -509,7 +509,6 @@ namespace LOICollection::Plugins::behaviorevent {
                     "PlayerPlaceBlock", "Operable", mPosition, event.self().getDimensionId()
                 );
                 mEvent["EventOperable"] = BlockUtils::getBlock(mPosition, event.self().getDimensionId()).value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0);
-                mEvent["EventBlock"] = event.self().getCarriedItem().mBlock->mSerializationId->toSnbt(SnbtFormat::Minimize, 0);
                 mEvent["PlayerName"] = event.self().getRealName();
 
                 if (options.Events.onPlayerPlaceBlock.RecordDatabase) 
@@ -517,7 +516,7 @@ namespace LOICollection::Plugins::behaviorevent {
 
                 if (options.Events.onPlayerPlaceBlock.OutputConsole)
                     logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerplaceblock")), 
-                        mEvent["PlayerName"], mEvent["Position.dimension"], mEvent["Position.x"], mEvent["Position.y"], mEvent["Position.z"], mEvent["EventBlock"]
+                        mEvent["PlayerName"], mEvent["Position.dimension"], mEvent["Position.x"], mEvent["Position.y"], mEvent["Position.z"], mEvent["EventOperable"]
                     );
             }, ll::event::EventPriority::Highest);
             PlayerDieEventListener = eventBus.emplaceListener<ll::event::PlayerDieEvent>([](ll::event::PlayerDieEvent& event) -> void {

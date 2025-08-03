@@ -66,13 +66,15 @@ namespace LOICollection::Plugins::monitor {
                         if (mTarget.isSimulatedPlayer())
                             return true;
 
-                        LOICollectionAPI::translateString(mName, mTarget);
+                        std::string mNameTag = mName;
+
+                        LOICollectionAPI::translateString(mNameTag, mTarget);
 
                         SetActorDataPacket packet(mTarget.getRuntimeID(), mTarget.mEntityData, 
                             nullptr, mTarget.mLevel->getCurrentTick().tickID, false
                         );
                         packet.mPackedItems.clear();
-                        packet.mPackedItems.emplace_back(DataItem::create(ActorDataIDs::FilteredName, mName));
+                        packet.mPackedItems.emplace_back(DataItem::create(ActorDataIDs::FilteredName, mNameTag));
                         packet.sendToClients();
 
                         return true;

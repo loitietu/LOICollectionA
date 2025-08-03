@@ -74,7 +74,7 @@ namespace LOICollection::Plugins::market {
             ll::string_utils::replaceAll(mIntroduce, "${player}", mData.at(id + ".PLAYER_NAME"));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), mIntroduce);
-            form.appendButton(tr(mObjectLanguage, "market.gui.sell.buy.button1"), [id, mObjectLanguage, &mData](Player& pl) -> void {
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.buy.button1"), [id, mObjectLanguage, mData](Player& pl) -> void {
                 int mScore = SystemUtils::toInt(mData.at(id + ".SCORE"), 0);
 
                 if (ScoreboardUtils::getScore(pl, options.TargetScoreboard) < mScore) 
@@ -93,7 +93,7 @@ namespace LOICollection::Plugins::market {
 
                     ScoreboardUtils::addScore(*mPlayer, options.TargetScoreboard, mScore);
                 } else 
-                    db2->set(mObject, "Score", std::to_string(SystemUtils::toInt(db2->get(mObject, "Score"), 0) + mScore));
+                    db2->set(mObject, "Market_Score", std::to_string(SystemUtils::toInt(db2->get(mObject, "Market_Score"), 0) + mScore));
 
                 delItem(id);
 
@@ -102,7 +102,7 @@ namespace LOICollection::Plugins::market {
                 ));
             });
             if (player.getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors) {
-                form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [id, mObjectLanguage, &mData](Player& pl) -> void {
+                form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [id, mObjectLanguage, mData](Player& pl) -> void {
                     pl.sendMessage(ll::string_utils::replaceAll(tr(mObjectLanguage, "market.gui.sell.sellItem.tips2"), "${item}", mData.at(id + ".NAME")));
 
                     delItem(id);
@@ -129,7 +129,7 @@ namespace LOICollection::Plugins::market {
             ll::string_utils::replaceAll(mIntroduce, "${player}", mData.at(id + ".PLAYER_NAME"));
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), mIntroduce);
-            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [id, mObjectLanguage, &mData](Player& pl) -> void {
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [id, mObjectLanguage, mData](Player& pl) -> void {
                 pl.sendMessage(ll::string_utils::replaceAll(tr(mObjectLanguage, "market.gui.sell.sellItem.tips2"), "${item}", mData.at(id + ".NAME")));
 
                 ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at(id + ".DATA"))->mTags);
@@ -453,7 +453,7 @@ namespace LOICollection::Plugins::market {
         for (auto& mTarget : db->listByPrefix("Blacklist", target + "."))  {
             std::string mKey = mTarget.substr(mTarget.find_first_of('.') + 1);
 
-            mResult.push_back(mKey.substr(0, mKey.find_first_of('_')));
+            mResult.push_back(mKey.substr(0, mKey.find_last_of('_')));
         }
 
         std::sort(mResult.begin(), mResult.end());
@@ -520,18 +520,3 @@ namespace LOICollection::Plugins::market {
         db->exec("VACUUM;");
     }
 }
-
-/*
-    Database:
-    -> Item
-        -> TIMESTAMP.NAME: NAME
-        -> TIMESTAMP.ICON: ICON
-        -> TIMESTAMP.INTRODUCE: INTRODUCE
-        -> TIMESTAMP.SCORE: SCORE
-        -> TIMESTAMP.DATA: DATA
-        -> TIMESTAMP.PLAYER_NAME: PLAYER
-        -> TIMESTAMP.PLAYER_UUID: UUID
-    -> Blacklist
-        -> UUID.UUID_NAME: NAME
-        -> UUID.UUID_TIME: TIME
-*/

@@ -340,15 +340,3 @@ namespace LOICollection::Plugins::blacklist {
         db->exec("VACUUM;");
     }
 }
-
-/*
-    Database
-    -> Blacklist
-        -> TIMESTAMP.NAME: NAME
-        -> TIMESTAMP.CAUSE: CAUSE
-        -> TIMESTAMP.TIME: TIME
-        -> TIMESTAMP.SUBTIME: SUBTIME
-        -> TIMESTAMP.DATA_UUID: UUID
-        -> TIMESTAMP.DATA_IP: IP
-        -> TIMESTAMP.DATA_CLIENTID: CLIENTID 
-*/

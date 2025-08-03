@@ -364,7 +364,7 @@ namespace LOICollection::Plugins::tpa {
         for (auto& mTarget : db->listByPrefix("Blacklist", mObject + ".")) {
             std::string mKey = mTarget.substr(mTarget.find_first_of('.') + 1);
 
-            mResult.push_back(mKey.substr(0, mKey.find_first_of('_')));
+            mResult.push_back(mKey.substr(0, mKey.find_last_of('_')));
         }
 
         std::sort(mResult.begin(), mResult.end());
@@ -408,10 +408,3 @@ namespace LOICollection::Plugins::tpa {
         db->exec("VACUUM;");
     }
 }
-
-/*
-    Database:
-    -> Blacklist
-        UUID.UUID_NAME: NAME
-        UUID.UUID_TIME: TIME
-*/

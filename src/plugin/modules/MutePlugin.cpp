@@ -193,7 +193,7 @@ namespace LOICollection::Plugins::mute {
 
                 std::vector<std::string> mKeys = getMutes();
                 std::for_each(mKeys.begin(), mKeys.end(), [mUuid, &event](const std::string& mId) -> void {
-                    if (mId != mUuid)
+                    if (db->get("Mute", mId + ".DATA") != mUuid)
                         return;
 
                     if (SystemUtils::isReach(db->get("Mute", mId + ".TIME"))) {
@@ -284,7 +284,7 @@ namespace LOICollection::Plugins::mute {
 
         std::vector<std::string> mKeys = getMutes();
         auto it = std::find_if(mKeys.begin(), mKeys.end(), [&mUuid](const std::string& mId) -> bool {
-            return mId == mUuid;
+            return db->get("Mute", mId + ".DATA") == mUuid;
         });
 
         return it != mKeys.end();
@@ -310,13 +310,3 @@ namespace LOICollection::Plugins::mute {
         db->exec("VACUUM;");
     }
 }
-
-/*
-    Database
-    -> Mute
-        -> TIMESTAMP.NAME: NAME
-        -> TIMESTAMP.CAUSE: CAUSE
-        -> TIMESTAMP.TIME: TIME
-        -> TIMESTAMP.SUBTIME: SUBTIME
-        -> TIMESTAMP.DATA: UUID
-*/
