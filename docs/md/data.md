@@ -1,19 +1,18 @@
 # 数据文件
 
 ## 配置文件
-> 配置文件属于 `.json` 格式的文件，一般情况下文件名为 `config.json`  
-> 对于 `config.json` 中的配置项，在 `启动服务器` 时，只会进行一次读取，之后的修改不会生效  
-> 而配置文件通常是在安装完成后 `第一次启动服务器` 时出现，位于 `plugins/LOICollectionA/config/` 目录下
 
-!> 配置文件中的配置项，必须为 `英文` 或 `数字` 或 `下划线`，请不要使用中文作为配置项的名称，否则会导致配置文件无法正常读取。
-请勿使用记事本等不支持 `.json` 格式的文本编辑器进行编辑，以免导致配置文件结构损坏。
+配置文件属于 `.json` 格式的文件，一般情况下文件名为 `config.json`  
+对于 `config.json` 中的配置项，在 `启动服务器` 时，只会进行一次读取，之后的修改不会生效  
+而配置文件通常是在安装完成后 `第一次启动服务器` 时出现，位于 `plugins/LOICollectionA/config/` 目录下
 
-### 配置文件结构
-> [!NOTE]
-> 以下内容取自 LOICollectionA 1.6.6 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> [!WARNING]
+> 配置文件中的配置项，必须为 `英文` 或 `数字` 或 `下划线`，请不要使用中文作为配置项的名称，否则会导致配置文件无法正常读取。  
+> 请勿使用记事本等不支持 `.json` 格式的文本编辑器进行编辑，以免导致配置文件结构损坏。
+
 ```json
 {
-    "version": 166, // 配置文件版本号，请勿修改
+    "version": 170, // 配置文件版本号，请勿修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
         "language": { // 多语言配置
@@ -78,7 +77,79 @@
             "BlacklistUpload": 10, // 玩家黑名单目标最大上传数量
             "ProhibitedItems": [] // 玩家市场禁止上传的物品
         },
-        "Sidebar": false // 是否启用侧边栏
+        "BehaviorEvent": { // 行为事件配置
+            "ModuleEnabled": false, // 是否启用行为事件
+            "OrganizeDatabaseInterval": 144, // 行为事件数据库清理阈值（单位为小时）
+            "CleanDatabaseInterval": 1, // 数据库自动清理间隔（单位为小时）
+            "RefreshIntervalInMinutes": 5, // 行为事件记录间隔（单位为分钟）
+            "Events": { // 行为事件配置
+                "onPlayerConnect": { // 玩家连接事件
+                    "ModuleEnabled": true, // 是否启用该事件
+                    "RecordDatabase": true, // 是否记录到数据库
+                    "OutputConsole": true // 是否输出到控制台
+                },
+                "onPlayerDisconnect": { // 玩家断开连接事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onPlayerChat": { // 玩家聊天事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onPlayerAddExperience": { // 玩家获得经验事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onPlayerAttack": { // 玩家攻击事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onPlayerChangePerm": { // 玩家权限改变事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onPlayerDestroyBlock": { // 玩家破坏方块事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onPlayerPlaceBlock": { // 玩家放置方块事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onPlayerDie": { // 玩家死亡事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onPlayerPickUpItem": { // 玩家捡起物品事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onPlayerInteractBlock": { // 玩家交互方块事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onPlayerRespawn": { // 玩家重生事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onPlayerUseItem": { // 玩家使用物品事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                }
+            }
+        }
     },
     "ProtableTool": { // 便携工具配置
         "BasicHook": { // 基础功能配置
@@ -91,23 +162,23 @@
 }
 ```
 
-> [!TIP]
-> 在更改时请按照 `Json规范`(https://www.json.org/) 进行更改
+> [!NOTE]
+> 以上内容取自 LOICollectionA 1.7.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 
-## 数据文件
+## 模块数据文件
 
-> 数据文件是指存储在数据库中的数据文件。数据文件是数据库的核心，它存储了数据库中的所有数据。数据文件可以是文本文件、二进制文件或者其他类型的文件。数据文件的格式和内容取决于数据库的类型和应用场景。  
-> 目前 `LOICollectionA` 支持 `Json` 和 `SQLite` 两种数据文件格式。其中只有 `Json` 格式的数据文件可以被直接修改。而对于 `SQLite` 格式的数据文件，我们是不建议您直接修改的。
+数据文件是指存储在数据库中的数据文件。数据文件是数据库的核心，它存储了数据库中的所有数据。数据文件可以是文本文件、二进制文件或者其他类型的文件。数据文件的格式和内容取决于数据库的类型和应用场景。  
+目前 `LOICollectionA` 支持 `Json` 和 `SQLite` 两种数据文件格式。其中只有 `Json` 格式的数据文件可以被直接修改。而对于 `SQLite` 格式的数据文件，我们是不建议您直接修改的。
 
 ?> 通常情况下，您不需要手动修改数据文件，因为在使用 `LOICollectionA` 的过程中，对于指定数据文件是存在内部编辑器的，您可以通过它们进行更加快捷的编辑。
 
-### menu.json 
+### menu.json
+
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.6.4 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。 
+> 以下内容取自 LOICollectionA 1.6.4 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。  
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `menu.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#menu) 进行编辑
-
 
 ```json
 {
@@ -281,6 +352,7 @@
 ```
 
 ### shop.json
+
 > [!NOTE]
 > 以下内容取自 LOICollectionA 1.5.0 的 `shop.json` 结构，对于后续版本的 `shop.json` 结构可能会有所不同。
 
@@ -401,6 +473,7 @@
 ```
 
 ### notice.json
+
 > [!NOTE]
 > 以下内容取自 LOICollectionA 1.6.2 的 `notice.json` 结构，对于后续版本的 `notice.json` 结构可能会有所不同。
 
@@ -423,8 +496,9 @@
 ```
 
 ### cdk.json
+
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.4.9 的 `cdk.json` 结构，对于后续版本的 `cdk.json` 结构可能会有所不同。
+> 以下内容取自 LOICollectionA 1.7.0 的 `cdk.json` 结构，对于后续版本的 `cdk.json` 结构可能会有所不同。
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `cdk.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#cdk) 进行编辑
@@ -437,17 +511,19 @@
         "scores": { // CDK 给予的Score（可选）
             "money": 100 // CDK 给予的 Score 分数
         },
-        "item": { // CDK 给予的物品（可选）
-            "minecraft:apple": { // 物品 ID
+        "item": [ // CDK 给予的物品（可选）
+            { 
+                "id": "minecraft:apple", // 物品 ID
                 "name": "apple", // 物品名称
                 "quantity": 1, // 物品数量
                 "specialvalue": 0, // 物品特殊值
                 "type": "universal" // 物品解析类型
             },
-            "{Count:2b,Damage:0s,Name:'minecraft:apple',WasPickedUp:0b}": {
+            {
+                "id": "{Count:2b,Damage:0s,Name:'minecraft:apple',WasPickedUp:0b}",
                 "type": "nbt"
             }
-        },
+        ],
         "title": { // CDK 给予的称号（可选）
             "None": 0 // 称号 ID（值为 0 表示永久称号）
         },

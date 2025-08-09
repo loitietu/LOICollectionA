@@ -1,4 +1,5 @@
 # LOICollectionA
+
 > **A Minecraft Server Plugin For LeviLamina**
 
 ![Release](https://img.shields.io/github/v/release/loitietu/LOICollectionA?style=flat-square)
@@ -16,6 +17,7 @@ It inherits the functional diversity of LOICollection while introducing numerous
 Future developments will provide more API interfaces to empower plugin developers with richer functionality.
 
 ## Implemented Modules
+
 > All modules below can be enabled/disabled in the configuration file.
 
 - [x] Blacklist
@@ -33,10 +35,13 @@ Future developments will provide more API interfaces to empower plugin developer
 - [x] BehaviorEvent
 
 ## Installation
+
 1. Execute the following command in your server directory:
-```cmd
-lip install github.com/loitietu/LOICollectionA
-```
+
+    ```cmd
+    lip install github.com/loitietu/LOICollectionA
+    ```
+
 2. Start the server.
 3. Wait for the loading confirmation message.
 4. Installation complete.
@@ -45,7 +50,9 @@ lip install github.com/loitietu/LOICollectionA
 > For more information, visit [Github Pages](https://loitietu.github.io/LOICollectionA/)
 
 ## Local Compilation
+
 Open Command Prompt (`cmd`) and execute:
+
 ```cmd
 git clone https://github.com/loitietu/LOICollectionA.git
 cd LOICollectionA
@@ -55,7 +62,9 @@ xmake
 ```
 
 ## Contributing
+
 We welcome `PRs` and `Issues` to help improve this plugin.
 
 ## License
+
 - Licensed under the [GPL-3.0](LICENSE) license.
