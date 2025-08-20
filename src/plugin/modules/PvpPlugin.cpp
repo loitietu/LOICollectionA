@@ -26,6 +26,7 @@
 
 #include "include/APIUtils.h"
 #include "include/LanguagePlugin.h"
+
 #include "include/ServerEvents/PlayerHurtEvent.h"
 
 #include "utils/I18nUtils.h"

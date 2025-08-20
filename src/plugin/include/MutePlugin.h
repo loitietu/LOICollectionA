@@ -20,6 +20,8 @@ namespace LOICollection::Plugins::mute {
     LOICOLLECTION_A_API   void delMute(Player& player);
     LOICOLLECTION_A_API   void delMute(const std::string& target);
 
+    LOICOLLECTION_A_NDAPI std::string getMute(Player& player);
+    
     LOICOLLECTION_A_NDAPI std::vector<std::string> getMutes();
     
     LOICOLLECTION_A_NDAPI bool isMute(Player& player);

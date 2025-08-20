@@ -112,9 +112,7 @@ namespace LOICollection::ServerEvents {
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactory();
     class PlayerHurtEventEmitter : public ll::event::Emitter<emitterFactory, PlayerHurtEvent> {
-        ll::memory::HookRegistrar<PlayerHurtEventHook1> hook1;
-        ll::memory::HookRegistrar<PlayerHurtEventHook2> hook2;
-        ll::memory::HookRegistrar<PlayerHurtEventHook3> hook3;
+        ll::memory::HookRegistrar<PlayerHurtEventHook1, PlayerHurtEventHook2, PlayerHurtEventHook3> hook;
     };
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactory() {

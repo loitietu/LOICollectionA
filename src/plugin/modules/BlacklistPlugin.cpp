@@ -26,20 +26,26 @@
 #include <mc/world/actor/ActorDefinitionIdentifier.h>
 #include <mc/world/actor/player/Player.h>
 
+#include <mc/network/ConnectionRequest.h>
+#include <mc/network/NetworkIdentifier.h>
+#include <mc/network/MinecraftPacketIds.h>
+#include <mc/network/ServerNetworkHandler.h>
+#include <mc/network/packet/LoginPacket.h>
+#include <mc/network/connection/DisconnectFailReason.h>
+
+#include <mc/server/ServerPlayer.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandSelector.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
 
-#include <mc/network/ConnectionRequest.h>
-#include <mc/network/NetworkIdentifier.h>
-#include <mc/network/ServerNetworkHandler.h>
-#include <mc/network/connection/DisconnectFailReason.h>
+#include <mc/common/SubClientId.h>
 
 #include "include/APIUtils.h"
 #include "include/LanguagePlugin.h"
-#include "include/ServerEvents/LoginPacketEvent.h"
+
+#include "include/ServerEvents/NetworkPacketEvent.h"
 
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
@@ -62,7 +68,7 @@ namespace LOICollection::Plugins::blacklist {
     std::unique_ptr<SQLiteStorage> db;
     std::shared_ptr<ll::io::Logger> logger;
 
-    ll::event::ListenerPtr LoginPacketEventListener;
+    ll::event::ListenerPtr NetworkPacketEventListener;
 
     namespace MainGui {
         void info(Player& player, const std::string& id) {
@@ -125,7 +131,7 @@ namespace LOICollection::Plugins::blacklist {
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"),
                 tr(mObjectLanguage, "blacklist.gui.remove.label"));
-            for (std::string& mItem : getBlacklist()) {
+            for (std::string& mItem : getBlacklists()) {
                 form.appendButton(mItem, [mItem](Player& pl) {
                     MainGui::info(pl, mItem);
                 });
@@ -182,9 +188,9 @@ namespace LOICollection::Plugins::blacklist {
                 std::unordered_map<std::string, std::string> mEvent = db->getByPrefix("Blacklist", param.Id + ".");
                 
                 if (mEvent.empty())
-                    return output.error(tr({}, "commands.behaviorevent.error.info"));
+                    return output.error(tr({}, "commands.blacklist.error.info"));
 
-                output.success(tr({}, "commands.behaviorevent.success.info"));
+                output.success(tr({}, "commands.blacklist.success.info"));
                 std::for_each(mEvent.begin(), mEvent.end(), [&output, id = param.Id](const std::pair<std::string, std::string>& mPair) {
                     std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
 
@@ -192,9 +198,8 @@ namespace LOICollection::Plugins::blacklist {
                 });
             });
             command.overload().text("list").execute([](CommandOrigin const&, CommandOutput& output) -> void {
-                std::vector<std::string> mObjectList = getBlacklist();
-                std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), 
-                    [](const std::string& a, const std::string& b) {
+                std::vector<std::string> mObjectList = getBlacklists();
+                std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), [](const std::string& a, const std::string& b) {
                     return a + (a.empty() ? "" : ", ") + b;
                 });
 
@@ -214,36 +219,46 @@ namespace LOICollection::Plugins::blacklist {
 
         void listenEvent() {
             ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            LoginPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::LoginPacketEvent>([](LOICollection::ServerEvents::LoginPacketEvent& event) -> void {
-                std::string mUuid = event.getUUID().asString();
-                std::string mIp = event.getIp();
-                std::string mClientId = event.getConnectionRequest().getDeviceId();
+            NetworkPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([](LOICollection::ServerEvents::NetworkPacketEvent& event) -> void {
+                if (event.getPacket().getId() != MinecraftPacketIds::Login)
+                    return;
 
-                std::vector<std::string> mKeys = getBlacklist();
-                std::for_each(mKeys.begin(), mKeys.end(), [&](const std::string& mId) -> void {
-                    std::unordered_map<std::string, std::string> mData = db->getByPrefix("Blacklist", mId + ".");
+                auto& packet = static_cast<LoginPacket&>(const_cast<Packet&>(event.getPacket()));
 
-                    if (mData.at(mId + ".DATA_UUID") != mUuid && mData.at(mId + ".DATA_IP") != mIp && mData.at(mId + ".DATA_CLIENTID") != mClientId) 
-                        return;
+                std::string mUuid = packet.mConnectionRequest->mLegacyMultiplayerToken->getIdentity().asString();
+                std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find(':'));
+                std::string mClientId = packet.mConnectionRequest->getDeviceId();
 
-                    if (SystemUtils::isReach(mData.at(mId + ".TIME")))
-                        return delBlacklist(mId);
-
-                    std::string mObjectTips = tr(getLanguage(mUuid), "blacklist.tips");
-                    ll::string_utils::replaceAll(mObjectTips, "${cause}", mData.at(mId + ".CAUSE"));
-                    ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(mData.at(mId + ".TIME"), "None"));
-
-                    ll::service::getServerNetworkHandler()->disconnectClient(
-                        event.getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked,
-                        mObjectTips, {}, false
-                    );
+                std::vector<std::string> mKeys = getBlacklists();
+                auto it = std::find_if(mKeys.begin(), mKeys.end(), [&](const std::string& mId) -> bool {
+                    return isBlacklist(mId, mUuid, mIp, mClientId);
                 });
+
+                std::string mId = it != mKeys.end() ? *it : "";
+
+                if (mId.empty())
+                    return;
+
+                std::unordered_map<std::string, std::string> mData = db->getByPrefix("Blacklist", mId + ".");
+
+                if (SystemUtils::isReach(mData.at(mId + ".TIME")))
+                    return delBlacklist(mId);
+
+                std::replace(mUuid.begin(), mUuid.end(), '-', '_');
+
+                std::string mObjectTips = tr(getLanguage(mUuid), "blacklist.tips");
+                ll::string_utils::replaceAll(mObjectTips, "${cause}", mData.at(mId + ".CAUSE"));
+                ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(mData.at(mId + ".TIME"), "None"));
+
+                ll::service::getServerNetworkHandler()->disconnectClient(
+                    event.getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked, mObjectTips, {}, false
+                );
             });
         }
 
         void unlistenEvent() {
             ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            eventBus.removeListener(LoginPacketEventListener);
+            eventBus.removeListener(NetworkPacketEventListener);
         }
     }
 
@@ -272,7 +287,7 @@ namespace LOICollection::Plugins::blacklist {
             mObjectTips, {}, false
         );
 
-        logger->info(ll::string_utils::replaceAll(tr({}, "blacklist.log1"), "${player}", player.getRealName()));
+        logger->info(LOICollectionAPI::translateString(tr({}, "blacklist.log1"), player));
     }
 
     void delBlacklist(const std::string& target) {
@@ -284,7 +299,23 @@ namespace LOICollection::Plugins::blacklist {
         logger->info(ll::string_utils::replaceAll(tr({}, "blacklist.log2"), "${target}", target));
     }
 
-    std::vector<std::string> getBlacklist() {
+    std::string getBlacklist(Player& player) {
+        if (!isValid())
+            return "";
+
+        std::string mUuid = player.getUuid().asString();
+        std::string mIp = player.getIPAndPort().substr(0, player.getIPAndPort().find(':'));
+        std::string mClientId = player.getConnectionRequest()->getDeviceId();
+
+        std::vector<std::string> mKeys = getBlacklists();
+        auto it = std::find_if(mKeys.begin(), mKeys.end(), [&](const std::string& mId) -> bool {
+            return isBlacklist(mId, mUuid, mIp, mClientId);
+        });
+
+        return it != mKeys.end() ? *it : "";
+    }
+
+    std::vector<std::string> getBlacklists() {
         if (!isValid())
             return {};
 
@@ -303,21 +334,22 @@ namespace LOICollection::Plugins::blacklist {
         return mResult;
     }
 
+    bool isBlacklist(const std::string& mId, const std::string& uuid, const std::string& ip, const std::string& clientId) {
+        if (!isValid())
+            return false;
+
+        std::unordered_map<std::string, std::string> mData = db->getByPrefix("Blacklist", mId + ".");
+
+        return mData.at(mId + ".DATA_UUID") == uuid || mData.at(mId + ".DATA_IP") == ip || mData.at(mId + ".DATA_CLIENTID") == clientId;
+    }
+
     bool isBlacklist(Player& player) {
         if (!isValid())
             return false;
 
-        std::string mUuid = player.getUuid().asString();
-        std::string mIp = player.getIPAndPort().substr(0, player.getIPAndPort().find(':'));
-        std::string mClientId = player.getConnectionRequest()->getDeviceId();
+        std::string mId = getBlacklist(player);
 
-        std::vector<std::string> mKeys = getBlacklist();
-        auto it = std::find_if(mKeys.begin(), mKeys.end(), [&](const std::string& mId) -> bool {
-            std::unordered_map<std::string, std::string> mData = db->getByPrefix("Blacklist", mId + ".");
-            return mData.at(mId + ".DATA_UUID") == mUuid || mData.at(mId + ".DATA_IP") == mIp || mData.at(mId + ".DATA_CLIENTID") == mClientId;
-        });
-
-        return it != mKeys.end();
+        return !mId.empty();
     }
 
     bool isValid() {

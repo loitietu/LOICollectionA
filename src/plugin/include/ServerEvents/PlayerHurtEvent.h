@@ -12,6 +12,7 @@ namespace LOICollection::ServerEvents {
     class PlayerHurtEvent final : public ll::event::Cancellable<ll::event::PlayerEvent> {
     protected:
         Actor& mSource;
+        
         int mDamage;
         bool mKnock;
         bool mIgnite;

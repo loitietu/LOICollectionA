@@ -17,6 +17,7 @@ namespace LOICollection::ServerEvents {
     class PlayerScoreChangedEvent final : public ll::event::Cancellable<ll::event::PlayerEvent> {
     protected:
         const Objective& mObjective;
+        
         ScoreChangedType mScoreChangedType;
         int mScore;
     

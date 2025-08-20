@@ -46,10 +46,13 @@
 ```log
 [Server] mute:
 [Server] LOICollection -> 服务器禁言
-[Server] Usage:
+[Server] 使用：
 [Server] - /mute add &ltTarget: target&gt [Cause: string] [Time: int]
 [Server] - /mute gui
-[Server] - /mute remove &ltTarget: target&gt
+[Server] - /mute info &ltId: string%gt
+[Server] - /mute list
+[Server] - /mute remove id &ltId: string&gt
+[Server] - /mute remove target &ltTarget: target&gt
 ```
 
 ?> 其中 `mute` 为 Mute 的顶层命令（权限等级: GameDirectors）。
@@ -63,7 +66,18 @@
 - `/mute gui`
   - 打开禁言 GUI。
 
-- `/mute remove <Target: target>`
+- `/mute info <Id: string>`
+  - 查看禁言列表中的一个目标的信息。
+  - 其中 `<Id: string>` 为目标的ID。
+
+- `/mute list`
+  - 列出禁言列表中的所有目标。
+
+- `/mute remove id <Id: string>`
+  - 从禁言列表中移除一个目标。
+  - 其中 `<Id: string>` 为目标的ID。
+
+- `/mute remove target <Target: target>`
   - 从禁言列表中移除一个目标。
   - 其中 `<Target: target>` 为目标选择器。
 
@@ -293,7 +307,7 @@
 ```log
 [Server] behaviorevent:
 [Server] LOICollection -> 行为事件
-[Server] 使用：
+[Server] Usage:
 [Server] - /behaviorevent back position &ltPositionOrigin: x y z&gt &ltPositionTarget: x y z&gt &ltTime: int&gt
 [Server] - /behaviorevent back range &ltPositionOrigin: x y z&gt &ltRadius: int&gt &ltTime: int&gt
 [Server] - /behaviorevent clean

@@ -10,7 +10,7 @@
 
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
-#include <ll/api/event/player/PlayerJoinEvent.h>
+#include <ll/api/event/player/PlayerConnectEvent.h>
 #include <ll/api/event/player/PlayerDisconnectEvent.h>
 #include <ll/api/event/command/ExecuteCommandEvent.h>
 
@@ -23,16 +23,20 @@
 #include <mc/world/actor/SynchedActorDataEntityWrapper.h>
 #include <mc/world/actor/player/Player.h>
 
+#include <mc/network/NetworkIdentifier.h>
+#include <mc/network/MinecraftPacketIds.h>
 #include <mc/network/packet/TextPacket.h>
 #include <mc/network/packet/SetActorDataPacket.h>
 
+#include <mc/server/ServerPlayer.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandContext.h>
 
+#include <mc/common/SubClientId.h>
+
 #include "include/APIUtils.h"
 
-#include "include/ServerEvents/TextPacketEvent.h"
-#include "include/ServerEvents/LoginPacketEvent.h"
+#include "include/ServerEvents/NetworkPacketEvent.h"
 #include "include/ServerEvents/PlayerScoreChangedEvent.h"
 
 #include "utils/ScoreboardUtils.h"
@@ -44,13 +48,12 @@
 std::vector<std::string> mInterceptTextObjectPacket;
 
 namespace LOICollection::Plugins::monitor {
-    ll::event::ListenerPtr PlayerJoinEventListener;
+    ll::event::ListenerPtr PlayerConnectEventListener;
     ll::event::ListenerPtr PlayerDisconnectEventListener;
     ll::event::ListenerPtr PlayerScoreChangedEventListener;
-    ll::event::ListenerPtr LoginPacketEventListener;
     ll::event::ListenerPtr ExecuteCommandEventListener;
 
-    ll::event::ListenerPtr TextPacketEventListener;
+    ll::event::ListenerPtr NetworkPacketEventTextListener;
 
     bool BelowNameTaskRunning = true;
 
@@ -84,7 +87,7 @@ namespace LOICollection::Plugins::monitor {
         }
 
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([option = options.ServerToast](ll::event::PlayerJoinEvent& event) -> void {
+        PlayerConnectEventListener = eventBus.emplaceListener<ll::event::PlayerConnectEvent>([option = options.ServerToast](ll::event::PlayerConnectEvent& event) -> void {
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
                 return;
 
@@ -92,6 +95,8 @@ namespace LOICollection::Plugins::monitor {
 
             LOICollectionAPI::translateString(mMessage, event.self());
             TextPacket::createSystemMessage(mMessage).sendToClients();
+
+            mInterceptTextObjectPacket.push_back(event.self().getUuid().asString());
         });
 
         PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([option = options.ServerToast](ll::event::PlayerDisconnectEvent& event) -> void {
@@ -157,24 +162,21 @@ namespace LOICollection::Plugins::monitor {
             }
         });
 
-        LoginPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::LoginPacketEvent>([option = options.ServerToast](LOICollection::ServerEvents::LoginPacketEvent& event) -> void {
-            if (option.ModuleEnabled)
-                mInterceptTextObjectPacket.push_back(event.getUUID().asString());
-        });
-
         std::vector<std::string> mTextPacketType{"multiplayer.player.joined", "multiplayer.player.left"};
-        TextPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::TextPacketEvent>([mTextPacketType, option = options.ServerToast](LOICollection::ServerEvents::TextPacketEvent& event) -> void {
-            if (!option.ModuleEnabled)
+        NetworkPacketEventTextListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkBroadcastPacketEvent>([mTextPacketType, option = options.ServerToast](LOICollection::ServerEvents::NetworkBroadcastPacketEvent& event) -> void {
+            if (!option.ModuleEnabled || event.getPacket().getId() != MinecraftPacketIds::Text)
                 return;
+
+            auto packet = static_cast<TextPacket const&>(event.getPacket());
             
-            bool result = std::any_of(mTextPacketType.begin(), mTextPacketType.end(), [target = event.getPacket().mMessage](const std::string& item) {
+            bool result = std::any_of(mTextPacketType.begin(), mTextPacketType.end(), [target = packet.mMessage](const std::string& item) {
                 return target.find(item) != std::string::npos;
             });
 
-            if (!result || !(event.getPacket().params.size() > 0))
+            if (!result || !(packet.params.size() > 0))
                 return;
             
-            if (Player* player = ll::service::getLevel()->getPlayer(event.getPacket().params.at(0)); player) {
+            if (Player* player = ll::service::getLevel()->getPlayer(packet.params.at(0)); player) {
                 std::string mUuid = player->getUuid().asString();
                 if (std::find(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), mUuid) != mInterceptTextObjectPacket.end())
                     event.cancel();
@@ -184,13 +186,12 @@ namespace LOICollection::Plugins::monitor {
 
     void unregistery() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerJoinEventListener);
+        eventBus.removeListener(PlayerConnectEventListener);
         eventBus.removeListener(PlayerDisconnectEventListener);
         eventBus.removeListener(PlayerScoreChangedEventListener);
         eventBus.removeListener(ExecuteCommandEventListener);
-        eventBus.removeListener(LoginPacketEventListener);
 
-        eventBus.removeListener(TextPacketEventListener);
+        eventBus.removeListener(NetworkPacketEventTextListener);
 
         BelowNameTaskRunning = false;
     }

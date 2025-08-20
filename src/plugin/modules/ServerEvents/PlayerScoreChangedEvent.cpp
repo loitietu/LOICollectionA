@@ -98,8 +98,7 @@ namespace LOICollection::ServerEvents {
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactory();
     class PlayerScoreChangedEventEmitter : public ll::event::Emitter<emitterFactory, PlayerScoreChangedEvent> {
-        ll::memory::HookRegistrar<PlayerScoreInitializeHook> hook1;
-        ll::memory::HookRegistrar<PlayerScoreChangedHook> hook2;
+        ll::memory::HookRegistrar<PlayerScoreInitializeHook, PlayerScoreChangedHook> hook;
     };
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactory() {

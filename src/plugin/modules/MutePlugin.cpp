@@ -1,6 +1,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <numeric>
 #include <algorithm>
 #include <unordered_map>
 
@@ -47,6 +48,7 @@ using LOICollection::Plugins::language::getLanguage;
 namespace LOICollection::Plugins::mute {
     struct MuteOP {
         CommandSelector<Player> Target;
+        std::string Id;
         std::string Cause;
         int Time = 0;
     };
@@ -158,7 +160,7 @@ namespace LOICollection::Plugins::mute {
                     output.success(fmt::runtime(tr({}, "commands.mute.success.add")), pl->getRealName());
                 }
             });
-            command.overload<MuteOP>().text("remove").required("Target").execute(
+            command.overload<MuteOP>().text("remove").text("target").required("Target").execute(
                 [](CommandOrigin const& origin, CommandOutput& output, MuteOP const& param) -> void {
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
@@ -173,6 +175,37 @@ namespace LOICollection::Plugins::mute {
 
                     output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), pl->getRealName());
                 }
+            });
+            command.overload<MuteOP>().text("remove").text("id").required("Id").execute(
+                [](CommandOrigin const&, CommandOutput& output, MuteOP const& param) -> void {
+                if (!db->hasByPrefix("Mute", param.Id + ".", 5))
+                    return output.error(tr({}, "commands.mute.error.remove"));
+
+                delMute(param.Id);
+
+                output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), param.Id);
+            });
+            command.overload<MuteOP>().text("info").required("Id").execute(
+                [](CommandOrigin const&, CommandOutput& output, MuteOP const& param) -> void {
+                std::unordered_map<std::string, std::string> mEvent = db->getByPrefix("Mute", param.Id + ".");
+                
+                if (mEvent.empty())
+                    return output.error(tr({}, "commands.mute.error.info"));
+
+                output.success(tr({}, "commands.mute.success.info"));
+                std::for_each(mEvent.begin(), mEvent.end(), [&output, id = param.Id](const std::pair<std::string, std::string>& mPair) {
+                    std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
+
+                    output.success("{0}: {1}", mKey, mPair.second);
+                });
+            });
+            command.overload().text("list").execute([](CommandOrigin const&, CommandOutput& output) -> void {
+                std::vector<std::string> mObjectList = getMutes();
+                std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), [](const std::string& a, const std::string& b) {
+                    return a + (a.empty() ? "" : ", ") + b;
+                });
+
+                output.success(fmt::runtime(tr({}, "commands.mute.success.list")), result.empty() ? "None" : result);
             });
             command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
                 Actor* entity = origin.getEntity();
@@ -189,27 +222,22 @@ namespace LOICollection::Plugins::mute {
         void listenEvent() {
             ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
             PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>([](ll::event::PlayerChatEvent& event) -> void {
-                std::string mUuid = event.self().getUuid().asString();
+                std::string mId = getMute(event.self());
 
-                std::vector<std::string> mKeys = getMutes();
-                std::for_each(mKeys.begin(), mKeys.end(), [mUuid, &event](const std::string& mId) -> void {
-                    if (db->get("Mute", mId + ".DATA") != mUuid)
-                        return;
-
-                    if (SystemUtils::isReach(db->get("Mute", mId + ".TIME"))) {
-                        delMute(event.self());
-                        return;
-                    }
-
-                    std::string mObjectTips = tr(getLanguage(event.self()), "mute.tips");
-                    ll::string_utils::replaceAll(mObjectTips, "${cause}", db->get("Mute", mId + ".CAUSE"));
-                    ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("Mute", mId + ".TIME"), "None"));
-                    
-                    event.self().sendMessage(mObjectTips);
-                    event.cancel();
-                    
+                if (mId.empty())
                     return;
-                });
+
+                std::unordered_map<std::string, std::string> mData = db->getByPrefix("Mute", mId + ".");
+
+                if (SystemUtils::isReach(mData.at(mId + ".TIME")))
+                    return delMute(event.self());
+
+                std::string mObjectTips = tr(getLanguage(event.self()), "mute.tips");
+                ll::string_utils::replaceAll(mObjectTips, "${cause}", mData.at(mId + ".CAUSE"));
+                ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(mData.at(mId + ".TIME"), "None"));
+                
+                event.self().sendMessage(mObjectTips);
+                event.cancel();
             }, ll::event::EventPriority::Highest);
         }
 
@@ -242,10 +270,7 @@ namespace LOICollection::Plugins::mute {
         if (!isValid())
             return;
 
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        
-        delMute(mObject);
+        delMute(getMute(player));
     }
 
     void delMute(const std::string& target) {
@@ -255,6 +280,20 @@ namespace LOICollection::Plugins::mute {
         db->delByPrefix("Mute", target + ".");
 
         logger->info(ll::string_utils::replaceAll(tr({}, "mute.log2"), "${target}", target));
+    }
+
+    std::string getMute(Player& player) {
+        if (!isValid())
+            return "";
+
+        std::string mUuid = player.getUuid().asString();
+
+        std::vector<std::string> mKeys = getMutes();
+        auto it = std::find_if(mKeys.begin(), mKeys.end(), [&mUuid](const std::string& mId) -> bool {
+            return db->get("Mute", mId + ".DATA") == mUuid;
+        });
+
+        return it != mKeys.end() ? *it : "";
     }
 
     std::vector<std::string> getMutes() {
@@ -280,14 +319,9 @@ namespace LOICollection::Plugins::mute {
         if (!isValid())
             return false;
 
-        std::string mUuid = player.getUuid().asString();
+        std::string mId = getMute(player);
 
-        std::vector<std::string> mKeys = getMutes();
-        auto it = std::find_if(mKeys.begin(), mKeys.end(), [&mUuid](const std::string& mId) -> bool {
-            return db->get("Mute", mId + ".DATA") == mUuid;
-        });
-
-        return it != mKeys.end();
+        return !mId.empty();
     }
 
     bool isValid() {

@@ -21,8 +21,11 @@ namespace LOICollection::Plugins::blacklist {
     LOICOLLECTION_A_API   void addBlacklist(Player& player, const std::string& cause, int time);
     LOICOLLECTION_A_API   void delBlacklist(const std::string& target);
 
-    LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist();
+    LOICOLLECTION_A_NDAPI std::string getBlacklist(Player& player);
+
+    LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklists();
     
+    LOICOLLECTION_A_NDAPI bool isBlacklist(const std::string& mId, const std::string& uuid, const std::string& ip, const std::string& clientId);
     LOICOLLECTION_A_NDAPI bool isBlacklist(Player& player);
     LOICOLLECTION_A_NDAPI bool isValid();
 

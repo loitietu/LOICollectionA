@@ -42,3 +42,49 @@ namespace LOICollection::ProtableTool::BasicHook {
         ServerStartGamePacketHook::unhook();
     }
 }
+
+// #include <mc/network/NetworkSystem.h>
+// #include <mc/network/MinecraftPacketIds.h>
+// #include <mc/network/packet/AvailableCommandsPacket.h>
+
+// #include <mc/common/SubClientId.h>
+
+// LL_AUTO_TYPE_INSTANCE_HOOK(
+//     AvailableCommandsPacketHook,
+//     HookPriority::Highest,
+//     NetworkSystem,
+//     &NetworkSystem::send,
+//     void,
+//     NetworkIdentifier const& identifier,
+//     Packet const& packet,
+//     SubClientId senderSubId
+// ) {
+//     if (packet.getId() == MinecraftPacketIds::AvailableCommands) {
+//         auto& acp = (AvailableCommandsPacket&)packet;
+        
+//         std::vector<size_t> toRemove;
+//         for (size_t i = 0; i < acp.mCommands->size(); ++i) {
+//             auto& cmd = acp.mCommands->at(i);
+//             if (cmd.name.get() == "chat") {
+//                 for (auto& overload : cmd.overloads.get()) {
+//                     if (!overload.params.get().empty() && overload.params.get()[0].name.get() == "add") {
+//                         toRemove.push_back(i);
+//                         break; 
+//                     }
+//                 }
+//             }
+//         }
+//         std::sort(toRemove.rbegin(), toRemove.rend());
+//         for (size_t i : toRemove) {
+//             if (i < acp.mCommands->size()) {
+//                 acp.mCommands->at(i).$dtor();
+//                 if (i < acp.mCommands->size() - 1) {
+//                     new (&acp.mCommands->at(i)) AvailableCommandsPacket::CommandData(std::move(acp.mCommands->back()));
+//                     acp.mCommands->back().$dtor();
+//                 }
+//                 acp.mCommands->pop_back();
+//             }
+//         }
+//     }
+//     origin(identifier, packet, senderSubId);
+// };
