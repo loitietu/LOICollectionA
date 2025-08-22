@@ -27,6 +27,7 @@
 #include <mc/network/MinecraftPacketIds.h>
 #include <mc/network/packet/TextPacket.h>
 #include <mc/network/packet/SetActorDataPacket.h>
+#include <mc/network/packet/AvailableCommandsPacket.h>
 
 #include <mc/server/ServerPlayer.h>
 #include <mc/server/commands/CommandOrigin.h>
@@ -52,6 +53,7 @@ namespace LOICollection::Plugins::monitor {
     ll::event::ListenerPtr PlayerDisconnectEventListener;
     ll::event::ListenerPtr PlayerScoreChangedEventListener;
     ll::event::ListenerPtr ExecuteCommandEventListener;
+    ll::event::ListenerPtr NetworkPacketEventCommandListener;
 
     ll::event::ListenerPtr NetworkPacketEventTextListener;
 
@@ -162,6 +164,36 @@ namespace LOICollection::Plugins::monitor {
             }
         });
 
+        NetworkPacketEventCommandListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([option = options.DisableCommand](LOICollection::ServerEvents::NetworkPacketEvent& event) -> void {
+            if (!option.ModuleEnabled || event.getPacket().getId() != MinecraftPacketIds::AvailableCommands)
+                return;
+
+            auto& packet = static_cast<AvailableCommandsPacket&>(const_cast<Packet&>(event.getPacket()));
+
+            std::vector<std::string> mObjectCommands = option.CommandLists;
+
+            std::vector<size_t> mCommandsToRemove;
+            for (size_t i = 0; i < packet.mCommands->size(); ++i) {
+                if (std::find(mObjectCommands.begin(), mObjectCommands.end(), *packet.mCommands->at(i).name) == mObjectCommands.end()) 
+                    continue;
+                mCommandsToRemove.push_back(i);
+            }
+
+            std::sort(mCommandsToRemove.rbegin(), mCommandsToRemove.rend());
+
+            for (size_t i : mCommandsToRemove) {
+                if (i >= packet.mCommands->size()) 
+                    continue;
+
+                packet.mCommands->at(i).$dtor();
+                if (i < packet.mCommands->size() - 1) {
+                    new (&packet.mCommands->at(i)) AvailableCommandsPacket::CommandData(std::move(packet.mCommands->back()));
+                    packet.mCommands->back().$dtor();
+                }
+                packet.mCommands->pop_back();
+            }
+        });
+
         std::vector<std::string> mTextPacketType{"multiplayer.player.joined", "multiplayer.player.left"};
         NetworkPacketEventTextListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkBroadcastPacketEvent>([mTextPacketType, option = options.ServerToast](LOICollection::ServerEvents::NetworkBroadcastPacketEvent& event) -> void {
             if (!option.ModuleEnabled || event.getPacket().getId() != MinecraftPacketIds::Text)
@@ -190,6 +222,7 @@ namespace LOICollection::Plugins::monitor {
         eventBus.removeListener(PlayerDisconnectEventListener);
         eventBus.removeListener(PlayerScoreChangedEventListener);
         eventBus.removeListener(ExecuteCommandEventListener);
+        eventBus.removeListener(NetworkPacketEventCommandListener);
 
         eventBus.removeListener(NetworkPacketEventTextListener);
 

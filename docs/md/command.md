@@ -49,7 +49,7 @@
 [Server] 使用：
 [Server] - /mute add &ltTarget: target&gt [Cause: string] [Time: int]
 [Server] - /mute gui
-[Server] - /mute info &ltId: string%gt
+[Server] - /mute info &ltId: string&gt
 [Server] - /mute list
 [Server] - /mute remove id &ltId: string&gt
 [Server] - /mute remove target &ltTarget: target&gt
