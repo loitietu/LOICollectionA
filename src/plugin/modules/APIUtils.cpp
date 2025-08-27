@@ -239,8 +239,8 @@ namespace LOICollection::LOICollectionAPI {
         return "None";
     }
 
-    std::string tryGetGrammarResult(const std::string& contentString) try {
-        frontend::Lexer mLexer(contentString);
+    std::string tryGetGrammarResult(const std::string& str) try {
+        frontend::Lexer mLexer(str);
         frontend::Parser mParser(mLexer);
         frontend::Evaluator mEvaluator;
         return mEvaluator.evaluate(*mParser.parse());
@@ -248,27 +248,25 @@ namespace LOICollection::LOICollectionAPI {
         return "None";
     }
 
-    std::string& translateString(std::string& contentString, Player& player) {
-        if (contentString.empty() || contentString.find_first_of("{}@") == std::string::npos)
-            return contentString;
+    std::string getVariableString(const std::string& str, Player& player) {
+        if (str.empty() || str.find_first_of("{}") == std::string::npos)
+            return str;
 
-        std::string FinalResult;
-        std::string InitialResult;
+        std::string result;
         std::vector<VarOccurrence> occurrences;
-        
-        FinalResult.reserve(contentString.size() * 2);
-        InitialResult.reserve(contentString.size() * 2);
+
+        result.reserve(str.size() * 2);
         occurrences.reserve(30);
 
         size_t mStartPos = 0;
-        while (mStartPos < contentString.size()) {
-            if (contentString[mStartPos] != '{') {
+        while (mStartPos < str.size()) {
+            if (str[mStartPos] != '{') {
                 mStartPos++;
                 continue;
             }
 
-            if (size_t mEndPos = contentString.find('}', mStartPos + 1); mEndPos != std::string::npos) {
-                std::string mVariableName = contentString.substr(mStartPos + 1, mEndPos - mStartPos - 1);
+            if (size_t mEndPos = str.find('}', mStartPos + 1); mEndPos != std::string::npos) {
+                std::string mVariableName = str.substr(mStartPos + 1, mEndPos - mStartPos - 1);
                 
                 if (mVariableName.find('(') != std::string::npos && mVariableName.back() == ')') {
                     std::string mVariableParameterName = mVariableName.substr(0, mVariableName.find('('));
@@ -286,51 +284,72 @@ namespace LOICollection::LOICollectionAPI {
             }
         }
 
-        size_t mInitialPos = 0;
+        size_t mPos = 0;
         for (const auto& occ : occurrences) {
-            InitialResult.append(contentString, mInitialPos, occ.start - mInitialPos);
-            InitialResult.append(occ.replacement);
-            mInitialPos = occ.start + occ.length;
+            result.append(str, mPos, occ.start - mPos);
+            result.append(occ.replacement);
+            mPos = occ.start + occ.length;
         }
 
-        if (mInitialPos < contentString.size())
-            InitialResult.append(contentString, mInitialPos, contentString.size() - mInitialPos);
+        if (mPos < str.size())
+            result.append(str, mPos, str.size() - mPos);
 
-        occurrences.clear();
+        return result;
+    }
 
-        size_t mGrammarStartPos = 0;
-        while (mGrammarStartPos < InitialResult.size()) {
-            if (InitialResult[mGrammarStartPos] != '@') {
-                mGrammarStartPos++;
+    std::string getGrammarString(const std::string& str) {
+        if (str.empty() || str.find('@') == std::string::npos)
+            return str;
+
+        std::string result;
+        std::vector<VarOccurrence> occurrences;
+
+        result.reserve(str.size() * 2);
+        occurrences.reserve(30);
+
+        size_t mStartPos = 0;
+        while (mStartPos < str.size()) {
+            if (str[mStartPos] != '@') {
+                mStartPos++;
                 continue;
             }
 
-            size_t mGrammarEndPos = InitialResult.find('@', mGrammarStartPos + 1);
-            if (mGrammarEndPos == std::string::npos) 
+            size_t mEndPos = str.find('@', mStartPos + 1);
+            if (mEndPos == std::string::npos) 
                 break;
 
-            std::string mGrammar = InitialResult.substr(mGrammarStartPos + 1, mGrammarEndPos - mGrammarStartPos - 1);
+            std::string mGrammar = str.substr(mStartPos + 1, mEndPos - mStartPos - 1);
             std::string mValue = tryGetGrammarResult(mGrammar);
-            occurrences.push_back({mGrammarStartPos, mGrammarEndPos - mGrammarStartPos + 1, mValue});
+            occurrences.push_back({mStartPos, mEndPos - mStartPos + 1, mValue});
 
-            mGrammarStartPos = mGrammarEndPos + 1;
+            mStartPos = mEndPos + 1;
         }
 
-        size_t mFinalPos = 0;
+        size_t mPos = 0;
         for (const auto& occ : occurrences) {
-            FinalResult.append(InitialResult, mFinalPos, occ.start - mFinalPos);
-            FinalResult.append(occ.replacement);
-            mFinalPos = occ.start + occ.length;
+            result.append(str, mPos, occ.start - mPos);
+            result.append(occ.replacement);
+            mPos = occ.start + occ.length;
         }
 
-        if (mFinalPos < InitialResult.size())
-            FinalResult.append(InitialResult, mFinalPos, InitialResult.size() - mFinalPos);
+        if (mPos < str.size())
+            result.append(str, mPos, str.size() - mPos);
 
-        contentString.swap(FinalResult);
-        return contentString;
+        return result;
     }
 
-    std::string& translateString(const std::string& contentString, Player& player) {
-        return translateString(const_cast<std::string&>(contentString), player);
+    std::string translateString(std::string& str, Player& player) {
+        std::string mResult = getVariableString(str, player);
+        std::string mGrammarResult = getGrammarString(mResult);
+
+        str = mGrammarResult;
+
+        return mGrammarResult;
+    }
+
+    std::string translateString(const std::string& str, Player& player) {
+        std::string mResult = getVariableString(str, player);
+        std::string mGrammarResult = getGrammarString(mResult);
+        return mGrammarResult;
     }
 }

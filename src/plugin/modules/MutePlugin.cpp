@@ -261,7 +261,7 @@ namespace LOICollection::Plugins::mute {
         db->set("Mute", mTimestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         db->set("Mute", mTimestamp + ".DATA", player.getUuid().asString());
 
-        logger->info(LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::getVariableString(
             ll::string_utils::replaceAll(tr({}, "mute.log1"), "${cause}", mCause), player)
         );
     }

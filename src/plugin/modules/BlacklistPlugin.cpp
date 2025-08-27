@@ -287,7 +287,7 @@ namespace LOICollection::Plugins::blacklist {
             mObjectTips, {}, false
         );
 
-        logger->info(LOICollectionAPI::translateString(tr({}, "blacklist.log1"), player));
+        logger->info(LOICollectionAPI::getVariableString(tr({}, "blacklist.log1"), player));
     }
 
     void delBlacklist(const std::string& target) {

@@ -178,11 +178,12 @@ namespace LOICollection::Plugins::tpa {
             }
             ScoreboardUtils::reduceScore(player, options.TargetScoreboard, options.RequestRequired);
 
-            ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"), 
-                (type == TpaType::tpa)
-                ? LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player)
-                : LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player),
-                tr(mObjectLanguage, "tpa.yes"), tr(mObjectLanguage, "tpa.no"));
+            ll::form::ModalForm form(
+                tr(mObjectLanguage, "tpa.gui.title"), 
+                (type == TpaType::tpa) ? LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player)
+                    : LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player),
+                tr(mObjectLanguage, "tpa.yes"), tr(mObjectLanguage, "tpa.no")
+            );
             form.sendTo(target, [type, &player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
                     std::string logString = tr({}, "tpa.log1");
@@ -333,7 +334,7 @@ namespace LOICollection::Plugins::tpa {
         db->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
         db->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
-        logger->info(LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::getVariableString(
             ll::string_utils::replaceAll(tr({}, "tpa.log2"), "${target}", mTargetObject), player
         ));
     }
@@ -348,7 +349,7 @@ namespace LOICollection::Plugins::tpa {
         if (db->hasByPrefix("Blacklist", mObject + "." + target, 2))
             db->delByPrefix("Blacklist", mObject + "." + target);
 
-        logger->info(LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::getVariableString(
             ll::string_utils::replaceAll(tr({}, "tpa.log3"), "${target}", target), player
         ));
     }

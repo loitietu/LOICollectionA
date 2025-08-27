@@ -109,7 +109,7 @@ namespace LOICollection::Plugins::notice {
 
                 MainGui::content(pl, uiName);
 
-                logger->info(LOICollectionAPI::translateString(tr({}, "notice.log1"), pl));
+                logger->info(LOICollectionAPI::getVariableString(tr({}, "notice.log1"), pl));
             });
         }
 
@@ -135,7 +135,7 @@ namespace LOICollection::Plugins::notice {
                 db->set(mObjectId, mObject);
                 db->save();
 
-                logger->info(LOICollectionAPI::translateString(
+                logger->info(LOICollectionAPI::getVariableString(
                     ll::string_utils::replaceAll(tr({}, "notice.log2"), "${notice}", mObjectId), pl
                 ));
             });
@@ -162,7 +162,7 @@ namespace LOICollection::Plugins::notice {
                         db->remove(key);
                         db->save();
 
-                        logger->info(LOICollectionAPI::translateString(
+                        logger->info(LOICollectionAPI::getVariableString(
                             ll::string_utils::replaceAll(tr({}, "notice.log3"), "${notice}", key), pl
                         ));
                     });

@@ -52,7 +52,6 @@
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;
-using LOICollection::LOICollectionAPI::translateString;
 
 namespace LOICollection::Plugins::shop {
     struct ShopOP {
@@ -112,7 +111,9 @@ namespace LOICollection::Plugins::shop {
                     db->set(mObjectInput1, mData);
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "shop.log1"), "${menu}", mObjectInput1), pl));
+                logger->info(LOICollectionAPI::getVariableString(
+                    ll::string_utils::replaceAll(tr({}, "shop.log1"), "${menu}", mObjectInput1), pl)
+                );
             });
         }
 
@@ -133,7 +134,9 @@ namespace LOICollection::Plugins::shop {
                             db->remove(key);
                             db->save();
 
-                            logger->info(translateString(ll::string_utils::replaceAll(tr({}, "shop.log2"), "${menu}", key), pl));
+                            logger->info(LOICollectionAPI::getVariableString(
+                                ll::string_utils::replaceAll(tr({}, "shop.log2"), "${menu}", key), pl)
+                            );
                         }
                     });
                 });
@@ -176,7 +179,9 @@ namespace LOICollection::Plugins::shop {
                 
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "shop.log4"), "${menu}", uiName), pl));
+                logger->info(LOICollectionAPI::getVariableString(
+                    ll::string_utils::replaceAll(tr({}, "shop.log4"), "${menu}", uiName), pl)
+                );
             });
         }
 
@@ -227,7 +232,9 @@ namespace LOICollection::Plugins::shop {
                 db->set(uiName, mContent);
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log5"), "${menu}", uiName), pl));
+                logger->info(LOICollectionAPI::getVariableString(
+                    ll::string_utils::replaceAll(tr({}, "menu.log5"), "${menu}", uiName), pl)
+                );
             });
         }
 
@@ -259,7 +266,7 @@ namespace LOICollection::Plugins::shop {
                             std::string logString = tr({}, "shop.log3");
                             ll::string_utils::replaceAll(logString, "${menu}", uiName);
                             ll::string_utils::replaceAll(logString, "${customize}", mName);
-                            logger->info(translateString(logString, pl));
+                            logger->info(LOICollectionAPI::getVariableString(logString, pl));
                         }
                     });
                 });
@@ -337,10 +344,9 @@ namespace LOICollection::Plugins::shop {
         }
 
         void menu(Player& player, nlohmann::ordered_json& data, ShopType type) {
-            ll::form::SimpleForm form(translateString(data.value("title", ""), player),
-                translateString(data.value("content", ""), player));
+            ll::form::SimpleForm form(LOICollectionAPI::translateString(data.value("title", ""), player), LOICollectionAPI::translateString(data.value("content", ""), player));
             for (nlohmann::ordered_json& item : data.value("classiflcation", nlohmann::ordered_json())) {
-                form.appendButton(translateString(item.value("title", ""), player), item.value("image", ""), "path", [item, data, type](Player& pl) -> void {
+                form.appendButton(LOICollectionAPI::translateString(item.value("title", ""), player), item.value("image", ""), "path", [item, data, type](Player& pl) -> void {
                     nlohmann::ordered_json mItem = item;
                     switch (ll::hash_utils::doHash(mItem.value("type", ""))) {
                         case ll::hash_utils::doHash("commodity"):
@@ -364,9 +370,9 @@ namespace LOICollection::Plugins::shop {
         }
 
         void commodity(Player& player, nlohmann::ordered_json& data, const nlohmann::ordered_json& original, ShopType type) {
-            ll::form::CustomForm form(translateString(data.value("title", ""), player));
-            form.appendLabel(translateString(data.value("introduce", ""), player));
-            form.appendInput("Input", translateString(data.value("number", ""), player), "", "1");
+            ll::form::CustomForm form(LOICollectionAPI::translateString(data.value("title", ""), player));
+            form.appendLabel(LOICollectionAPI::translateString(data.value("introduce", ""), player));
+            form.appendInput("Input", LOICollectionAPI::translateString(data.value("number", ""), player), "", "1");
             form.sendTo(player, [data, original, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return executeCommand(pl, original.value("exit", ""));
 
@@ -396,10 +402,12 @@ namespace LOICollection::Plugins::shop {
         }
 
         void title(Player& player, nlohmann::ordered_json& data, const nlohmann::ordered_json& original, ShopType type) {
-            ll::form::ModalForm form(translateString(data.value("title", ""), player),
-                translateString(data.value("introduce", ""), player),
-                translateString(data.value("confirmButton", "confirm"), player),
-                translateString(data.value("cancelButton", "cancel"), player));
+            ll::form::ModalForm form(
+                LOICollectionAPI::translateString(data.value("title", ""), player),
+                LOICollectionAPI::translateString(data.value("introduce", ""), player),
+                LOICollectionAPI::translateString(data.value("confirmButton", "confirm"), player),
+                LOICollectionAPI::translateString(data.value("cancelButton", "cancel"), player)
+            );
             form.sendTo(player, [data, original, type](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
                 if (result == ll::form::ModalFormSelectedButton::Upper) {
                     std::string id = data.value("id", "None");

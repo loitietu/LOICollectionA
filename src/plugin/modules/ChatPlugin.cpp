@@ -146,7 +146,7 @@ namespace LOICollection::Plugins::chat {
 
                 db2->set("OBJECT$" + mObject, "Chat_Title", std::get<std::string>(dt->at("dropdown")));
                 
-                logger->info(LOICollectionAPI::translateString(tr({}, "chat.log1"), pl));
+                logger->info(LOICollectionAPI::getVariableString(tr({}, "chat.log1"), pl));
             });
         }
 
@@ -385,7 +385,7 @@ namespace LOICollection::Plugins::chat {
         
         db->set("Titles", mObject + "." + text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
         
-        logger->info(LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::getVariableString(
             ll::string_utils::replaceAll(tr({}, "chat.log2"), "${title}", text), player
         ));
     }
@@ -402,7 +402,7 @@ namespace LOICollection::Plugins::chat {
         db->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
         db->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
-        logger->info(LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::getVariableString(
             ll::string_utils::replaceAll(tr({}, "chat.log5"), "${target}", mTargetObject), player
         ));
     }
@@ -420,7 +420,7 @@ namespace LOICollection::Plugins::chat {
         if (db2->get("OBJECT$" + mObject, "Chat_Title", "None") == text)
             db2->set("OBJECT$" + mObject, "Chat_Title", "None");
 
-        logger->info(LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::getVariableString(
             ll::string_utils::replaceAll(tr({}, "chat.log3"), "${title}", text), player
         ));
     }
@@ -435,7 +435,7 @@ namespace LOICollection::Plugins::chat {
         if (db->hasByPrefix("Blacklist", mObject + "." + target + "_TIME", 2))
             db->delByPrefix("Blacklist", mObject + "." + target);
 
-        logger->info(LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::getVariableString(
             ll::string_utils::replaceAll(tr({}, "chat.log6"), "${target}", target), player
         ));
     }

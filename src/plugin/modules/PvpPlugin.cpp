@@ -141,23 +141,27 @@ namespace LOICollection::Plugins::pvp {
     }
 
     void enable(Player& player, bool value) {
-        if (!isValid()) return;
+        if (!isValid())
+            return;
         
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
+
         if (value) {
             if (db->has("OBJECT$" + mObject))
                 db->set("OBJECT$" + mObject, "Pvp_Enable", "true");
-            logger->info(LOICollectionAPI::translateString(tr({}, "pvp.log1"), player));
+            logger->info(LOICollectionAPI::getVariableString(tr({}, "pvp.log1"), player));
             return;
         }
+
         if (db->has("OBJECT$" + mObject))
             db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
-        logger->info(LOICollectionAPI::translateString(tr({}, "pvp.log2"), player));
+        logger->info(LOICollectionAPI::getVariableString(tr({}, "pvp.log2"), player));
     }
 
     bool isEnable(Player& player) {
-        if (!isValid()) return false;
+        if (!isValid())
+            return false;
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');

@@ -53,7 +53,6 @@
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;
-using LOICollection::LOICollectionAPI::translateString;
 
 namespace LOICollection::Plugins::menu {
     struct MenuOP {
@@ -129,7 +128,9 @@ namespace LOICollection::Plugins::menu {
                     db->set(mObjectInput1, mData);
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log1"), "${menu}", mObjectInput1), pl));
+                logger->info(LOICollectionAPI::getVariableString(
+                    ll::string_utils::replaceAll(tr({}, "menu.log1"), "${menu}", mObjectInput1), pl)
+                );
             });
         }
 
@@ -150,7 +151,9 @@ namespace LOICollection::Plugins::menu {
                             db->remove(key);
                             db->save();
 
-                            logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log2"), "${menu}", key), pl));
+                            logger->info(LOICollectionAPI::getVariableString(
+                                ll::string_utils::replaceAll(tr({}, "menu.log2"), "${menu}", key), pl)
+                            );
                         }
                     });
                 });
@@ -198,7 +201,9 @@ namespace LOICollection::Plugins::menu {
 
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log5"), "${menu}", uiName), pl));
+                logger->info(LOICollectionAPI::getVariableString(
+                    ll::string_utils::replaceAll(tr({}, "menu.log5"), "${menu}", uiName), pl)
+                );
             });
         }
 
@@ -247,7 +252,9 @@ namespace LOICollection::Plugins::menu {
                 db->set(uiName, mContent);
                 db->save();
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log6"), "${menu}", uiName), pl));
+                logger->info(LOICollectionAPI::getVariableString(
+                    ll::string_utils::replaceAll(tr({}, "menu.log6"), "${menu}", uiName), pl)
+                );
             });
         }
 
@@ -283,7 +290,7 @@ namespace LOICollection::Plugins::menu {
                         std::string logString = tr({}, "menu.log3");
                         ll::string_utils::replaceAll(logString, "${menu}", uiName);
                         ll::string_utils::replaceAll(logString, "${customize}", mName);
-                        logger->info(translateString(logString, pl));
+                        logger->info(LOICollectionAPI::getVariableString(logString, pl));
                     });
                 });
             }
@@ -328,7 +335,9 @@ namespace LOICollection::Plugins::menu {
 
                 MainGui::editAwardCommand(pl, uiName);
 
-                logger->info(translateString(ll::string_utils::replaceAll(tr({}, "menu.log4"), "${menu}", uiName), pl));
+                logger->info(LOICollectionAPI::getVariableString(
+                    ll::string_utils::replaceAll(tr({}, "menu.log4"), "${menu}", uiName), pl)
+                );
             });
         }
 
@@ -408,22 +417,26 @@ namespace LOICollection::Plugins::menu {
 
         void custom(Player& player, nlohmann::ordered_json& data) {
             nlohmann::ordered_json mCustomData{};
-            ll::form::CustomForm form(translateString(data.value("title", ""), player));
+            ll::form::CustomForm form(LOICollectionAPI::translateString(data.value("title", ""), player));
             for (nlohmann::ordered_json& customize : data.value("customize", nlohmann::ordered_json())) {
                 switch (ll::hash_utils::doHash(customize.value("type", ""))) {
                     case ll::hash_utils::doHash("header"):
-                        form.appendHeader(translateString(customize.value("title", ""), player));
+                        form.appendHeader(LOICollectionAPI::translateString(customize.value("title", ""), player));
                         break;
                     case ll::hash_utils::doHash("Label"):
-                        form.appendLabel(translateString(customize.value("title", ""), player));
+                        form.appendLabel(LOICollectionAPI::translateString(customize.value("title", ""), player));
                         break;
                     case ll::hash_utils::doHash("divider"):
                         form.appendDivider();
                         break;
                     case ll::hash_utils::doHash("Input"): {
-                        form.appendInput(customize.value("id", "ID"),
-                            translateString(customize.value("title", ""), player), 
-                            customize.value("placeholder", ""), customize.value("defaultValue", ""));
+                        form.appendInput(
+                            customize.value("id", "ID"),
+                            LOICollectionAPI::translateString(customize.value("title", ""), player), 
+                            customize.value("placeholder", ""),
+                            customize.value("defaultValue", "")
+                        );
+
                         mCustomData[customize.value("id", "ID")] = customize.value("defaultValue", "");
                         break;
                     }
@@ -431,24 +444,37 @@ namespace LOICollection::Plugins::menu {
                         std::vector<std::string> mOptions = customize.value("options", std::vector<std::string>());
                         if (mOptions.size() < 1)
                             break;
-                        form.appendDropdown(customize.value("id", "ID"),
-                            translateString(customize.value("title", ""), player), 
-                            mOptions, customize.value("defaultValue", 0));
+
+                        form.appendDropdown(
+                            customize.value("id", "ID"),
+                            LOICollectionAPI::translateString(customize.value("title", ""), player), 
+                            mOptions,
+                            customize.value("defaultValue", 0)
+                        );
+
                         mCustomData[customize.value("id", "ID")] = mOptions.at(customize.value("defaultValue", 0));
                         break;
                     }
                     case ll::hash_utils::doHash("Toggle"): {
-                        form.appendToggle(customize.value("id", "ID"),
-                            translateString(customize.value("title", ""), player),
-                            customize.value("defaultValue", false));
+                        form.appendToggle(
+                            customize.value("id", "ID"),
+                            LOICollectionAPI::translateString(customize.value("title", ""), player),
+                            customize.value("defaultValue", false)
+                        );
+
                         mCustomData[customize.value("id", "ID")] = customize.value("defaultValue", false);
                         break;
                     }
                     case ll::hash_utils::doHash("Slider"): {
-                        form.appendSlider(customize.value("id", "ID"), 
-                        translateString(customize.value("title", ""), player),
-                        customize.value("min", 0), customize.value("max", 100),
-                        customize.value("step", 1), customize.value("defaultValue", 0));
+                        form.appendSlider(
+                            customize.value("id", "ID"), 
+                            LOICollectionAPI::translateString(customize.value("title", ""), player),
+                            customize.value("min", 0),
+                            customize.value("max", 100),
+                            customize.value("step", 1),
+                            customize.value("defaultValue", 0)
+                        );
+
                         mCustomData[customize.value("id", "ID")] = customize.value("defaultValue", 0);
                         break;
                     }
@@ -456,9 +482,14 @@ namespace LOICollection::Plugins::menu {
                         std::vector<std::string> mOptions = customize.value("options", std::vector<std::string>());
                         if (mOptions.size() < 2)
                             break;
-                        form.appendStepSlider(customize.value("id", "ID"),
-                            translateString(customize.value("title", ""), player),
-                            mOptions, customize.value("defaultValue", 0));
+
+                        form.appendStepSlider(
+                            customize.value("id", "ID"),
+                            LOICollectionAPI::translateString(customize.value("title", ""), player),
+                            mOptions,
+                            customize.value("defaultValue", 0)
+                        );
+
                         mCustomData[customize.value("id", "ID")] = mOptions.at(customize.value("defaultValue", 0));
                         break;
                     }
@@ -490,21 +521,20 @@ namespace LOICollection::Plugins::menu {
         }
 
         void simple(Player& player, nlohmann::ordered_json& data) {
-            ll::form::SimpleForm form(translateString(data.value("title", ""), player),
-                translateString(data.value("content", ""), player));
+            ll::form::SimpleForm form(LOICollectionAPI::translateString(data.value("title", ""), player), LOICollectionAPI::translateString(data.value("content", ""), player));
             for (nlohmann::ordered_json& customize : data.value("customize", nlohmann::ordered_json())) {
                 switch (ll::hash_utils::doHash(customize.value("type", ""))) {
                     case ll::hash_utils::doHash("button"):
                     case ll::hash_utils::doHash("from"):
-                        form.appendButton(translateString(customize.value("title", ""), player), customize.value("image", ""), "path", [data, customize](Player& pl) -> void {
+                        form.appendButton(LOICollectionAPI::translateString(customize.value("title", ""), player), customize.value("image", ""), "path", [data, customize](Player& pl) -> void {
                             handleAction(pl, customize, data);
                         });
                         break;
                     case ll::hash_utils::doHash("header"):
-                        form.appendHeader(translateString(customize.value("title", ""), player));
+                        form.appendHeader(LOICollectionAPI::translateString(customize.value("title", ""), player));
                         break;
                     case ll::hash_utils::doHash("label"): 
-                        form.appendLabel(translateString(customize.value("title", ""), player));
+                        form.appendLabel(LOICollectionAPI::translateString(customize.value("title", ""), player));
                         break;
                     case ll::hash_utils::doHash("divider"):
                         form.appendDivider();
@@ -522,10 +552,12 @@ namespace LOICollection::Plugins::menu {
             if (mCancelButton.empty() || mConfirmButton.empty())
                 return;
 
-            ll::form::ModalForm form(translateString(data.value("title", ""), player),
-                translateString(data.value("content", ""), player),
-                translateString(mConfirmButton.value("title", ""), player),
-                translateString(mCancelButton.value("title", ""), player));
+            ll::form::ModalForm form(
+                LOICollectionAPI::translateString(data.value("title", ""), player),
+                LOICollectionAPI::translateString(data.value("content", ""), player),
+                LOICollectionAPI::translateString(mConfirmButton.value("title", ""), player),
+                LOICollectionAPI::translateString(mCancelButton.value("title", ""), player)
+            );
             form.sendTo(player, [data, mConfirmButton, mCancelButton](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
                 if (result == ll::form::ModalFormSelectedButton::Upper) 
                     return handleAction(pl, mConfirmButton, data);

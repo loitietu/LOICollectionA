@@ -97,7 +97,7 @@ namespace LOICollection::Plugins::market {
 
                 delItem(id);
 
-                logger->info(LOICollectionAPI::translateString(
+                logger->info(LOICollectionAPI::getVariableString(
                     ll::string_utils::replaceAll(tr({}, "market.log2"), "${item}", mData.at(id + ".NAME")), pl
                 ));
             });
@@ -107,7 +107,7 @@ namespace LOICollection::Plugins::market {
 
                     delItem(id);
 
-                    logger->info(LOICollectionAPI::translateString(
+                    logger->info(LOICollectionAPI::getVariableString(
                         ll::string_utils::replaceAll(tr({}, "market.log3"), "${item}", mData.at(id + ".NAME")), pl
                     ));
                 });
@@ -139,7 +139,7 @@ namespace LOICollection::Plugins::market {
 
                 delItem(id);
 
-                logger->info(LOICollectionAPI::translateString(
+                logger->info(LOICollectionAPI::getVariableString(
                     ll::string_utils::replaceAll(tr({}, "market.log3"), "${item}", mData.at(id + ".NAME")), pl
                 ));
             });
@@ -390,7 +390,7 @@ namespace LOICollection::Plugins::market {
         db->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
         db->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
-        logger->info(LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::getVariableString(
             ll::string_utils::replaceAll(tr({}, "market.log4"), "${target}", mTargetObject), player
         ));
     }
@@ -404,7 +404,7 @@ namespace LOICollection::Plugins::market {
 
         db->delByPrefix("Blacklist", target + ".");
 
-        logger->info(LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::getVariableString(
             ll::string_utils::replaceAll(tr({}, "market.log5"), "${target}", target), player
         ));
     }
@@ -423,7 +423,7 @@ namespace LOICollection::Plugins::market {
         db->set("Item", mTimestamp + ".PLAYER_NAME", player.getRealName());
         db->set("Item", mTimestamp + ".PLAYER_UUID", player.getUuid().asString());
 
-        logger->info(LOICollectionAPI::translateString(
+        logger->info(LOICollectionAPI::getVariableString(
             ll::string_utils::replaceAll(tr({}, "market.log2"), "${item}", name), player
         ));
     }

@@ -64,7 +64,7 @@ namespace LOICollection::Plugins::language {
 
                 db->set("OBJECT$" + mObject, "language", std::get<std::string>(dt->at("dropdown")));
                 
-                logger->info(LOICollectionAPI::translateString(tr({}, "language.log"), pl));
+                logger->info(LOICollectionAPI::getVariableString(tr({}, "language.log"), pl));
             });
         }
     }
