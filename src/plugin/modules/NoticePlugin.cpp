@@ -315,7 +315,8 @@ namespace LOICollection::Plugins::notice {
     }
 
     bool isClose(Player& player) {
-        if (!isValid()) return false;
+        if (!isValid()) 
+            return false;
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');

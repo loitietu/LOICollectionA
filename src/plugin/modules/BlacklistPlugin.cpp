@@ -301,7 +301,7 @@ namespace LOICollection::Plugins::blacklist {
 
     std::string getBlacklist(Player& player) {
         if (!isValid())
-            return "";
+            return {};
 
         std::string mUuid = player.getUuid().asString();
         std::string mIp = player.getIPAndPort().substr(0, player.getIPAndPort().find(':'));

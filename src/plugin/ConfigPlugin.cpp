@@ -32,12 +32,14 @@ namespace Config {
     void InsertJson(int pos, nlohmann::ordered_json::iterator& source, nlohmann::ordered_json& target) {
         nlohmann::ordered_json mInsertJson;
         for (auto it = target.begin(); it != target.end(); ++it) {
-            if ((int)std::distance(target.begin(), it) == pos)
+            if ((int) std::distance(target.begin(), it) == pos)
                 mInsertJson[source.key()] = source.value();
             mInsertJson[it.key()] = it.value();
         }
-        if (pos == (int)std::distance(target.begin(), target.end()))
+
+        if (pos == (int) std::distance(target.begin(), target.end()))
             mInsertJson[source.key()] = source.value();
+
         target = mInsertJson;
     }
 
@@ -47,11 +49,14 @@ namespace Config {
                 InsertJson((int)std::distance(source.begin(), it), it, target);
                 continue;
             }
+
             if (it.value().is_object() && target[it.key()].is_object()) {
                 MergeJson(it.value(), target[it.key()]);
                 continue;
             }
-            if (it->type() != target[it.key()].type()) target[it.key()] = it.value();
+
+            if (it->type() != target[it.key()].type())
+                target[it.key()] = it.value();
         }
     }
 

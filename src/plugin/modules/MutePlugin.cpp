@@ -284,7 +284,7 @@ namespace LOICollection::Plugins::mute {
 
     std::string getMute(Player& player) {
         if (!isValid())
-            return "";
+            return {};
 
         std::string mUuid = player.getUuid().asString();
 
