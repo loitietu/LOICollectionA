@@ -16,7 +16,9 @@ public:
 
     void set(const std::string& local, const std::string& key, const std::string& value);
 
-    std::string get(const std::string& local, const std::string& key);
+    [[nodiscard]] bool has(const std::string& local) const;
+
+    [[nodiscard]] std::string get(const std::string& local, const std::string& key) const;
 public:
     std::unordered_map<std::string, std::unordered_map<std::string, std::string>> data;
     std::string defaultLocale{};
@@ -24,6 +26,8 @@ public:
 
 namespace I18nUtilsTools {
     inline std::string tr(const std::string& local, const std::string& key) {
-        return I18nUtils::getInstance()->get(local, key);
+        return I18nUtils::getInstance()->get(
+            I18nUtils::getInstance()->has(local) ? local : I18nUtils::getInstance()->defaultLocale, key
+        );
     }
 }
