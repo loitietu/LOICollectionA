@@ -304,7 +304,7 @@ static nlohmann::ordered_json CNLangData = {
     { "notice.gui.edit.title", "§e设置标题" },
     { "notice.gui.edit.line", "§a第${index}行" },
     { "notice.gui.edit.show", "§b是否开启公告提示 [§c关闭§b | §a开启§b]" },
-    { "notice.gui.edit.operation", "§e执行目标" },
+    { "notice.gui.edit.operation", "§e执行目标§r" },
     { "notice.gui.setting.switch1", "§b关闭公告 [§c关闭§b | §a开启§b]" },
     { "market.log1", "玩家 {player}({player.uuid}) 购买物品 ${item}" },
     { "market.log2", "玩家 {player}({player.uuid}) 出售物品 ${item}" },
