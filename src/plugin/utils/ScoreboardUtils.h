@@ -12,6 +12,8 @@ namespace ScoreboardUtils {
         set
     };
 
+    bool hasScoreboard(const std::string& name);
+
     int getScore(Player& player, const std::string& name);
     
     void modifyScore(ScoreboardId& identity, const std::string& name, int score, ScoreType action);

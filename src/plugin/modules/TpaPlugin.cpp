@@ -1,4 +1,5 @@
 #include <memory>
+#include <ranges>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -108,12 +109,6 @@ namespace LOICollection::Plugins::tpa {
 
         void blacklistAdd(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
-
-            if (((int) getBlacklist(player).size()) >= options.BlacklistUpload) {
-                return player.sendMessage(ll::string_utils::replaceAll(
-                    tr(mObjectLanguage, "tpa.tips2"), "${size}", std::to_string(options.BlacklistUpload)
-                ));
-            }
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), tr(mObjectLanguage, "tpa.gui.setting.blacklist.add.label"));
             ll::service::getLevel()->forEachPlayer([&form, &player](Player& mTarget) -> bool {
@@ -134,7 +129,14 @@ namespace LOICollection::Plugins::tpa {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), tr(mObjectLanguage, "tpa.gui.setting.label"));
-            form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.add"), "textures/ui/editIcon", "path", [](Player& pl) -> void {
+            form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.add"), "textures/ui/editIcon", "path", [mObjectLanguage](Player& pl) -> void {
+                if (((int) getBlacklist(pl).size()) >= options.BlacklistUpload) {
+                    pl.sendMessage(ll::string_utils::replaceAll(
+                        tr(mObjectLanguage, "tpa.tips2"), "${size}", std::to_string(options.BlacklistUpload)
+                    ));
+                    return MainGui::setting(pl);
+                }
+
                 MainGui::blacklistAdd(pl);
             });
             for (std::string& mTarget : getBlacklist(player)) {
@@ -163,25 +165,9 @@ namespace LOICollection::Plugins::tpa {
         void tpa(Player& player, Player& target, TpaType type) {
             std::string mObjectLanguage = getLanguage(target);
 
-            if (isInvite(target)) {
-                player.sendMessage(ll::string_utils::replaceAll(
-                    tr(getLanguage(player), "tpa.no.tips"), "${player}", target.getRealName()
-                ));
-                return;
-            }
-            
-            if (options.RequestRequired && ScoreboardUtils::getScore(player, options.TargetScoreboard) < options.RequestRequired) {
-                player.sendMessage(ll::string_utils::replaceAll(
-                    tr(getLanguage(player), "tpa.tips1"), "${score}", std::to_string(options.RequestRequired)
-                ));
-                return;
-            }
-            ScoreboardUtils::reduceScore(player, options.TargetScoreboard, options.RequestRequired);
+            std::string mLabelId = (type == TpaType::tpa) ? "tpa.there" : "tpa.here";
 
-            ll::form::ModalForm form(
-                tr(mObjectLanguage, "tpa.gui.title"), 
-                (type == TpaType::tpa) ? LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.there"), player)
-                    : LOICollectionAPI::translateString(tr(mObjectLanguage, "tpa.here"), player),
+            ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"), LOICollectionAPI::translateString(tr(mObjectLanguage, mLabelId), player),
                 tr(mObjectLanguage, "tpa.yes"), tr(mObjectLanguage, "tpa.no")
             );
             form.sendTo(target, [type, &player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
@@ -214,8 +200,17 @@ namespace LOICollection::Plugins::tpa {
             ll::form::CustomForm form(tr(mObjectLanguage, "tpa.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "tpa.gui.label"));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "tpa.gui.dropdown"), { "tpa", "tphere" });
-            form.sendTo(player, [&target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            form.sendTo(player, [&target, mObjectLanguage](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::open(pl);
+
+                if (options.RequestRequired && ScoreboardUtils::getScore(pl, options.TargetScoreboard) < options.RequestRequired) {
+                    pl.sendMessage(ll::string_utils::replaceAll(
+                        tr(mObjectLanguage, "tpa.tips1"), "${score}", std::to_string(options.RequestRequired)
+                    )); 
+                    return;
+                }
+
+                ScoreboardUtils::reduceScore(pl, options.TargetScoreboard, options.RequestRequired);
 
                 MainGui::tpa(pl, target, 
                     std::get<std::string>(dt->at("dropdown")) == "tpa" ? TpaType::tpa : TpaType::tphere
@@ -231,7 +226,7 @@ namespace LOICollection::Plugins::tpa {
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.title"), tr(mObjectLanguage, "tpa.gui.label2"));
             ll::service::getLevel()->forEachPlayer([&form, mObject](Player& mTarget) -> bool {
                 std::vector<std::string> mList = getBlacklist(mTarget);
-                if (mTarget.isSimulatedPlayer() || std::find(mList.begin(), mList.end(), mObject) != mList.end())
+                if (mTarget.isSimulatedPlayer() || std::find(mList.begin(), mList.end(), mObject) != mList.end() || isInvite(mTarget))
                     return true;
 
                 form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
@@ -261,18 +256,20 @@ namespace LOICollection::Plugins::tpa {
                 std::string mObject = player.getUuid().asString();
                 std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-                int mScore = options.RequestRequired;
-                std::string mScoreboard = options.TargetScoreboard;
-                for (Player*& pl : results) {
-                    if (ScoreboardUtils::getScore(*pl, mScoreboard) < mScore) {
-                        output.error(fmt::runtime(tr({}, "commands.tpa.error.invite")), mScore);
-                        break;
-                    }
+                auto mResults = results | std::views::filter([mObject](Player*& mTarget) -> bool { 
+                    std::vector<std::string> mList = getBlacklist(*mTarget);
+                    return !mTarget->isSimulatedPlayer() && std::find(mList.begin(), mList.end(), mObject) == mList.end() && !isInvite(*mTarget); 
+                });
 
-                    std::vector<std::string> mList = getBlacklist(*pl);
-                    if (std::find(mList.begin(), mList.end(), mObject) != mList.end())
-                        continue;
+                int mMoney = options.RequestRequired * (int) std::distance(mResults.begin(), mResults.end());
+                if (options.RequestRequired && ScoreboardUtils::getScore(player, options.TargetScoreboard) < mMoney) {
+                    output.error(fmt::runtime(tr({}, "commands.tpa.error.invite")), mMoney);
+                    return;
+                }
 
+                ScoreboardUtils::reduceScore(player, options.TargetScoreboard, mMoney);
+
+                for (Player*& pl : mResults) {
                     MainGui::tpa(player, *pl, param.Type == SelectorType::tpa
                         ? TpaType::tpa : TpaType::tphere
                     );

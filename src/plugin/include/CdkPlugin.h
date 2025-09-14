@@ -10,10 +10,12 @@ namespace LOICollection::Plugins::cdk {
     namespace MainGui {
         LOICOLLECTION_A_API void convert(Player& player);
         LOICOLLECTION_A_API void cdkNew(Player& player);
+        LOICOLLECTION_A_API void cdkRemoveInfo(Player& player, const std::string& id);
         LOICOLLECTION_A_API void cdkRemove(Player& player);
-        LOICOLLECTION_A_API void cdkAwardScore(Player& player);
-        LOICOLLECTION_A_API void cdkAwardItem(Player& player);
-        LOICOLLECTION_A_API void cdkAwardTitle(Player& player);
+        LOICOLLECTION_A_API void cdkAwardScore(Player& player, const std::string& id);
+        LOICOLLECTION_A_API void cdkAwardItem(Player& player, const std::string& id);
+        LOICOLLECTION_A_API void cdkAwardTitle(Player& player, const std::string& id);
+        LOICOLLECTION_A_API void cdkAwardInfo(Player& player, const std::string& id);
         LOICOLLECTION_A_API void cdkAward(Player& player);
         LOICOLLECTION_A_API void open(Player& player);
     }

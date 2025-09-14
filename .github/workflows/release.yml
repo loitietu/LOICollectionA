@@ -56,7 +56,7 @@ jobs:
                             $manifest | Add-Member -MemberType NoteProperty -Name "extraInfo" -Value @{}
                         }
                         $manifest.extraInfo.sentryDsn = $env:sentry
-                        $manifest.extraInfo.sentryUploadType = "all"
+                        $manifest.extraInfo.sentryUploadType = "sus"
                         
                         $manifest | ConvertTo-Json -Depth 10 | Set-Content $manifestPath
                         Write-Host "Added Sentry DSN to manifest.json"

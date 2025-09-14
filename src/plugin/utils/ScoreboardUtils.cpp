@@ -14,6 +14,11 @@
 #include "ScoreboardUtils.h"
 
 namespace ScoreboardUtils {
+    bool hasScoreboard(const std::string& name) {
+        optional_ref<Level> level = ll::service::getLevel();
+        return level->getScoreboard().getObjective(name) ? true : false;
+    }
+
     int getScore(Player& player, const std::string& name) {
         optional_ref<Level> level = ll::service::getLevel();
         ScoreboardId identity = level->getScoreboard().getScoreboardId(player);

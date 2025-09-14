@@ -95,16 +95,21 @@ namespace LOICollection::Plugins::blacklist {
 
             ll::form::CustomForm form(tr(mObjectLanguage, "blacklist.gui.add.title"));
             form.appendLabel(tr(mObjectLanguage, "blacklist.gui.label"));
-            form.appendInput("Input1", tr(mObjectLanguage, "blacklist.gui.add.input1"), "", "None");
-            form.appendInput("Input2", tr(mObjectLanguage, "blacklist.gui.add.input2"), "", "0");
-            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            form.appendInput("Input1", tr(mObjectLanguage, "blacklist.gui.add.input1"), tr(mObjectLanguage, "blacklist.gui.add.input1.placeholder"));
+            form.appendInput("Input2", tr(mObjectLanguage, "blacklist.gui.add.input2"), tr(mObjectLanguage, "blacklist.gui.add.input2.placeholder"));
+            form.sendTo(player, [&target, mObjectLanguage](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::add(pl);
 
-                std::string PlayerInputCause = std::get<std::string>(dt->at("Input1"));
+                std::string mCause = std::get<std::string>(dt->at("Input1"));
                 
+                if (mCause.empty()) {
+                    pl.sendMessage(tr(mObjectLanguage, "generic.tips.noinput"));
+                    return MainGui::add(pl);
+                }
+
                 int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
                 
-                addBlacklist(target, PlayerInputCause, time);
+                addBlacklist(target, mCause, time);
             });
         }
 
@@ -129,8 +134,7 @@ namespace LOICollection::Plugins::blacklist {
         void remove(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
-            ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"),
-                tr(mObjectLanguage, "blacklist.gui.remove.label"));
+            ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), tr(mObjectLanguage, "blacklist.gui.remove.label"));
             for (std::string& mItem : getBlacklists()) {
                 form.appendButton(mItem, [mItem](Player& pl) {
                     MainGui::info(pl, mItem);

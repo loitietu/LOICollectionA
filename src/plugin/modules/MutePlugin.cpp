@@ -85,12 +85,21 @@ namespace LOICollection::Plugins::mute {
 
             ll::form::CustomForm form(tr(mObjectLanguage, "mute.gui.add.title"));
             form.appendLabel(tr(mObjectLanguage, "mute.gui.label"));
-            form.appendInput("Input1", tr(mObjectLanguage, "mute.gui.add.input1"), "", "None");
-            form.appendInput("Input2", tr(mObjectLanguage, "mute.gui.add.input2"), "", "0");
-            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            form.appendInput("Input1", tr(mObjectLanguage, "mute.gui.add.input1"), tr(mObjectLanguage, "mute.gui.add.input1.placeholder"));
+            form.appendInput("Input2", tr(mObjectLanguage, "mute.gui.add.input2"), tr(mObjectLanguage, "mute.gui.add.input2.placeholder"));
+            form.sendTo(player, [&target, mObjectLanguage](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::add(pl);
 
-                addMute(target, std::get<std::string>(dt->at("Input1")), SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0));
+                std::string mCause = std::get<std::string>(dt->at("Input1"));
+
+                if (mCause.empty()) {
+                    pl.sendMessage(tr(mObjectLanguage, "generic.tips.noinput"));
+                    return MainGui::add(pl);
+                }
+
+                int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+
+                addMute(target, mCause, time);
             });
         }
 

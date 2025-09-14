@@ -77,8 +77,10 @@ namespace LOICollection::Plugins::market {
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.buy.button1"), [id, mObjectLanguage, mData](Player& pl) -> void {
                 int mScore = SystemUtils::toInt(mData.at(id + ".SCORE"), 0);
 
-                if (ScoreboardUtils::getScore(pl, options.TargetScoreboard) < mScore) 
-                    return pl.sendMessage(tr(mObjectLanguage, "market.gui.sell.sellItem.tips3"));
+                if (ScoreboardUtils::getScore(pl, options.TargetScoreboard) < mScore) {
+                    pl.sendMessage(tr(mObjectLanguage, "market.gui.sell.sellItem.tips3"));
+                    return MainGui::buy(pl);
+                }
 
                 ScoreboardUtils::reduceScore(pl, options.TargetScoreboard, mScore);
 
@@ -88,12 +90,15 @@ namespace LOICollection::Plugins::market {
                 pl.refreshInventory();
 
                 std::string mObject = mData.at(id + ".PLAYER_UUID");
-                if (Player* mPlayer = ll::service::getLevel()->getPlayer(mObject); mPlayer) {
+                if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer) {
                     mPlayer->sendMessage(ll::string_utils::replaceAll(tr(mObjectLanguage, "market.gui.sell.sellItem.tips1"), "${item}", mData.at(id + ".NAME")));
 
                     ScoreboardUtils::addScore(*mPlayer, options.TargetScoreboard, mScore);
-                } else 
-                    db2->set(mObject, "Market_Score", std::to_string(SystemUtils::toInt(db2->get(mObject, "Market_Score"), 0) + mScore));
+                } else {
+                    int mMarketScore = SystemUtils::toInt(db2->get(mObject, "Market_Score"), 0);
+
+                    db2->set(mObject, "Market_Score", std::to_string(mMarketScore + mScore));
+                }
 
                 delItem(id);
 
@@ -151,27 +156,23 @@ namespace LOICollection::Plugins::market {
         void sellItem(Player& player, int mSlot) {
             std::string mObjectLanguage = getLanguage(player);
 
-            std::string mObject = player.getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-            if (((int) getItems(player).size()) >= options.MaximumUpload) {
-                return player.sendMessage(ll::string_utils::replaceAll(
-                    tr(mObjectLanguage, "market.gui.sell.sellItem.tips4"), "${size}", std::to_string(options.MaximumUpload)
-                ));
-            }
-
             ll::form::CustomForm form(tr(mObjectLanguage, "market.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "market.gui.label"));
-            form.appendInput("Input1", tr(mObjectLanguage, "market.gui.sell.sellItem.input1"), "", "Item");
-            form.appendInput("Input2", tr(mObjectLanguage, "market.gui.sell.sellItem.input2"), "", "textures/items/diamond");
-            form.appendInput("Input3", tr(mObjectLanguage, "market.gui.sell.sellItem.input3"), "", "Introduce");
-            form.appendInput("Input4", tr(mObjectLanguage, "market.gui.sell.sellItem.input4"), "", "100");
-            form.sendTo(player, [mSlot](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            form.appendInput("Input1", tr(mObjectLanguage, "market.gui.sell.sellItem.input1"), tr(mObjectLanguage, "market.gui.sell.sellItem.input1.placeholder"));
+            form.appendInput("Input2", tr(mObjectLanguage, "market.gui.sell.sellItem.input2"), tr(mObjectLanguage, "market.gui.sell.sellItem.input2.placeholder"));
+            form.appendInput("Input3", tr(mObjectLanguage, "market.gui.sell.sellItem.input3"), tr(mObjectLanguage, "market.gui.sell.sellItem.input3.placeholder"));
+            form.appendInput("Input4", tr(mObjectLanguage, "market.gui.sell.sellItem.input4"), tr(mObjectLanguage, "market.gui.sell.sellItem.input4.placeholder"));
+            form.sendTo(player, [mSlot, mObjectLanguage](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::sellItemInventory(pl);
 
                 std::string mItemName = std::get<std::string>(dt->at("Input1"));
                 std::string mItemIcon = std::get<std::string>(dt->at("Input2"));
                 std::string mItemIntroduce = std::get<std::string>(dt->at("Input3"));
+
+                if (mItemName.empty() || mItemIcon.empty() || mItemIntroduce.empty()) {
+                    pl.sendMessage(tr(mObjectLanguage, "generic.tips.noinput"));
+                    return MainGui::sellItemInventory(pl);
+                }
 
                 int mItemScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
 
@@ -249,12 +250,6 @@ namespace LOICollection::Plugins::market {
 
         void blacklistAdd(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
-
-            if (((int) getBlacklist(player).size()) >= options.BlacklistUpload) {
-                return player.sendMessage(ll::string_utils::replaceAll(
-                    tr(mObjectLanguage, "market.gui.sell.sellItem.tips5"), "${size}", std::to_string(options.BlacklistUpload)
-                ));
-            }
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.sell.blacklist.add.label"));
             ll::service::getLevel()->forEachPlayer([&form, &player](Player& mTarget) -> bool {
@@ -275,7 +270,14 @@ namespace LOICollection::Plugins::market {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist.add"), "textures/ui/editIcon", "path", [](Player& pl) -> void {
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist.add"), "textures/ui/editIcon", "path", [mObjectLanguage](Player& pl) -> void {
+                if (((int) getBlacklist(pl).size()) >= options.BlacklistUpload) {
+                    pl.sendMessage(ll::string_utils::replaceAll(
+                        tr(mObjectLanguage, "market.gui.sell.sellItem.tips5"), "${size}", std::to_string(options.BlacklistUpload)
+                    ));
+                    return MainGui::sell(pl);
+                }
+                
                 MainGui::blacklistAdd(pl);
             });
             for (std::string& mTarget : getBlacklist(player)) {
@@ -295,7 +297,14 @@ namespace LOICollection::Plugins::market {
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItem"), "textures/ui/icon_blackfriday", "path", [](Player& pl) -> void {
                 MainGui::sellItemInventory(pl);
             });
-            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent"), "textures/ui/creative_icon", "path", [](Player& pl) -> void {
+            form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent"), "textures/ui/creative_icon", "path", [mObjectLanguage](Player& pl) -> void {
+                if (((int) getItems(pl).size()) >= options.MaximumUpload) {
+                    pl.sendMessage(ll::string_utils::replaceAll(
+                        tr(mObjectLanguage, "market.gui.sell.sellItem.tips4"), "${size}", std::to_string(options.MaximumUpload)
+                    ));
+                    return;
+                }
+                
                 MainGui::sellItemContent(pl);
             });
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist"), "textures/ui/icon_deals", "path", [](Player& pl) -> void {

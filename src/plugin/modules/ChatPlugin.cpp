@@ -83,12 +83,9 @@ namespace LOICollection::Plugins::chat {
         void contentRemove(Player& player, Player& target) {
             std::string mObjectLanguage = getLanguage(player);
 
-            std::string mObject = target.getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
-
             ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.remove.dropdown"), db->list("OBJECT$" + mObject + "$TITLE"));
+            form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.remove.dropdown"), getTitles(target));
             form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::remove(pl);
 
@@ -174,12 +171,6 @@ namespace LOICollection::Plugins::chat {
 
         void blacklistAdd(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
-
-            if (((int) getBlacklist(player).size()) >= options.BlacklistUpload) {
-                return player.sendMessage(ll::string_utils::replaceAll(
-                    tr(mObjectLanguage, "chat.gui.setBlacklist.tips1"), "${size}", std::to_string(options.BlacklistUpload)
-                ));
-            }
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.setBlacklist.add.label"));
             ll::service::getLevel()->forEachPlayer([&form, &player](Player& mTarget) -> bool {
@@ -200,7 +191,14 @@ namespace LOICollection::Plugins::chat {
             std::string mObjectLanguage = getLanguage(player);
             
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.add"), [](Player& pl) -> void {
+            form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.add"), [mObjectLanguage](Player& pl) -> void {
+                if (((int) getBlacklist(pl).size()) >= options.BlacklistUpload) {
+                    pl.sendMessage(ll::string_utils::replaceAll(
+                        tr(mObjectLanguage, "chat.gui.setBlacklist.tips1"), "${size}", std::to_string(options.BlacklistUpload)
+                    ));
+                    return MainGui::setting(pl);
+                }
+
                 MainGui::blacklistAdd(pl);
             });
             for (std::string& mTarget : getBlacklist(player)) {

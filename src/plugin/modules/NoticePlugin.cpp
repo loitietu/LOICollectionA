@@ -70,14 +70,14 @@ namespace LOICollection::Plugins::notice {
             });
         }
 
-        void content(Player& player, const std::string& uiName) {
+        void content(Player& player, const std::string& id) {
             std::string mObjectLanguage = getLanguage(player);
 
             ll::form::CustomForm form(tr(mObjectLanguage, "notice.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "notice.gui.label"));
-            form.appendInput("Input1", tr(mObjectLanguage, "notice.gui.edit.title"), "", db->get_ptr<std::string>("/" + uiName + "/title", ""));
+            form.appendInput("Input", tr(mObjectLanguage, "notice.gui.edit.title"), "", db->get_ptr<std::string>("/" + id + "/title", ""));
 
-            auto content = db->get_ptr<nlohmann::ordered_json>("/" + uiName + "/content");
+            auto content = db->get_ptr<nlohmann::ordered_json>("/" + id + "/content");
             for (int i = 0; i < (int) content.size(); i++) {
                 std::string mLine = ll::string_utils::replaceAll(
                     tr(mObjectLanguage, "notice.gui.edit.line"), "${index}", std::to_string(i + 1)
@@ -85,29 +85,35 @@ namespace LOICollection::Plugins::notice {
                 form.appendInput("Content" + std::to_string(i), mLine, "", content.at(i));
             }
 
-            form.appendToggle("Toggle1", tr(mObjectLanguage, "notice.gui.edit.show"), db->get_ptr<bool>("/" + uiName + "/poiontout", false));
-            form.appendToggle("Toggle2", tr(mObjectLanguage, "notice.gui.edit.add"), false);
-            form.appendToggle("Toggle3", tr(mObjectLanguage, "notice.gui.edit.remove"), false);
-            form.sendTo(player, [uiName](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            form.appendToggle("Toggle", tr(mObjectLanguage, "notice.gui.edit.show"), db->get_ptr<bool>("/" + id + "/poiontout", false));
+            form.appendStepSlider("StepSlider", tr(mObjectLanguage, "notice.gui.edit.operation"), {
+                tr(mObjectLanguage, "notice.gui.edit.operation.no"), 
+                tr(mObjectLanguage, "notice.gui.edit.operation.add"), 
+                tr(mObjectLanguage, "notice.gui.edit.operation.remove")
+            });
+            form.sendTo(player, [id](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::edit(pl);
 
-                db->set_ptr("/" + uiName + "/title", std::get<std::string>(dt->at("Input1")));
-                db->set_ptr("/" + uiName + "/poiontout", (bool) std::get<uint64>(dt->at("Toggle1")));
+                db->set_ptr("/" + id + "/title", std::get<std::string>(dt->at("Input")));
+                db->set_ptr("/" + id + "/poiontout", (bool) std::get<uint64>(dt->at("Toggle")));
 
-                auto content = db->get_ptr<nlohmann::ordered_json>("/" + uiName + "/content");
-                if (std::get<uint64>(dt->at("Toggle2")))
-                    content.push_back("");
-                else if (std::get<uint64>(dt->at("Toggle3")))
-                    content.erase(content.end() - 1);
-                else {
-                    for (int i = 0; i < (int) content.size(); i++)
-                        content.at(i) = std::get<std::string>(dt->at("Content" + std::to_string(i)));
+                auto content = db->get_ptr<nlohmann::ordered_json>("/" + id + "/content");
+                switch ((int) std::get<double>(dt->at("StepSlider"))) {
+                    case 1: 
+                        content.push_back("");
+                        break;
+                    case 2: 
+                        content.erase(content.end() - 1);
+                        break;
+                    default:
+                        for (int i = 0; i < (int) content.size(); i++)
+                            content.at(i) = std::get<std::string>(dt->at("Content" + std::to_string(i)));
                 }
 
-                db->set_ptr("/" + uiName + "/content", content);
+                db->set_ptr("/" + id + "/content", content);
                 db->save();
 
-                MainGui::content(pl, uiName);
+                MainGui::content(pl, id);
 
                 logger->info(LOICollectionAPI::getVariableString(tr({}, "notice.log1"), pl));
             });
@@ -118,25 +124,55 @@ namespace LOICollection::Plugins::notice {
 
             ll::form::CustomForm form(tr(mObjectLanguage, "notice.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "notice.gui.label"));
-            form.appendInput("Input1", tr(mObjectLanguage, "notice.gui.add.input1"), "", "None");
-            form.appendInput("Input2", tr(mObjectLanguage, "notice.gui.add.input2"), "", "title");
-            form.appendInput("Input3", tr(mObjectLanguage, "notice.gui.add.input3"), "", "0");
+            form.appendInput("Input1", tr(mObjectLanguage, "notice.gui.add.input1"), tr(mObjectLanguage, "notice.gui.add.input1.placeholder"));
+            form.appendInput("Input2", tr(mObjectLanguage, "notice.gui.add.input2"), tr(mObjectLanguage, "notice.gui.add.input2.placeholder"));
+            form.appendInput("Input3", tr(mObjectLanguage, "notice.gui.add.input3"), tr(mObjectLanguage, "notice.gui.add.input3.placeholder"));
             form.appendToggle("Toggle1", tr(mObjectLanguage, "notice.gui.add.switch"), false);
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            form.sendTo(player, [mObjectLanguage](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::edit(pl);
 
                 std::string mObjectId = std::get<std::string>(dt->at("Input1"));
+                std::string mObjectTitle = std::get<std::string>(dt->at("Input2"));
+
+                if (mObjectId.empty() || mObjectTitle.empty()) {
+                    pl.sendMessage(tr(mObjectLanguage, "generic.tips.noinput"));
+                    return MainGui::edit(pl);
+                }
+
                 nlohmann::ordered_json mObject = {
-                    { "title", std::get<std::string>(dt->at("Input2")) },
+                    { "title", mObjectTitle },
                     { "content", nlohmann::ordered_json::array() },
                     { "priority", SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 0) },
                     { "poiontout", (bool)std::get<uint64>(dt->at("Toggle1")) }
                 };
+
                 db->set(mObjectId, mObject);
                 db->save();
 
                 logger->info(LOICollectionAPI::getVariableString(
                     ll::string_utils::replaceAll(tr({}, "notice.log2"), "${notice}", mObjectId), pl
+                ));
+            });
+        }
+        
+        void contentRemoveInfo(Player& player, const std::string& id) {
+            std::string mObjectLanguage = getLanguage(player);
+
+            std::string mObjectContent = tr(mObjectLanguage, "notice.gui.remove.content");
+            ll::string_utils::replaceAll(mObjectContent, "${notice}", id);
+
+            ll::form::ModalForm form(tr(mObjectLanguage, "notice.gui.title"), mObjectContent,
+                tr(mObjectLanguage, "notice.gui.remove.yes"), tr(mObjectLanguage, "notice.gui.remove.no")
+            );
+            form.sendTo(player, [id](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
+                if (result != ll::form::ModalFormSelectedButton::Upper) 
+                    return;
+
+                db->remove(id);
+                db->save();
+
+                logger->info(LOICollectionAPI::getVariableString(
+                    ll::string_utils::replaceAll(tr({}, "notice.log3"), "${notice}", id), pl
                 ));
             });
         }
@@ -147,25 +183,7 @@ namespace LOICollection::Plugins::notice {
             ll::form::SimpleForm form(tr(mObjectLanguage, "notice.gui.title"), tr(mObjectLanguage, "notice.gui.label"));
             for (const std::string& key : db->keys()) {
                 form.appendButton(key, [key](Player& pl) {
-                    std::string mObjectLanguage = getLanguage(pl);
-
-                    std::string mObjectContent = tr(mObjectLanguage, "notice.gui.remove.content");
-                    ll::string_utils::replaceAll(mObjectContent, "${notice}", key);
-
-                    ll::form::ModalForm form(tr(mObjectLanguage, "notice.gui.title"), mObjectContent,
-                        tr(mObjectLanguage, "notice.gui.remove.yes"), tr(mObjectLanguage, "notice.gui.remove.no")
-                    );
-                    form.sendTo(pl, [key](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
-                        if (result != ll::form::ModalFormSelectedButton::Upper) 
-                            return;
-
-                        db->remove(key);
-                        db->save();
-
-                        logger->info(LOICollectionAPI::getVariableString(
-                            ll::string_utils::replaceAll(tr({}, "notice.log3"), "${notice}", key), pl
-                        ));
-                    });
+                    MainGui::contentRemoveInfo(pl, key);
                 });
             }
             form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
@@ -200,9 +218,11 @@ namespace LOICollection::Plugins::notice {
                     continue;
                 mContent.emplace_back(it.key(), it.value().value("priority", 0));
             }
+
             std::sort(mContent.begin(), mContent.end(), [](const auto& a, const auto& b) {
                 return a.second < b.second;
             });
+
             for (const auto& pair : mContent) {
                 nlohmann::ordered_json mObject = data.at(pair.first);
                 
@@ -213,14 +233,14 @@ namespace LOICollection::Plugins::notice {
             }
         }
 
-        void notice(Player& player, const std::string& uiName) {
-            if (!db->has(uiName)) {
-                logger->error("NoticeUI {} reading failed.", uiName);
+        void notice(Player& player, const std::string& id) {
+            if (!db->has(id)) {
+                logger->error("NoticeUI {} reading failed.", id);
                 return;
             }
 
-            ll::form::CustomForm form(LOICollectionAPI::translateString(db->get_ptr<std::string>("/" + uiName + "/title", ""), player));
-            for (const auto& line : db->get_ptr<nlohmann::ordered_json>("/" + uiName + "/content"))
+            ll::form::CustomForm form(LOICollectionAPI::translateString(db->get_ptr<std::string>("/" + id + "/title", ""), player));
+            for (const auto& line : db->get_ptr<nlohmann::ordered_json>("/" + id + "/content"))
                 form.appendLabel(LOICollectionAPI::translateString(line, player));
             form.sendTo(player);
         }
@@ -231,6 +251,7 @@ namespace LOICollection::Plugins::notice {
             std::vector<std::pair<std::string, int>> mContent;
             for (auto it = data.begin(); it != data.end(); ++it)
                 mContent.emplace_back(it.key(), it.value().value("priority", 0));
+
             std::sort(mContent.begin(), mContent.end(), [](const auto& a, const auto& b) {
                 return a.second < b.second;
             });
@@ -238,8 +259,8 @@ namespace LOICollection::Plugins::notice {
             std::string mObjectLanguage = getLanguage(player);
             ll::form::SimpleForm form(tr(mObjectLanguage, "notice.gui.title"), tr(mObjectLanguage, "notice.gui.label"));
             for (const auto& pair : mContent) {
-                form.appendButton(LOICollectionAPI::translateString(data.at(pair.first).value("title", ""), player), [uiName = pair.first](Player& pl) {
-                    MainGui::notice(pl, uiName);
+                form.appendButton(LOICollectionAPI::translateString(data.at(pair.first).value("title", ""), player), [id = pair.first](Player& pl) {
+                    MainGui::notice(pl, id);
                 });
             }
             form.sendTo(player);
