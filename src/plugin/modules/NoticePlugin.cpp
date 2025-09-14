@@ -17,6 +17,7 @@
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
 #include <ll/api/utils/StringUtils.h>
+#include <ll/api/utils/HashUtils.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/server/commands/CommandOrigin.h>
@@ -86,11 +87,7 @@ namespace LOICollection::Plugins::notice {
             }
 
             form.appendToggle("Toggle", tr(mObjectLanguage, "notice.gui.edit.show"), db->get_ptr<bool>("/" + id + "/poiontout", false));
-            form.appendStepSlider("StepSlider", tr(mObjectLanguage, "notice.gui.edit.operation"), {
-                tr(mObjectLanguage, "notice.gui.edit.operation.no"), 
-                tr(mObjectLanguage, "notice.gui.edit.operation.add"), 
-                tr(mObjectLanguage, "notice.gui.edit.operation.remove")
-            });
+            form.appendStepSlider("StepSlider", tr(mObjectLanguage, "notice.gui.edit.operation"), { "no", "add", "remove" });
             form.sendTo(player, [id](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::edit(pl);
 
@@ -98,11 +95,11 @@ namespace LOICollection::Plugins::notice {
                 db->set_ptr("/" + id + "/poiontout", (bool) std::get<uint64>(dt->at("Toggle")));
 
                 auto content = db->get_ptr<nlohmann::ordered_json>("/" + id + "/content");
-                switch ((int) std::get<double>(dt->at("StepSlider"))) {
-                    case 1: 
+                switch (ll::hash_utils::doHash(std::get<std::string>(dt->at("StepSlider")))) {
+                    case ll::hash_utils::doHash("add"): 
                         content.push_back("");
                         break;
-                    case 2: 
+                    case ll::hash_utils::doHash("remove"): 
                         content.erase(content.end() - 1);
                         break;
                     default:
