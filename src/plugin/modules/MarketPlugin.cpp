@@ -479,7 +479,7 @@ namespace LOICollection::Plugins::market {
 
         std::vector<std::string> mKeys = db->listByPrefix("Item", "%.");
         std::for_each(mKeys.begin(), mKeys.end(), [&mResult](const std::string& mId) -> void {
-            std::string mData = mId.substr(0, mId.find_last_of('.'));
+            std::string mData = mId.substr(0, mId.find_first_of('.'));
 
             mResult.push_back(mData);
         });
