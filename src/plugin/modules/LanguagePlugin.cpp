@@ -13,7 +13,6 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
-#include <ll/api/utils/StringUtils.h>
 
 #include <mc/certificates/WebToken.h>
 #include <mc/network/ConnectionRequest.h>
@@ -52,9 +51,7 @@ namespace LOICollection::Plugins::language {
             
             ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
             form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
-            form.appendLabel(ll::string_utils::replaceAll(
-                tr(mObjectLanguage, "language.gui.lang"), "${language}", tr(mObjectLanguage, "name")
-            ));
+            form.appendLabel(fmt::format(fmt::runtime(tr(mObjectLanguage, "language.gui.lang")), tr(mObjectLanguage, "name")));
             form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys());
             form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return;

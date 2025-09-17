@@ -18,7 +18,6 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
-#include <ll/api/utils/StringUtils.h>
 
 #include <mc/deps/core/string/HashedString.h>
 
@@ -92,13 +91,13 @@ namespace LOICollection::Plugins::tpa {
             std::replace(mObject.begin(), mObject.end(), '-', '_');
 
             std::string mObjectLabel = tr(mObjectLanguage, "tpa.gui.setting.blacklist.set.label");
-            ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
-            ll::string_utils::replaceAll(mObjectLabel, "${player}", db->get("Mute", mObject + "." + target + "_NAME", "None"));
-            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(
-                db->get("Mute", mObject + "." + target + "_TIME", "None"), "None"
-            ));
 
-            ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), mObjectLabel);
+            ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), 
+                fmt::format(fmt::runtime(mObjectLabel), target,
+                    db->get("Mute", mObject + "." + target + "_NAME", "None"),
+                    SystemUtils::formatDataTime(db->get("Mute", mObject + "." + target + "_TIME", "None"), "None")
+                )
+            );
             form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.set.remove"), [target](Player& pl) -> void {
                 delBlacklist(pl, target);
             });
@@ -131,9 +130,7 @@ namespace LOICollection::Plugins::tpa {
             ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), tr(mObjectLanguage, "tpa.gui.setting.label"));
             form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.add"), "textures/ui/editIcon", "path", [mObjectLanguage](Player& pl) -> void {
                 if (((int) getBlacklist(pl).size()) >= options.BlacklistUpload) {
-                    pl.sendMessage(ll::string_utils::replaceAll(
-                        tr(mObjectLanguage, "tpa.tips2"), "${size}", std::to_string(options.BlacklistUpload)
-                    ));
+                    pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "tpa.tips2")), options.BlacklistUpload));
                     return MainGui::setting(pl);
                 }
 
@@ -176,21 +173,19 @@ namespace LOICollection::Plugins::tpa {
 
                     if (type == TpaType::tpa) {
                         player.teleport(pl.getPosition(), pl.getDimensionId());
-                        ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
-                        ll::string_utils::replaceAll(logString, "${player2}", player.getRealName());
+                        
+                        logString = fmt::format(fmt::runtime(logString), pl.getRealName(), player.getRealName());
                     } else {
                         pl.teleport(player.getPosition(), player.getDimensionId());
-                        ll::string_utils::replaceAll(logString, "${player1}", player.getRealName());
-                        ll::string_utils::replaceAll(logString, "${player2}", pl.getRealName());
+                        
+                        logString = fmt::format(fmt::runtime(logString), player.getRealName(), pl.getRealName());
                     }
 
                     logger->info(logString);
                     return;
                 }
                 
-                player.sendMessage(ll::string_utils::replaceAll(
-                    tr(getLanguage(player), "tpa.no.tips"), "${player}", pl.getRealName()
-                ));
+                player.sendMessage(fmt::format(fmt::runtime(tr(getLanguage(player), "tpa.no.tips")), pl.getRealName()));
             });
         }
 
@@ -204,9 +199,7 @@ namespace LOICollection::Plugins::tpa {
                 if (!dt) return MainGui::open(pl);
 
                 if (options.RequestRequired && ScoreboardUtils::getScore(pl, options.TargetScoreboard) < options.RequestRequired) {
-                    pl.sendMessage(ll::string_utils::replaceAll(
-                        tr(mObjectLanguage, "tpa.tips1"), "${score}", std::to_string(options.RequestRequired)
-                    )); 
+                    pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "tpa.tips1")), options.RequestRequired));
                     return;
                 }
 
@@ -331,9 +324,7 @@ namespace LOICollection::Plugins::tpa {
         db->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
         db->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
-        logger->info(LOICollectionAPI::getVariableString(
-            ll::string_utils::replaceAll(tr({}, "tpa.log2"), "${target}", mTargetObject), player
-        ));
+        logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "tpa.log2"), player)), mTargetObject);
     }
 
     void delBlacklist(Player& player, const std::string& target) {
@@ -346,9 +337,7 @@ namespace LOICollection::Plugins::tpa {
         if (db->hasByPrefix("Blacklist", mObject + "." + target, 2))
             db->delByPrefix("Blacklist", mObject + "." + target);
 
-        logger->info(LOICollectionAPI::getVariableString(
-            ll::string_utils::replaceAll(tr({}, "tpa.log3"), "${target}", target), player
-        ));
+        logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "tpa.log3"), player)), target);
     }
 
     std::vector<std::string> getBlacklist(Player& player) {

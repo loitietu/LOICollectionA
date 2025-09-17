@@ -265,6 +265,12 @@ namespace LOICollection::LOICollectionAPI {
                 continue;
             }
 
+            if (mStartPos > 0 && str[mStartPos - 1] == '$') {
+                occurrences.push_back({mStartPos - 1, 1, ""});
+                mStartPos = str.find('}', mStartPos + 1);
+                continue;
+            }
+
             if (size_t mEndPos = str.find('}', mStartPos + 1); mEndPos != std::string::npos) {
                 std::string mVariableName = str.substr(mStartPos + 1, mEndPos - mStartPos - 1);
                 

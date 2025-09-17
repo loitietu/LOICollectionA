@@ -13,7 +13,6 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
-#include <ll/api/utils/StringUtils.h>
 
 #include <mc/nbt/Tag.h>
 #include <mc/nbt/CompoundTag.h>
@@ -110,17 +109,15 @@ namespace LOICollection::Plugins::cdk {
                     db->save();
                 }
 
-                logger->info(ll::string_utils::replaceAll(tr({}, "cdk.log1"), "${cdk}", mObjectCdk));
+                logger->info(fmt::runtime(tr({}, "cdk.log1")), mObjectCdk);
             });
         }
 
         void cdkRemoveInfo(Player& player, const std::string& id) {
             std::string mObjectLanguage = getLanguage(player);
 
-            std::string mObjectContent = tr(mObjectLanguage, "cdk.gui.remove.content");
-            ll::string_utils::replaceAll(mObjectContent, "${cdk}", id);
-
-            ll::form::ModalForm form(tr(mObjectLanguage, "cdk.gui.title"), mObjectContent,
+            ll::form::ModalForm form(tr(mObjectLanguage, "cdk.gui.title"), 
+                fmt::format(fmt::runtime(tr(mObjectLanguage, "cdk.gui.remove.content")), id),
                 tr(mObjectLanguage, "cdk.gui.remove.yes"), tr(mObjectLanguage, "cdk.gui.remove.no")
             );
             form.sendTo(player, [id](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
@@ -130,7 +127,7 @@ namespace LOICollection::Plugins::cdk {
                 db->remove(id);
                 db->save();
 
-                logger->info(ll::string_utils::replaceAll(tr({}, "cdk.log2"), "${cdk}", id));
+                logger->info(fmt::runtime(tr({}, "cdk.log2")), id);
             });
         }
 
@@ -240,11 +237,13 @@ namespace LOICollection::Plugins::cdk {
             std::string mObjectLanguage = getLanguage(player);
 
             std::string mObjectLabel = tr(mObjectLanguage, "cdk.gui.award.info.label");
-            ll::string_utils::replaceAll(mObjectLabel, "${cdk}", id);
-            ll::string_utils::replaceAll(mObjectLabel, "${personal}", db->get_ptr<bool>("/" + id + "/personal", false) ? "true" : "false");
-            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(db->get_ptr<std::string>("/" + id + "/time", "None"), "None"));
 
-            ll::form::SimpleForm form(tr(mObjectLanguage, "cdk.gui.title"), mObjectLabel);
+            ll::form::SimpleForm form(tr(mObjectLanguage, "cdk.gui.title"),
+                fmt::format(fmt::runtime(mObjectLabel), id, 
+                    db->get_ptr<bool>("/" + id + "/personal", false) ? "true" : "false",
+                    SystemUtils::formatDataTime(db->get_ptr<std::string>("/" + id + "/time", "None"), "None")
+                )
+            );
             form.appendButton(tr(mObjectLanguage, "cdk.gui.award.score"), "textures/items/diamond_sword", "path", [id](Player& pl) -> void {
                 MainGui::cdkAwardScore(pl, id);
             });
@@ -387,9 +386,7 @@ namespace LOICollection::Plugins::cdk {
         db->set(id, data);
         db->save();
 
-        logger->info(LOICollectionAPI::getVariableString(
-            ll::string_utils::replaceAll(tr({}, "cdk.log3"), "${cdk}", id), player
-        ));
+        logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "cdk.log3"), player)), id);
     }
 
     bool isValid() {

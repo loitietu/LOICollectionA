@@ -17,7 +17,6 @@
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerChatEvent.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
-#include <ll/api/utils/StringUtils.h>
 
 #include <mc/deps/core/string/HashedString.h>
 
@@ -154,13 +153,13 @@ namespace LOICollection::Plugins::chat {
             std::replace(mObject.begin(), mObject.end(), '-', '_');
 
             std::string mObjectLabel = tr(mObjectLanguage, "chat.gui.setBlacklist.set.label");
-            ll::string_utils::replaceAll(mObjectLabel, "${target}", target);
-            ll::string_utils::replaceAll(mObjectLabel, "${player}", db->get("Blacklist", mObject + "." + target + "_NAME", "None"));
-            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(
-                db->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None"
-            ));
 
-            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), mObjectLabel);
+            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), 
+                fmt::format(fmt::runtime(mObjectLabel), target,
+                    db->get("Blacklist", mObject + "." + target + "_NAME", "None"),
+                    SystemUtils::formatDataTime(db->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None")
+                )
+            );
             form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.set.remove"), [target](Player& pl) -> void {
                 delBlacklist(pl, target);
             });
@@ -193,9 +192,7 @@ namespace LOICollection::Plugins::chat {
             ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
             form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.add"), [mObjectLanguage](Player& pl) -> void {
                 if (((int) getBlacklist(pl).size()) >= options.BlacklistUpload) {
-                    pl.sendMessage(ll::string_utils::replaceAll(
-                        tr(mObjectLanguage, "chat.gui.setBlacklist.tips1"), "${size}", std::to_string(options.BlacklistUpload)
-                    ));
+                    pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "chat.gui.setBlacklist.tips1")), options.BlacklistUpload));
                     return MainGui::setting(pl);
                 }
 
@@ -351,11 +348,11 @@ namespace LOICollection::Plugins::chat {
                     event.cancel();
 
                     std::string mChat = options.FormatText;
-                    ll::string_utils::replaceAll(mChat, "${chat}", event.message());
-                    
                     LOICollectionAPI::translateString(mChat, event.self());
-                    TextPacket packet = TextPacket::createChat(
-                        "", mChat, "", event.self().getXuid(), ""
+                    
+                    TextPacket packet = TextPacket::createChat("", 
+                        fmt::format(fmt::runtime(mChat), event.message()), 
+                        "", event.self().getXuid(), ""
                     );
 
                     ll::service::getLevel()->forEachPlayer([packet, &player = event.self()](Player& mTarget) -> bool {
@@ -383,9 +380,7 @@ namespace LOICollection::Plugins::chat {
         
         db->set("Titles", mObject + "." + text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
         
-        logger->info(LOICollectionAPI::getVariableString(
-            ll::string_utils::replaceAll(tr({}, "chat.log2"), "${title}", text), player
-        ));
+        logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log2"), player)), text);
     }
 
     void addBlacklist(Player& player, Player& target) {
@@ -400,9 +395,7 @@ namespace LOICollection::Plugins::chat {
         db->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
         db->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
-        logger->info(LOICollectionAPI::getVariableString(
-            ll::string_utils::replaceAll(tr({}, "chat.log5"), "${target}", mTargetObject), player
-        ));
+        logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log5"), player)), mTargetObject);
     }
 
     void delTitle(Player& player, const std::string& text) {
@@ -418,9 +411,7 @@ namespace LOICollection::Plugins::chat {
         if (db2->get("OBJECT$" + mObject, "Chat_Title", "None") == text)
             db2->set("OBJECT$" + mObject, "Chat_Title", "None");
 
-        logger->info(LOICollectionAPI::getVariableString(
-            ll::string_utils::replaceAll(tr({}, "chat.log3"), "${title}", text), player
-        ));
+        logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log3"), player)), text);
     }
 
     void delBlacklist(Player& player, const std::string& target) {
@@ -433,9 +424,7 @@ namespace LOICollection::Plugins::chat {
         if (db->hasByPrefix("Blacklist", mObject + "." + target + "_TIME", 2))
             db->delByPrefix("Blacklist", mObject + "." + target);
 
-        logger->info(LOICollectionAPI::getVariableString(
-            ll::string_utils::replaceAll(tr({}, "chat.log6"), "${target}", target), player
-        ));
+        logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log6"), player)), target);
     }
 
     std::string getTitle(Player& player) {

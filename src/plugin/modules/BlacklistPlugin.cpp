@@ -17,8 +17,6 @@
 #include <ll/api/command/CommandRegistrar.h>
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
-#include <ll/api/utils/StringUtils.h>
-#include <ll/api/utils/HashUtils.h>
 
 #include <mc/deps/core/string/HashedString.h>
 
@@ -75,13 +73,15 @@ namespace LOICollection::Plugins::blacklist {
             std::string mObjectLanguage = getLanguage(player);
 
             std::string mObjectLabel = tr(mObjectLanguage, "blacklist.gui.info.label");
-            ll::string_utils::replaceAll(mObjectLabel, "${id}", id);
-            ll::string_utils::replaceAll(mObjectLabel, "${player}", db->get("Blacklist", id + ".NAME", "None"));
-            ll::string_utils::replaceAll(mObjectLabel, "${cause}", db->get("Blacklist", id + ".CAUSE", "None"));
-            ll::string_utils::replaceAll(mObjectLabel, "${subtime}", SystemUtils::formatDataTime(db->get("Blacklist", id + ".SUBTIME", "None"), "None"));
-            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(db->get("Blacklist", id + ".TIME", "None"), "None"));
 
-            ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), mObjectLabel);
+            ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), 
+                fmt::format(fmt::runtime(mObjectLabel), id, 
+                    db->get("Blacklist", id + ".NAME", "None"), 
+                    db->get("Blacklist", id + ".CAUSE", "None"), 
+                    SystemUtils::formatDataTime(db->get("Blacklist", id + ".SUBTIME", "None"), "None"), 
+                    SystemUtils::formatDataTime(db->get("Blacklist", id + ".TIME", "None"), "None")
+                )
+            );
             form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [id](Player&) -> void {
                 delBlacklist(id);
             });
@@ -251,11 +251,14 @@ namespace LOICollection::Plugins::blacklist {
                 std::replace(mUuid.begin(), mUuid.end(), '-', '_');
 
                 std::string mObjectTips = tr(getLanguage(mUuid), "blacklist.tips");
-                ll::string_utils::replaceAll(mObjectTips, "${cause}", mData.at(mId + ".CAUSE"));
-                ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(mData.at(mId + ".TIME"), "None"));
 
                 ll::service::getServerNetworkHandler()->disconnectClient(
-                    event.getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked, mObjectTips, {}, false
+                    event.getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked, 
+                    fmt::format(fmt::runtime(mObjectTips), 
+                        mData.at(mId + ".CAUSE"),
+                        SystemUtils::formatDataTime(mData.at(mId + ".TIME"), "None")
+                    ),
+                    {}, false
                 );
             });
         }
@@ -283,12 +286,13 @@ namespace LOICollection::Plugins::blacklist {
         db->set("Blacklist", mTismestamp + ".DATA_CLIENTID", player.getConnectionRequest()->getDeviceId());
 
         std::string mObjectTips = tr(getLanguage(player), "blacklist.tips");
-        ll::string_utils::replaceAll(mObjectTips, "${cause}", mCause);
-        ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(db->get("Blacklist", mTismestamp + ".TIME"), "None"));
 
         ll::service::getServerNetworkHandler()->disconnectClient(
             player.getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked,
-            mObjectTips, {}, false
+            fmt::format(fmt::runtime(mObjectTips), mCause,
+                SystemUtils::formatDataTime(db->get("Blacklist", mTismestamp + ".TIME"), "None")
+            ),
+            {}, false
         );
 
         logger->info(LOICollectionAPI::getVariableString(tr({}, "blacklist.log1"), player));
@@ -300,7 +304,7 @@ namespace LOICollection::Plugins::blacklist {
 
         db->delByPrefix("Blacklist", target + ".");
 
-        logger->info(ll::string_utils::replaceAll(tr({}, "blacklist.log2"), "${target}", target));
+        logger->info(fmt::runtime(tr({}, "blacklist.log2")), target);
     }
 
     std::string getBlacklist(Player& player) {

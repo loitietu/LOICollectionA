@@ -15,7 +15,6 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
-#include <ll/api/utils/StringUtils.h>
 #include <ll/api/utils/HashUtils.h>
 
 #include <mc/deps/core/string/HashedString.h>
@@ -70,12 +69,13 @@ namespace LOICollection::Plugins::wallet {
                 ll::service::getLevel()->getPlayer(mTargetUuid)->getRealName() : ll::service::PlayerInfo::getInstance().fromUuid(mTargetUuid)->name;
 
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label") + "\n" + tr(mObjectLanguage, "wallet.gui.transfer.label2");
-            ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(options.ExchangeRate * 100) + "%%");
-            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(ScoreboardUtils::getScore(player, options.TargetScoreboard)));
-            ll::string_utils::replaceAll(mLabel, "${target}", mTargetName);
 
             ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
-            form.appendLabel(mLabel);
+            form.appendLabel(fmt::format(fmt::runtime(mLabel), 
+                std::to_string(options.ExchangeRate * 100) + "%%",
+                ScoreboardUtils::getScore(player, options.TargetScoreboard),
+                mTargetName
+            ));
             form.appendInput("Input", tr(mObjectLanguage, "wallet.gui.transfer.input"), tr(mObjectLanguage, "wallet.gui.transfer.input.placeholder"));
             form.sendTo(player, [target, mTargetName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
                 if (!dt) return MainGui::transfer(pl, type);
@@ -88,11 +88,7 @@ namespace LOICollection::Plugins::wallet {
 
                 wallet::transfer(pl, target, mMoney, type);
 
-                std::string logString = tr({}, "wallet.log");
-                ll::string_utils::replaceAll(logString, "${player1}", pl.getRealName());
-                ll::string_utils::replaceAll(logString, "${player2}", mTargetName);
-                ll::string_utils::replaceAll(logString, "${money}", std::to_string(mMoney));
-                logger->info(logString);
+                logger->info(fmt::runtime(tr({}, "wallet.log")), pl.getRealName(), mTargetName, mMoney);
             });
         }
 
@@ -126,20 +122,23 @@ namespace LOICollection::Plugins::wallet {
         }
 
         void wealth(Player& player) {
-            std::string mTipsString = ll::string_utils::replaceAll(tr(getLanguage(player), "wallet.showOff"), 
-                "${money}", std::to_string(ScoreboardUtils::getScore(player, options.TargetScoreboard))
-            );
-            TextPacket::createSystemMessage(LOICollectionAPI::translateString(mTipsString, player)).sendToClients();
+            std::string mTipsString = LOICollectionAPI::translateString(tr(getLanguage(player), "wallet.showOff"), player);
+            TextPacket::createSystemMessage(
+                fmt::format(fmt::runtime(mTipsString), ScoreboardUtils::getScore(player, options.TargetScoreboard))
+            ).sendToClients();
         }
 
         void open(Player& player) {
             std::string mObjectLanguage = getLanguage(player);
 
             std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
-            ll::string_utils::replaceAll(mLabel, "${tax}", std::to_string(options.ExchangeRate * 100) + "%%");
-            ll::string_utils::replaceAll(mLabel, "${money}", std::to_string(ScoreboardUtils::getScore(player, options.TargetScoreboard)));
-
-            ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), mLabel);
+            
+            ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), 
+                fmt::format(fmt::runtime(mLabel), 
+                    std::to_string(options.ExchangeRate * 100) + "%%",
+                    ScoreboardUtils::getScore(player, options.TargetScoreboard)
+                )
+            );
             form.appendButton(tr(mObjectLanguage, "wallet.gui.transfer"), "textures/ui/MCoin", "path", [](Player& pl) -> void {
                 MainGui::transfer(pl, TransferType::online);
             });

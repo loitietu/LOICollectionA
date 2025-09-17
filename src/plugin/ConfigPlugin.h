@@ -42,7 +42,7 @@ struct C_Config {
             struct C_ChangeScore {
                 bool ModuleEnabled = true;
                 std::vector<std::string> ScoreboardLists{};
-                std::string FormatText = "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}";
+                std::string FormatText = "§e§l检测到Score §f{0}§e 发生变化 §b原值: §f{1} §a更改: §f{2} §e现值: §f{3}";
             } ChangeScore;
             struct C_DisableCommand {
                 bool ModuleEnabled = true;
@@ -58,7 +58,7 @@ struct C_Config {
         } Wallet;
         struct C_Chat {
             bool ModuleEnabled = false;
-            std::string FormatText = "<{player}> ${chat}";
+            std::string FormatText = "<{player}> ${0}";
             int BlacklistUpload = 10;
         } Chat;
         bool Notice = false;

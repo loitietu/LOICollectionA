@@ -16,7 +16,6 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
-#include <ll/api/utils/StringUtils.h>
 #include <ll/api/utils/HashUtils.h>
 
 #include <mc/world/actor/player/Player.h>
@@ -78,11 +77,11 @@ namespace LOICollection::Plugins::notice {
             form.appendLabel(tr(mObjectLanguage, "notice.gui.label"));
             form.appendInput("Input", tr(mObjectLanguage, "notice.gui.edit.title"), "", db->get_ptr<std::string>("/" + id + "/title", ""));
 
+            std::string mObjectLine = tr(mObjectLanguage, "notice.gui.edit.line");
+
             auto content = db->get_ptr<nlohmann::ordered_json>("/" + id + "/content");
             for (int i = 0; i < (int) content.size(); i++) {
-                std::string mLine = ll::string_utils::replaceAll(
-                    tr(mObjectLanguage, "notice.gui.edit.line"), "${index}", std::to_string(i + 1)
-                );
+                std::string mLine = fmt::format(fmt::runtime(mObjectLine), i + 1);
                 form.appendInput("Content" + std::to_string(i), mLine, "", content.at(i));
             }
 
@@ -146,19 +145,15 @@ namespace LOICollection::Plugins::notice {
                 db->set(mObjectId, mObject);
                 db->save();
 
-                logger->info(LOICollectionAPI::getVariableString(
-                    ll::string_utils::replaceAll(tr({}, "notice.log2"), "${notice}", mObjectId), pl
-                ));
+                logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "notice.log2"), pl)), mObjectId);
             });
         }
         
         void contentRemoveInfo(Player& player, const std::string& id) {
             std::string mObjectLanguage = getLanguage(player);
 
-            std::string mObjectContent = tr(mObjectLanguage, "notice.gui.remove.content");
-            ll::string_utils::replaceAll(mObjectContent, "${notice}", id);
-
-            ll::form::ModalForm form(tr(mObjectLanguage, "notice.gui.title"), mObjectContent,
+            ll::form::ModalForm form(tr(mObjectLanguage, "notice.gui.title"), 
+                fmt::format(fmt::runtime(tr(mObjectLanguage, "notice.gui.remove.content")), id),
                 tr(mObjectLanguage, "notice.gui.remove.yes"), tr(mObjectLanguage, "notice.gui.remove.no")
             );
             form.sendTo(player, [id](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
@@ -168,9 +163,7 @@ namespace LOICollection::Plugins::notice {
                 db->remove(id);
                 db->save();
 
-                logger->info(LOICollectionAPI::getVariableString(
-                    ll::string_utils::replaceAll(tr({}, "notice.log3"), "${notice}", id), pl
-                ));
+                logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "notice.log3"), pl)), id);
             });
         }
 

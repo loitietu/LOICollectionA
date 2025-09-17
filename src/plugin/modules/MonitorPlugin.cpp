@@ -127,16 +127,11 @@ namespace LOICollection::Plugins::monitor {
             if (mObjectScoreboards.empty() || std::find(mObjectScoreboards.begin(), mObjectScoreboards.end(), mId) != mObjectScoreboards.end()) {
                 int mOriScore = ScoreboardUtils::getScore(event.self(), mId);
 
-                std::string mMessage = option.FormatText;
-                ll::string_utils::replaceAll(mMessage, "${Object}", mId);
-                ll::string_utils::replaceAll(mMessage, "${OriMoney}", 
-                    (mType == ScoreChangedType::add ? std::to_string(mOriScore - mScore) :
-                        (mType == ScoreChangedType::reduce ? std::to_string(mOriScore + mScore) : std::to_string(mScore)))
+                std::string mMessage = fmt::format(fmt::runtime(option.FormatText), mId,
+                    (mType == ScoreChangedType::add ? (mOriScore - mScore) : (mType == ScoreChangedType::reduce ? (mOriScore + mScore) : mScore)),
+                    (mType == ScoreChangedType::add ? "+" : (mType == ScoreChangedType::reduce ? "-" : "")) + std::to_string(mScore),
+                    mOriScore
                 );
-                ll::string_utils::replaceAll(mMessage, "${SetMoney}", 
-                    (mType == ScoreChangedType::add ? "+" : (mType == ScoreChangedType::reduce ? "-" : "")) + std::to_string(mScore)
-                );
-                ll::string_utils::replaceAll(mMessage, "${GetMoney}", std::to_string(mOriScore));
 
                 LOICollectionAPI::translateString(mMessage, event.self());
                 
@@ -146,7 +141,7 @@ namespace LOICollection::Plugins::monitor {
 
         ExecuteCommandEventListener = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>([option = options.DisableCommand](ll::event::ExecutingCommandEvent& event) -> void {
             std::string mCommandOriginal = event.commandContext().mCommand;
-            std::string mCommand = ll::string_utils::replaceAll(mCommandOriginal, "/", "");
+            std::string mCommand = mCommandOriginal.substr(1);
 
             if (!option.ModuleEnabled || event.commandContext().mOrigin == nullptr || mCommand.empty())
                 return;

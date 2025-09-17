@@ -18,7 +18,6 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerChatEvent.h>
-#include <ll/api/utils/StringUtils.h>
 
 #include <mc/deps/core/string/HashedString.h>
 
@@ -65,13 +64,15 @@ namespace LOICollection::Plugins::mute {
             std::unordered_map<std::string, std::string> mData = db->getByPrefix("Mute", id + ".");
 
             std::string mObjectLabel = tr(mObjectLanguage, "mute.gui.info.label");
-            ll::string_utils::replaceAll(mObjectLabel, "${target}", id);
-            ll::string_utils::replaceAll(mObjectLabel, "${player}", mData.at(id + ".NAME"));
-            ll::string_utils::replaceAll(mObjectLabel, "${cause}", mData.at(id + ".CAUSE"));
-            ll::string_utils::replaceAll(mObjectLabel, "${subtime}", SystemUtils::formatDataTime(mData.at(id + ".SUBTIME"), "None"));
-            ll::string_utils::replaceAll(mObjectLabel, "${time}", SystemUtils::formatDataTime(mData.at(id + ".TIME"), "None"));
 
-            ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), mObjectLabel);
+            ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), 
+                fmt::format(fmt::runtime(mObjectLabel), id,
+                    mData.at(id + ".NAME"),
+                    mData.at(id + ".CAUSE"),
+                    SystemUtils::formatDataTime(mData.at(id + ".SUBTIME"), "None"),
+                    SystemUtils::formatDataTime(mData.at(id + ".TIME"), "None")
+                )
+            );
             form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [id](Player&) -> void {
                 delMute(id);
             });
@@ -241,9 +242,9 @@ namespace LOICollection::Plugins::mute {
                 if (SystemUtils::isReach(mData.at(mId + ".TIME")))
                     return delMute(event.self());
 
-                std::string mObjectTips = tr(getLanguage(event.self()), "mute.tips");
-                ll::string_utils::replaceAll(mObjectTips, "${cause}", mData.at(mId + ".CAUSE"));
-                ll::string_utils::replaceAll(mObjectTips, "${time}", SystemUtils::formatDataTime(mData.at(mId + ".TIME"), "None"));
+                std::string mObjectTips = fmt::format(fmt::runtime(tr(getLanguage(event.self()), "mute.tips")), 
+                    mData.at(mId + ".CAUSE"), SystemUtils::formatDataTime(mData.at(mId + ".TIME"), "None")
+                );
                 
                 event.self().sendMessage(mObjectTips);
                 event.cancel();
@@ -270,9 +271,7 @@ namespace LOICollection::Plugins::mute {
         db->set("Mute", mTimestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         db->set("Mute", mTimestamp + ".DATA", player.getUuid().asString());
 
-        logger->info(LOICollectionAPI::getVariableString(
-            ll::string_utils::replaceAll(tr({}, "mute.log1"), "${cause}", mCause), player)
-        );
+        logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "mute.log1"), player)), mCause);
     }
 
     void delMute(Player& player) {
@@ -288,7 +287,7 @@ namespace LOICollection::Plugins::mute {
 
         db->delByPrefix("Mute", target + ".");
 
-        logger->info(ll::string_utils::replaceAll(tr({}, "mute.log2"), "${target}", target));
+        logger->info(fmt::runtime(tr({}, "mute.log2")), target);
     }
 
     std::string getMute(Player& player) {
