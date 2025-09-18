@@ -175,7 +175,7 @@
 ### menu.json
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.6.4 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。  
+> 以下内容取自 LOICollectionA 1.7.1 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。  
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `menu.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#menu) 进行编辑
@@ -185,9 +185,11 @@
     "main": { // 表单 ID（同时 main 也为表单入口，不可不存在）
         "title": "Menu Example", // 表单标题
         "content": "This is a menu example", // 表单内容
-        "exit": "execute as ${player} run say Exit Menu", // 玩家退出表单时执行命令（其中 ${player} 代表玩家名称）
-        "NoPermission": "execute as ${player} run say You do not have permission to use this button", // 使用部分按钮时，玩家没有权限时所执行命令
-        "NoScore": "execute as ${player} run say You do not have enough score to use this button", // 使用部分按钮时，玩家没有足够 Score 时所执行命令
+        "info": { // 部分功能提供（可选）
+            "exit": "execute as ${player} run say Exit Menu", // 玩家退出表单时执行命令（其中 ${player} 代表玩家名称）
+            "permission": "execute as ${player} run say You do not have permission to use this button", // 使用部分按钮时，玩家没有权限时所执行命令
+            "score": "execute as ${player} run say You do not have enough score to use this button" // 使用部分按钮时，玩家没有足够 Score 时所执行命令
+        },
         "type": "Simple", // 表单类型 （Simple 类似于按钮列表）
         "customize": [ // 按钮列表
             {
@@ -260,8 +262,10 @@
     "Menu1": {
         "title": "Menu 1",
         "content": "This is a menu 1",
-        "NoPermission": "execute as ${player} run say You do not have permission to use this button",
-        "NoScore": "execute as ${player} run say You do not have enough score to use this button",
+        "info": {
+            "permission": "execute as ${player} run say You do not have permission to use this button",
+            "score": "execute as ${player} run say You do not have enough score to use this button"
+        },
         "type": "Modal", // 表单类型 （Modal 类似于对话框）
         "confirmButton": { // 确认按钮
             "title": "Confirm",
@@ -285,7 +289,9 @@
     },
     "Menu2": {
         "title": "Menu2",
-        "exit": "execute as ${player} run say Exit Menu",
+        "info": {
+            "exit": "execute as ${player} run say Exit Menu"
+        },
         "type": "Custom", // 表单类型 （Custom 类似于自定义表单）
         "customize": [ // 自定义表单组件列表
             {
@@ -354,7 +360,7 @@
 ### shop.json
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.5.0 的 `shop.json` 结构，对于后续版本的 `shop.json` 结构可能会有所不同。
+> 以下内容取自 LOICollectionA 1.7.1 的 `shop.json` 结构，对于后续版本的 `shop.json` 结构可能会有所不同。
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `shop.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#shop) 进行编辑
@@ -364,8 +370,10 @@
     "MainBuy": { // 商店 ID（不可重复）
         "title": "Buy Shop Example", // 商店标题
         "content": "This is a shop example", // 商店内容
-        "exit": "execute as ${player} run say Exit Shop", // 玩家退出商店时执行命令（其中 ${player} 代表玩家名称）
-        "NoScore": "execute as ${player} run say You do not have enough score to buy this item", // 购买部分商品时，玩家没有足够 Score 时所执行命令
+        "info": { // 部分功能提供（可选）
+            "exit": "execute as ${player} run say Exit Shop", // 玩家退出商店时执行命令（其中 ${player} 代表玩家名称）
+            "score": "execute as ${player} run say You do not have enough score to buy this item" // 购买部分商品时，玩家没有足够 Score 时所执行命令
+        },
         "classiflcation": [ // 分类列表
             {
                 "title": "Apple", // 组件标题
@@ -401,8 +409,10 @@
     "titleBuy": {
         "title": "Buy Title Shop",
         "content": "This is a title shop",
-        "exit": "execute as ${player} run say Exit Title Shop",
-        "NoScore": "execute as ${player} run say You do not have enough score to buy this item",
+        "info": {
+            "exit": "execute as ${player} run say Exit Title Shop",
+            "score": "execute as ${player} run say You do not have enough score to buy this item"
+        },
         "classiflcation": [
             {
                 "title": "Test Title",
@@ -423,9 +433,11 @@
     "MainSell": {
         "title": "Sell Shop Example",
         "content": "This is a shop example",
-        "exit": "execute as ${player} run say Exit Shop",
-        "NoTitle": "execute as ${player} run say You do not have enough title to sell", // 使用部分组件时，玩家没有指定称号时所执行命令
-        "NoItem": "execute as ${player} run say You do not have enough item to sell", // 使用部分组件时，玩家没有指定物品时所执行命令
+        "info": {
+            "exit": "execute as ${player} run say Exit Shop",
+            "title": "execute as ${player} run say You do not have enough title to sell", // 使用部分组件时，玩家没有指定称号时所执行命令
+            "item": "execute as ${player} run say You do not have enough item to sell" // 使用部分组件时，玩家没有指定物品时所执行命令
+        },
         "classiflcation": [
             {
                 "title": "Apple",
@@ -450,9 +462,11 @@
     "titleSell": {
         "title": "Sell Title Shop",
         "content": "This is a title shop",
-        "exit": "execute as ${player} run say Exit Title Shop",
-        "NoTitle": "execute as ${player} run say You do not have enough title to sell",
-        "NoItem": "execute as ${player} run say You do not have enough item to sell",
+        "info": {
+            "exit": "execute as ${player} run say Exit Title Shop",
+            "title": "execute as ${player} run say You do not have enough title to sell",
+            "item": "execute as ${player} run say You do not have enough item to sell"
+        },
         "classiflcation": [
             {
                 "title": "Test Title",

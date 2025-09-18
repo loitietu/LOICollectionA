@@ -1,4 +1,5 @@
 #include <memory>
+#include <ranges>
 #include <string>
 #include <algorithm>
 
@@ -140,14 +141,16 @@ namespace LOICollection::Plugins::monitor {
         });
 
         ExecuteCommandEventListener = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>([option = options.DisableCommand](ll::event::ExecutingCommandEvent& event) -> void {
-            std::string mCommandOriginal = event.commandContext().mCommand;
-            std::string mCommand = mCommandOriginal.substr(1);
+            std::string mCommand = event.commandContext().mCommand.substr(1);
 
             if (!option.ModuleEnabled || event.commandContext().mOrigin == nullptr || mCommand.empty())
                 return;
 
+            auto mCommandArgs = mCommand | std::views::split(' ');
+            auto mCommandName = *mCommandArgs.begin();
+
             std::vector<std::string> mObjectCommands = option.CommandLists;
-            if (std::find(mObjectCommands.begin(), mObjectCommands.end(), ll::string_utils::splitByPattern(mCommand, " ")[0]) != mObjectCommands.end()) {
+            if (std::find(mObjectCommands.begin(), mObjectCommands.end(), std::string(mCommandName.begin(), mCommandName.end())) != mObjectCommands.end()) {
                 event.cancel();
 
                 Actor* entity = event.commandContext().mOrigin->getEntity();
