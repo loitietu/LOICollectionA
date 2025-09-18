@@ -175,7 +175,7 @@
 ### menu.json
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.7.1 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。  
+> 以下内容取自 LOICollectionA 1.7.2 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。  
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `menu.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#menu) 进行编辑
@@ -360,7 +360,7 @@
 ### shop.json
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.7.1 的 `shop.json` 结构，对于后续版本的 `shop.json` 结构可能会有所不同。
+> 以下内容取自 LOICollectionA 1.7.2 的 `shop.json` 结构，对于后续版本的 `shop.json` 结构可能会有所不同。
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `shop.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#shop) 进行编辑
