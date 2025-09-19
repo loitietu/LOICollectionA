@@ -17,19 +17,22 @@ enum class MenuType {
 
 namespace LOICollection::Plugins::menu {
     namespace MainGui {
+        LOICOLLECTION_A_API void editNewInfo(Player& player, MenuType type);
         LOICOLLECTION_A_API void editNew(Player& player);
+        LOICOLLECTION_A_API void editRemoveInfo(Player& player, const std::string& id);
         LOICOLLECTION_A_API void editRemove(Player& player);
-        LOICOLLECTION_A_API void editAwardSetting(Player& player, const std::string& uiName, MenuType type);
-        LOICOLLECTION_A_API void editAwardNew(Player& player, const std::string& uiName, MenuType type);
-        LOICOLLECTION_A_API void editAwardRemove(Player& player, const std::string& uiName);
-        LOICOLLECTION_A_API void editAwardCommand(Player& player, const std::string& uiName);
-        LOICOLLECTION_A_API void editAwardContent(Player& player, const std::string& uiName);
+        LOICOLLECTION_A_API void editAwardSetting(Player& player, const std::string& id, MenuType type);
+        LOICOLLECTION_A_API void editAwardNew(Player& player, const std::string& id, MenuType type);
+        LOICOLLECTION_A_API void editAwardRemoveInfo(Player& player, const std::string& id, const std::string& packageid);
+        LOICOLLECTION_A_API void editAwardRemove(Player& player, const std::string& id, MenuType type);
+        LOICOLLECTION_A_API void editAwardCommand(Player& player, const std::string& id);
+        LOICOLLECTION_A_API void editAwardContent(Player& player, const std::string& id, MenuType type);
         LOICOLLECTION_A_API void editAward(Player& player);
         LOICOLLECTION_A_API void edit(Player& player);
         LOICOLLECTION_A_API void custom(Player& player, nlohmann::ordered_json& data);
         LOICOLLECTION_A_API void simple(Player& player, nlohmann::ordered_json& data);
         LOICOLLECTION_A_API void modal(Player& player, nlohmann::ordered_json& data);
-        LOICOLLECTION_A_API void open(Player& player, std::string uiName);
+        LOICOLLECTION_A_API void open(Player& player, std::string id);
     }
 
     LOICOLLECTION_A_API   void executeCommand(Player& player, std::string cmd);

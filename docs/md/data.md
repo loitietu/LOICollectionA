@@ -213,7 +213,7 @@
                 "scores": { // 按钮所需的 Score（可选）
                     "money": 100 // 按钮所需的 Score 分数
                 },
-                "command": [ // 使用该按钮时，当所有条件都满足时，所执行的命令（其中 ${player} 代表玩家名称）
+                "run": [ // 使用该按钮时，当所有条件都满足时，所执行的命令（其中 ${player} 代表玩家名称）
                     "execute as ${player} run say Button1",
                     "execute as ${player} run say Button1 - 1"
                 ],
@@ -225,7 +225,7 @@
                 "image": "",
                 "id": "Form1",
                 "scores": {},
-                "menu": "Menu1", // 使用该按钮时，当所有条件都满足时，所打开的表单 ID
+                "run": "Menu1", // 使用该按钮时，当所有条件都满足时，所打开的表单 ID
                 "type": "from", // 按钮类型（from 为表单）
                 "permission": 0
             },
@@ -234,7 +234,7 @@
                 "image": "",
                 "id": "Form2",
                 "scores": {},
-                "menu": "Menu2",
+                "run": "Menu2",
                 "type": "from",
                 "permission": 0
             },
@@ -242,7 +242,7 @@
                 "title": "OP Button 1",
                 "image": "",
                 "id": "Button2",
-                "command": [ 
+                "run": [ 
                     "execute as ${player} run say OPButton1"
                 ],
                 "type": "button",
@@ -252,7 +252,7 @@
                 "title": "OP From 1",
                 "image": "",
                 "id": "Button3",
-                "menu": "Menu1",
+                "run": "Menu1",
                 "type": "from",
                 "permission": 2
             }
@@ -270,7 +270,7 @@
         "confirmButton": { // 确认按钮
             "title": "Confirm",
             "scores": {},
-            "command": [ 
+            "run": [ 
                 "execute as ${player} run say Confirm"
             ],
             "type": "button",
@@ -279,7 +279,7 @@
         "cancelButton": { // 取消按钮
             "title": "Cancel",
             "scores": {},
-            "command": [ 
+            "run": [ 
                 "execute as ${player} run say Cancel" 
             ],
             "type": "button",
@@ -345,7 +345,7 @@
                 "type": "StepSlider" // 组件类型（StepSlider 为步骤滑块）
             }
         ],
-        "command": [ // 使用该表单时，所执行的命令（对于获取组件内容可通过 {组件ID} 进行获取）
+        "run": [ // 使用该表单时，所执行的命令（对于获取组件内容可通过 {组件ID} 进行获取）
             "execute as ${player} run say Input: {Input}",
             "execute as ${player} run say Dropdown: {Dropdown}",
             "execute as ${player} run say Toggle: {Toggle}",
