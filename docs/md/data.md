@@ -381,7 +381,7 @@
                 "introduce": "A red apple\nscores: 100", // 组件介绍
                 "number": "Buy number", // 购买组件时输入框标题
                 "id": "minecraft:apple", // 物品 ID
-                "scores": { // 组件所需的 Score（可选）
+                "scores": { // 组件所需的 Score
                     "money": 100 // 组件所需的 Score 分数
                 },
                 "type": "commodity" // 组件类型（commodity 为物品组件）
@@ -400,7 +400,7 @@
             {
                 "title": "Buy Title Shop",
                 "image": "",
-                "menu": "titleBuy", // 使用该组件时，所打开的表单 ID
+                "id": "titleBuy", // 使用该组件时，所打开的表单 ID
                 "type": "from" // 组件类型（from 为表单）
             }
         ],
@@ -453,7 +453,7 @@
             {
                 "title": "Sell Title Shop",
                 "image": "",
-                "menu": "titleSell",
+                "id": "titleSell",
                 "type": "from"
             }
         ],

@@ -17,7 +17,6 @@
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
 #include <ll/api/event/player/PlayerUseItemEvent.h>
-#include <ll/api/utils/StringUtils.h>
 #include <ll/api/utils/HashUtils.h>
 
 #include <mc/world/Minecraft.h>
@@ -95,14 +94,14 @@ namespace LOICollection::Plugins::menu {
 
             form.appendSlider("Slider", tr(mObjectLanguage, "menu.gui.button1.slider"), 0, 4, 1, 0);
             form.sendTo(player, [mObjectLanguage, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-                if (!dt) return MainGui::edit(pl);
+                if (!dt) return MainGui::editNew(pl);
                 
                 std::string mObjectId = std::get<std::string>(dt->at("Input1"));
                 std::string mObjectTitle = std::get<std::string>(dt->at("Input2"));
 
                 if (mObjectTitle.empty() || mObjectId.empty()) {
                     pl.sendMessage(tr(mObjectLanguage, "generic.tips.noinput"));
-                    return MainGui::edit(pl);
+                    return MainGui::editNew(pl);
                 }
 
                 nlohmann::ordered_json mData = {
@@ -112,7 +111,7 @@ namespace LOICollection::Plugins::menu {
                 };
 
                 switch (type) {
-                    case MenuType::Simple:
+                    case MenuType::Simple: {
                         mData.update({
                             { "content", std::get<std::string>(dt->at("Input3")) },
                             { "customize", nlohmann::ordered_json::array() },
@@ -124,7 +123,8 @@ namespace LOICollection::Plugins::menu {
                             { "permission", std::get<std::string>(dt->at("Input6")) }
                         });
                         break;
-                    case MenuType::Modal:
+                    }
+                    case MenuType::Modal: {
                         mData.update({
                             { "content", std::get<std::string>(dt->at("Input3")) },
                             { "confirmButton", nlohmann::ordered_json::object() },
@@ -136,7 +136,8 @@ namespace LOICollection::Plugins::menu {
                             { "permission", std::get<std::string>(dt->at("Input6")) }
                         });
                         break;
-                    case MenuType::Custom:
+                    }
+                    case MenuType::Custom: {
                         mData.update({
                             { "customize", nlohmann::ordered_json::array() },
                             { "run", nlohmann::ordered_json::array() },
@@ -146,6 +147,7 @@ namespace LOICollection::Plugins::menu {
                             { "exit", std::get<std::string>(dt->at("Input4")) }
                         });
                         break;
+                    }
                 }
 
                 if (!db->has(mObjectId))
@@ -247,7 +249,7 @@ namespace LOICollection::Plugins::menu {
                     case MenuType::Simple:
                         db->set_ptr("/" + id + "/content", std::get<std::string>(dt->at("Input3")));
                         db->set_ptr("/" + id + "/info/exit", std::get<std::string>(dt->at("Input4")));
-                        db->set_ptr("/" + id + "/info/core", std::get<std::string>(dt->at("Input5")));
+                        db->set_ptr("/" + id + "/info/score", std::get<std::string>(dt->at("Input5")));
                         db->set_ptr("/" + id + "/info/permission", std::get<std::string>(dt->at("Input6")));
                         break;
                     case MenuType::Modal:
