@@ -55,6 +55,7 @@ struct C_Config {
             bool ModuleEnabled = false;
             std::string TargetScoreboard = "money";
             double ExchangeRate = 0.1;
+            int RedEnvelopeTimeout = 60;
         } Wallet;
         struct C_Chat {
             bool ModuleEnabled = false;

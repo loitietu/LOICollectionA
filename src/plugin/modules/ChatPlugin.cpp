@@ -340,28 +340,26 @@ namespace LOICollection::Plugins::chat {
                 if (!db2->has("OBJECT$" + mObject, "Chat_Title"))
                     db2->set("OBJECT$" + mObject, "Chat_Title", "None");
             });
-            PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>(
-                [](ll::event::PlayerChatEvent& event) -> void {
-                    if (event.self().isSimulatedPlayer() || mute::isMute(event.self()))
-                        return;
+            PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>([](ll::event::PlayerChatEvent& event) -> void {
+                if (event.self().isSimulatedPlayer() || mute::isMute(event.self()))
+                    return;
 
-                    event.cancel();
+                event.cancel();
 
-                    std::string mChat = options.FormatText;
-                    LOICollectionAPI::translateString(mChat, event.self());
-                    
-                    TextPacket packet = TextPacket::createChat("", 
-                        fmt::format(fmt::runtime(mChat), event.message()), 
-                        "", event.self().getXuid(), ""
-                    );
+                std::string mChat = options.FormatText;
+                LOICollectionAPI::translateString(mChat, event.self());
+                
+                TextPacket packet = TextPacket::createChat("", 
+                    fmt::format(fmt::runtime(mChat), event.message()), 
+                    "", event.self().getXuid(), ""
+                );
 
-                    ll::service::getLevel()->forEachPlayer([packet, &player = event.self()](Player& mTarget) -> bool {
-                        if (!mTarget.isSimulatedPlayer() && !isBlacklist(mTarget, player))
-                            packet.sendTo(mTarget);
-                        return true;
-                    });
-                }, ll::event::EventPriority::Normal
-            );
+                ll::service::getLevel()->forEachPlayer([packet, &player = event.self()](Player& mTarget) -> bool {
+                    if (!mTarget.isSimulatedPlayer() && !isBlacklist(mTarget, player))
+                        packet.sendTo(mTarget);
+                    return true;
+                });
+            }, ll::event::EventPriority::Normal);
         }
 
         void unlistenEvent() {
