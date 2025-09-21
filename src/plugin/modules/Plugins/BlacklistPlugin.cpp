@@ -41,7 +41,7 @@
 #include <mc/common/SubClientId.h>
 
 #include "include/APIUtils.h"
-#include "include/LanguagePlugin.h"
+#include "include/Plugins/LanguagePlugin.h"
 
 #include "include/ServerEvents/NetworkPacketEvent.h"
 
@@ -50,7 +50,7 @@
 
 #include "data/SQLiteStorage.h"
 
-#include "include/BlacklistPlugin.h"
+#include "include/Plugins/BlacklistPlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

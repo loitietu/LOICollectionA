@@ -32,7 +32,7 @@
 #include <mc/server/commands/CommandOutputMessageType.h>
 
 #include "include/APIUtils.h"
-#include "include/LanguagePlugin.h"
+#include "include/Plugins/LanguagePlugin.h"
 
 #include "utils/ScoreboardUtils.h"
 #include "utils/SystemUtils.h"
@@ -42,7 +42,7 @@
 
 #include "ConfigPlugin.h"
 
-#include "include/TpaPlugin.h"
+#include "include/Plugins/TpaPlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

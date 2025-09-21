@@ -28,7 +28,7 @@
 
 #include "data/SQLiteStorage.h"
 
-#include "Include/LanguagePlugin.h"
+#include "Include/Plugins/LanguagePlugin.h"
 
 using I18nUtilsTools::tr;
 

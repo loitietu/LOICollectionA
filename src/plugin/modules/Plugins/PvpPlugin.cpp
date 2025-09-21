@@ -25,7 +25,7 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 
 #include "include/APIUtils.h"
-#include "include/LanguagePlugin.h"
+#include "include/Plugins/LanguagePlugin.h"
 
 #include "include/ServerEvents/PlayerHurtEvent.h"
 
@@ -34,7 +34,7 @@
 
 #include "data/SQLiteStorage.h"
 
-#include "include/PvpPlugin.h"
+#include "include/Plugins/PvpPlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

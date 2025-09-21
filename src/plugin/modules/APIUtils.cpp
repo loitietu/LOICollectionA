@@ -27,10 +27,10 @@
 #include "frontend/Parser.h"
 #include "frontend/Evaluator.h"
 
-#include "include/PvpPlugin.h"
-#include "include/MutePlugin.h"
-#include "include/ChatPlugin.h"
-#include "include/LanguagePlugin.h"
+#include "include/Plugins/PvpPlugin.h"
+#include "include/Plugins/MutePlugin.h"
+#include "include/Plugins/ChatPlugin.h"
+#include "include/Plugins/LanguagePlugin.h"
 
 #include "utils/ScoreboardUtils.h"
 #include "utils/SystemUtils.h"

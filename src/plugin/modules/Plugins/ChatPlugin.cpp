@@ -33,8 +33,8 @@
 #include <mc/server/commands/CommandOutputMessageType.h>
 
 #include "include/APIUtils.h"
-#include "include/LanguagePlugin.h"
-#include "include/MutePlugin.h"
+#include "include/Plugins/LanguagePlugin.h"
+#include "include/Plugins/MutePlugin.h"
 
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
@@ -43,7 +43,7 @@
 
 #include "ConfigPlugin.h"
 
-#include "include/ChatPlugin.h"
+#include "include/Plugins/ChatPlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

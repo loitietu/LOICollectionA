@@ -45,7 +45,7 @@
 
 #include "ConfigPlugin.h"
 
-#include "include/MonitorPlugin.h"
+#include "include/Plugins/MonitorPlugin.h"
 
 std::vector<std::string> mInterceptTextObjectPacket;
 

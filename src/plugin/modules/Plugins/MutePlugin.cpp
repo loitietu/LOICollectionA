@@ -32,14 +32,14 @@
 #include <mc/server/commands/CommandOutputMessageType.h>
 
 #include "include/APIUtils.h"
-#include "include/LanguagePlugin.h"
+#include "include/Plugins/LanguagePlugin.h"
 
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
 #include "data/SQLiteStorage.h"
 
-#include "include/MutePlugin.h"
+#include "include/Plugins/MutePlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

@@ -37,7 +37,7 @@
 #include <nlohmann/json_fwd.hpp>
 
 #include "include/APIUtils.h"
-#include "include/LanguagePlugin.h"
+#include "include/Plugins/LanguagePlugin.h"
 
 #include "utils/InventoryUtils.h"
 #include "utils/ScoreboardUtils.h"
@@ -48,7 +48,7 @@
 
 #include "ConfigPlugin.h"
 
-#include "include/MenuPlugin.h"
+#include "include/Plugins/MenuPlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

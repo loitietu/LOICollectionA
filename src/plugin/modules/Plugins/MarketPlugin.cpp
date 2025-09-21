@@ -35,7 +35,7 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 
 #include "include/APIUtils.h"
-#include "include/LanguagePlugin.h"
+#include "include/Plugins/LanguagePlugin.h"
 
 #include "utils/InventoryUtils.h"
 #include "utils/ScoreboardUtils.h"
@@ -46,7 +46,7 @@
 
 #include "ConfigPlugin.h"
 
-#include "include/MarketPlugin.h"
+#include "include/Plugins/MarketPlugin.h"
 
 using I18nUtilsTools::tr;
 using LOICollection::Plugins::language::getLanguage;

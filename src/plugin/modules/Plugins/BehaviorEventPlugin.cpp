@@ -75,7 +75,7 @@
 
 #include "ConfigPlugin.h"
 
-#include "include/BehaviorEventPlugin.h"
+#include "include/Plugins/BehaviorEventPlugin.h"
 
 std::vector<std::unordered_map<std::string, std::string>> mEvents;
 
