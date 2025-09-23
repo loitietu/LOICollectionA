@@ -12,13 +12,12 @@
 
 #include <mc/network/LoopbackPacketSender.h>
 
+#include <mc/network/Packet.h>
 #include <mc/network/NetworkSystem.h>
 #include <mc/network/NetworkStatistics.h>
 #include <mc/network/NetworkIdentifier.h>
 #include <mc/network/MinecraftPacketIds.h>
 #include <mc/network/ServerNetworkHandler.h>
-
-#include <mc/client/renderer/rendergraph/Packet.h>
 
 #include <mc/common/SubClientId.h>
 

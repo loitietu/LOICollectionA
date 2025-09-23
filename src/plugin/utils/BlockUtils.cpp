@@ -34,7 +34,7 @@ namespace BlockUtils {
             return std::nullopt;
 
         ChunkLocalHeight mLocalHeight{ (short)(pos.y - mDimension->mHeightRange->mMin) };
-        ChunkBlockPos mChunkBlockPos{ (uchar)(pos.x & 0xf), (uchar)(pos.z & 0xf), mLocalHeight };
+        ChunkBlockPos mChunkBlockPos((uchar)(pos.x & 0xf), mLocalHeight, (uchar)(pos.z & 0xf));
         
         auto mBlock = const_cast<Block*>(&mLevelChunk->getBlock(mChunkBlockPos));
         return mBlock ? std::optional<Block*>{ mBlock } : std::nullopt;

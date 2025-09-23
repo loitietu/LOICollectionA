@@ -37,7 +37,7 @@ LL_TYPE_INSTANCE_HOOK(
         uint64 identifierHash = identifier.getHash();
 
         auto& response = (ModalFormRequestPacket&)packet;
-        if (!response.mFormId || response.mFormJSON->empty())
+        if (!response.mFormId || response.mFormJSON.empty())
             return origin(identifier, packet, senderSubId);
         if (mFormResponse.contains(identifierHash)) {
             mFormLists[identifierHash].insert({response.mFormId, response.mFormJSON});
