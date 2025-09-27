@@ -1,4 +1,8 @@
+#include <memory>
 #include <unordered_map>
+
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
 
 #include <ll/api/memory/Hook.h>
 #include <ll/api/coro/CoroTask.h>
@@ -18,14 +22,33 @@
 #include <mc/world/level/dimension/Dimension.h>
 #include <mc/_HeaderOutputPredefine.h>
 
+#include "include/RegistryHelper.h"
+
+#include "base/Wrapper.h"
+#include "base/ServiceProvider.h"
+
+#include "ConfigPlugin.h"
+
 #include "include/ProtableTool/RedStone.h"
 
-std::unordered_map<DimensionType, std::unordered_map<BlockPos, int>> mRedStoneMap;
+namespace LOICollection::ProtableTool {
+    struct RedStone::Impl {
+        std::unordered_map<DimensionType, std::unordered_map<BlockPos, int>> mRedStoneMap;
+
+        bool ModuleEnabled = false;
+        int mRedStoneTick = 0;
+
+        std::shared_ptr<ll::io::Logger> logger;
+
+        bool RedStoneTaskRunning = true;
+    };
+}
 
 #define RedStoneUpdateHookMacro(NAME, TYPE, SYMBOL, VAL, ...)                               \
     LL_TYPE_INSTANCE_HOOK(NAME, HookPriority::Normal, TYPE, SYMBOL, void, __VA_ARGS__) {    \
+        auto& instance = LOICollection::ProtableTool::RedStone::getInstance();              \
         int mDimensionId = region.getDimensionId();                                         \
-        auto& mDimensionMap = mRedStoneMap[mDimensionId];                                   \
+        auto& mDimensionMap = instance.mImpl->mRedStoneMap[mDimensionId];                   \
         mDimensionMap[pos]++;                                                               \
         origin VAL;                                                                         \
     };                                                                                      \
@@ -69,12 +92,28 @@ BlockSource& getBlockSource(DimensionType mDimensionId) {
     return ll::service::getLevel()->getOrCreateDimension(mDimensionId).lock()->getBlockSourceFromMainChunkSource();
 }
 
-namespace LOICollection::ProtableTool::RedStone {
-    int mRedStoneTick = 0;
-    bool RedStoneTaskRunning = true;
+namespace LOICollection::ProtableTool {
+    RedStone::RedStone() : mImpl(std::make_unique<Impl>()) {};
+    RedStone::~RedStone() = default;
 
-    void registery(int mTick) {
-        mRedStoneTick = mTick;
+    ll::io::Logger* RedStone::getLogger() {
+        return this->mImpl->logger.get();
+    }
+
+    bool RedStone::load() {
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.RedStone)
+            return false;
+
+        this->mImpl->mRedStoneTick = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.RedStone;
+        this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
+        this->mImpl->ModuleEnabled = true;
+
+        return true;
+    }
+
+    bool RedStone::registry() {
+        if (!this->mImpl->ModuleEnabled)
+            return false;
 
         RedStoneWireBlockHook::hook();
         RedStoneTorchBlockHook::hook();
@@ -82,27 +121,41 @@ namespace LOICollection::ProtableTool::RedStone {
         ComparatorBlockHook::hook();
         ObserverBlockHook::hook();
 
-        ll::coro::keepThis([]() -> ll::coro::CoroTask<> {
-            while (RedStoneTaskRunning) {
+        ll::coro::keepThis([this]() -> ll::coro::CoroTask<> {
+            while (this->mImpl->RedStoneTaskRunning) {
                 co_await ll::chrono::ticks(20);
-                if (mRedStoneMap.empty()) 
+                if (this->mImpl->mRedStoneMap.empty()) 
                     continue;
-                for (auto& it : mRedStoneMap) {
-                    for (auto it2 = it.second.begin(); it2 != it.second.end(); ++it2)
-                        if (it2->second >= mRedStoneTick) ll::service::getLevel()->destroyBlock(getBlockSource(it.first), it2->first, true);
+
+                for (auto& it : this->mImpl->mRedStoneMap) {
+                    for (auto it2 = it.second.begin(); it2 != it.second.end(); ++it2) {
+                        if (it2->second >= this->mImpl->mRedStoneTick) ll::service::getLevel()->destroyBlock(getBlockSource(it.first), it2->first, true);
+
+                        this->getLogger()->info("RedStone: {}({})", it2->first.toString(), it2->second);
+                    }
                 }
-                mRedStoneMap.clear();
+
+                this->mImpl->mRedStoneMap.clear();
             }
         }).launch(ll::thread::ServerThreadExecutor::getDefault());
+
+        return true;
     }
 
-    void unregistery() {
+    bool RedStone::unregistry() {
+        if (!this->mImpl->ModuleEnabled)
+            return false;
+
         RedStoneWireBlockHook::unhook();
         RedStoneTorchBlockHook::unhook();
         DiodeBlockHook::unhook();
         ComparatorBlockHook::unhook();
         ObserverBlockHook::unhook();
 
-        RedStoneTaskRunning = false;
+        this->mImpl->RedStoneTaskRunning = false;
+
+        return true;
     }
 }
+
+REGISTRY_HELPER("RedStone", LOICollection::ProtableTool::RedStone, LOICollection::ProtableTool::RedStone::getInstance())

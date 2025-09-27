@@ -1,13 +1,61 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
 #include "base/Macro.h"
 
 class Player;
+class JsonStorage;
 
-namespace LOICollection::Plugins::cdk {
-    namespace MainGui {
+namespace ll::io {
+    class Logger;
+}
+
+namespace LOICollection::Plugins {
+    class CdkPlugin {
+    public:
+        static CdkPlugin& getInstance() {
+            static CdkPlugin instance;
+            return instance;
+        }
+
+        LOICOLLECTION_A_NDAPI JsonStorage* getDatabase();
+        LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
+
+        LOICOLLECTION_A_API   void convert(Player& player, const std::string& id);
+
+        LOICOLLECTION_A_NDAPI bool isValid();
+
+    public:
+        LOICOLLECTION_A_API bool load();
+        LOICOLLECTION_A_API bool registry();
+        LOICOLLECTION_A_API bool unregistry();
+
+    public:
+        class gui;
+        friend class gui;
+
+    private:
+        CdkPlugin();
+        ~CdkPlugin();
+
+        void registeryCommand();
+
+        struct operation;
+
+        struct Impl;
+        std::unique_ptr<Impl> mImpl;
+        std::unique_ptr<gui> mGui;
+    };
+
+    class CdkPlugin::gui {
+    private:
+        CdkPlugin& mParent;
+
+    public:
+        gui(CdkPlugin& plugin) : mParent(plugin) {}
+
         LOICOLLECTION_A_API void convert(Player& player);
         LOICOLLECTION_A_API void cdkNew(Player& player);
         LOICOLLECTION_A_API void cdkRemoveInfo(Player& player, const std::string& id);
@@ -18,12 +66,5 @@ namespace LOICollection::Plugins::cdk {
         LOICOLLECTION_A_API void cdkAwardInfo(Player& player, const std::string& id);
         LOICOLLECTION_A_API void cdkAward(Player& player);
         LOICOLLECTION_A_API void open(Player& player);
-    }
-
-    LOICOLLECTION_A_API   void convert(Player& player, const std::string& id);
-
-    LOICOLLECTION_A_NDAPI bool isValid();
-
-    LOICOLLECTION_A_API   void registery(void* database);
-    LOICOLLECTION_A_API   void unregistery();
+    };
 }

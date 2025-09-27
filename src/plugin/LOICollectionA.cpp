@@ -1,5 +1,7 @@
 #include <memory>
 #include <string>
+#include <vector>
+#include <algorithm>
 #include <filesystem>
 
 #include <ll/api/Config.h>
@@ -15,24 +17,11 @@
 
 #include "include/APIUtils.h"
 
-#include "include/Plugins/LanguagePlugin.h"
-#include "include/Plugins/BlacklistPlugin.h"
-#include "include/Plugins/MutePlugin.h"
-#include "include/Plugins/CdkPlugin.h"
-#include "include/Plugins/MenuPlugin.h"
-#include "include/Plugins/TpaPlugin.h"
-#include "include/Plugins/ShopPlugin.h"
-#include "include/Plugins/MonitorPlugin.h"
-#include "include/Plugins/PvpPlugin.h"
-#include "include/Plugins/WalletPlugin.h"
-#include "include/Plugins/ChatPlugin.h"
-#include "include/Plugins/NoticePlugin.h"
-#include "include/Plugins/MarketPlugin.h"
-#include "include/Plugins/BehaviorEventPlugin.h"
+#include "include/ModManager.h"
+#include "include/ModRegistry.h"
 
-#include "include/ProtableTool/BasicHook.h"
-#include "include/ProtableTool/RedStone.h"
-#include "include/ProtableTool/OrderedUI.h"
+#include "base/Wrapper.h"
+#include "base/ServiceProvider.h"
 
 #include "LangPlugin.h"
 
@@ -66,21 +55,31 @@ namespace LOICollection {
                 return false;
             }
         }
-        Config::SetBaseConfigContext(this->config);
+        
+        ServiceProvider::getInstance().registerInstance<ReadOnlyWrapper<C_Config>>(
+            std::make_shared<ReadOnlyWrapper<C_Config>>(this->config), "Config"
+        );
+
         logger.info("Initialization of configurations completed.");
 
         std::filesystem::create_directory(dataFilePath);
-        this->SettingsDB = std::make_unique<SQLiteStorage>(dataFilePath / "settings.db");
-        this->BehaviorEventDB = std::make_unique<SQLiteStorage>(dataFilePath / "behaviorevent.db");
-        this->BlacklistDB = std::make_unique<SQLiteStorage>(dataFilePath / "blacklist.db");
-        this->MuteDB = std::make_unique<SQLiteStorage>(dataFilePath / "mute.db");
-        this->TpaDB = std::make_unique<SQLiteStorage>(dataFilePath / "tpa.db");
-        this->ChatDB = std::make_unique<SQLiteStorage>(dataFilePath / "chat.db");
-        this->MarketDB = std::make_unique<SQLiteStorage>(dataFilePath / "market.db");
-        this->NoticeDB = std::make_unique<JsonStorage>(configDataPath / "notice.json");
-        this->CdkDB = std::make_unique<JsonStorage>(configDataPath / "cdk.json");
-        this->MenuDB = std::make_unique<JsonStorage>(configDataPath / "menu.json");
-        this->ShopDB = std::make_unique<JsonStorage>(configDataPath / "shop.json");
+        ServiceProvider::getInstance().registerInstance<std::string>(std::make_shared<std::string>(dataFilePath.string()), "DataPath");
+        ServiceProvider::getInstance().registerInstance<std::string>(std::make_shared<std::string>(configDataPath.string()), "ConfigPath");
+        ServiceProvider::getInstance().registerSingleton<SQLiteStorage>([dataFilePath]() {
+            return std::make_shared<SQLiteStorage>((dataFilePath / "settings.db").string());
+        }, "SettingsDB");
+
+        std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
+        std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {
+            modules::ModRegistry* mRegistry = modules::ModManager::getInstance().getRegistry(mod);
+
+            if (!mRegistry) {
+                logger.error("Failed to load mod registry for mod {}", mod);
+                return;
+            }
+
+            mRegistry->onLoad();
+        });
 
         logger.info("Initialization of database completed.");
         
@@ -102,45 +101,38 @@ namespace LOICollection {
     bool A::enable() {
         LOICollectionAPI::initialization();
 
-        Plugins::language::registery(&this->SettingsDB);
-        if (this->config.Plugins.Blacklist) Plugins::blacklist::registery(&this->BlacklistDB);
-        if (this->config.Plugins.Mute) Plugins::mute::registery(&this->MuteDB);
-        if (this->config.Plugins.Cdk) Plugins::cdk::registery(&this->CdkDB);
-        if (this->config.Plugins.Menu.ModuleEnabled) Plugins::menu::registery(&this->MenuDB);
-        if (this->config.Plugins.Tpa.ModuleEnabled) Plugins::tpa::registery(&this->TpaDB, &this->SettingsDB);
-        if (this->config.Plugins.Shop) Plugins::shop::registery(&this->ShopDB);
-        if (this->config.Plugins.Monitor.ModuleEnabled) Plugins::monitor::registery();
-        if (this->config.Plugins.Pvp) Plugins::pvp::registery(&this->SettingsDB);
-        if (this->config.Plugins.Wallet.ModuleEnabled) Plugins::wallet::registery(&this->SettingsDB);
-        if (this->config.Plugins.Chat.ModuleEnabled) Plugins::chat::registery(&this->ChatDB, &this->SettingsDB);
-        if (this->config.Plugins.Notice) Plugins::notice::registery(&this->NoticeDB, &this->SettingsDB);
-        if (this->config.Plugins.Market.ModuleEnabled) Plugins::market::registery(&this->MarketDB, &this->SettingsDB);
-        if (this->config.Plugins.BehaviorEvent.ModuleEnabled) Plugins::behaviorevent::registery(&this->BehaviorEventDB);
+        ll::io::Logger& logger = this->mSelf.getLogger();
 
-        if (this->config.ProtableTool.BasicHook.ModuleEnabled) ProtableTool::BasicHook::registery(this->config.ProtableTool.BasicHook.FakeSeed);
-        if (this->config.ProtableTool.RedStone) ProtableTool::RedStone::registery(this->config.ProtableTool.RedStone);
-        if (this->config.ProtableTool.OrderedUI) ProtableTool::OrderedUI::registery();
+        std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
+        std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {
+            modules::ModRegistry* mRegistry = modules::ModManager::getInstance().getRegistry(mod);
+
+            if (!mRegistry) {
+                logger.error("Failed to load mod registry for mod {}", mod);
+                return;
+            }
+
+            mRegistry->onRegistry();
+        });
+
         return true;
     }
 
     bool A::disable() {
-        Plugins::language::unregistery();
-        if (this->config.Plugins.Blacklist) Plugins::blacklist::unregistery();
-        if (this->config.Plugins.Mute) Plugins::mute::unregistery();
-        if (this->config.Plugins.Cdk) Plugins::cdk::unregistery();
-        if (this->config.Plugins.Tpa.ModuleEnabled) Plugins::tpa::unregistery();
-        if (this->config.Plugins.Pvp) Plugins::pvp::unregistery();
-        if (this->config.Plugins.Wallet.ModuleEnabled) Plugins::wallet::unregistery();
-        if (this->config.Plugins.Notice) Plugins::notice::unregistery();
-        if (this->config.Plugins.Menu.ModuleEnabled) Plugins::menu::unregistery();
-        if (this->config.Plugins.Shop) Plugins::shop::unregistery();
-        if (this->config.Plugins.Monitor.ModuleEnabled) Plugins::monitor::unregistery();
-        if (this->config.Plugins.Chat.ModuleEnabled) Plugins::chat::unregistery();
-        if (this->config.Plugins.Market.ModuleEnabled) Plugins::market::unregistery();
-        if (this->config.Plugins.BehaviorEvent.ModuleEnabled) Plugins::behaviorevent::unregistery();
+        ll::io::Logger& logger = this->mSelf.getLogger();
 
-        if (this->config.ProtableTool.RedStone) ProtableTool::RedStone::unregistery();
-        if (this->config.ProtableTool.OrderedUI) ProtableTool::OrderedUI::unregistery();
+        std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
+        std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {
+            modules::ModRegistry* mRegistry = modules::ModManager::getInstance().getRegistry(mod);
+
+            if (!mRegistry) {
+                logger.error("Failed to load mod registry for mod {}", mod);
+                return;
+            }
+
+            mRegistry->onUnRegistry();
+        });
+
         return true;
     }
 }

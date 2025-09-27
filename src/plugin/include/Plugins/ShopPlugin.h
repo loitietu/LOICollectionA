@@ -2,26 +2,73 @@
 
 #include <string>
 
-#include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
 #include "base/Macro.h"
 
 class Player;
+class JsonStorage;
 
-enum class ShopType {
-    buy,
-    sell
-};
+namespace ll::io {
+    class Logger;
+}
 
-enum class AwardType {
-    commodity,
-    title,
-    from
-};
+namespace LOICollection::Plugins {
+    enum class ShopType {
+        buy,
+        sell
+    };
 
-namespace LOICollection::Plugins::shop {
-    namespace MainGui {
+    enum class AwardType {
+        commodity,
+        title,
+        from
+    };
+
+    class ShopPlugin {
+    public:
+        static ShopPlugin& getInstance() {
+            static ShopPlugin instance;
+            return instance;
+        }
+
+        LOICOLLECTION_A_NDAPI JsonStorage* getDatabase();
+        LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
+
+        LOICOLLECTION_A_API   void executeCommand(Player& player, std::string cmd);
+
+        LOICOLLECTION_A_NDAPI bool checkModifiedData(Player& player, nlohmann::ordered_json data, int number);
+        LOICOLLECTION_A_NDAPI bool isValid();
+
+    public:
+        LOICOLLECTION_A_API bool load();
+        LOICOLLECTION_A_API bool registry();
+        LOICOLLECTION_A_API bool unregistry();
+
+    public:
+        class gui;
+        friend class gui;
+
+    private:
+        ShopPlugin();
+        ~ShopPlugin();
+
+        void registeryCommand();
+
+        struct operation;
+
+        struct Impl;
+        std::unique_ptr<Impl> mImpl;
+        std::unique_ptr<gui> mGui;
+    };
+
+    class ShopPlugin::gui {
+    private:
+        ShopPlugin& mParent;
+
+    public:
+        gui(ShopPlugin& plugin) : mParent(plugin) {}
+
         LOICOLLECTION_A_API void editNewInfo(Player& player, ShopType type);
         LOICOLLECTION_A_API void editNew(Player& player);
         LOICOLLECTION_A_API void editRemoveInfo(Player& player, const std::string& id);
@@ -34,17 +81,9 @@ namespace LOICollection::Plugins::shop {
         LOICOLLECTION_A_API void editAwardContent(Player& player, const std::string& id, ShopType type);
         LOICOLLECTION_A_API void editAward(Player& player);
         LOICOLLECTION_A_API void edit(Player& player);
-        LOICOLLECTION_A_API void menu(Player& player, nlohmann::ordered_json& data, ShopType type);
-        LOICOLLECTION_A_API void commodity(Player& player, nlohmann::ordered_json& data, const nlohmann::ordered_json& original, ShopType type);
-        LOICOLLECTION_A_API void title(Player& player, nlohmann::ordered_json& data, const nlohmann::ordered_json& original, ShopType type);
-        LOICOLLECTION_A_API void open(Player& player, std::string id);
-    }
-
-    LOICOLLECTION_A_API   void executeCommand(Player& player, std::string cmd);
-
-    LOICOLLECTION_A_NDAPI bool checkModifiedData(Player& player, nlohmann::ordered_json data, int number);
-    LOICOLLECTION_A_NDAPI bool isValid();
-
-    LOICOLLECTION_A_API   void registery(void* database);
-    LOICOLLECTION_A_API   void unregistery();
+        LOICOLLECTION_A_API void menu(Player& player, const std::string& id, ShopType type);
+        LOICOLLECTION_A_API void commodity(Player& player, int index, const std::string& id, ShopType type);
+        LOICOLLECTION_A_API void title(Player& player, int index, const std::string& id, ShopType type);
+        LOICOLLECTION_A_API void open(Player& player, const std::string& id);
+    };
 }

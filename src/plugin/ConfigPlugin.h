@@ -157,9 +157,6 @@ struct C_Config {
 namespace Config {
     std::string GetVersion();
 
-    C_Config& GetBaseConfigContext();
-
-    void SetBaseConfigContext(C_Config& config);
     void SynchronousPluginConfigVersion(C_Config& config);
     void SynchronousPluginConfigType(C_Config& config, const std::string& path);
 }

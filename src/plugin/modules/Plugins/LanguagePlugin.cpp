@@ -22,11 +22,15 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
+#include "include/RegistryHelper.h"
+
 #include "include/APIUtils.h"
 
 #include "utils/I18nUtils.h"
 
 #include "data/SQLiteStorage.h"
+
+#include "base/ServiceProvider.h"
 
 #include "Include/Plugins/LanguagePlugin.h"
 
@@ -39,76 +43,82 @@ std::vector<std::string> keys() {
     return keys;
 }
 
-namespace LOICollection::Plugins::language {
-    std::shared_ptr<SQLiteStorage> db;
-    std::shared_ptr<ll::io::Logger> logger;
-    
-    ll::event::ListenerPtr PlayerJoinEventListener;
+namespace LOICollection::Plugins {
+    struct LanguagePlugin::Impl {
+        std::shared_ptr<SQLiteStorage> db;
+        std::shared_ptr<ll::io::Logger> logger;
+        
+        ll::event::ListenerPtr PlayerJoinEventListener;
+    }; 
 
-    namespace MainGui {
-        void open(Player& player) {
-            std::string mObjectLanguage = getLanguage(player);
+    LanguagePlugin::LanguagePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
+    LanguagePlugin::~LanguagePlugin() = default;
+
+    ll::io::Logger* LanguagePlugin::getLogger() {
+        return this->mImpl->logger.get();
+    }
+
+    void LanguagePlugin::gui::open(Player& player) {
+        std::string mObjectLanguage = this->mParent.getLanguage(player);
+        
+        ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
+        form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
+        form.appendLabel(fmt::format(fmt::runtime(tr(mObjectLanguage, "language.gui.lang")), tr(mObjectLanguage, "name")));
+        form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys());
+        form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) mutable -> void {
+            if (!dt) return;
+
+            std::string mObject = pl.getUuid().asString();
+            std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+            this->mParent.mImpl->db->set("OBJECT$" + mObject, "language", std::get<std::string>(dt->at("dropdown")));
             
-            ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
-            form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
-            form.appendLabel(fmt::format(fmt::runtime(tr(mObjectLanguage, "language.gui.lang")), tr(mObjectLanguage, "name")));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys());
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-                if (!dt) return;
-
-                std::string mObject = pl.getUuid().asString();
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-                db->set("OBJECT$" + mObject, "language", std::get<std::string>(dt->at("dropdown")));
-                
-                logger->info(LOICollectionAPI::getVariableString(tr({}, "language.log"), pl));
-            });
-        }
+            this->mParent.getLogger()->info(LOICollectionAPI::getVariableString(tr({}, "language.log"), pl));
+        });
     }
 
-    namespace {
-        void registerCommand() {
-            ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("language", tr({}, "commands.language.description"), CommandPermissionLevel::Any);
-            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
-                Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
-                Player& player = *static_cast<Player*>(entity);
+    void LanguagePlugin::registeryCommand() {
+        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
+            .getOrCreateCommand("language", tr({}, "commands.language.description"), CommandPermissionLevel::Any);
+        command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            Actor* entity = origin.getEntity();
+            if (entity == nullptr || !entity->isPlayer())
+                return output.error(tr({}, "commands.generic.target"));
+            Player& player = *static_cast<Player*>(entity);
 
-                MainGui::open(player);
+            this->mGui->open(player);
 
-                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
-            });
-        }
-
-        void listenEvent() {
-            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([](ll::event::PlayerJoinEvent& event) -> void {
-                if (event.self().isSimulatedPlayer())
-                    return;
-
-                std::string langcode = getLanguageCode(event.self());
-                if (auto data = I18nUtils::getInstance()->data; data.find(langcode) == data.end())
-                    langcode = I18nUtils::getInstance()->defaultLocale;
-
-                std::string mObject = event.self().getUuid().asString();
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-                if (!db->has("OBJECT$" + mObject))
-                    db->create("OBJECT$" + mObject);
-                if (!db->has("OBJECT$" + mObject, "language"))
-                    db->set("OBJECT$" + mObject, "language", langcode);
-            });
-        }
-
-        void unlistenEvent() {
-            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            eventBus.removeListener(PlayerJoinEventListener);
-        }
+            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+        });
     }
 
-    std::string getLanguageCode(Player& player) {
+    void LanguagePlugin::listenEvent() {
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+        this->mImpl->PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([this](ll::event::PlayerJoinEvent& event) mutable -> void {
+            if (event.self().isSimulatedPlayer())
+                return;
+
+            std::string langcode = this->getLanguageCode(event.self());
+            if (auto data = I18nUtils::getInstance()->data; data.find(langcode) == data.end())
+                langcode = I18nUtils::getInstance()->defaultLocale;
+
+            std::string mObject = event.self().getUuid().asString();
+            std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+            if (!this->mImpl->db->has("OBJECT$" + mObject))
+                this->mImpl->db->create("OBJECT$" + mObject);
+
+            if (!this->mImpl->db->has("OBJECT$" + mObject, "language"))
+                this->mImpl->db->set("OBJECT$" + mObject, "language", langcode);
+        });
+    }
+
+    void LanguagePlugin::unlistenEvent() {
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+        eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
+    }
+
+    std::string LanguagePlugin::getLanguageCode(Player& player) {
         std::string defaultLocale = I18nUtils::getInstance()->defaultLocale;
 
         if (player.isSimulatedPlayer())
@@ -119,30 +129,40 @@ namespace LOICollection::Plugins::language {
         return defaultLocale;
     }
 
-    std::string getLanguage(const std::string& mObject) {
+    std::string LanguagePlugin::getLanguage(const std::string& mObject) {
         std::string defaultLocale = I18nUtils::getInstance()->defaultLocale;
         
-        return db->get("OBJECT$" + mObject, "language", defaultLocale);
+        return this->mImpl->db->get("OBJECT$" + mObject, "language", defaultLocale);
     }
 
-    std::string getLanguage(Player& player) {
+    std::string LanguagePlugin::getLanguage(Player& player) {
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-        return getLanguage(mObject);
+        return this->getLanguage(mObject);
     }
 
-    void registery(void* database) {
-        db = *static_cast<std::shared_ptr<SQLiteStorage>*>(database);
-        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        
-        registerCommand();
-        listenEvent();
+    bool LanguagePlugin::load() {
+        this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
+        this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
+
+        return true;
     }
 
-    void unregistery() {
-        unlistenEvent();
+    bool LanguagePlugin::registry() {
+        this->registeryCommand();
+        this->listenEvent();
 
-        db->exec("VACUUM;");
+        return true;
+    }
+
+    bool LanguagePlugin::unregistry() {
+        this->unlistenEvent();
+
+        this->mImpl->db->exec("VACUUM;");
+
+        return true;
     }
 }
+
+REGISTRY_HELPER("LanguagePlugin", LOICollection::Plugins::LanguagePlugin, LOICollection::Plugins::LanguagePlugin::getInstance())

@@ -1,9 +1,9 @@
 #pragma once
 
+#include <memory>
 #include <vector>
 #include <string>
 #include <string_view>
-#include <filesystem>
 #include <unordered_map>
 
 #include <SQLiteCpp/SQLiteCpp.h>
@@ -12,12 +12,10 @@
 
 class SQLiteStorage {
 public:
-    LOICOLLECTION_A_API   explicit SQLiteStorage(const std::filesystem::path& dbPath);
+    LOICOLLECTION_A_API   explicit SQLiteStorage(const std::string& dbPath);
     LOICOLLECTION_A_API   ~SQLiteStorage() = default;
 
-    LOICOLLECTION_A_NDAPI SQLite::Database& getDatabase() { 
-        return database;
-    }
+    LOICOLLECTION_A_NDAPI SQLite::Database* getDatabase();
 
     LOICOLLECTION_A_API   void exec(std::string_view sql);
 
@@ -41,7 +39,7 @@ public:
     LOICOLLECTION_A_NDAPI std::vector<std::string> listByPrefix(std::string_view table, std::string_view prefix);
 
 protected:
-    SQLite::Database database;
+    std::unique_ptr<SQLite::Database> database;
 
     std::unordered_map<std::string, std::unique_ptr<SQLite::Statement>> stmtCache;
     

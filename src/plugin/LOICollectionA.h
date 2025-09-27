@@ -1,11 +1,6 @@
 #pragma once
 
-#include <memory>
-
 #include <ll/api/Mod/NativeMod.h>
-
-#include "data/JsonStorage.h"
-#include "data/SQLiteStorage.h"
 
 #include "ConfigPlugin.h"
 
@@ -31,16 +26,5 @@ namespace LOICollection {
         ll::mod::NativeMod& mSelf;
 
         C_Config config;
-        std::shared_ptr<SQLiteStorage> SettingsDB;
-        std::unique_ptr<SQLiteStorage> BehaviorEventDB;
-        std::unique_ptr<SQLiteStorage> BlacklistDB;
-        std::unique_ptr<SQLiteStorage> MuteDB;
-        std::unique_ptr<SQLiteStorage> TpaDB;
-        std::unique_ptr<SQLiteStorage> ChatDB;
-        std::unique_ptr<SQLiteStorage> MarketDB;
-        std::unique_ptr<JsonStorage> NoticeDB;
-        std::unique_ptr<JsonStorage> CdkDB;
-        std::unique_ptr<JsonStorage> MenuDB;
-        std::unique_ptr<JsonStorage> ShopDB;
     };
 }

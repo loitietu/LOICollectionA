@@ -40,6 +40,8 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
 
+#include "include/RegistryHelper.h"
+
 #include "include/APIUtils.h"
 #include "include/Plugins/LanguagePlugin.h"
 
@@ -49,304 +51,316 @@
 
 #include "data/SQLiteStorage.h"
 
+#include "base/Wrapper.h"
+#include "base/ServiceProvider.h"
+
 #include "ConfigPlugin.h"
 
 #include "include/Plugins/WalletPlugin.h"
 
 using I18nUtilsTools::tr;
-using LOICollection::Plugins::language::getLanguage;
 
-std::unordered_map<std::string, std::vector<std::unordered_map<std::string, std::string>>> mRedEnvelopeMap;
-
-namespace LOICollection::Plugins::wallet {
-    struct WalletOP {
+namespace LOICollection::Plugins {
+    struct WalletPlugin::operation {
         CommandSelector<Player> Target;
         int Score = 0;
     };
 
-    C_Config::C_Plugins::C_Wallet options;
-    
-    std::shared_ptr<SQLiteStorage> db;
-    std::shared_ptr<ll::io::Logger> logger;
+    struct WalletPlugin::Impl {
+        std::unordered_map<std::string, std::vector<std::unordered_map<std::string, std::string>>> mRedEnvelopeMap;
 
-    ll::event::ListenerPtr PlayerJoinEventListener;
-    ll::event::ListenerPtr PlayerChatEventListener;
+        C_Config::C_Plugins::C_Wallet options;
+        
+        std::shared_ptr<SQLiteStorage> db;
+        std::shared_ptr<ll::io::Logger> logger;
 
-    namespace MainGui {
-        void content(Player& player, const std::string& target, TransferType type) {
-            std::string mObjectLanguage = getLanguage(player);
+        ll::event::ListenerPtr PlayerJoinEventListener;
+        ll::event::ListenerPtr PlayerChatEventListener;
+    };
 
-            mce::UUID mTargetUuid = mce::UUID::fromString(target);
-            std::string mTargetName = type == TransferType::online ? 
-                ll::service::getLevel()->getPlayer(mTargetUuid)->getRealName() : ll::service::PlayerInfo::getInstance().fromUuid(mTargetUuid)->name;
+    WalletPlugin::WalletPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
+    WalletPlugin::~WalletPlugin() = default;
 
-            std::string mLabel = tr(mObjectLanguage, "wallet.gui.label") + "\n" + tr(mObjectLanguage, "wallet.gui.transfer.label2");
+    ll::io::Logger* WalletPlugin::getLogger() {
+        return this->mImpl->logger.get();
+    }
 
-            ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
-            form.appendLabel(fmt::format(fmt::runtime(mLabel), 
-                ScoreboardUtils::getScore(player, options.TargetScoreboard),
-                std::to_string(options.ExchangeRate * 100) + "%%",
-                mTargetName
-            ));
-            form.appendInput("Input", tr(mObjectLanguage, "wallet.gui.transfer.input"), tr(mObjectLanguage, "wallet.gui.transfer.input.placeholder"));
-            form.sendTo(player, [target, mTargetName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-                if (!dt) return MainGui::transfer(pl, type);
+    void WalletPlugin::gui::content(Player& player, const std::string& target, TransferType type) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-                int mMoney = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
-                if (ScoreboardUtils::getScore(pl, options.TargetScoreboard) < mMoney || mMoney <= 0) {
-                    pl.sendMessage(tr(getLanguage(pl), "wallet.tips"));
-                    return MainGui::transfer(pl, type);
-                }
+        mce::UUID mTargetUuid = mce::UUID::fromString(target);
+        std::string mTargetName = type == TransferType::online ? 
+            ll::service::getLevel()->getPlayer(mTargetUuid)->getRealName() : ll::service::PlayerInfo::getInstance().fromUuid(mTargetUuid)->name;
 
-                ScoreboardUtils::reduceScore(pl, options.TargetScoreboard, mMoney);
+        std::string mLabel = tr(mObjectLanguage, "wallet.gui.label") + "\n" + tr(mObjectLanguage, "wallet.gui.transfer.label2");
 
-                wallet::transfer(target, (int)(mMoney * (1 - options.ExchangeRate)));
+        ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
+        form.appendLabel(fmt::format(fmt::runtime(mLabel), 
+            ScoreboardUtils::getScore(player, this->mParent.mImpl->options.TargetScoreboard),
+            std::to_string(this->mParent.mImpl->options.ExchangeRate * 100) + "%%",
+            mTargetName
+        ));
+        form.appendInput("Input", tr(mObjectLanguage, "wallet.gui.transfer.input"), tr(mObjectLanguage, "wallet.gui.transfer.input.placeholder"));
+        form.sendTo(player, [this, mObjectLanguage, target, mTargetName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            if (!dt) return this->transfer(pl, type);
 
-                logger->info(fmt::runtime(tr({}, "wallet.log")), pl.getRealName(), mTargetName, mMoney);
-            });
-        }
+            std::string mScoreboard = this->mParent.mImpl->options.TargetScoreboard;
 
-        void transfer(Player& player, TransferType type) {
-            std::string mObjectLanguage = getLanguage(player);
-
-            ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), tr(mObjectLanguage, "wallet.gui.transfer.label1"));
-            switch (type) {
-                case TransferType::online:
-                    ll::service::getLevel()->forEachPlayer([&form](Player& mTarget) -> bool {
-                        if (mTarget.isSimulatedPlayer())
-                            return true;
-
-                        form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
-                            MainGui::content(pl, mTarget.getUuid().asString(), TransferType::online);
-                        });
-                        return true;
-                    });
-                    break;
-                case TransferType::offline:
-                    for (const ll::service::PlayerInfo::PlayerInfoEntry& mTarget : ll::service::PlayerInfo::getInstance().entries()) {
-                        form.appendButton(mTarget.name, [mTarget](Player& pl) -> void {
-                            MainGui::content(pl, mTarget.uuid.asString(), TransferType::offline);
-                        });
-                    }
-                    break;
+            int mMoney = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
+            if (ScoreboardUtils::getScore(pl, mScoreboard) < mMoney || mMoney <= 0) {
+                pl.sendMessage(tr(mObjectLanguage, "wallet.tips.transfer"));
+                return this->transfer(pl, type);
             }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
-                if (id == -1) MainGui::open(pl);
-            });
-        }
 
-        void redenvelope(Player& player) {
-            std::string mObjectLanguage = getLanguage(player);
+            ScoreboardUtils::reduceScore(pl, mScoreboard, mMoney);
 
-            ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
-            form.appendLabel(fmt::format(fmt::runtime(tr(mObjectLanguage, "wallet.gui.label")),
-                ScoreboardUtils::getScore(player, options.TargetScoreboard), std::to_string(options.ExchangeRate * 100) + "%%"
-            ));
-            form.appendInput("Input1", tr(mObjectLanguage, "wallet.gui.redenvelope.input1"), tr(mObjectLanguage, "wallet.gui.redenvelope.input1.placeholder"));
-            form.appendInput("Input2", tr(mObjectLanguage, "wallet.gui.redenvelope.input2"), tr(mObjectLanguage, "wallet.gui.redenvelope.input2.placeholder"));
-            form.appendInput("Input3", tr(mObjectLanguage, "wallet.gui.redenvelope.input3"), tr(mObjectLanguage, "wallet.gui.redenvelope.input3.placeholder"));
-            form.sendTo(player, [mObjectLanguage](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-                if (!dt) return MainGui::open(pl);
+            this->mParent.transfer(target, (int)(mMoney * (1 - this->mParent.mImpl->options.ExchangeRate)));
 
-                std::string mObjectKey = std::get<std::string>(dt->at("Input3"));
+            this->mParent.getLogger()->info(fmt::runtime(tr({}, "wallet.log")), pl.getRealName(), mTargetName, mMoney);
+        });
+    }
 
-                if (mObjectKey.empty()) {
-                    pl.sendMessage(tr(mObjectLanguage, "generic.tips.noinput"));
-                    return MainGui::open(pl);
+    void WalletPlugin::gui::transfer(Player& player, TransferType type) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), tr(mObjectLanguage, "wallet.gui.transfer.label1"));
+        switch (type) {
+            case TransferType::online:
+                ll::service::getLevel()->forEachPlayer([this, &form](Player& mTarget) -> bool {
+                    if (mTarget.isSimulatedPlayer())
+                        return true;
+
+                    form.appendButton(mTarget.getRealName(), [this, &mTarget](Player& pl) -> void  {
+                        this->content(pl, mTarget.getUuid().asString(), TransferType::online);
+                    });
+                    return true;
+                });
+                break;
+            case TransferType::offline:
+                for (const ll::service::PlayerInfo::PlayerInfoEntry& mTarget : ll::service::PlayerInfo::getInstance().entries()) {
+                    form.appendButton(mTarget.name, [this, mTarget](Player& pl) -> void {
+                        this->content(pl, mTarget.uuid.asString(), TransferType::offline);
+                    });
                 }
-
-                int mScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input1")), 0);
-                int mCount = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-
-                if (mScore <= 0 || mCount <= 0 || ScoreboardUtils::getScore(pl, options.TargetScoreboard) < mScore * mCount) {
-                    pl.sendMessage(tr(mObjectLanguage, "wallet.tips.redenvelope"));
-                    return MainGui::open(pl);
-                }
-
-                ScoreboardUtils::reduceScore(pl, options.TargetScoreboard, mScore * mCount);
-
-                wallet::redenvelope(pl, mObjectKey, mScore, mCount);
-            });
+                break;
         }
+        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
+            if (id == -1) this->open(pl);
+        });
+    }
 
-        void wealth(Player& player) {
-            std::string mTipsString = LOICollectionAPI::translateString(tr(getLanguage(player), "wallet.showOff"), player);
-            TextPacket::createSystemMessage(
-                fmt::format(fmt::runtime(mTipsString), ScoreboardUtils::getScore(player, options.TargetScoreboard))
-            ).sendToClients();
-        }
+    void WalletPlugin::gui::redenvelope(Player& player) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        void open(Player& player) {
-            std::string mObjectLanguage = getLanguage(player);
+        ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
+        form.appendLabel(fmt::format(fmt::runtime(tr(mObjectLanguage, "wallet.gui.label")),
+            ScoreboardUtils::getScore(player, this->mParent.mImpl->options.TargetScoreboard), std::to_string(this->mParent.mImpl->options.ExchangeRate * 100) + "%%"
+        ));
+        form.appendInput("Input1", tr(mObjectLanguage, "wallet.gui.redenvelope.input1"), tr(mObjectLanguage, "wallet.gui.redenvelope.input1.placeholder"));
+        form.appendInput("Input2", tr(mObjectLanguage, "wallet.gui.redenvelope.input2"), tr(mObjectLanguage, "wallet.gui.redenvelope.input2.placeholder"));
+        form.appendInput("Input3", tr(mObjectLanguage, "wallet.gui.redenvelope.input3"), tr(mObjectLanguage, "wallet.gui.redenvelope.input3.placeholder"));
+        form.sendTo(player, [this, mObjectLanguage](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            if (!dt) return this->open(pl);
 
-            std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
+            std::string mObjectKey = std::get<std::string>(dt->at("Input3"));
+
+            if (mObjectKey.empty()) {
+                pl.sendMessage(tr(mObjectLanguage, "generic.tips.noinput"));
+                return this->open(pl);
+            }
+
+            int mScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input1")), 0);
+            int mCount = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+
+            std::string mScoreboard = this->mParent.mImpl->options.TargetScoreboard;
+            if (mScore <= 0 || mCount <= 0 || ScoreboardUtils::getScore(pl, mScoreboard) < mScore * mCount) {
+                pl.sendMessage(tr(mObjectLanguage, "wallet.tips.redenvelope"));
+                return this->open(pl);
+            }
+
+            ScoreboardUtils::reduceScore(pl, mScoreboard, mScore * mCount);
+
+            this->mParent.redenvelope(pl, mObjectKey, mScore, mCount);
+        });
+    }
+
+    void WalletPlugin::gui::wealth(Player& player) {
+        std::string mTipsString = LOICollectionAPI::translateString(tr(LanguagePlugin::getInstance().getLanguage(player), "wallet.showOff"), player);
+        TextPacket::createSystemMessage(
+            fmt::format(fmt::runtime(mTipsString), ScoreboardUtils::getScore(player, this->mParent.mImpl->options.TargetScoreboard))
+        ).sendToClients();
+    }
+
+    void WalletPlugin::gui::open(Player& player) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
+        
+        ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), 
+            fmt::format(fmt::runtime(mLabel), 
+                ScoreboardUtils::getScore(player, this->mParent.mImpl->options.TargetScoreboard),
+                std::to_string(this->mParent.mImpl->options.ExchangeRate * 100) + "%%"
+            )
+        );
+        form.appendButton(tr(mObjectLanguage, "wallet.gui.transfer"), "textures/ui/MCoin", "path", [this](Player& pl) -> void {
+            this->transfer(pl, TransferType::online);
+        });
+        form.appendButton(tr(mObjectLanguage, "wallet.gui.offlineTransfer"), "textures/ui/icon_best3", "path", [this](Player& pl) -> void {
+            this->transfer(pl, TransferType::offline);
+        });
+        form.appendButton(tr(mObjectLanguage, "wallet.gui.redenvelope"), "textures/ui/comment", "path", [this](Player& pl) -> void {
+            this->redenvelope(pl);
+        });
+        form.appendButton(tr(mObjectLanguage, "wallet.gui.wealth"), "textures/ui/creative_icon", "path", [this](Player& pl) -> void {
+            this->wealth(pl);
+        });
+        form.sendTo(player);
+    }
+
+    void WalletPlugin::registeryCommand() {
+        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
+            .getOrCreateCommand("wallet", tr({}, "commands.wallet.description"), CommandPermissionLevel::Any);
+        command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            Actor* entity = origin.getEntity();
+            if (entity == nullptr || !entity->isPlayer())
+                return output.error(tr({}, "commands.generic.target"));
+            Player& player = *static_cast<Player*>(entity);
+
+            this->mGui->open(player);
+
+            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+        });
+        command.overload<operation>().text("transfer").required("Target").required("Score").execute(
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
+            Actor* entity = origin.getEntity();
+            if (entity == nullptr || !entity->isPlayer())
+                return output.error(tr({}, "commands.generic.target"));
+            Player& player = *static_cast<Player*>(entity);
+
+            CommandSelectorResults<Player> results = param.Target.results(origin);
+            if (results.empty())
+                return output.error(tr({}, "commands.generic.target"));
+
+            std::string mScoreboard = this->mImpl->options.TargetScoreboard;
+
+            int mMoney = param.Score * (int) results.size();
+            if (ScoreboardUtils::getScore(player, mScoreboard) < mMoney || param.Score < 0)
+                return output.error(tr({}, "commands.wallet.error.score"));
+
+            ScoreboardUtils::reduceScore(player, mScoreboard, mMoney);
+
+            int mTargetMoney = (int)(param.Score * (1 - this->mImpl->options.ExchangeRate));
+            for (Player*& target : results)
+                ScoreboardUtils::addScore(*target, mScoreboard, mTargetMoney);
+
+            output.success(fmt::runtime(tr({}, "commands.wallet.success.transfer")), param.Score, results.size());
+        });
+        command.overload().text("wealth").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            Actor* entity = origin.getEntity();
+            if (entity == nullptr || !entity->isPlayer())
+                return output.error(tr({}, "commands.generic.target"));
+            Player& player = *static_cast<Player*>(entity);
+
+            this->mGui->wealth(player);
+
+            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+        });
+    }
+
+    void WalletPlugin::listenEvent() {
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+        this->mImpl->PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([this](ll::event::PlayerJoinEvent& event) mutable -> void {
+            if (event.self().isSimulatedPlayer())
+                return;
+
+            std::string mObject = event.self().getUuid().asString();
+            std::replace(mObject.begin(), mObject.end(), '-', '_');
             
-            ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), 
-                fmt::format(fmt::runtime(mLabel), 
-                    ScoreboardUtils::getScore(player, options.TargetScoreboard),
-                    std::to_string(options.ExchangeRate * 100) + "%%"
-                )
-            );
-            form.appendButton(tr(mObjectLanguage, "wallet.gui.transfer"), "textures/ui/MCoin", "path", [](Player& pl) -> void {
-                MainGui::transfer(pl, TransferType::online);
-            });
-            form.appendButton(tr(mObjectLanguage, "wallet.gui.offlineTransfer"), "textures/ui/icon_best3", "path", [](Player& pl) -> void {
-                MainGui::transfer(pl, TransferType::offline);
-            });
-            form.appendButton(tr(mObjectLanguage, "wallet.gui.redenvelope"), "textures/ui/comment", "path", [](Player& pl) -> void {
-                MainGui::redenvelope(pl);
-            });
-            form.appendButton(tr(mObjectLanguage, "wallet.gui.wealth"), "textures/ui/creative_icon", "path", [](Player& pl) -> void {
-                MainGui::wealth(pl);
-            });
-            form.sendTo(player);
-        }
+            if (!this->mImpl->db->has("OBJECT$" + mObject, "Wallet_Score"))
+                this->mImpl->db->set("OBJECT$" + mObject, "Wallet_Score", "0");
+
+            if (int mScore = SystemUtils::toInt(this->mImpl->db->get("OBJECT$" + mObject, "Wallet_Score"), 0); mScore > 0) {
+                ScoreboardUtils::addScore(event.self(), this->mImpl->options.TargetScoreboard, mScore);
+
+                this->mImpl->db->set("OBJECT$" + mObject, "Wallet_Score", "0");
+            }
+        });
+        this->mImpl->PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>([this](ll::event::PlayerChatEvent& event) mutable -> void {
+            if (event.self().isSimulatedPlayer())
+                return;
+
+            auto it = this->mImpl->mRedEnvelopeMap.find(event.message());
+            if (it == this->mImpl->mRedEnvelopeMap.end())
+                return;
+
+            std::string mObjectUuid = event.self().getUuid().asString();
+            for (auto& mObject : it->second) {
+                if (mObject.at("receiver").find(mObjectUuid) != std::string::npos)
+                    continue;
+
+                int mObjectCapacity = SystemUtils::toInt(mObject.at("capacity"), 0);
+                int mObjectPeople = SystemUtils::toInt(mObject.at("people"), 0) + 1;
+                int mObjectCount = SystemUtils::toInt(mObject.at("count"), 0);
+
+                if ((mObjectPeople - 1) == mObjectCount) {
+                    ScoreboardUtils::addScore(event.self(), this->mImpl->options.TargetScoreboard, mObjectCapacity);
+
+                    std::string mTipsString = LOICollectionAPI::translateString(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "wallet.tips.redenvelope.receive.over"), event.self());
+                    TextPacket::createSystemMessage(fmt::format(fmt::runtime(mTipsString), mObject.at("id"), mObjectCapacity)).sendToClients();
+
+                    std::string mObjectId = mObject.at("id");
+                    it->second.erase(std::remove_if(it->second.begin(), it->second.end(), [mObjectId](auto& mObject) -> bool {
+                        return mObject.at("id") == mObjectId;
+                    }), it->second.end());
+                    
+                    continue;
+                }
+
+                int mMaxScore = (mObjectCapacity / (mObjectCount - mObjectPeople + 1)) * 2;
+                int mTargetMoney = ll::random_utils::rand(0, mMaxScore);
+
+                ScoreboardUtils::addScore(event.self(), this->mImpl->options.TargetScoreboard, mTargetMoney);
+
+                std::string mTipsString = LOICollectionAPI::translateString(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "wallet.tips.redenvelope.receive"), event.self());
+                TextPacket::createSystemMessage(fmt::format(fmt::runtime(mTipsString), mObject.at("id"), mTargetMoney, mObjectPeople, mObjectCount)).sendToClients();
+
+                mObject["people"] = std::to_string(mObjectPeople);
+                mObject["capacity"] = std::to_string(mObjectCapacity - mTargetMoney);
+                mObject["receiver"].append(mObjectUuid + " ");
+            }
+        });
     }
 
-    namespace {
-        void registerCommand() {
-            ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("wallet", tr({}, "commands.wallet.description"), CommandPermissionLevel::Any);
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
-                Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
-                Player& player = *static_cast<Player*>(entity);
-
-                MainGui::open(player);
-
-                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
-            });
-            command.overload<WalletOP>().text("transfer").required("Target").required("Score").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, WalletOP const& param) -> void {
-                Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
-                Player& player = *static_cast<Player*>(entity);
-
-                CommandSelectorResults<Player> results = param.Target.results(origin);
-                if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
-
-                int mMoney = param.Score * (int) results.size();
-                if (ScoreboardUtils::getScore(player, options.TargetScoreboard) < mMoney || param.Score < 0)
-                    return output.error(tr({}, "commands.wallet.error.score"));
-
-                ScoreboardUtils::reduceScore(player, options.TargetScoreboard, mMoney);
-
-                int mTargetMoney = (int)(param.Score * (1 - options.ExchangeRate));
-                for (Player*& target : results)
-                    ScoreboardUtils::addScore(*target, options.TargetScoreboard, mTargetMoney);
-
-                output.success(fmt::runtime(tr({}, "commands.wallet.success.transfer")), param.Score, results.size());
-            });
-            command.overload().text("wealth").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
-                Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
-                Player& player = *static_cast<Player*>(entity);
-
-                MainGui::wealth(player);
-
-                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
-            });
-        }
-
-        void listenEvent() {
-            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([](ll::event::PlayerJoinEvent& event) -> void {
-                if (event.self().isSimulatedPlayer())
-                    return;
-
-                std::string mObject = event.self().getUuid().asString();
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-                
-                if (!db->has("OBJECT$" + mObject, "Wallet_Score"))
-                    db->set("OBJECT$" + mObject, "Wallet_Score", "0");
-
-                if (int mScore = SystemUtils::toInt(db->get("OBJECT$" + mObject, "Wallet_Score"), 0); mScore > 0) {
-                    ScoreboardUtils::addScore(event.self(), options.TargetScoreboard, mScore);
-
-                    db->set("OBJECT$" + mObject, "Wallet_Score", "0");
-                }
-            });
-            PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>([](ll::event::PlayerChatEvent& event) -> void {
-                if (event.self().isSimulatedPlayer())
-                    return;
-
-                auto it = mRedEnvelopeMap.find(event.message());
-                if (it == mRedEnvelopeMap.end())
-                    return;
-
-                std::string mObjectUuid = event.self().getUuid().asString();
-                for (auto& mObject : it->second) {
-                    if (mObject.at("receiver").find(mObjectUuid) != std::string::npos)
-                        continue;
-
-                    int mObjectCapacity = SystemUtils::toInt(mObject.at("capacity"), 0);
-                    int mObjectPeople = SystemUtils::toInt(mObject.at("people"), 0) + 1;
-                    int mObjectCount = SystemUtils::toInt(mObject.at("count"), 0);
-
-                    if ((mObjectPeople - 1) == mObjectCount) {
-                        ScoreboardUtils::addScore(event.self(), options.TargetScoreboard, mObjectCapacity);
-
-                        std::string mTipsString = LOICollectionAPI::translateString(tr(getLanguage(event.self()), "wallet.tips.redenvelope.receive.over"), event.self());
-                        TextPacket::createSystemMessage(fmt::format(fmt::runtime(mTipsString), mObject.at("id"), mObjectCapacity)).sendToClients();
-
-                        std::string mObjectId = mObject.at("id");
-                        it->second.erase(std::remove_if(it->second.begin(), it->second.end(), [mObjectId](auto& mObject) -> bool {
-                            return mObject.at("id") == mObjectId;
-                        }), it->second.end());
-                        
-                        continue;
-                    }
-
-                    int mMaxScore = (mObjectCapacity / (mObjectCount - mObjectPeople + 1)) * 2;
-                    int mTargetMoney = ll::random_utils::rand(0, mMaxScore);
-
-                    ScoreboardUtils::addScore(event.self(), options.TargetScoreboard, mTargetMoney);
-
-                    std::string mTipsString = LOICollectionAPI::translateString(tr(getLanguage(event.self()), "wallet.tips.redenvelope.receive"), event.self());
-                    TextPacket::createSystemMessage(fmt::format(fmt::runtime(mTipsString), mObject.at("id"), mTargetMoney, mObjectPeople, mObjectCount)).sendToClients();
-
-                    mObject["people"] = std::to_string(mObjectPeople);
-                    mObject["capacity"] = std::to_string(mObjectCapacity - mTargetMoney);
-                    mObject["receiver"].append(mObjectUuid + " ");
-                }
-            });
-        }
-
-        void unlistenEvent() {
-            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            eventBus.removeListener(PlayerJoinEventListener);
-            eventBus.removeListener(PlayerChatEventListener);
-        }
+    void WalletPlugin::unlistenEvent() {
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+        eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
+        eventBus.removeListener(this->mImpl->PlayerChatEventListener);
     }
 
-    void transfer(const std::string& target, int score) {
-        if (!isValid())
+    void WalletPlugin::transfer(const std::string& target, int score) {
+        if (!this->isValid())
             return; 
 
         if (Player* mObject = ll::service::getLevel()->getPlayer(mce::UUID::fromString(target)); mObject) {
-            ScoreboardUtils::addScore(*mObject, options.TargetScoreboard, score);
+            ScoreboardUtils::addScore(*mObject, this->mImpl->options.TargetScoreboard, score);
             return;
         }
 
         std::string mObject = target;
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-        int mWalletScore = SystemUtils::toInt(db->get("OBJECT$" + mObject, "Wallet_Score"), 0);
+        int mWalletScore = SystemUtils::toInt(this->mImpl->db->get("OBJECT$" + mObject, "Wallet_Score"), 0);
 
-        db->set("OBJECT$" + mObject, "Wallet_Score", std::to_string(mWalletScore + score));
+        this->mImpl->db->set("OBJECT$" + mObject, "Wallet_Score", std::to_string(mWalletScore + score));
     }
 
-    void redenvelope(Player& player, const std::string& key, int score, int count) {
-        if (!isValid())
+    void WalletPlugin::redenvelope(Player& player, const std::string& key, int score, int count) {
+        if (!this->isValid())
             return; 
 
         std::string mObjectId = SystemUtils::getCurrentTimestamp();
 
-        mRedEnvelopeMap[key].push_back({
+        this->mImpl->mRedEnvelopeMap[key].push_back({
             { "id", mObjectId },
             { "player", player.getUuid().asString() },
             { "count", std::to_string(count) },
@@ -355,15 +369,15 @@ namespace LOICollection::Plugins::wallet {
             { "receiver", "" }
         });
 
-        ll::coro::keepThis([mObjectId, key]() -> ll::coro::CoroTask<> {
-            co_await std::chrono::seconds(options.RedEnvelopeTimeout);
+        ll::coro::keepThis([this, mObjectId, key]() -> ll::coro::CoroTask<> {
+            co_await std::chrono::seconds(this->mImpl->options.RedEnvelopeTimeout);
             
-            std::vector<std::unordered_map<std::string, std::string>>& mObjects = mRedEnvelopeMap[key];
+            std::vector<std::unordered_map<std::string, std::string>>& mObjects = this->mImpl->mRedEnvelopeMap[key];
             for (std::unordered_map<std::string, std::string>& mObject : mObjects) {
                 if (mObject.at("id") != mObjectId)
                     continue;
 
-                transfer(mObject.at("player"), SystemUtils::toInt(mObject.at("capacity"), 0));
+                this->transfer(mObject.at("player"), SystemUtils::toInt(mObject.at("capacity"), 0));
 
                 TextPacket::createSystemMessage(
                     fmt::format(fmt::runtime(tr({}, "wallet.tips.redenvelope.timeout")), mObjectId)
@@ -377,35 +391,53 @@ namespace LOICollection::Plugins::wallet {
             }), mObjects.end());
         }).launch(ll::thread::ServerThreadExecutor::getDefault());
 
-        std::string mTipsString = LOICollectionAPI::translateString(tr(getLanguage(player), "wallet.tips.redenvelope.content"), player);
+        std::string mTipsString = LOICollectionAPI::translateString(tr(LanguagePlugin::getInstance().getLanguage(player), "wallet.tips.redenvelope.content"), player);
         TextPacket::createSystemMessage(fmt::format(fmt::runtime(mTipsString), 
-            mObjectId, score, count, options.RedEnvelopeTimeout, key
+            mObjectId, score, count, this->mImpl->options.RedEnvelopeTimeout, key
         )).sendToClients();
     }
 
-    bool isValid() {
-        return logger != nullptr && db != nullptr;
+    bool WalletPlugin::isValid() {
+        return this->getLogger() != nullptr && this->mImpl->db != nullptr;
     }
 
-    void registery(void* setting) {
-        db = *static_cast<std::shared_ptr<SQLiteStorage>*>(setting);
-        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        
-        options = Config::GetBaseConfigContext().Plugins.Wallet;
-        
-        registerCommand();
-        listenEvent();
+    bool WalletPlugin::load() {
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Wallet.ModuleEnabled)
+            return false;
+
+        this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
+        this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
+        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Wallet;
+
+        return true;
     }
 
-    void unregistery() {
-        unlistenEvent();
+    bool WalletPlugin::registry() {
+        if (!this->mImpl->options.ModuleEnabled)
+            return false;
+        
+        this->registeryCommand();
+        this->listenEvent();
 
-        for (auto& it : mRedEnvelopeMap) {
+        return true;
+    }
+
+    bool WalletPlugin::unregistry() {
+        if (!this->mImpl->options.ModuleEnabled)
+            return false;
+
+        this->unlistenEvent();
+
+        for (auto& it : this->mImpl->mRedEnvelopeMap) {
             for (auto& mObject : it.second) {
-                transfer(mObject.at("player"), SystemUtils::toInt(mObject.at("capacity"), 0));
+                this->transfer(mObject.at("player"), SystemUtils::toInt(mObject.at("capacity"), 0));
             }
         }
 
-        mRedEnvelopeMap.clear();
+        this->mImpl->mRedEnvelopeMap.clear();
+
+        return true;
     }
 }
+
+REGISTRY_HELPER("WalletPlugin", LOICollection::Plugins::WalletPlugin, LOICollection::Plugins::WalletPlugin::getInstance())

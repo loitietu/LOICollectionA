@@ -21,14 +21,6 @@ namespace Config {
         return LOICollection::A::getInstance().getSelf().getManifest().version->to_string();
     }
 
-    C_Config& GetBaseConfigContext() {
-        return mConfig;
-    }
-
-    void SetBaseConfigContext(C_Config& config) {
-        mConfig = config;
-    }
-
     void InsertJson(int pos, nlohmann::ordered_json::iterator& source, nlohmann::ordered_json& target) {
         nlohmann::ordered_json mInsertJson;
         for (auto it = target.begin(); it != target.end(); ++it) {

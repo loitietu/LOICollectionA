@@ -13,27 +13,31 @@ SQLite::Statement& SQLiteStorage::getCachedStatement(const std::string& sql) {
     if (auto it = stmtCache.find(sql); it != stmtCache.end()) 
         return *it->second;
     
-    auto stmt = std::make_unique<SQLite::Statement>(database, sql);
+    auto stmt = std::make_unique<SQLite::Statement>(*database, sql);
     return *stmtCache.emplace(sql, std::move(stmt)).first->second;
 }
 
-SQLiteStorage::SQLiteStorage(const std::filesystem::path& dbPath) : database(dbPath.string(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
-    database.exec("PRAGMA journal_mode = MEMORY;");
-    database.exec("PRAGMA synchronous = NORMAL;");
-    database.exec("PRAGMA temp_store = MEMORY;");
-    database.exec("PRAGMA cache_size = 8096;"); 
+SQLiteStorage::SQLiteStorage(const std::string& dbPath) : database(std::make_unique<SQLite::Database>(dbPath, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)) {
+    database->exec("PRAGMA journal_mode = MEMORY;");
+    database->exec("PRAGMA synchronous = NORMAL;");
+    database->exec("PRAGMA temp_store = MEMORY;");
+    database->exec("PRAGMA cache_size = 8096;"); 
+}
+
+SQLite::Database* SQLiteStorage::getDatabase() {
+    return database.get();
 }
 
 void SQLiteStorage::exec(std::string_view sql) {
-    database.exec(std::string(sql));
+    database->exec(std::string(sql));
 }
 
 void SQLiteStorage::create(std::string_view table) {
-    database.exec("CREATE TABLE IF NOT EXISTS " + std::string(table) + " (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;");
+    database->exec("CREATE TABLE IF NOT EXISTS " + std::string(table) + " (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;");
 }
 
 void SQLiteStorage::remove(std::string_view table) {
-    database.exec("DROP TABLE IF EXISTS " + std::string(table) + ";");
+    database->exec("DROP TABLE IF EXISTS " + std::string(table) + ";");
 
     stmtCache.clear();
 }
@@ -226,7 +230,7 @@ void SQLiteStorageBatch::set(std::string_view table, std::string_view key, std::
         for (size_t i = 0; i < batchSize; ++i)
             placeholders += (i == 0) ? "(?, ?)" : ", (?, ?)";
 
-        SQLite::Statement stmt(database, mBaseSql + placeholders + " ON CONFLICT(key) DO UPDATE SET value = excluded.value;");
+        SQLite::Statement stmt(*database, mBaseSql + placeholders + " ON CONFLICT(key) DO UPDATE SET value = excluded.value;");
 
         for (size_t i = 0; i < batchSize; ++i) {
             stmt.bind(static_cast<int>(i * 2 + 1), std::string(key) + "." + it->first);

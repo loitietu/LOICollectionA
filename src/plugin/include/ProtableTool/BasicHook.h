@@ -1,10 +1,31 @@
 #pragma once
 
-#include <string>
+#include <memory>
 
 #include "base/Macro.h"
 
-namespace LOICollection::ProtableTool::BasicHook {
-    LOICOLLECTION_A_API void registery(const std::string& fakeSeed);
-    LOICOLLECTION_A_API void unregistery();
+struct ServerStartGamePacketHook;
+
+namespace LOICollection::ProtableTool {
+    class BasicHook {
+    public:
+        static BasicHook& getInstance() {
+            static BasicHook instance;
+            return instance;
+        }
+
+        friend struct ::ServerStartGamePacketHook;
+
+    public:
+        LOICOLLECTION_A_API bool load();
+        LOICOLLECTION_A_API bool registry();
+        LOICOLLECTION_A_API bool unregistry();
+
+    private:
+        BasicHook();
+        ~BasicHook();
+
+        struct Impl;
+        std::unique_ptr<Impl> mImpl;
+    };
 }

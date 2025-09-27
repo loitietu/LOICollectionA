@@ -36,6 +36,8 @@
 
 #include <mc/common/SubClientId.h>
 
+#include "include/RegistryHelper.h"
+
 #include "include/APIUtils.h"
 
 #include "include/ServerEvents/NetworkPacketEvent.h"
@@ -43,29 +45,37 @@
 
 #include "utils/ScoreboardUtils.h"
 
+#include "base/Wrapper.h"
+#include "base/ServiceProvider.h"
+
 #include "ConfigPlugin.h"
 
 #include "include/Plugins/MonitorPlugin.h"
 
 std::vector<std::string> mInterceptTextObjectPacket;
 
-namespace LOICollection::Plugins::monitor {
-    ll::event::ListenerPtr PlayerConnectEventListener;
-    ll::event::ListenerPtr PlayerDisconnectEventListener;
-    ll::event::ListenerPtr PlayerScoreChangedEventListener;
-    ll::event::ListenerPtr ExecuteCommandEventListener;
-    ll::event::ListenerPtr NetworkPacketEventCommandListener;
+namespace LOICollection::Plugins {
+    struct MonitorPlugin::Impl {
+        C_Config::C_Plugins::C_Monitor options;
 
-    ll::event::ListenerPtr NetworkPacketEventTextListener;
+        ll::event::ListenerPtr PlayerConnectEventListener;
+        ll::event::ListenerPtr PlayerDisconnectEventListener;
+        ll::event::ListenerPtr PlayerScoreChangedEventListener;
+        ll::event::ListenerPtr ExecuteCommandEventListener;
+        ll::event::ListenerPtr NetworkPacketEventCommandListener;
 
-    bool BelowNameTaskRunning = true;
+        ll::event::ListenerPtr NetworkPacketEventTextListener;
 
-    void registery() {
-        C_Config::C_Plugins::C_Monitor& options = Config::GetBaseConfigContext().Plugins.Monitor;
+        bool BelowNameTaskRunning = true;
+    };
 
-        if (options.BelowName.ModuleEnabled) {
-            ll::coro::keepThis([option = options.BelowName]() -> ll::coro::CoroTask<> {
-                while (BelowNameTaskRunning) {
+    MonitorPlugin::MonitorPlugin() : mImpl(std::make_unique<Impl>()) {};
+    MonitorPlugin::~MonitorPlugin() = default;
+
+    void MonitorPlugin::listenEvent() {
+        if (this->mImpl->options.BelowName.ModuleEnabled) {
+            ll::coro::keepThis([this, option = this->mImpl->options.BelowName]() -> ll::coro::CoroTask<> {
+                while (this->mImpl->BelowNameTaskRunning) {
                     co_await ll::chrono::ticks(option.RefreshInterval);
 
                     ll::service::getLevel()->forEachPlayer([mName = option.FormatText](Player& mTarget) -> bool {
@@ -90,7 +100,7 @@ namespace LOICollection::Plugins::monitor {
         }
 
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        PlayerConnectEventListener = eventBus.emplaceListener<ll::event::PlayerConnectEvent>([option = options.ServerToast](ll::event::PlayerConnectEvent& event) -> void {
+        this->mImpl->PlayerConnectEventListener = eventBus.emplaceListener<ll::event::PlayerConnectEvent>([option = this->mImpl->options.ServerToast](ll::event::PlayerConnectEvent& event) -> void {
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
                 return;
 
@@ -102,7 +112,7 @@ namespace LOICollection::Plugins::monitor {
             mInterceptTextObjectPacket.push_back(event.self().getUuid().asString());
         });
 
-        PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([option = options.ServerToast](ll::event::PlayerDisconnectEvent& event) -> void {
+        this->mImpl->PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([option = this->mImpl->options.ServerToast](ll::event::PlayerDisconnectEvent& event) -> void {
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
                 return;
 
@@ -114,7 +124,7 @@ namespace LOICollection::Plugins::monitor {
             mInterceptTextObjectPacket.erase(std::remove(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), event.self().getUuid().asString()), mInterceptTextObjectPacket.end());
         });
 
-        PlayerScoreChangedEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerScoreChangedEvent>([option = options.ChangeScore](LOICollection::ServerEvents::PlayerScoreChangedEvent& event) -> void {
+        this->mImpl->PlayerScoreChangedEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerScoreChangedEvent>([option = this->mImpl->options.ChangeScore](LOICollection::ServerEvents::PlayerScoreChangedEvent& event) -> void {
             using LOICollection::ServerEvents::ScoreChangedType;
 
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled || !event.getScore())
@@ -140,7 +150,7 @@ namespace LOICollection::Plugins::monitor {
             }
         });
 
-        ExecuteCommandEventListener = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>([option = options.DisableCommand](ll::event::ExecutingCommandEvent& event) -> void {
+        this->mImpl->ExecuteCommandEventListener = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>([option = this->mImpl->options.DisableCommand](ll::event::ExecutingCommandEvent& event) -> void {
             std::string mCommand = event.commandContext().mCommand.substr(1);
 
             if (!option.ModuleEnabled || event.commandContext().mOrigin == nullptr || mCommand.empty())
@@ -162,7 +172,7 @@ namespace LOICollection::Plugins::monitor {
             }
         });
 
-        NetworkPacketEventCommandListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([option = options.DisableCommand](LOICollection::ServerEvents::NetworkPacketEvent& event) -> void {
+        this->mImpl->NetworkPacketEventCommandListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([option = this->mImpl->options.DisableCommand](LOICollection::ServerEvents::NetworkPacketEvent& event) -> void {
             if (!option.ModuleEnabled || event.getPacket().getId() != MinecraftPacketIds::AvailableCommands)
                 return;
 
@@ -193,7 +203,7 @@ namespace LOICollection::Plugins::monitor {
         });
 
         std::vector<std::string> mTextPacketType{"multiplayer.player.joined", "multiplayer.player.left"};
-        NetworkPacketEventTextListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkBroadcastPacketEvent>([mTextPacketType, option = options.ServerToast](LOICollection::ServerEvents::NetworkBroadcastPacketEvent& event) -> void {
+        this->mImpl->NetworkPacketEventTextListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkBroadcastPacketEvent>([mTextPacketType, option = this->mImpl->options.ServerToast](LOICollection::ServerEvents::NetworkBroadcastPacketEvent& event) -> void {
             if (!option.ModuleEnabled || event.getPacket().getId() != MinecraftPacketIds::Text)
                 return;
 
@@ -214,16 +224,45 @@ namespace LOICollection::Plugins::monitor {
         });
     }
 
-    void unregistery() {
+    void MonitorPlugin::unlistenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerConnectEventListener);
-        eventBus.removeListener(PlayerDisconnectEventListener);
-        eventBus.removeListener(PlayerScoreChangedEventListener);
-        eventBus.removeListener(ExecuteCommandEventListener);
-        eventBus.removeListener(NetworkPacketEventCommandListener);
+        eventBus.removeListener(this->mImpl->PlayerConnectEventListener);
+        eventBus.removeListener(this->mImpl->PlayerDisconnectEventListener);
+        eventBus.removeListener(this->mImpl->PlayerScoreChangedEventListener);
+        eventBus.removeListener(this->mImpl->ExecuteCommandEventListener);
+        eventBus.removeListener(this->mImpl->NetworkPacketEventCommandListener);
 
-        eventBus.removeListener(NetworkPacketEventTextListener);
+        eventBus.removeListener(this->mImpl->NetworkPacketEventTextListener);
 
-        BelowNameTaskRunning = false;
+        this->mImpl->BelowNameTaskRunning = false;
+    }
+
+    bool MonitorPlugin::load() {
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Monitor.ModuleEnabled)
+            return false;
+
+        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Monitor;
+
+        return true;
+    }
+
+    bool MonitorPlugin::registry() {
+        if (!this->mImpl->options.ModuleEnabled)
+            return false;
+
+        this->listenEvent();
+
+        return true;
+    }
+
+    bool MonitorPlugin::unregistry() {
+        if (!this->mImpl->options.ModuleEnabled)
+            return false;
+
+        this->unlistenEvent();
+
+        return true;
     }
 }
+
+REGISTRY_HELPER("MonitorPlugin", LOICollection::Plugins::MonitorPlugin, LOICollection::Plugins::MonitorPlugin::getInstance())

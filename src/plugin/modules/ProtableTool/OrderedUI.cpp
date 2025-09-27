@@ -1,3 +1,4 @@
+#include <memory>
 #include <string>
 #include <unordered_map>
 
@@ -18,10 +19,25 @@
 
 #include <mc/common/SubClientId.h>
 
+#include "include/RegistryHelper.h"
+
+#include "base/Wrapper.h"
+#include "base/ServiceProvider.h"
+
+#include "ConfigPlugin.h"
+
 #include "include/ProtableTool/OrderedUI.h"
 
-std::unordered_map<uint64, uint> mFormResponse;
-std::unordered_map<uint64, std::unordered_map<uint, std::string>> mFormLists;
+namespace LOICollection::ProtableTool {
+    struct OrderedUI::Impl {
+        std::unordered_map<uint64, uint> mFormResponse;
+        std::unordered_map<uint64, std::unordered_map<uint, std::string>> mFormLists;
+
+        bool ModuleEnabled = false;
+
+        ll::event::ListenerPtr PlayerDisconnectEventListener;
+    };
+}
 
 LL_TYPE_INSTANCE_HOOK(
     ModalFormRequestPacketHook,
@@ -36,14 +52,16 @@ LL_TYPE_INSTANCE_HOOK(
     if (packet.getId() == MinecraftPacketIds::ShowModalForm) {
         uint64 identifierHash = identifier.getHash();
 
+        auto& instance = LOICollection::ProtableTool::OrderedUI::getInstance();
+
         auto& response = (ModalFormRequestPacket&)packet;
         if (!response.mFormId || response.mFormJSON.empty())
             return origin(identifier, packet, senderSubId);
-        if (mFormResponse.contains(identifierHash)) {
-            mFormLists[identifierHash].insert({response.mFormId, response.mFormJSON});
+        if (instance.mImpl->mFormResponse.contains(identifierHash)) {
+            instance.mImpl->mFormLists[identifierHash].insert({response.mFormId, response.mFormJSON});
             return;
         }
-        mFormResponse[identifierHash] = response.mFormId;
+        instance.mImpl->mFormResponse[identifierHash] = response.mFormId;
     }
     origin(identifier, packet, senderSubId);
 };
@@ -60,52 +78,76 @@ LL_TYPE_INSTANCE_HOOK(
 ) {
     uint64 identifierHash = identifier.getHash();
 
-    auto& response = (ModalFormResponsePacket&)*packet;
-    if (!mFormResponse.contains(identifierHash))
-        return origin(identifier, callback, packet);
-    if (response.mFormId != mFormResponse[identifierHash])
-        return;
-    mFormResponse.erase(identifierHash);
+    auto& instance = LOICollection::ProtableTool::OrderedUI::getInstance();
 
-    if (!mFormLists.contains(identifierHash))
+    auto& response = (ModalFormResponsePacket&)*packet;
+    if (!instance.mImpl->mFormResponse.contains(identifierHash))
         return origin(identifier, callback, packet);
-    if (mFormLists[identifierHash].empty()) {
-        mFormLists.erase(identifierHash);
+    if (response.mFormId != instance.mImpl->mFormResponse[identifierHash])
+        return;
+    instance.mImpl->mFormResponse.erase(identifierHash);
+
+    if (!instance.mImpl->mFormLists.contains(identifierHash))
+        return origin(identifier, callback, packet);
+    if (instance.mImpl->mFormLists[identifierHash].empty()) {
+        instance.mImpl->mFormLists.erase(identifierHash);
         return origin(identifier, callback, packet);
     }
 
     origin(identifier, callback, packet);
-    auto it = std::prev(mFormLists[identifierHash].end());
+    auto it = std::prev(instance.mImpl->mFormLists[identifierHash].end());
     ModalFormRequestPacket(it->first, it->second).sendToClient(identifier, packet->mSenderSubId);
-    mFormLists[identifierHash].erase(it);
+    instance.mImpl->mFormLists[identifierHash].erase(it);
 };
 
-namespace LOICollection::ProtableTool::OrderedUI {
-    ll::event::ListenerPtr PlayerDisconnectEventListener;
+namespace LOICollection::ProtableTool {
+    OrderedUI::OrderedUI() : mImpl(std::make_unique<Impl>()) {};
+    OrderedUI::~OrderedUI() = default;
 
-    void registery() {
+    bool OrderedUI::load() {
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.OrderedUI)
+            return false;
+
+        this->mImpl->ModuleEnabled = true;
+
+        return true;
+    }
+
+    bool OrderedUI::registry() {
+        if (!this->mImpl->ModuleEnabled)
+            return false;
+
         ModalFormRequestPacketHook::hook();
         ModalFormResponsePacketHook::hook();
 
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>(
-            [](ll::event::PlayerDisconnectEvent& event) -> void {
+        this->mImpl->PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([this](ll::event::PlayerDisconnectEvent& event) mutable -> void {
                 if (event.self().isSimulatedPlayer())
                     return;
+
                 uint64 identifierHash = event.self().getNetworkIdentifier().getHash();
-                if (mFormResponse.contains(identifierHash))
-                    mFormResponse.erase(identifierHash);
-                if (mFormLists.contains(identifierHash))
-                    mFormLists.erase(identifierHash);
+                if (this->mImpl->mFormResponse.contains(identifierHash))
+                    this->mImpl->mFormResponse.erase(identifierHash);
+                if (this->mImpl->mFormLists.contains(identifierHash))
+                    this->mImpl->mFormLists.erase(identifierHash);
             }
         );
+
+        return true;
     }
 
-    void unregistery() {
+    bool OrderedUI::unregistry() {
+        if (!this->mImpl->ModuleEnabled)
+            return false;
+
         ModalFormRequestPacketHook::unhook();
         ModalFormResponsePacketHook::unhook();
 
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(PlayerDisconnectEventListener);
+        eventBus.removeListener(this->mImpl->PlayerDisconnectEventListener);
+
+        return true;
     }
 }
+
+REGISTRY_HELPER("OrderedUI", LOICollection::ProtableTool::OrderedUI, LOICollection::ProtableTool::OrderedUI::getInstance())

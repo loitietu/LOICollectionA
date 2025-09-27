@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <numeric>
+#include <filesystem>
 
 #include <fmt/core.h>
 
@@ -32,6 +33,8 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
 
+#include "include/RegistryHelper.h"
+
 #include "include/APIUtils.h"
 #include "include/Plugins/LanguagePlugin.h"
 #include "include/Plugins/MutePlugin.h"
@@ -41,348 +44,371 @@
 
 #include "data/SQLiteStorage.h"
 
+#include "base/Wrapper.h"
+#include "base/ServiceProvider.h"
+
 #include "ConfigPlugin.h"
 
 #include "include/Plugins/ChatPlugin.h"
 
 using I18nUtilsTools::tr;
-using LOICollection::Plugins::language::getLanguage;
 
-namespace LOICollection::Plugins::chat {
-    struct ChatOP {
+namespace LOICollection::Plugins {
+    struct ChatPlugin::operation {
         CommandSelector<Player> Target;
         std::string Title;
         int Time = 0;
     };
 
-    C_Config::C_Plugins::C_Chat options;
+    struct ChatPlugin::Impl {
+        C_Config::C_Plugins::C_Chat options;
 
-    std::unique_ptr<SQLiteStorage> db;
-    std::shared_ptr<SQLiteStorage> db2;
-    std::shared_ptr<ll::io::Logger> logger;
+        std::unique_ptr<SQLiteStorage> db;
+        std::shared_ptr<SQLiteStorage> db2;
+        std::shared_ptr<ll::io::Logger> logger;
+
+        ll::event::ListenerPtr PlayerChatEventListener;
+        ll::event::ListenerPtr PlayerJoinEventListener;
+    };
+
+    ChatPlugin::ChatPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
+    ChatPlugin::~ChatPlugin() = default;
+
+    SQLiteStorage* ChatPlugin::getDatabase() {
+        return this->mImpl->db.get();
+    }
+
+    ll::io::Logger* ChatPlugin::getLogger() {
+        return this->mImpl->logger.get();
+    }
+
+    void ChatPlugin::gui::contentAdd(Player& player, Player& target) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
+        form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
+        form.appendInput("Input1", tr(mObjectLanguage, "chat.gui.manager.add.input1"), tr(mObjectLanguage, "chat.gui.manager.add.input1.placeholder"));
+        form.appendInput("Input2", tr(mObjectLanguage, "chat.gui.manager.add.input2"), tr(mObjectLanguage, "chat.gui.manager.add.input2.placeholder"));
+        form.sendTo(player, [this, mObjectLanguage, &target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            if (!dt) return this->add(pl);
+
+            std::string mTitle = std::get<std::string>(dt->at("Input1"));
+
+            if (mTitle.empty()) {
+                pl.sendMessage(tr(mObjectLanguage, "generic.tips.noinput"));
+                return this->add(pl);
+            }
+
+            int mTime = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+
+            this->mParent.addTitle(target, mTitle, mTime);
+        });
+    }
     
-    ll::event::ListenerPtr PlayerChatEventListener;
-    ll::event::ListenerPtr PlayerJoinEventListener;
+    void ChatPlugin::gui::contentRemove(Player& player, Player& target) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-    namespace MainGui {
-        void contentAdd(Player& player, Player& target) {
-            std::string mObjectLanguage = getLanguage(player);
+        ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
+        form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
+        form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.remove.dropdown"), this->mParent.getTitles(target));
+        form.sendTo(player, [this, &target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            if (!dt) return this->remove(pl);
 
-            ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
-            form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
-            form.appendInput("Input1", tr(mObjectLanguage, "chat.gui.manager.add.input1"), "", "None");
-            form.appendInput("Input2", tr(mObjectLanguage, "chat.gui.manager.add.input2"), "", "0");
-            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-                if (!dt) return MainGui::add(pl);
+            this->mParent.delTitle(target, std::get<std::string>(dt->at("dropdown")));
+        });
+    }
 
-                addTitle(target, std::get<std::string>(dt->at("Input1")), SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0));
-            });
-        }
+    void ChatPlugin::gui::add(Player& player) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         
-        void contentRemove(Player& player, Player& target) {
-            std::string mObjectLanguage = getLanguage(player);
-
-            ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
-            form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.remove.dropdown"), getTitles(target));
-            form.sendTo(player, [&](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-                if (!dt) return MainGui::remove(pl);
-
-                delTitle(target, std::get<std::string>(dt->at("dropdown")));
-            });
-        }
-
-        void add(Player& player) {
-            std::string mObjectLanguage = getLanguage(player);
-            
-            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.add.label"));
-            ll::service::getLevel()->forEachPlayer([&form](Player& mTarget) -> bool {
-                if (mTarget.isSimulatedPlayer())
-                    return true;
-
-                form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
-                    MainGui::contentAdd(pl, mTarget);
-                });
+        ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.add.label"));
+        ll::service::getLevel()->forEachPlayer([this, &form](Player& mTarget) -> bool {
+            if (mTarget.isSimulatedPlayer())
                 return true;
+
+            form.appendButton(mTarget.getRealName(), [this, &mTarget](Player& pl) -> void  {
+                this->contentAdd(pl, mTarget);
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
-                if (id == -1) MainGui::open(pl);
-            });
-        }
+            return true;
+        });
+        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
+            if (id == -1) this->open(pl);
+        });
+    }
 
-        void remove(Player& player) {
-            std::string mObjectLanguage = getLanguage(player);
+    void ChatPlugin::gui::remove(Player& player) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.remove.label"));
-            ll::service::getLevel()->forEachPlayer([&form](Player& mTarget) -> bool {
-                if (mTarget.isSimulatedPlayer())
-                    return true;
-
-                form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
-                    MainGui::contentRemove(pl, mTarget);
-                });
+        ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.remove.label"));
+        ll::service::getLevel()->forEachPlayer([this, &form](Player& mTarget) -> bool {
+            if (mTarget.isSimulatedPlayer())
                 return true;
+
+            form.appendButton(mTarget.getRealName(), [this, &mTarget](Player& pl) -> void  {
+                this->contentRemove(pl, mTarget);
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
-                if (id == -1) MainGui::open(pl);
-            });
-        }
+            return true;
+        });
+        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
+            if (id == -1) this->open(pl);
+        });
+    }
 
-        void title(Player& player) {
-            std::string mObjectLanguage = getLanguage(player);
-            
-            ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
-            form.appendLabel(LOICollectionAPI::translateString(tr(mObjectLanguage, "chat.gui.setTitle.label"), player));
-            form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.setTitle.dropdown"), getTitles(player));
-            form.sendTo(player, [](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-                if (!dt) return MainGui::setting(pl);
+    void ChatPlugin::gui::title(Player& player) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+        
+        ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
+        form.appendLabel(LOICollectionAPI::translateString(tr(mObjectLanguage, "chat.gui.setTitle.label"), player));
+        form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.setTitle.dropdown"), this->mParent.getTitles(player));
+        form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) mutable -> void {
+            if (!dt) return this->setting(pl);
 
-                std::string mObject = pl.getUuid().asString();
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-                db2->set("OBJECT$" + mObject, "Chat_Title", std::get<std::string>(dt->at("dropdown")));
-                
-                logger->info(LOICollectionAPI::getVariableString(tr({}, "chat.log1"), pl));
-            });
-        }
-
-        void blacklistSet(Player& player, const std::string& target) {
-            std::string mObjectLanguage = getLanguage(player);
-
-            std::string mObject = player.getUuid().asString();
+            std::string mObject = pl.getUuid().asString();
             std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-            std::string mObjectLabel = tr(mObjectLanguage, "chat.gui.setBlacklist.set.label");
+            this->mParent.mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", std::get<std::string>(dt->at("dropdown")));
+            
+            this->mParent.getLogger()->info(LOICollectionAPI::getVariableString(tr({}, "chat.log1"), pl));
+        });
+    }
 
-            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), 
-                fmt::format(fmt::runtime(mObjectLabel), target,
-                    db->get("Blacklist", mObject + "." + target + "_NAME", "None"),
-                    SystemUtils::formatDataTime(db->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None")
-                )
-            );
-            form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.set.remove"), [target](Player& pl) -> void {
-                delBlacklist(pl, target);
+    void ChatPlugin::gui::blacklistSet(Player& player, const std::string& target) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+        std::string mObjectLabel = tr(mObjectLanguage, "chat.gui.setBlacklist.set.label");
+
+        ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), 
+            fmt::format(fmt::runtime(mObjectLabel), target,
+                this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_NAME", "None"),
+                SystemUtils::formatDataTime(this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None")
+            )
+        );
+        form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.set.remove"), [this, target](Player& pl) -> void {
+            this->mParent.delBlacklist(pl, target);
+        });
+        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
+            if (id == -1) this->blacklist(pl);
+        });
+    }
+
+    void ChatPlugin::gui::blacklistAdd(Player& player) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+        
+        ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.setBlacklist.add.label"));
+        ll::service::getLevel()->forEachPlayer([this, &form, &player](Player& mTarget) -> bool {
+            if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
+                return true;
+
+            form.appendButton(mTarget.getRealName(), [this, &mTarget](Player& pl) -> void  {
+                this->mParent.addBlacklist(pl, mTarget);
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
-                if (id == -1) MainGui::blacklist(pl);
+            return true;
+        });
+        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
+            if (id == -1) this->blacklist(pl);
+        });
+    }
+
+    void ChatPlugin::gui::blacklist(Player& player) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+        
+        ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
+        form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.add"), [this, mObjectLanguage](Player& pl) -> void {
+            int mBlacklistCount = (int) this->mParent.getBlacklist(pl).size();
+            if (((int) this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
+                pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "chat.gui.setBlacklist.tips1")), mBlacklistCount));
+                return this->setting(pl);
+            }
+
+            this->blacklistAdd(pl);
+        });
+        for (std::string& mTarget : this->mParent.getBlacklist(player)) {
+            form.appendButton(mTarget, [this, mTarget](Player& pl) -> void {
+                this->blacklistSet(pl, mTarget);
             });
         }
+        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
+            if (id == -1) this->setting(pl);
+        });
+    }
 
-        void blacklistAdd(Player& player) {
-            std::string mObjectLanguage = getLanguage(player);
-            
-            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.setBlacklist.add.label"));
-            ll::service::getLevel()->forEachPlayer([&form, &player](Player& mTarget) -> bool {
-                if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
-                    return true;
+    void ChatPlugin::gui::setting(Player& player) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-                form.appendButton(mTarget.getRealName(), [&mTarget](Player& pl) -> void  {
-                    addBlacklist(pl, mTarget);
+        ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
+        form.appendButton(tr(mObjectLanguage, "chat.gui.setTitle"), "textures/ui/backup_replace", "path", [this](Player& pl) -> void {
+            this->title(pl);
+        });
+        form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist"), "textures/ui/icon_book_writable", "path", [this](Player& pl) -> void {
+            this->blacklist(pl);
+        });
+        form.sendTo(player);
+    }
+
+    void ChatPlugin::gui::open(Player& player) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+        
+        ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
+        form.appendButton(tr(mObjectLanguage, "chat.gui.manager.add"), "textures/ui/backup_replace", "path", [this](Player& pl) -> void {
+            this->add(pl);
+        });
+        form.appendButton(tr(mObjectLanguage, "chat.gui.manager.remove"), "textures/ui/free_download_symbol", "path", [this](Player& pl) -> void {
+            this->remove(pl);
+        });
+        form.sendTo(player);
+    }
+
+    void ChatPlugin::registeryCommand() {
+        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
+            .getOrCreateCommand("chat", tr({}, "commands.chat.description"), CommandPermissionLevel::Any);
+        command.overload<operation>().text("add").required("Target").required("Title").optional("Time").execute(
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
+            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                return output.error(tr({}, "commands.generic.permission"));
+
+            CommandSelectorResults<Player> results = param.Target.results(origin);
+            if (results.empty())
+                return output.error(tr({}, "commands.generic.target"));
+
+            for (Player*& pl : results) {
+                this->addTitle(*pl, param.Title, param.Time);
+
+                output.success(fmt::runtime(tr({}, "commands.chat.success.add")), param.Title, pl->getRealName());
+            }
+        });
+        command.overload<operation>().text("remove").required("Target").required("Title").execute(
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
+            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                return output.error(tr({}, "commands.generic.permission"));
+
+            CommandSelectorResults<Player> results = param.Target.results(origin);
+            if (results.empty())
+                return output.error(tr({}, "commands.generic.target"));
+
+            for (Player*& pl : results) {
+                this->delTitle(*pl, param.Title);
+
+                output.success(fmt::runtime(tr({}, "commands.chat.success.remove")), pl->getRealName(), param.Title);
+            }
+        });
+        command.overload<operation>().text("set").required("Target").required("Title").execute(
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
+            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                return output.error(tr({}, "commands.generic.permission"));
+
+            CommandSelectorResults<Player> results = param.Target.results(origin);
+            if (results.empty())
+                return output.error(tr({}, "commands.generic.target"));
+
+            for (Player*& pl : results) {
+                std::string mObject = pl->getUuid().asString();
+                std::replace(mObject.begin(), mObject.end(), '-', '_');
+                
+                this->mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", param.Title);
+
+                output.success(fmt::runtime(tr({}, "commands.chat.success.set")), pl->getRealName(), param.Title);
+            }
+        });
+        command.overload<operation>().text("list").required("Target").execute(
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
+            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                return output.error(tr({}, "commands.generic.permission"));
+
+            CommandSelectorResults<Player> results = param.Target.results(origin);
+            if (results.empty())
+                return output.error(tr({}, "commands.generic.target"));
+
+            for (Player*& player : results) {
+                std::vector<std::string> mObjectList = this->getTitles(*player);
+                std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), [](std::string a, const std::string& b) -> std::string {
+                    return a.append(a.empty() ? "" : ", ").append(b);
                 });
+
+                output.success(fmt::runtime(tr({}, "commands.chat.success.list")), player->getRealName(), result.empty() ? "None" : result);
+            }
+        });
+        command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                return output.error(tr({}, "commands.generic.permission"));
+
+            Actor* entity = origin.getEntity();
+            if (entity == nullptr || !entity->isPlayer())
+                return output.error(tr({}, "commands.generic.target"));
+            Player& player = *static_cast<Player*>(entity);
+
+            this->mGui->open(player);
+
+            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+        });
+        command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            Actor* entity = origin.getEntity();
+            if (entity == nullptr || !entity->isPlayer())
+                return output.error(tr({}, "commands.generic.target"));
+            Player& player = *static_cast<Player*>(entity);
+            
+            this->mGui->setting(player);
+
+            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+        });
+    }
+
+    void ChatPlugin::listenEvent() {
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+        this->mImpl->PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([this](ll::event::PlayerJoinEvent& event) mutable -> void {
+            if (event.self().isSimulatedPlayer())
+                return;
+
+            std::string mObject = event.self().getUuid().asString();
+            std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+            if (!this->mImpl->db2->has("OBJECT$" + mObject, "Chat_Title"))
+                this->mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", "None");
+        });
+        this->mImpl->PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>([this](ll::event::PlayerChatEvent& event) -> void {
+            if (event.self().isSimulatedPlayer() || MutePlugin::getInstance().isMute(event.self()))
+                return;
+
+            event.cancel();
+
+            std::string mChat = this->mImpl->options.FormatText;
+            LOICollectionAPI::translateString(mChat, event.self());
+            
+            TextPacket packet = TextPacket::createChat("", 
+                fmt::format(fmt::runtime(mChat), event.message()), 
+                "", event.self().getXuid(), ""
+            );
+
+            ll::service::getLevel()->forEachPlayer([this, packet, &player = event.self()](Player& mTarget) -> bool {
+                if (!mTarget.isSimulatedPlayer() && !this->isBlacklist(mTarget, player))
+                    packet.sendTo(mTarget);
                 return true;
             });
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
-                if (id == -1) MainGui::blacklist(pl);
-            });
-        }
-
-        void blacklist(Player& player) {
-            std::string mObjectLanguage = getLanguage(player);
-            
-            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.add"), [mObjectLanguage](Player& pl) -> void {
-                if (((int) getBlacklist(pl).size()) >= options.BlacklistUpload) {
-                    pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "chat.gui.setBlacklist.tips1")), options.BlacklistUpload));
-                    return MainGui::setting(pl);
-                }
-
-                MainGui::blacklistAdd(pl);
-            });
-            for (std::string& mTarget : getBlacklist(player)) {
-                form.appendButton(mTarget, [mTarget](Player& pl) -> void {
-                    MainGui::blacklistSet(pl, mTarget);
-                });
-            }
-            form.sendTo(player, [](Player& pl, int id, ll::form::FormCancelReason) -> void {
-                if (id == -1) MainGui::setting(pl);
-            });
-        }
-
-        void setting(Player& player) {
-            std::string mObjectLanguage = getLanguage(player);
-
-            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "chat.gui.setTitle"), "textures/ui/backup_replace", "path", [](Player& pl) -> void {
-                MainGui::title(pl);
-            });
-            form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist"), "textures/ui/icon_book_writable", "path", [](Player& pl) -> void {
-                MainGui::blacklist(pl);
-            });
-            form.sendTo(player);
-        }
-
-        void open(Player& player) {
-            std::string mObjectLanguage = getLanguage(player);
-            
-            ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
-            form.appendButton(tr(mObjectLanguage, "chat.gui.manager.add"), "textures/ui/backup_replace", "path", [](Player& pl) -> void {
-                MainGui::add(pl);
-            });
-            form.appendButton(tr(mObjectLanguage, "chat.gui.manager.remove"), "textures/ui/free_download_symbol", "path", [](Player& pl) -> void {
-                MainGui::remove(pl);
-            });
-            form.sendTo(player);
-        }
+        }, ll::event::EventPriority::Normal);
     }
 
-    namespace {
-        void registerCommand() {
-            ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-                .getOrCreateCommand("chat", tr({}, "commands.chat.description"), CommandPermissionLevel::Any);
-            command.overload<ChatOP>().text("add").required("Target").required("Title").optional("Time").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
-                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr({}, "commands.generic.permission"));
-
-                CommandSelectorResults<Player> results = param.Target.results(origin);
-                if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
-
-                for (Player*& pl : results) {
-                    addTitle(*pl, param.Title, param.Time);
-
-                    output.success(fmt::runtime(tr({}, "commands.chat.success.add")), param.Title, pl->getRealName());
-                }
-            });
-            command.overload<ChatOP>().text("remove").required("Target").required("Title").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
-                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr({}, "commands.generic.permission"));
-
-                CommandSelectorResults<Player> results = param.Target.results(origin);
-                if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
-
-                for (Player*& pl : results) {
-                    delTitle(*pl, param.Title);
-
-                    output.success(fmt::runtime(tr({}, "commands.chat.success.remove")), pl->getRealName(), param.Title);
-                }
-            });
-            command.overload<ChatOP>().text("set").required("Target").required("Title").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
-                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr({}, "commands.generic.permission"));
-
-                CommandSelectorResults<Player> results = param.Target.results(origin);
-                if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
-
-                for (Player*& pl : results) {
-                    std::string mObject = pl->getUuid().asString();
-                    std::replace(mObject.begin(), mObject.end(), '-', '_');
-                    
-                    db2->set("OBJECT$" + mObject, "Chat_Title", param.Title);
-
-                    output.success(fmt::runtime(tr({}, "commands.chat.success.set")), pl->getRealName(), param.Title);
-                }
-            });
-            command.overload<ChatOP>().text("list").required("Target").execute(
-                [](CommandOrigin const& origin, CommandOutput& output, ChatOP const& param) -> void {
-                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr({}, "commands.generic.permission"));
-
-                CommandSelectorResults<Player> results = param.Target.results(origin);
-                if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
-
-                for (Player*& player : results) {
-                    std::vector<std::string> mObjectList = getTitles(*player);
-                    std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), [](std::string a, const std::string& b) -> std::string {
-                        return a.append(a.empty() ? "" : ", ").append(b);
-                    });
-
-                    output.success(fmt::runtime(tr({}, "commands.chat.success.list")), player->getRealName(), result.empty() ? "None" : result);
-                }
-            });
-            command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
-                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr({}, "commands.generic.permission"));
-
-                Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
-                Player& player = *static_cast<Player*>(entity);
-                MainGui::open(player);
-
-                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
-            });
-            command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
-                Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
-                Player& player = *static_cast<Player*>(entity);
-                MainGui::setting(player);
-
-                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
-            });
-        }
-
-        void listenEvent() {
-            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([](ll::event::PlayerJoinEvent& event) -> void {
-                if (event.self().isSimulatedPlayer())
-                    return;
-
-                std::string mObject = event.self().getUuid().asString();
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-                if (!db2->has("OBJECT$" + mObject, "Chat_Title"))
-                    db2->set("OBJECT$" + mObject, "Chat_Title", "None");
-            });
-            PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>([](ll::event::PlayerChatEvent& event) -> void {
-                if (event.self().isSimulatedPlayer() || mute::isMute(event.self()))
-                    return;
-
-                event.cancel();
-
-                std::string mChat = options.FormatText;
-                LOICollectionAPI::translateString(mChat, event.self());
-                
-                TextPacket packet = TextPacket::createChat("", 
-                    fmt::format(fmt::runtime(mChat), event.message()), 
-                    "", event.self().getXuid(), ""
-                );
-
-                ll::service::getLevel()->forEachPlayer([packet, &player = event.self()](Player& mTarget) -> bool {
-                    if (!mTarget.isSimulatedPlayer() && !isBlacklist(mTarget, player))
-                        packet.sendTo(mTarget);
-                    return true;
-                });
-            }, ll::event::EventPriority::Normal);
-        }
-
-        void unlistenEvent() {
-            ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-            eventBus.removeListener(PlayerJoinEventListener);
-            eventBus.removeListener(PlayerChatEventListener);
-        }
+    void ChatPlugin::unlistenEvent() {
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+        eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
+        eventBus.removeListener(this->mImpl->PlayerChatEventListener);
     }
 
-    void addTitle(Player& player, const std::string& text, int time) {
-        if (!isValid()) 
+    void ChatPlugin::addTitle(Player& player, const std::string& text, int time) {
+        if (!this->isValid()) 
             return;
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         
-        db->set("Titles", mObject + "." + text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
+        this->getDatabase()->set("Titles", mObject + "." + text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
         
-        logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log2"), player)), text);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log2"), player)), text);
     }
 
-    void addBlacklist(Player& player, Player& target) {
-        if (!isValid())
+    void ChatPlugin::addBlacklist(Player& player, Player& target) {
+        if (!this->isValid())
             return;
 
         std::string mObject = player.getUuid().asString();
@@ -390,53 +416,53 @@ namespace LOICollection::Plugins::chat {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
 
-        db->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
-        db->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
+        this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
+        this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
-        logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log5"), player)), mTargetObject);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log5"), player)), mTargetObject);
     }
 
-    void delTitle(Player& player, const std::string& text) {
-        if (!isValid())
+    void ChatPlugin::delTitle(Player& player, const std::string& text) {
+        if (!this->isValid())
              return;
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-        if (db->has("Titles", mObject + "." + text))
-            db->del("Titles", mObject + "." + text);
+        if (this->getDatabase()->has("Titles", mObject + "." + text))
+            this->getDatabase()->del("Titles", mObject + "." + text);
 
-        if (db2->get("OBJECT$" + mObject, "Chat_Title", "None") == text)
-            db2->set("OBJECT$" + mObject, "Chat_Title", "None");
+        if (this->mImpl->db2->get("OBJECT$" + mObject, "Chat_Title", "None") == text)
+            this->mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", "None");
 
-        logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log3"), player)), text);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log3"), player)), text);
     }
 
-    void delBlacklist(Player& player, const std::string& target) {
-        if (!isValid())
+    void ChatPlugin::delBlacklist(Player& player, const std::string& target) {
+        if (!this->isValid())
             return;
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-        if (db->hasByPrefix("Blacklist", mObject + "." + target + "_TIME", 2))
-            db->delByPrefix("Blacklist", mObject + "." + target);
+        if (this->getDatabase()->hasByPrefix("Blacklist", mObject + "." + target + "_TIME", 2))
+            this->getDatabase()->delByPrefix("Blacklist", mObject + "." + target);
 
-        logger->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log6"), player)), target);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log6"), player)), target);
     }
 
-    std::string getTitle(Player& player) {
-        if (!isValid())
+    std::string ChatPlugin::getTitle(Player& player) {
+        if (!this->isValid())
             return "None";
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-        std::string mTitle = db2->get("OBJECT$" + mObject, "Chat_Title", "None");
+        std::string mTitle = this->mImpl->db2->get("OBJECT$" + mObject, "Chat_Title", "None");
         
-        if (SystemUtils::isReach(db->get("Titles", mObject + "." + mTitle, "None"))) {
-            db2->set("OBJECT$" + mObject, "Chat_Title", "None");
-            db->del("Titles", mObject + "." + mTitle);
+        if (SystemUtils::isReach(this->getDatabase()->get("Titles", mObject + "." + mTitle, "None"))) {
+            this->mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", "None");
+            this->getDatabase()->del("Titles", mObject + "." + mTitle);
             
             return "None";
         }
@@ -444,39 +470,39 @@ namespace LOICollection::Plugins::chat {
         return mTitle;
     }
 
-    std::string getTitleTime(Player& player, const std::string& text) {
-        if (!isValid())
+    std::string ChatPlugin::getTitleTime(Player& player, const std::string& text) {
+        if (!this->isValid())
             return "None";
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-        return db->get("Titles", mObject + "." + text, "None"); 
+        return this->getDatabase()->get("Titles", mObject + "." + text, "None"); 
     }
 
-    std::vector<std::string> getTitles(Player& player) {
-        if (!isValid())
+    std::vector<std::string> ChatPlugin::getTitles(Player& player) {
+        if (!this->isValid())
             return {};
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         std::vector<std::string> mResult;
-        for (auto& mTarget : db->listByPrefix("Titles", mObject + "."))
+        for (auto& mTarget : this->getDatabase()->listByPrefix("Titles", mObject + "."))
             mResult.push_back(mTarget.substr(mTarget.find_first_of('.') + 1));
 
         return mResult;
     }
 
-    std::vector<std::string> getBlacklist(Player& player) {
-        if (!isValid()) 
+    std::vector<std::string> ChatPlugin::getBlacklist(Player& player) {
+        if (!this->isValid()) 
             return {};
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         std::vector<std::string> mResult;
-        for (auto& mTarget : db->listByPrefix("Blacklist", mObject + ".")) {
+        for (auto& mTarget : this->getDatabase()->listByPrefix("Blacklist", mObject + ".")) {
             std::string mKey = mTarget.substr(mTarget.find_first_of('.') + 1);
 
             mResult.push_back(mKey.substr(0, mKey.find_last_of('_')));
@@ -488,18 +514,18 @@ namespace LOICollection::Plugins::chat {
         return mResult;
     }
 
-    bool isTitle(Player& player, const std::string& text) {
-        if (!isValid()) 
+    bool ChatPlugin::isTitle(Player& player, const std::string& text) {
+        if (!this->isValid()) 
             return false;
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-        return db->has("Titles", mObject + "." + text);
+        return this->getDatabase()->has("Titles", mObject + "." + text);
     }
 
-    bool isBlacklist(Player& player, Player& target) {
-        if (!isValid()) 
+    bool ChatPlugin::isBlacklist(Player& player, Player& target) {
+        if (!this->isValid()) 
             return false;
 
         std::string mObjcet = player.getUuid().asString();
@@ -507,30 +533,50 @@ namespace LOICollection::Plugins::chat {
         std::replace(mObjcet.begin(), mObjcet.end(), '-', '_');
         std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
 
-        return db->has("Blacklist", mObjcet + "." + mTargetObject + "_TIME");
+        return this->getDatabase()->has("Blacklist", mObjcet + "." + mTargetObject + "_TIME");
     }
 
-    bool isValid() {
-        return logger != nullptr && db != nullptr;
+    bool ChatPlugin::isValid() {
+        return this->getLogger() != nullptr && this->getDatabase() != nullptr && this->mImpl->db2 != nullptr;
     }
 
-    void registery(void* database, void* setting) {
-        db = std::move(*static_cast<std::unique_ptr<SQLiteStorage>*>(database));
-        db2 = *static_cast<std::shared_ptr<SQLiteStorage>*>(setting);
-        logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
+    bool ChatPlugin::load() {
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Chat.ModuleEnabled)
+            return false;
+
+        auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
+
+        this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "chat.db").string());
+        this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
+        this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
+        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Chat;
+
+        return true;
+    }
+
+    bool ChatPlugin::registry() {
+        if (!this->mImpl->options.ModuleEnabled)
+            return false;
+
+        this->getDatabase()->create("Blacklist");
+        this->getDatabase()->create("Titles");
         
-        options = Config::GetBaseConfigContext().Plugins.Chat;
+        this->registeryCommand();
+        this->listenEvent();
 
-        db->create("Blacklist");
-        db->create("Titles");
-        
-        registerCommand();
-        listenEvent();
+        return true;
     }
 
-    void unregistery() {
-        unlistenEvent();
+    bool ChatPlugin::unregistry() {
+        if (!this->mImpl->options.ModuleEnabled)
+            return false;
 
-        db->exec("VACUUM;");
+        this->unlistenEvent();
+
+        this->getDatabase()->exec("VACUUM;");
+
+        return true;
     }
 }
+
+REGISTRY_HELPER("ChatPlugin", LOICollection::Plugins::ChatPlugin, LOICollection::Plugins::ChatPlugin::getInstance())

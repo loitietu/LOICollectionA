@@ -56,24 +56,24 @@ namespace LOICollection::LOICollectionAPI {
             return std::string{player.mName};
         });
         registerVariable("player.title", [](Player& player) -> std::string {
-            return Plugins::chat::getTitle(player);
+            return Plugins::ChatPlugin::getInstance().getTitle(player);
         });
         registerVariable("player.title.time", [](Player& player) -> std::string {
             return SystemUtils::formatDataTime(
-                Plugins::chat::getTitleTime(player, Plugins::chat::getTitle(player)), "None"
+                Plugins::ChatPlugin::getInstance().getTitleTime(player, Plugins::ChatPlugin::getInstance().getTitle(player)), "None"
             );
         });
         registerVariable("player.pvp", [](Player& player) -> std::string {
-            return Plugins::pvp::isEnable(player) ? "true" : "false";
+            return Plugins::PvpPlugin::getInstance().isEnable(player) ? "true" : "false";
         });
         registerVariable("player.mute", [](Player& player) -> std::string {
-            return Plugins::mute::isMute(player) ? "true" : "false";
+            return Plugins::MutePlugin::getInstance().isMute(player) ? "true" : "false";
         });
         registerVariable("player.language", [](Player& player) -> std::string { 
-            return Plugins::language::getLanguage(player);
+            return Plugins::LanguagePlugin::getInstance().getLanguage(player);
         });
         registerVariable("player.language.name", [](Player& player) -> std::string {
-            return I18nUtils::getInstance()->get(Plugins::language::getLanguage(player), "name");
+            return I18nUtils::getInstance()->get(Plugins::LanguagePlugin::getInstance().getLanguage(player), "name");
         });
         registerVariable("player.gamemode", [](Player& player) -> std::string {
             return std::string(magic_enum::enum_name(player.getPlayerGameType()));
@@ -206,7 +206,7 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string(ScoreboardUtils::getScore(player, name));
         });
         registerVariable("tr", [](Player& player, const std::string& name) -> std::string {
-            return I18nUtils::getInstance()->get(Plugins::language::getLanguage(player), name);
+            return I18nUtils::getInstance()->get(Plugins::LanguagePlugin::getInstance().getLanguage(player), name);
         });
         registerVariable("entity", [](Player&, std::string name) -> std::string {
             std::vector<Actor*> mRuntimeActorList = ll::service::getLevel()->getRuntimeActorList();
