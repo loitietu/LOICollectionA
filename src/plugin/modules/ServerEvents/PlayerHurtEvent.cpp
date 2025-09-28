@@ -38,7 +38,7 @@ namespace LOICollection::ServerEvents {
         PlayerHurtEventHook1,
         HookPriority::Normal,
         Mob,
-        &Mob::$_hurt,
+        &Mob::hurt,
         bool,
         ActorDamageSource const& source,
         float damage,
