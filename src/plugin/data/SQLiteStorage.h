@@ -6,14 +6,17 @@
 #include <string_view>
 #include <unordered_map>
 
-#include <SQLiteCpp/SQLiteCpp.h>
-
 #include "base/Macro.h"
+
+namespace SQLite {
+    class Database;
+    class Statement;
+}
 
 class SQLiteStorage {
 public:
-    LOICOLLECTION_A_API   explicit SQLiteStorage(const std::string& dbPath);
-    LOICOLLECTION_A_API   ~SQLiteStorage() = default;
+    LOICOLLECTION_A_API   explicit SQLiteStorage(const std::string& path);
+    LOICOLLECTION_A_API   ~SQLiteStorage();
 
     LOICOLLECTION_A_NDAPI SQLite::Database* getDatabase();
 

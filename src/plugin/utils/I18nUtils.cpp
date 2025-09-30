@@ -4,7 +4,6 @@
 #include <unordered_map>
 
 #include <nlohmann/json.hpp>
-#include <nlohmann/json_fwd.hpp>
 
 #include "I18nUtils.h"
 

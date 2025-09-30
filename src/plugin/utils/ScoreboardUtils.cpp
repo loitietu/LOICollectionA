@@ -24,6 +24,7 @@ namespace ScoreboardUtils {
         ScoreboardId identity = level->getScoreboard().getScoreboardId(player);
         if (identity.mRawID == ScoreboardId::INVALID().mRawID)
             return 0;
+        
         Objective* obj = level->getScoreboard().getObjective(name);
         return !obj ? 0 : obj->getPlayerScore(identity).mValue;
     }

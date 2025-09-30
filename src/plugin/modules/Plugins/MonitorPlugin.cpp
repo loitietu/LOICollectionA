@@ -7,7 +7,6 @@
 #include <ll/api/chrono/GameChrono.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
 #include <ll/api/service/Bedrock.h>
-#include <ll/api/utils/StringUtils.h>
 
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>

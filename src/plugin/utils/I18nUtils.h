@@ -19,6 +19,7 @@ public:
     [[nodiscard]] bool has(const std::string& local) const;
 
     [[nodiscard]] std::string get(const std::string& local, const std::string& key) const;
+    
 public:
     std::unordered_map<std::string, std::unordered_map<std::string, std::string>> data;
     std::string defaultLocale{};

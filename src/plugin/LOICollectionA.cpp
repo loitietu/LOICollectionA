@@ -87,6 +87,7 @@ namespace LOICollection {
         logger.info("Initialization of language completed.");
 
         logger.info("Initialization of plugins completed.");
+
         return true;
     }
 

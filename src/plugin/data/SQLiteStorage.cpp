@@ -17,12 +17,13 @@ SQLite::Statement& SQLiteStorage::getCachedStatement(const std::string& sql) {
     return *stmtCache.emplace(sql, std::move(stmt)).first->second;
 }
 
-SQLiteStorage::SQLiteStorage(const std::string& dbPath) : database(std::make_unique<SQLite::Database>(dbPath, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)) {
+SQLiteStorage::SQLiteStorage(const std::string& path) : database(std::make_unique<SQLite::Database>(path, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)) {
     database->exec("PRAGMA journal_mode = MEMORY;");
     database->exec("PRAGMA synchronous = NORMAL;");
     database->exec("PRAGMA temp_store = MEMORY;");
     database->exec("PRAGMA cache_size = 8096;"); 
 }
+SQLiteStorage::~SQLiteStorage() = default;
 
 SQLite::Database* SQLiteStorage::getDatabase() {
     return database.get();
