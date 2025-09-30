@@ -12,7 +12,6 @@
 #include "utils/SystemUtils.h"
 #include "utils/I18nUtils.h"
 
-#include "data/JsonStorage.h"
 #include "data/SQLiteStorage.h"
 
 #include "include/APIUtils.h"
@@ -22,8 +21,6 @@
 
 #include "base/Wrapper.h"
 #include "base/ServiceProvider.h"
-
-#include "LangPlugin.h"
 
 #include "LOICollectionA.h"
 
@@ -84,11 +81,6 @@ namespace LOICollection {
         logger.info("Initialization of database completed.");
         
         std::filesystem::create_directory(langFilePath);
-        if (this->config.Plugins.language.FileUpdate) {
-            JsonStorage mObjectLanguage(langFilePath / "zh_CN.json");
-            mObjectLanguage.get() = CNLangData;
-            mObjectLanguage.save();
-        }
         I18nUtils::getInstance() = std::make_unique<I18nUtils>(langFilePath.string());
         I18nUtils::getInstance()->defaultLocale = this->config.ConsoleLanguage == "system" ?
             SystemUtils::getSystemLocaleCode("zh_CN") : this->config.ConsoleLanguage;

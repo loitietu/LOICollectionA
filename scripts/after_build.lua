@@ -113,6 +113,11 @@ function pack_plugin(target,plugin_define)
             os.cp(oripdbfile, pdbfile)
         end
 
+        local assetsdir = path.join(os.projectdir(), "assets")
+        if os.isdir(assetsdir) then
+            os.cp(path.join(assetsdir, "*"), outputdir)
+        end
+
         cpPackage("sqlitecpp", target, outputdir)
 
         formattedmanifest = string_formatter(manifest, plugin_define)

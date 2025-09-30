@@ -7,9 +7,6 @@ struct C_Config {
     int version = 0;
     std::string ConsoleLanguage = "system";
     struct C_Plugins {
-        struct C_Language{
-            bool FileUpdate = true;
-        } language;
         bool Blacklist = false;
         bool Mute = false;
         bool Cdk = false;

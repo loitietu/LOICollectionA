@@ -12,12 +12,9 @@
 
 ```json
 {
-    "version": 170, // 配置文件版本号，请勿修改
+    "version": 180, // 配置文件版本号，请勿修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
-        "language": { // 多语言配置
-            "FileUpdate": true // 是否启用语言更新（即每次启动服务器时向内置语言文件进行重写）
-        },
         "Blacklist": false, // 是否启用黑名单
         "Mute": false,   // 是否启用禁言
         "Cdk": false, // 是否启用 CDK
@@ -163,7 +160,7 @@
 ```
 
 > [!NOTE]
-> 以上内容取自 LOICollectionA 1.7.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以上内容取自 LOICollectionA 1.8.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 
 ## 模块数据文件
 
