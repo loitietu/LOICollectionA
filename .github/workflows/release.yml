@@ -31,9 +31,6 @@ jobs:
                 xmake repo -u
             
             - run: |
-                xmake lua scripts/project.lua
-            
-            - run: |
                 xmake f -a x64 -m release -p windows -v -y --shared=${{ matrix.shared }}
             
             - run: |
