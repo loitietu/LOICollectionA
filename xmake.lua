@@ -11,8 +11,8 @@ option("shared")
 option_end()
 
 add_requires("sqlitecpp 3.3.3", {configs = {shared = get_config("shared")}})
+add_requires("levilamina 1.5.2", {configs = {target_type = "server"}})
 add_requires(
-    "levilamina 1.5.2",
     "levibuildscript",
     "nlohmann_json 3.12.0"
 )

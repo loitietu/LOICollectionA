@@ -57,7 +57,6 @@ LOICollectionA 是源于插件 LOICollection 所演化而来的内容，其在�
 git clone https://github.com/loitietu/LOICollectionA.git
 cd LOICollectionA
 xmake repo -u
-xmake lua scripts/project.lua
 xmake
 ```
 

@@ -2,30 +2,36 @@
 
 ## 安装 LOICollectionA
 
-> 这一部分分为两个部分 `手动安装` 和 `lip安装`  
-> 在大多数情况下,通常建议使用 `lip安装`  
-> 但如果是在部分特殊情况下,那么 `手动安装` 则比 `lip安装` 来的更加快捷
+这一部分分为两个部分 `手动安装` 和 `lip安装`  
+在大多数情况下,通常建议使用 `lip安装`  
+但如果是在部分特殊情况下,那么 `手动安装` 则比 `lip安装` 来的更加快捷
 
 ### lip安装
 
-!> 在安装之前请确保已正常安装 `lip` 并配置好服务端
-> 请在服务端根目录下执行以下命令安装 LOICollectionA
+> [!WARNING]
+> 在安装之前请确保已正常安装 `lip` 并配置好服务端
+
+- 请在服务端根目录下执行以下命令安装 LOICollectionA
 
 ```bash
 lip install github.com/loitietu/LOICollectionA
 ```
 
-> 对于安装指定版本的可以执行以下命令
+- 对于安装指定版本的可以执行以下命令
 
 ```bash
 lip install github.com/loitietu/LOICollectionA@v1.7.0
 ```
 
-> 对于进行版本更新的可以执行以下命令
+- 对于进行版本更新的可以执行以下命令
 
 ```bash
 lip install --upgrade github.com/loitietu/LOICollectionA
 ```
+
+> [!TIP]
+> 在进行版本更新时，请确保目标版本是否需要数据迁移。  
+> 如需进行数据迁移，请先备份插件数据，然后在 `Github` 库中的 `scripts/migrate` 文件夹中找到对应版本的 `migrate.py` 文件，按照 [说明](../course/migrate.md) 进行数据迁移。
 
 - 安装完成后,您可以在 `plugins` 文件夹中找到 LOICollectionA 的安装文件
 - 双击服务端根目录下的 `bedrock_server_mod.exe` 文件以启动服务器
@@ -39,7 +45,7 @@ lip install --upgrade github.com/loitietu/LOICollectionA
 
 | 名称 | 版本 |
 | --- | --- |
-| LeviLamina | 1.4.x |
+| LeviLamina | 1.5.x |
 
 > 您需要手动下载对应版本的前置组件  
 > 在下载前置组件时，请确保您下载的版本与 LOICollectionA 的版本兼容  
@@ -50,6 +56,8 @@ lip install --upgrade github.com/loitietu/LOICollectionA
 3. 将解压后的 `LOICollectionA` 文件夹移动到 `plugins` 文件夹下
 4. 双击服务端根目录下的 `bedrock_server_mod.exe` 文件以启动服务器
 5. 在服务器终端中，您应该能够看到 LOICollection 的启动日志
+
+---
 
 ### 常见问题
 

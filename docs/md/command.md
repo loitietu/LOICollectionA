@@ -19,7 +19,8 @@
 [Server] - /blacklist remove &ltId: string&gt
 ```
 
-?> 其中 `blacklist` 为 Blacklist 的顶层命令（权限等级: GameDirectors）。
+> [!TIP|style:callout]
+> 其中 `blacklist` 为 Blacklist 的顶层命令（权限等级: GameDirectors）。
 
 - `/blacklist add <Target: target> [Cause: string] [Time: int]`
   - 向黑名单中添加一个目标。

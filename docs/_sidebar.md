@@ -9,6 +9,10 @@
 - [命令列表](./md/command.md)
 - [LOICollectionAPI](./md/api.md)
 
+- **开发者文档**
+
+- [环境配置](./dev/config.md)
+
 - **插件教程**
 
 - [数据迁移](./course/migrate.md)

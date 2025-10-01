@@ -8,18 +8,18 @@
 
 ## 对于 1.4.6 版本升至 1.4.7 版本
 
-1. 请下载 [migrate147.py](../../scripts/migrate/migrate147.py) 文件并将其放入 `插件` 根目录下
+1. 请下载 `migrate147.py` 文件并将其放入 `插件` 根目录下
 2. 完成后在命令行中执行 `python migrate147.py` 即可完成迁移
 3. 迁移完成后，新的 `settings.db` 文件将包含所有迁移的数据
 
 ## 对于 1.6.1 版本升至 1.6.2 版本
 
-1. 请下载 [migrate162.py](../../scripts/migrate/migrate162.py) 文件并将其放入 `插件` 根目录下
-2. 完成后在命令行中执行 `python migrate.py` 即可完成迁移
+1. 请下载 `migrate162.py` 文件并将其放入 `插件` 根目录下
+2. 完成后在命令行中执行 `python migrate162.py` 即可完成迁移
 3. 迁移完成后，新的 `settings.db` 文件将包含所有迁移的数据
 
 ## 对于 1.6.5 版本升至 1.7.0 版本
 
-1. 请下载 [migrate170.py](../../scripts/migrate/migrate170.py) 文件并将其放入 `插件` 根目录下
-2. 完成后在命令行中执行 `python migrate.py` 即可完成迁移
+1. 请下载 `migrate170.py` 文件并将其放入 `插件` 根目录下
+2. 完成后在命令行中执行 `python migrate170.py` 即可完成迁移
 3. 迁移完成后，所有模块数据都将进行迁移

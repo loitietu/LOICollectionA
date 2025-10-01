@@ -39,10 +39,6 @@ jobs:
             - run: |
                 xmake -v -y
             
-            - run: |
-                mkdir -p build/bin/SDK/include/base
-                mkdir -p build/bin/SDK/lib
-            
             - name: Update manifest.json if Sentry DSN exists
               shell: pwsh
               run: |
@@ -66,15 +62,9 @@ jobs:
                 } else {
                     Write-Host "manifest.json not found at $manifestPath"
                 }
-            
-            - run: |
-                xcopy /E /I "${{ github.workspace }}\src\plugin\data\*.h" "${{ github.workspace }}\build\bin\SDK\include\"
-                xcopy /E /I "${{ github.workspace }}\src\plugin\include\*.h" "${{ github.workspace }}\build\bin\SDK\include\"
 
             - run: |
                 copy "${{ github.workspace }}\*.md" "${{ github.workspace }}\build\bin\"
-                copy "${{ github.workspace }}\src\plugin\base\Macro.h" "${{ github.workspace }}\build\bin\SDK\include\base\"
-                copy "${{ github.workspace }}\build\windows\x64\release\*.lib" "${{ github.workspace }}\build\bin\SDK\lib\"
                 copy "${{ github.workspace }}\LICENSE" "${{ github.workspace }}\build\bin\"
 
             - uses: actions/upload-artifact@v4
