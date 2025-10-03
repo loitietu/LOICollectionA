@@ -129,6 +129,7 @@ namespace LOICollection::Plugins {
         this->mImpl->PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([this](ll::event::PlayerDisconnectEvent& event) mutable -> void {
             if (event.self().isSimulatedPlayer())
                 return;
+            
             this->mImpl->mPlayerPvpLists.erase(event.self().getUuid().asString());
         });
         this->mImpl->PlayerHurtEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerHurtEvent>([this](LOICollection::ServerEvents::PlayerHurtEvent& event) mutable -> void {

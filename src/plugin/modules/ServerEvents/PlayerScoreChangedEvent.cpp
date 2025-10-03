@@ -66,6 +66,20 @@ namespace LOICollection::ServerEvents {
     }
 
     LL_TYPE_INSTANCE_HOOK(
+        PlayerScoreCleanupHook,
+        HookPriority::Lowest,
+        ServerPlayer,
+        &ServerPlayer::disconnect,
+        void
+    ) {
+        int64 mActorUniqueId = this->getOrCreateUniqueID().rawID;
+
+        mScores.erase(mActorUniqueId);
+
+        origin();
+    }
+
+    LL_TYPE_INSTANCE_HOOK(
         PlayerScoreChangedHook,
         HookPriority::Normal,
         ServerScoreboard,
@@ -98,7 +112,7 @@ namespace LOICollection::ServerEvents {
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactory();
     class PlayerScoreChangedEventEmitter : public ll::event::Emitter<emitterFactory, PlayerScoreChangedEvent> {
-        ll::memory::HookRegistrar<PlayerScoreInitializeHook, PlayerScoreChangedHook> hook;
+        ll::memory::HookRegistrar<PlayerScoreInitializeHook, PlayerScoreCleanupHook, PlayerScoreChangedHook> hook;
     };
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactory() {

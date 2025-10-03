@@ -34,7 +34,9 @@ LL_TYPE_INSTANCE_HOOK(
     void,
     BinaryStream& stream
 ) {
-    if (std::string mFakeSeed = LOICollection::ProtableTool::BasicHook::getInstance().mImpl->options.FakeSeed; !mFakeSeed.empty()) {
+    auto& instance = LOICollection::ProtableTool::BasicHook::getInstance();
+
+    if (std::string mFakeSeed = instance.mImpl->options.FakeSeed; !mFakeSeed.empty()) {
         const char* ptr = mFakeSeed.data();
         char* endpt{};
         int64 result = std::strtoll(ptr, &endpt, 10);

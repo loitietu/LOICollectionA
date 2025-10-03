@@ -57,10 +57,12 @@ LL_TYPE_INSTANCE_HOOK(
         auto& response = (ModalFormRequestPacket&)packet;
         if (!response.mFormId || response.mFormJSON.empty())
             return origin(identifier, packet, senderSubId);
+
         if (instance.mImpl->mFormResponse.contains(identifierHash)) {
             instance.mImpl->mFormLists[identifierHash].insert({response.mFormId, response.mFormJSON});
             return;
         }
+
         instance.mImpl->mFormResponse[identifierHash] = response.mFormId;
     }
     origin(identifier, packet, senderSubId);
@@ -83,18 +85,22 @@ LL_TYPE_INSTANCE_HOOK(
     auto& response = (ModalFormResponsePacket&)*packet;
     if (!instance.mImpl->mFormResponse.contains(identifierHash))
         return origin(identifier, callback, packet);
+
     if (response.mFormId != instance.mImpl->mFormResponse[identifierHash])
         return;
+
     instance.mImpl->mFormResponse.erase(identifierHash);
 
     if (!instance.mImpl->mFormLists.contains(identifierHash))
         return origin(identifier, callback, packet);
+
     if (instance.mImpl->mFormLists[identifierHash].empty()) {
         instance.mImpl->mFormLists.erase(identifierHash);
         return origin(identifier, callback, packet);
     }
 
     origin(identifier, callback, packet);
+    
     auto it = std::prev(instance.mImpl->mFormLists[identifierHash].end());
     ModalFormRequestPacket(it->first, it->second).sendToClient(identifier, packet->mSenderSubId);
     instance.mImpl->mFormLists[identifierHash].erase(it);
