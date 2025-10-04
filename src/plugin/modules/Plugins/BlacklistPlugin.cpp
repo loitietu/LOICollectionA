@@ -271,8 +271,8 @@ namespace LOICollection::Plugins {
 
             std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(mUuid), "blacklist.tips");
 
-            ll::service::getServerNetworkHandler()->disconnectClient(
-                event.getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked, 
+            ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
+                event.getNetworkIdentifier(), event.getSubClientId(), Connection::DisconnectFailReason::Kicked, 
                 fmt::format(fmt::runtime(mObjectTips), 
                     mData.at(mId + ".CAUSE"),
                     SystemUtils::formatDataTime(mData.at(mId + ".TIME"), "None")
@@ -305,8 +305,8 @@ namespace LOICollection::Plugins {
 
         std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(player), "blacklist.tips");
 
-        ll::service::getServerNetworkHandler()->disconnectClient(
-            player.getNetworkIdentifier(), Connection::DisconnectFailReason::Kicked,
+        ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
+            player.getNetworkIdentifier(), player.getClientSubId(), Connection::DisconnectFailReason::Kicked,
             fmt::format(fmt::runtime(mObjectTips), mCause,
                 SystemUtils::formatDataTime(this->getDatabase()->get("Blacklist", mTismestamp + ".TIME"), "None")
             ),
