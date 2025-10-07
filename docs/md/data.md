@@ -130,17 +130,22 @@
                     "RecordDatabase": true,
                     "OutputConsole": true
                 },
-                "onPlayerInteractBlock": { // 玩家交互方块事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
                 "onPlayerRespawn": { // 玩家重生事件
                     "ModuleEnabled": true,
                     "RecordDatabase": true,
                     "OutputConsole": true
                 },
                 "onPlayerUseItem": { // 玩家使用物品事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onPlayerContainerInteract": { // 玩家容器交互事件
+                    "ModuleEnabled": true,
+                    "RecordDatabase": true,
+                    "OutputConsole": true
+                },
+                "onBlockExplode": { // 方块爆炸事件
                     "ModuleEnabled": true,
                     "RecordDatabase": true,
                     "OutputConsole": true
