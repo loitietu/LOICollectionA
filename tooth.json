@@ -20,7 +20,7 @@
         {
             "platform": "win-x64",
             "dependencies": {
-                "github.com/LiteLDev/LeviLamina": "1.4.*"
+                "github.com/LiteLDev/LeviLamina": "1.5.*"
             },
             "assets": [
                 {
