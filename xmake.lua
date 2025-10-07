@@ -44,11 +44,12 @@ target("LOICollectionA")
         "LOICOLLECTION_A_EXPORTS"
     )
     add_files(
-        "src/plugin/**.cpp"
+        "src/LOICollectionA/**.cpp"
     )
-    add_includedirs(
-        "src/plugin"
-    )
+    add_includedirs("src")
+    add_headerfiles("src/(LOICollectionA/**.h)")
+    add_headerfiles("src/(LOICollectionA/frontend/**.h)", { install = false })
+    add_headerfiles("src/(LOICollectionA/utils/**.h)", { install = false })
     add_packages(
         "levilamina",
         "nlohmann_json",

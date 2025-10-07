@@ -12,7 +12,7 @@
 
 LOICollectionA is a plugin that originated from LOICollection and has evolved through a comprehensive refactoring. This process also served as an opportunity to adapt it for LeviLamina.
 
-It inherits the functional diversity of LOICollection while introducing numerous optimizations. The plugin adopts a `data-centric` architecture for its functional modules, enhancing flexibility and extensibility.
+It inherits the functional diversity of LOICollection while introducing numerous optimizations. The plugin adopts a `Micro Kernel` architecture for its functional modules, enhancing flexibility and extensibility.
 
 Future developments will provide more API interfaces to empower plugin developers with richer functionality.
 
