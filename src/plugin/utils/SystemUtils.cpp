@@ -69,7 +69,8 @@ namespace SystemUtils {
                 return !mCurrentSet.contains(element);
             });
         }
-        return std::vector<std::string>(mCommonSet.begin(), mCommonSet.end());
+
+        return { mCommonSet.begin(), mCommonSet.end() };
     }
 
     int toInt(const std::string& str, int defaultValue) {

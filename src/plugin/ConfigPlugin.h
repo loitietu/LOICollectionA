@@ -123,11 +123,6 @@ struct C_Config {
                     bool RecordDatabase = true;
                     bool OutputConsole = true;
                 } onPlayerPickUpItem;
-                struct C_onPlayerInteractBlock {
-                    bool ModuleEnabled = true;
-                    bool RecordDatabase = true;
-                    bool OutputConsole = true;
-                } onPlayerInteractBlock;
                 struct C_onPlayerRespawn {
                     bool ModuleEnabled = true;
                     bool RecordDatabase = true;
@@ -138,6 +133,16 @@ struct C_Config {
                     bool RecordDatabase = true;
                     bool OutputConsole = true;
                 } onPlayerUseItem;
+                struct C_onPlayerContainerInteract {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onPlayerContainerInteract;
+                struct C_onBlockExplode {
+                    bool ModuleEnabled = true;
+                    bool RecordDatabase = true;
+                    bool OutputConsole = true;
+                } onBlockExplode;
             } Events;
         } BehaviorEvent;
     } Plugins;

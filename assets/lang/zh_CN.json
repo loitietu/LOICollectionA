@@ -376,7 +376,7 @@
     "market.gui.sell.buy.button1": "§e购买物品\n§4购买当前物品",
     "behaviorevent.event.playerconnect": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置加入服务器",
     "behaviorevent.event.playerdisconnect": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置离开服务器",
-    "behaviorevent.event.playerchat": "玩家 {0} 说: {1}",
+    "behaviorevent.event.playerchat": "玩家 {0} 说 {1}",
     "behaviorevent.event.playeraddexperience": "玩家 {0} 获得经验 {1}",
     "behaviorevent.event.playerattack": "玩家 {0} 因为 {1} 攻击实体 {2}",
     "behaviorevent.event.playerchangeperm": "玩家 {0} 更改权限组为 {1}",
@@ -386,5 +386,7 @@
     "behaviorevent.event.playerpickupitem": "玩家 {0} 捡起 Nbt 为 {1} 的物品",
     "behaviorevent.event.playerinteractblock": "玩家 {0} 与维度ID为 {1} 的 ({2}, {3}, {4}) 位置的 Nbt 为 {5} 的方块交互",
     "behaviorevent.event.playerrespawn": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置进行重生",
-    "behaviorevent.event.playeruseitem": "玩家 {0} 使用 Nbt 为 {1} 的物品"
+    "behaviorevent.event.playeruseitem": "玩家 {0} 使用 Nbt 为 {1} 的物品",
+    "behaviorevent.event.playeropencontainer": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置打开 Nbt 为 {5} 的容器",
+    "behaviorevent.event.blockexplode": "方块 Nbt 为 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置被爆炸破坏"
 }

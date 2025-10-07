@@ -51,6 +51,7 @@
 
 #include <mc/world/level/BlockPos.h>
 #include <mc/world/level/block/Block.h>
+#include <mc/world/level/block/actor/BlockActor.h>
 #include <mc/world/level/dimension/Dimension.h>
 
 #include <mc/world/actor/ActorDamageSource.h>
@@ -70,6 +71,9 @@
 #include <mc/server/commands/PlayerPermissionLevel.h>
 
 #include "include/RegistryHelper.h"
+
+#include "include/ServerEvents/BlockExplodedEvent.h"
+#include "include/ServerEvents/PlayerContainerEvent.h"
 
 #include "utils/BlockUtils.h"
 #include "utils/SystemUtils.h"
@@ -129,6 +133,9 @@ namespace LOICollection::Plugins {
         ll::event::ListenerPtr PlayerInteractBlockEventListener;
         ll::event::ListenerPtr PlayerRespawnEventListener;
         ll::event::ListenerPtr PlayerUseItemEventListener;
+        ll::event::ListenerPtr PlayerContainerInteractEventListener;
+
+        ll::event::ListenerPtr BlockExplodeEventListener;
 
         bool WirteDatabaseTaskRunning = true;
         bool CleanDatabaseTaskRunning = true;
@@ -294,7 +301,9 @@ namespace LOICollection::Plugins {
                 return !SystemUtils::isReach(mTime);
             });
             std::vector<std::string> mTypes = this->getEvents({{ "EventType", "Operable" }});
-            std::vector<std::string> mResult = SystemUtils::getIntersection({ mAreas, mTimes, mTypes });
+            std::vector<std::string> mResult = this->filter(
+                SystemUtils::getIntersection({ mAreas, mTimes, mTypes })
+            );
 
             if (mResult.empty())
                 return output.error(tr({}, "commands.behaviorevent.error.back"));
@@ -325,7 +334,9 @@ namespace LOICollection::Plugins {
                 return !SystemUtils::isReach(mTime);
             });
             std::vector<std::string> mTypes = this->getEvents({{ "EventType", "Operable" }});
-            std::vector<std::string> mResult = SystemUtils::getIntersection({ mAreas, mTimes, mTypes });
+            std::vector<std::string> mResult = this->filter(
+                SystemUtils::getIntersection({ mAreas, mTimes, mTypes })
+            );
 
             if (mResult.empty())
                 return output.error(tr({}, "commands.behaviorevent.error.back"));
@@ -587,25 +598,6 @@ namespace LOICollection::Plugins {
                 );
         }, ll::event::EventPriority::Highest);
 
-        this->mImpl->PlayerInteractBlockEventListener = eventBus.emplaceListener<ll::event::PlayerInteractBlockEvent>([this](ll::event::PlayerInteractBlockEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerInteractBlock.ModuleEnabled)
-                return; 
-
-            std::unordered_map<std::string, std::string> mEvent = this->getBasicEvent(
-                "PlayerInteractBlock", "Normal", event.blockPos(), event.self().getDimensionId()
-            );
-            mEvent["EventBlock"] = BlockUtils::getBlock(event.blockPos(), event.self().getDimensionId()).value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0);
-            mEvent["PlayerName"] = event.self().getRealName();
-
-            if (this->mImpl->options.Events.onPlayerInteractBlock.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
-
-            if (this->mImpl->options.Events.onPlayerInteractBlock.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerinteractblock")), 
-                    mEvent["PlayerName"], mEvent["Position.dimension"], mEvent["Position.x"], mEvent["Position.y"], mEvent["Position.z"], mEvent["EventBlock"]
-                );
-        }, ll::event::EventPriority::Highest);
-
         this->mImpl->PlayerRespawnEventListener = eventBus.emplaceListener<ll::event::PlayerRespawnEvent>([this](ll::event::PlayerRespawnEvent& event) mutable -> void {
             if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerRespawn.ModuleEnabled)
                 return;
@@ -642,6 +634,46 @@ namespace LOICollection::Plugins {
                     mEvent["PlayerName"], mEvent["EventItem"]
                 );
         }, ll::event::EventPriority::Highest);
+
+        this->mImpl->PlayerContainerInteractEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerOpenContainerEvent>([this](LOICollection::ServerEvents::PlayerOpenContainerEvent& event) mutable -> void {
+            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerContainerInteract.ModuleEnabled)
+                return;
+
+            CompoundTag mTag;
+            BlockUtils::getBlockEntity(event.getPosition(), event.getDimensionId()).value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
+
+            std::unordered_map<std::string, std::string> mEvent = this->getBasicEvent(
+                "PlayerContainerInteract", "Operable", event.getPosition(), event.getDimensionId()
+            );
+            mEvent["EventOperableEntity"] = mTag.toSnbt(SnbtFormat::Minimize, 0);
+            mEvent["PlayerName"] = event.self().getRealName();
+
+            if (this->mImpl->options.Events.onPlayerContainerInteract.RecordDatabase) 
+                this->mImpl->mEvents.push_back(mEvent);
+
+            if (this->mImpl->options.Events.onPlayerContainerInteract.OutputConsole)
+                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playeropencontainer")), 
+                    mEvent["PlayerName"], mEvent["Position.dimension"], mEvent["Position.x"], mEvent["Position.y"], mEvent["Position.z"], mEvent["EventOperableEntity"]
+                );
+        }, ll::event::EventPriority::Highest);
+
+        this->mImpl->BlockExplodeEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::BlockExplodedEvent>([this](LOICollection::ServerEvents::BlockExplodedEvent& event) mutable -> void {
+            if (!this->mImpl->options.Events.onBlockExplode.ModuleEnabled)
+                return;
+
+            std::unordered_map<std::string, std::string> mEvent = this->getBasicEvent(
+                "BlockExplode", "Operable", event.getPosition(), event.getDimension().getDimensionId()
+            );
+            mEvent["EventOperable"] = event.getBlock().mSerializationId->toSnbt(SnbtFormat::Minimize, 0);
+
+            if (this->mImpl->options.Events.onBlockExplode.RecordDatabase) 
+                this->mImpl->mEvents.push_back(mEvent);
+
+            if (this->mImpl->options.Events.onBlockExplode.OutputConsole)
+                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.blockexplode")), 
+                    mEvent["EventOperable"], mEvent["Position.dimension"], mEvent["Position.x"], mEvent["Position.y"], mEvent["Position.z"]
+                );
+        }, ll::event::EventPriority::Highest);
     }
 
     void BehaviorEventPlugin::unlistenEvent() {
@@ -659,6 +691,9 @@ namespace LOICollection::Plugins {
         eventBus.removeListener(this->mImpl->PlayerInteractBlockEventListener);
         eventBus.removeListener(this->mImpl->PlayerRespawnEventListener);
         eventBus.removeListener(this->mImpl->PlayerUseItemEventListener);
+        eventBus.removeListener(this->mImpl->PlayerContainerInteractEventListener);
+
+        eventBus.removeListener(this->mImpl->BlockExplodeEventListener);
 
         this->mImpl->WirteDatabaseTaskRunning = false;
         this->mImpl->CleanDatabaseTaskRunning = false;
@@ -741,6 +776,34 @@ namespace LOICollection::Plugins {
         return mResult;
     }
 
+    std::vector<std::string> BehaviorEventPlugin::filter(std::vector<std::string> ids) {
+        if (!this->isValid())
+            return {};
+
+        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mEvents;
+        std::for_each(ids.begin(), ids.end(), [this, &mEvents](const std::string& mId) -> void {
+            std::unordered_map<std::string, std::string> data = this->getDatabase()->getByPrefix("Events", mId + ".");
+
+            auto it = mEvents.find(mId);
+            if (it == mEvents.end())
+                mEvents[mId] = data;
+            else if (
+                it->second.at(mId + ".Position.x") == data.at(mId + ".Position.x") &&
+                it->second.at(mId + ".Position.y") == data.at(mId + ".Position.y") &&
+                it->second.at(mId + ".Position.z") == data.at(mId + ".Position.z") &&
+                it->second.at(mId + ".Position.dimension") == data.at(mId + ".Position.dimension")
+            ) it->second = data;
+        });
+
+        std::vector<std::string> mResult;
+        
+        mResult.reserve(mEvents.size());
+        for (auto& mEvent : mEvents)
+            mResult.emplace_back(mEvent.first);
+
+        return mResult;
+    }
+
     void BehaviorEventPlugin::back(const std::string& id) {
         if (!this->isValid())
             return;
@@ -755,11 +818,13 @@ namespace LOICollection::Plugins {
             SystemUtils::toInt(data.at(id + ".Position.z"), 0)
         );
 
-        CompoundTag mNbt = CompoundTag::fromSnbt(data.at(id + ".EventOperable"))->mTags;
-        if (auto mBlock = BlockUtils::getBlock(mPosition, mDimension); mBlock.has_value())
+        if (data.contains(id + ".EventOperable")) {
+            CompoundTag mNbt = CompoundTag::fromSnbt(data.at(id + ".EventOperable"))->mTags;
             BlockUtils::setBlock(mPosition, mDimension, mNbt);
-        if (auto mBlockActor = BlockUtils::getBlockEntity(mPosition, mDimension); mBlockActor.has_value())
+        } else if (data.contains(id + ".EventOperableEntity")) {
+            CompoundTag mNbt = CompoundTag::fromSnbt(data.at(id + ".EventOperableEntity"))->mTags;
             BlockUtils::setBlockEntity(mPosition, mDimension, mNbt);
+        }
 
         this->getDatabase()->delByPrefix("Events", id + ".");
     }
