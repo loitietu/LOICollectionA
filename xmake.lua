@@ -48,8 +48,10 @@ target("LOICollectionA")
     )
     add_includedirs("src")
     add_headerfiles("src/(LOICollectionA/**.h)")
-    add_headerfiles("src/(LOICollectionA/frontend/**.h)", { install = false })
-    add_headerfiles("src/(LOICollectionA/utils/**.h)", { install = false })
+    remove_headerfiles(
+        "src/LOICollectionA/(frontend/**.h)",
+        "src/LOICollectionA/(utils/**.h)"
+    )
     add_packages(
         "levilamina",
         "nlohmann_json",
