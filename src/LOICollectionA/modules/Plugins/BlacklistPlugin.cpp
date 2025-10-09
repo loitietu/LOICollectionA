@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include <fmt/core.h>
+#include <SQLiteCpp/SQLiteCpp.h>
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
@@ -295,6 +296,7 @@ namespace LOICollection::Plugins {
 
         std::string mTismestamp = SystemUtils::getCurrentTimestamp();
 
+        SQLite::Transaction transaction(*this->getDatabase()->getDatabase());
         this->getDatabase()->set("Blacklist", mTismestamp + ".NAME", player.getRealName());
         this->getDatabase()->set("Blacklist", mTismestamp + ".CAUSE", mCause);
         this->getDatabase()->set("Blacklist", mTismestamp + ".TIME", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
@@ -302,6 +304,7 @@ namespace LOICollection::Plugins {
         this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_UUID", player.getUuid().asString());
         this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_IP", player.getIPAndPort().substr(0, player.getIPAndPort().find(':')));
         this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_CLIENTID", player.getConnectionRequest()->getDeviceId());
+        transaction.commit();
 
         std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(player), "blacklist.tips");
 
