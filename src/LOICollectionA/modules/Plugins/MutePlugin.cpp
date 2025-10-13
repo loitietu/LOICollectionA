@@ -328,18 +328,14 @@ namespace LOICollection::Plugins {
     std::vector<std::string> MutePlugin::getMutes() {
         if (!this->isValid())
             return {};
+        
+        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Mute", "%.NAME");
 
-        std::vector<std::string> mResult;
-
-        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Mute", "%.");
-        std::for_each(mKeys.begin(), mKeys.end(), [&mResult](const std::string& mId) -> void {
-            std::string mData = mId.substr(0, mId.find_first_of('.'));
-
-            mResult.push_back(mData);
+        std::vector<std::string> mResult(mKeys.size());
+        std::transform(mKeys.begin(), mKeys.end(), mResult.begin(), [](const std::string& mKey) -> std::string {
+            size_t mPos = mKey.find('.');
+            return mPos != std::string::npos ? mKey.substr(0, mPos) : "";
         });
-
-        std::sort(mResult.begin(), mResult.end());
-        mResult.erase(std::unique(mResult.begin(), mResult.end()), mResult.end());
 
         return mResult;
     }

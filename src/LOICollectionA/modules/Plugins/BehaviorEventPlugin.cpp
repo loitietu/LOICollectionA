@@ -505,7 +505,15 @@ namespace LOICollection::Plugins {
             std::unordered_map<std::string, std::string> mEvent = this->getBasicEvent(
                 "PlayerDestroyBlock", "Operable", event.pos(), event.self().getDimensionId()
             );
+
             mEvent["EventOperable"] = BlockUtils::getBlock(event.pos(), event.self().getDimensionId()).value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0);
+            if (auto mBlockEntity = BlockUtils::getBlockEntity(event.pos(), event.self().getDimensionId()); mBlockEntity.has_value()) {
+                CompoundTag mTag;
+                mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
+
+                mEvent["EventBlockEntity"] = mTag.toSnbt(SnbtFormat::Minimize, 0);
+            }
+
             mEvent["PlayerName"] = event.self().getRealName();
 
             if (this->mImpl->options.Events.onPlayerDestroyBlock.RecordDatabase) 
@@ -546,7 +554,15 @@ namespace LOICollection::Plugins {
             std::unordered_map<std::string, std::string> mEvent = this->getBasicEvent(
                 "PlayerPlaceBlock", "Operable", mPosition, event.self().getDimensionId()
             );
+
             mEvent["EventOperable"] = BlockUtils::getBlock(mPosition, event.self().getDimensionId()).value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0);
+            if (auto mBlockEntity = BlockUtils::getBlockEntity(event.pos(), event.self().getDimensionId()); mBlockEntity.has_value()) {
+                CompoundTag mTag;
+                mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
+
+                mEvent["EventBlockEntity"] = mTag.toSnbt(SnbtFormat::Minimize, 0);
+            }
+
             mEvent["PlayerName"] = event.self().getRealName();
 
             if (this->mImpl->options.Events.onPlayerPlaceBlock.RecordDatabase) 
@@ -664,7 +680,14 @@ namespace LOICollection::Plugins {
             std::unordered_map<std::string, std::string> mEvent = this->getBasicEvent(
                 "BlockExplode", "Operable", event.getPosition(), event.getDimension().getDimensionId()
             );
-            mEvent["EventOperable"] = event.getBlock().mSerializationId->toSnbt(SnbtFormat::Minimize, 0);
+
+            mEvent["EventOperable"] = BlockUtils::getBlock(event.getPosition(), event.getDimension().getDimensionId()).value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0);
+            if (auto mBlockEntity = BlockUtils::getBlockEntity(event.getPosition(), event.getDimension().getDimensionId()); mBlockEntity.has_value()) {
+                CompoundTag mTag;
+                mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
+
+                mEvent["EventBlockEntity"] = mTag.toSnbt(SnbtFormat::Minimize, 0);
+            }
 
             if (this->mImpl->options.Events.onBlockExplode.RecordDatabase) 
                 this->mImpl->mEvents.push_back(mEvent);
@@ -720,17 +743,13 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return {};
 
-        std::vector<std::string> mResult;
+        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Events", "%.EventName");
 
-        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Events", "%.");
-        std::for_each(mKeys.begin(), mKeys.end(), [&mResult](const std::string& mId) -> void {
-            std::string mData = mId.substr(0, mId.find_first_of('.'));
-
-            mResult.push_back(mData);
+        std::vector<std::string> mResult(mKeys.size());
+        std::transform(mKeys.begin(), mKeys.end(), mResult.begin(), [](const std::string& mKey) -> std::string {
+            size_t mPos = mKey.find('.');
+            return mPos != std::string::npos ? mKey.substr(0, mPos) : "";
         });
-
-        std::sort(mResult.begin(), mResult.end());
-        mResult.erase(std::unique(mResult.begin(), mResult.end()), mResult.end());
 
         return mResult;
     }
@@ -742,6 +761,8 @@ namespace LOICollection::Plugins {
         std::vector<std::string> mResult;
 
         std::vector<std::string> mKeys = getEvents();
+
+        SQLite::Transaction transaction(*this->getDatabase()->getDatabase());
         std::for_each(conditions.begin(), conditions.end(), [this, &mResult, &mKeys, filter](const std::pair<std::string, std::string>& mCondition) -> void {
             auto mView = mKeys | std::views::filter([this, &mCondition, filter](const std::string& mId) -> bool {
                 std::string mTarget = this->getDatabase()->get("Events", mId + "." + mCondition.first);
@@ -749,6 +770,7 @@ namespace LOICollection::Plugins {
             });
             std::copy(mView.begin(), mView.end(), std::back_inserter(mResult));
         });
+        transaction.commit();
 
         return mResult;
     }
@@ -760,6 +782,8 @@ namespace LOICollection::Plugins {
         std::vector<std::string> mResult;
 
         std::vector<std::string> mKeys = getEvents();
+        
+        SQLite::Transaction transaction(*this->getDatabase()->getDatabase());
         std::for_each(mKeys.begin(), mKeys.end(), [this, &mResult, dimension, filter](const std::string& mId) -> void {
             std::unordered_map<std::string, std::string> data = this->getDatabase()->getByPrefix("Events", mId + ".");
 
@@ -772,6 +796,7 @@ namespace LOICollection::Plugins {
 
             if (filter(x, y, z)) mResult.push_back(mId);
         });
+        transaction.commit();
 
         return mResult;
     }
@@ -781,6 +806,8 @@ namespace LOICollection::Plugins {
             return {};
 
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mEvents;
+
+        SQLite::Transaction transaction(*this->getDatabase()->getDatabase());
         std::for_each(ids.begin(), ids.end(), [this, &mEvents](const std::string& mId) -> void {
             std::unordered_map<std::string, std::string> data = this->getDatabase()->getByPrefix("Events", mId + ".");
 
@@ -794,6 +821,7 @@ namespace LOICollection::Plugins {
                 it->second.at(mId + ".Position.dimension") == data.at(mId + ".Position.dimension")
             ) it->second = data;
         });
+        transaction.commit();
 
         std::vector<std::string> mResult;
         
@@ -834,6 +862,8 @@ namespace LOICollection::Plugins {
             return;
 
         std::vector<std::string> mKeys = getEvents();
+
+        SQLite::Transaction transaction(*this->getDatabase()->getDatabase());
         std::for_each(mKeys.begin(), mKeys.end(), [this, hours](const std::string& mId) mutable {
             std::string mEventTime = this->getDatabase()->get("Events", mId + ".EventTime");
             
@@ -841,6 +871,7 @@ namespace LOICollection::Plugins {
             if (SystemUtils::isReach(mTime))
                 this->getDatabase()->delByPrefix("Events", mId + ".");
         });
+        transaction.commit();
     }
 
     bool BehaviorEventPlugin::isValid() {

@@ -369,15 +369,14 @@ namespace LOICollection::Plugins {
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         
-        std::vector<std::string> mResult;
-        for (auto& mTarget : this->getDatabase()->listByPrefix("Blacklist", mObject + ".")) {
-            std::string mKey = mTarget.substr(mTarget.find_first_of('.') + 1);
+        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Blacklist", mObject + ".%\\_NAME");
 
-            mResult.push_back(mKey.substr(0, mKey.find_last_of('_')));
-        }
-
-        std::sort(mResult.begin(), mResult.end());
-        mResult.erase(std::unique(mResult.begin(), mResult.end()), mResult.end());
+        std::vector<std::string> mResult(mKeys.size());
+        std::transform(mKeys.begin(), mKeys.end(), mResult.begin(), [](const std::string& mKey) -> std::string {
+            size_t mPos = mKey.find('.');
+            size_t mPos2 = mKey.find_last_of('_');
+            return (mPos != std::string::npos && mPos2 != std::string::npos) ? mKey.substr(0, mPos).substr(mPos + 1, mPos2 - mPos - 1) : "";
+        });
 
         return mResult;
     }
