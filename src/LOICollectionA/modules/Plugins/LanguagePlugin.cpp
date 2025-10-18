@@ -157,7 +157,10 @@ namespace LOICollection::Plugins {
         if (it != this->mImpl->mCache.end())
             return it->second;
         
-        return this->mImpl->db->get("OBJECT$" + mObject, "language", defaultLocale);
+        std::string langcode = this->mImpl->db->get("OBJECT$" + mObject, "language", defaultLocale);
+        
+        this->mImpl->mCache.emplace(mObject, langcode);
+        return langcode;
     }
 
     std::string LanguagePlugin::getLanguage(Player& player) {

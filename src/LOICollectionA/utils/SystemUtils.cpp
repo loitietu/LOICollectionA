@@ -62,7 +62,11 @@ namespace SystemUtils {
     }
 
     std::vector<std::string> getIntersection(const std::vector<std::vector<std::string>>& elements) {
-        std::unordered_set<std::string> mCommonSet(elements.front().begin(), elements.front().end());
+        auto it = std::min_element(elements.begin(), elements.end(), [](const auto& left, const auto& right) -> bool {
+            return left.size() < right.size();
+        });
+
+        std::unordered_set<std::string> mCommonSet(it->begin(), it->end());
         for (auto iter = std::next(elements.begin()); iter != elements.end() && !mCommonSet.empty(); ++iter) {
             const std::unordered_set<std::string> mCurrentSet(iter->begin(), iter->end());
             std::erase_if(mCommonSet, [&](const auto& element) {
