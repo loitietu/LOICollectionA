@@ -26,7 +26,7 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_API   void addMute(Player& player, const std::string& cause, int time);
         LOICOLLECTION_A_API   void delMute(Player& player);
-        LOICOLLECTION_A_API   void delMute(const std::string& target);
+        LOICOLLECTION_A_API   void delMute(const std::string& id);
 
         LOICOLLECTION_A_NDAPI std::string getMute(Player& player);
         

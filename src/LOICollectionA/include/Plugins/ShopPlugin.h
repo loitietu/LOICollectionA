@@ -35,6 +35,9 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI JsonStorage* getDatabase();
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
 
+        LOICOLLECTION_A_API   void create(const std::string& id, const nlohmann::ordered_json& data);
+        LOICOLLECTION_A_API   void remove(const std::string& id);
+
         LOICOLLECTION_A_API   void executeCommand(Player& player, std::string cmd);
 
         LOICOLLECTION_A_NDAPI bool checkModifiedData(Player& player, nlohmann::ordered_json data, int number);

@@ -17,6 +17,7 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
+#include <ll/api/command/EnumName.h>
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerChatEvent.h>
@@ -53,9 +54,15 @@
 using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
+    enum class MuteObject;
+
+    constexpr inline auto MuteObjectName = ll::command::enum_name_v<MuteObject>;
+
     struct MutePlugin::operation {
+        ll::command::SoftEnum<MuteObject> Object;
+
         CommandSelector<Player> Target;
-        std::string Id;
+        
         std::string Cause;
         int Time = 0;
     };
@@ -172,6 +179,8 @@ namespace LOICollection::Plugins {
     }
 
     void MutePlugin::registeryCommand() {
+        ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(MuteObjectName, getMutes());
+
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("mute", tr({}, "commands.mute.description"), CommandPermissionLevel::GameDirectors);
         command.overload<operation>().text("add").required("Target").optional("Cause").optional("Time").execute(
@@ -206,24 +215,24 @@ namespace LOICollection::Plugins {
                 output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), pl->getRealName());
             }
         });
-        command.overload<operation>().text("remove").text("id").required("Id").execute(
+        command.overload<operation>().text("remove").text("id").required("Object").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            if (!this->getDatabase()->hasByPrefix("Mute", param.Id + ".", 5))
+            if (!this->getDatabase()->hasByPrefix("Mute", param.Object + ".", 5))
                 return output.error(tr({}, "commands.mute.error.remove"));
 
-            this->delMute(param.Id);
+            this->delMute(param.Object);
 
-            output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), param.Id);
+            output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), param.Object);
         });
-        command.overload<operation>().text("info").required("Id").execute(
+        command.overload<operation>().text("info").required("Object").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->getByPrefix("Mute", param.Id + ".");
+            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->getByPrefix("Mute", param.Object + ".");
             
             if (mEvent.empty())
                 return output.error(tr({}, "commands.mute.error.info"));
 
             output.success(tr({}, "commands.mute.success.info"));
-            std::for_each(mEvent.begin(), mEvent.end(), [&output, id = param.Id](const std::pair<std::string, std::string>& mPair) {
+            std::for_each(mEvent.begin(), mEvent.end(), [&output, id = param.Object](const std::pair<std::string, std::string>& mPair) {
                 std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
 
                 output.success("{0}: {1}", mKey, mPair.second);
@@ -292,6 +301,8 @@ namespace LOICollection::Plugins {
         this->getDatabase()->set("Mute", mTimestamp + ".DATA", player.getUuid().asString());
         transaction.commit();
 
+        ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MuteObjectName, { mTimestamp });
+
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "mute.log1"), player)), mCause);
     }
 
@@ -302,13 +313,15 @@ namespace LOICollection::Plugins {
         this->delMute(this->getMute(player));
     }
 
-    void MutePlugin::delMute(const std::string& target) {
+    void MutePlugin::delMute(const std::string& id) {
         if (!this->isValid())
             return;
 
-        this->getDatabase()->delByPrefix("Mute", target + ".");
+        this->getDatabase()->delByPrefix("Mute", id + ".");
 
-        this->getLogger()->info(fmt::runtime(tr({}, "mute.log2")), target);
+        ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(MuteObjectName, { id });
+
+        this->getLogger()->info(fmt::runtime(tr({}, "mute.log2")), id);
     }
 
     std::string MutePlugin::getMute(Player& player) {

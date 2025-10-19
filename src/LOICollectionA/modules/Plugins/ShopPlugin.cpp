@@ -13,6 +13,7 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
+#include <ll/api/command/EnumName.h>
 #include <ll/api/utils/HashUtils.h>
 
 #include <mc/nbt/Tag.h>
@@ -57,8 +58,12 @@
 using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
+    enum class ShopObject;
+
+    constexpr inline auto ShopObjectName = ll::command::enum_name_v<ShopObject>;
+
     struct ShopPlugin::operation {
-        std::string Id;
+        ll::command::SoftEnum<ShopObject> Object;
     };
 
     struct ShopPlugin::Impl {
@@ -139,9 +144,7 @@ namespace LOICollection::Plugins {
                 }
             }
 
-            if (!this->mParent.getDatabase()->has(mObjectId))
-                this->mParent.getDatabase()->set(mObjectId, data);
-            this->mParent.getDatabase()->save();
+            this->mParent.create(mObjectId, data);
 
             this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "shop.log1"), pl)), mObjectId);
         });
@@ -173,8 +176,7 @@ namespace LOICollection::Plugins {
             if (result != ll::form::ModalFormSelectedButton::Upper)
                 return;
 
-            this->mParent.getDatabase()->remove(id);
-            this->mParent.getDatabase()->save();
+            this->mParent.remove(id);
 
             this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "shop.log2"), pl)), id);
         });
@@ -594,16 +596,18 @@ namespace LOICollection::Plugins {
     }
 
     void ShopPlugin::registeryCommand() {
+        ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(ShopObjectName, this->getDatabase()->keys());
+
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("shop", tr({}, "commands.shop.description"), CommandPermissionLevel::Any);
-        command.overload<operation>().text("gui").required("Id").execute(
+        command.overload<operation>().text("gui").required("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
                 return output.error(tr({}, "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player, param.Id);
+            this->mGui->open(player, param.Object);
 
             output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
         });
@@ -620,6 +624,27 @@ namespace LOICollection::Plugins {
 
             output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
         });
+    }
+
+    void ShopPlugin::create(const std::string& id, const nlohmann::ordered_json& data) {
+        if (!this->isValid())
+            return;
+
+        if (!this->getDatabase()->has(id))
+            this->getDatabase()->set(id, data);
+        this->getDatabase()->save();
+
+        ll::command::CommandRegistrar::getInstance().addSoftEnumValues(ShopObjectName, { id });
+    }
+
+    void ShopPlugin::remove(const std::string& id) {
+        if (!this->isValid())
+            return;
+
+        this->getDatabase()->remove(id);
+        this->getDatabase()->save();
+
+        ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(ShopObjectName, { id });
     }
 
     void ShopPlugin::executeCommand(Player& player, std::string cmd) {

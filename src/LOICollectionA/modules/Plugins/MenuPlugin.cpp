@@ -14,6 +14,7 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
+#include <ll/api/command/EnumName.h>
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
@@ -59,8 +60,12 @@
 using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
+    enum class MenuObject;
+
+    constexpr inline auto MenuObjectName = ll::command::enum_name_v<MenuObject>;
+
     struct MenuPlugin::operation {
-        std::string Id;
+        ll::command::SoftEnum<MenuObject> Object;
     };
 
     struct MenuPlugin::Impl {
@@ -167,9 +172,7 @@ namespace LOICollection::Plugins {
                 }
             }
 
-            if (!this->mParent.getDatabase()->has(mObjectId))
-                this->mParent.getDatabase()->set(mObjectId, mData);
-            this->mParent.getDatabase()->save();
+            this->mParent.create(mObjectId, mData);
 
             this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "menu.log1"), pl)), mObjectId);
         });
@@ -204,8 +207,7 @@ namespace LOICollection::Plugins {
             if (result != ll::form::ModalFormSelectedButton::Upper)
                 return;
 
-            this->mParent.getDatabase()->remove(id);
-            this->mParent.getDatabase()->save();
+            this->mParent.remove(id);
 
             this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "menu.log2"), pl)), id);
         });
@@ -740,17 +742,19 @@ namespace LOICollection::Plugins {
     }
 
     void MenuPlugin::registeryCommand() {
+        ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(MenuObjectName, this->getDatabase()->keys());
+
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("menu", tr({}, "commands.menu.description"), CommandPermissionLevel::Any);
-        command.overload<operation>().text("gui").optional("Id").execute(
+        command.overload<operation>().text("gui").optional("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
                 return output.error(tr({}, "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player, param.Id.empty() ? 
-                this->mImpl->options.EntranceKey : param.Id
+            this->mGui->open(player, param.Object.empty() ? 
+                this->mImpl->options.EntranceKey : (std::string)param.Object
             );
             
             output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -812,6 +816,27 @@ namespace LOICollection::Plugins {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->PlayerUseItemEventListener);
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
+    }
+
+    void MenuPlugin::create(const std::string& id, const nlohmann::ordered_json& data) {
+        if (!this->isValid())
+            return;
+
+        if (!this->getDatabase()->has(id))
+            this->getDatabase()->set(id, data);
+        this->getDatabase()->save();
+
+        ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MenuObjectName, { id });
+    }
+
+    void MenuPlugin::remove(const std::string& id) {
+        if (!this->isValid())
+            return;
+
+        this->getDatabase()->remove(id);
+        this->getDatabase()->save();
+
+        ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(MenuObjectName, { id });
     }
 
     void MenuPlugin::executeCommand(Player& player, std::string cmd) {

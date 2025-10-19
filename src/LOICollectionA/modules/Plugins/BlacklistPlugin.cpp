@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <numeric>
+#include <optional>
 #include <algorithm>
 #include <filesystem>
 #include <unordered_map>
@@ -17,6 +18,7 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
+#include <ll/api/command/EnumName.h>
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 
@@ -64,9 +66,15 @@
 using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
+    enum class BlacklistObject;
+
+    constexpr inline auto BlacklistObjectName = ll::command::enum_name_v<BlacklistObject>;
+
     struct BlacklistPlugin::operation {
+        ll::command::SoftEnum<BlacklistObject> Object;
+        
         CommandSelector<Player> Target;
-        std::string Id;
+
         std::string Cause;
         int Time = 0;
     };
@@ -95,7 +103,6 @@ namespace LOICollection::Plugins {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
         std::string mObjectLabel = tr(mObjectLanguage, "blacklist.gui.info.label");
-
         ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), 
             fmt::format(fmt::runtime(mObjectLabel), id, 
                 this->mParent.getDatabase()->get("Blacklist", id + ".NAME", "None"), 
@@ -181,6 +188,8 @@ namespace LOICollection::Plugins {
     }
 
     void BlacklistPlugin::registeryCommand() {
+        ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(BlacklistObjectName, getBlacklists());
+
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("blacklist", tr({}, "commands.blacklist.description"), CommandPermissionLevel::GameDirectors);
         command.overload<operation>().text("add").required("Target").optional("Cause").optional("Time").execute(
@@ -199,23 +208,23 @@ namespace LOICollection::Plugins {
                 output.success(fmt::runtime(tr({}, "commands.blacklist.success.add")), pl->getRealName());
             }
         });
-        command.overload<operation>().text("remove").required("Id").execute(
+        command.overload<operation>().text("remove").required("Object").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            if (!this->getDatabase()->hasByPrefix("Blacklist", param.Id + ".", 7))
-                return output.error(fmt::runtime(tr({}, "commands.blacklist.error.remove")), param.Id);
-            this->delBlacklist(param.Id);
+            if (!this->getDatabase()->hasByPrefix("Blacklist", param.Object + ".", 7))
+                return output.error(fmt::runtime(tr({}, "commands.blacklist.error.remove")), param.Object);
+            this->delBlacklist(param.Object);
 
-            output.success(fmt::runtime(tr({}, "commands.blacklist.success.remove")), param.Id);
+            output.success(fmt::runtime(tr({}, "commands.blacklist.success.remove")), param.Object);
         });
-        command.overload<operation>().text("info").required("Id").execute(
+        command.overload<operation>().text("info").required("Object").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->getByPrefix("Blacklist", param.Id + ".");
+            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->getByPrefix("Blacklist", param.Object + ".");
             
             if (mEvent.empty())
                 return output.error(tr({}, "commands.blacklist.error.info"));
 
             output.success(tr({}, "commands.blacklist.success.info"));
-            std::for_each(mEvent.begin(), mEvent.end(), [&output, id = param.Id](const std::pair<std::string, std::string>& mPair) {
+            std::for_each(mEvent.begin(), mEvent.end(), [&output, id = param.Object](const std::pair<std::string, std::string>& mPair) {
                 std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
 
                 output.success("{0}: {1}", mKey, mPair.second);
@@ -271,14 +280,13 @@ namespace LOICollection::Plugins {
             std::replace(mUuid.begin(), mUuid.end(), '-', '_');
 
             std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(mUuid), "blacklist.tips");
-
             ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
-                event.getNetworkIdentifier(), event.getSubClientId(), Connection::DisconnectFailReason::Kicked, 
+                event.getNetworkIdentifier(), event.getSubClientId(), Connection::DisconnectFailReason::Kicked,
                 fmt::format(fmt::runtime(mObjectTips), 
                     mData.at(mId + ".CAUSE"),
                     SystemUtils::formatDataTime(mData.at(mId + ".TIME"), "None")
                 ),
-                {}, false
+                std::nullopt, false
             );
         });
     }
@@ -306,26 +314,29 @@ namespace LOICollection::Plugins {
         this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_CLIENTID", player.getConnectionRequest()->getDeviceId());
         transaction.commit();
 
-        std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(player), "blacklist.tips");
+        ll::command::CommandRegistrar::getInstance().addSoftEnumValues(BlacklistObjectName, { mTismestamp });
 
+        std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(player), "blacklist.tips");
         ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
             player.getNetworkIdentifier(), player.getClientSubId(), Connection::DisconnectFailReason::Kicked,
             fmt::format(fmt::runtime(mObjectTips), mCause,
                 SystemUtils::formatDataTime(this->getDatabase()->get("Blacklist", mTismestamp + ".TIME"), "None")
             ),
-            {}, false
+            std::nullopt, false
         );
 
         this->getLogger()->info(LOICollectionAPI::getVariableString(tr({}, "blacklist.log1"), player));
     }
 
-    void BlacklistPlugin::delBlacklist(const std::string& target) {
+    void BlacklistPlugin::delBlacklist(const std::string& id) {
         if (!this->isValid()) 
             return;
 
-        this->getDatabase()->delByPrefix("Blacklist", target + ".");
+        this->getDatabase()->delByPrefix("Blacklist", id + ".");
 
-        this->getLogger()->info(fmt::runtime(tr({}, "blacklist.log2")), target);
+        ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(BlacklistObjectName, { id });
+
+        this->getLogger()->info(fmt::runtime(tr({}, "blacklist.log2")), id);
     }
 
     std::string BlacklistPlugin::getBlacklist(Player& player) {

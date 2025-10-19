@@ -25,7 +25,7 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
 
         LOICOLLECTION_A_API   void addBlacklist(Player& player, const std::string& cause, int time);
-        LOICOLLECTION_A_API   void delBlacklist(const std::string& target);
+        LOICOLLECTION_A_API   void delBlacklist(const std::string& id);
 
         LOICOLLECTION_A_NDAPI std::string getBlacklist(Player& player);
 

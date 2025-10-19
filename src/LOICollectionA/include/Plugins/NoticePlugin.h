@@ -23,6 +23,9 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI JsonStorage* getDatabase();
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
 
+        LOICOLLECTION_A_API   void create(const std::string& id, const std::string& title, int priority, bool poiontout);
+        LOICOLLECTION_A_API   void remove(const std::string& id);
+
         LOICOLLECTION_A_NDAPI bool isClose(Player& player);
         LOICOLLECTION_A_NDAPI bool isValid();
 

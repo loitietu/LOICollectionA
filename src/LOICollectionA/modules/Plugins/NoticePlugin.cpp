@@ -14,6 +14,7 @@
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
+#include <ll/api/command/EnumName.h>
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
@@ -47,8 +48,12 @@
 using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
+    enum class NoticeObject;
+
+    constexpr inline auto NoticeObjectName = ll::command::enum_name_v<NoticeObject>;
+
     struct NoticePlugin::operation {
-        std::string Id;
+        ll::command::SoftEnum<NoticeObject> Object;
     };
 
     struct NoticePlugin::Impl {
@@ -155,15 +160,9 @@ namespace LOICollection::Plugins {
                 return this->edit(pl);
             }
 
-            nlohmann::ordered_json mObject = {
-                { "title", mObjectTitle },
-                { "content", nlohmann::ordered_json::array() },
-                { "priority", SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 0) },
-                { "poiontout", (bool)std::get<uint64>(dt->at("Toggle1")) }
-            };
-
-            this->mParent.getDatabase()->set(mObjectId, mObject);
-            this->mParent.getDatabase()->save();
+            this->mParent.create(mObjectId, mObjectTitle, 
+                SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 0), (bool) std::get<uint64>(dt->at("Toggle1"))
+            );
 
             this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "notice.log2"), pl)), mObjectId);
         });
@@ -180,8 +179,7 @@ namespace LOICollection::Plugins {
             if (result != ll::form::ModalFormSelectedButton::Upper) 
                 return;
 
-            this->mParent.getDatabase()->remove(id);
-            this->mParent.getDatabase()->save();
+            this->mParent.remove(id);
 
             this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "notice.log3"), pl)), id);
         });
@@ -277,16 +275,18 @@ namespace LOICollection::Plugins {
     }
 
     void NoticePlugin::registeryCommand() {
+        ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(NoticeObjectName, this->getDatabase()->keys());
+
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("notice", tr({}, "commands.notice.description"), CommandPermissionLevel::Any);
-        command.overload<operation>().text("gui").optional("Id").execute(
+        command.overload<operation>().text("gui").optional("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
                 return output.error(tr({}, "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            param.Id.empty() ? this->mGui->open(player) : this->mGui->notice(player, param.Id);
+            param.Object.empty() ? this->mGui->open(player) : this->mGui->notice(player, param.Object);
 
             output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
         });
@@ -337,6 +337,33 @@ namespace LOICollection::Plugins {
     void NoticePlugin::unlistenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
+    }
+
+    void NoticePlugin::create(const std::string& id, const std::string& title, int priority, bool poiontout) {
+        if (!this->isValid())
+            return;
+
+        nlohmann::ordered_json data = {
+            { "title", title },
+            { "content", nlohmann::ordered_json::array() },
+            { "priority", priority },
+            { "poiontout", poiontout }
+        };
+
+        this->getDatabase()->set(id, data);
+        this->getDatabase()->save();
+
+        ll::command::CommandRegistrar::getInstance().addSoftEnumValues(NoticeObjectName, { id });
+    }
+
+    void NoticePlugin::remove(const std::string& id) {
+        if (!this->isValid())
+            return;
+
+        this->getDatabase()->remove(id);
+        this->getDatabase()->save();
+
+        ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(NoticeObjectName, { id });
     }
 
     bool NoticePlugin::isClose(Player& player) {

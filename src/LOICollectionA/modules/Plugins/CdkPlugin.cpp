@@ -112,24 +112,11 @@ namespace LOICollection::Plugins {
                 return this->open(pl);
             }
 
-            if (!this->mParent.getDatabase()->has(mObjectCdk)) {
-                int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-                std::string mObjectTime = time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "0") : "0";
-
-                nlohmann::ordered_json dataList = {
-                    { "personal", (bool)std::get<uint64>(dt->at("Toggle")) },
-                    { "player", nlohmann::ordered_json::array() },
-                    { "scores", nlohmann::ordered_json::object() },
-                    { "item", nlohmann::ordered_json::array() },
-                    { "title", nlohmann::ordered_json::object() },
-                    { "time", mObjectTime }
-                };
-
-                this->mParent.getDatabase()->set(mObjectCdk, dataList);
-                this->mParent.getDatabase()->save();
-            }
-
-            this->mParent.getLogger()->info(fmt::runtime(tr({}, "cdk.log1")), mObjectCdk);
+            this->mParent.create(mObjectCdk,
+                SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0), (bool)std::get<uint64>(dt->at("Toggle"))
+            );
+        
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "cdk.log1"), pl)), mObjectCdk);
         });
     }
 
@@ -144,10 +131,9 @@ namespace LOICollection::Plugins {
             if (result != ll::form::ModalFormSelectedButton::Upper) 
                 return this->open(pl);
 
-            this->mParent.getDatabase()->remove(id);
-            this->mParent.getDatabase()->save();
+            this->mParent.remove(id);
 
-            this->mParent.getLogger()->info(fmt::runtime(tr({}, "cdk.log2")), id);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "cdk.log2"), pl)), id);
         });
     }
 
@@ -345,6 +331,34 @@ namespace LOICollection::Plugins {
 
             output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
         });
+    }
+
+    void CdkPlugin::create(const std::string& id, int time, bool personal) {
+        if (!this->isValid())
+            return;
+
+        if (!this->getDatabase()->has(id))
+            return;
+
+        nlohmann::ordered_json data = {
+            { "personal", personal },
+            { "player", nlohmann::ordered_json::array() },
+            { "scores", nlohmann::ordered_json::object() },
+            { "item", nlohmann::ordered_json::array() },
+            { "title", nlohmann::ordered_json::object() },
+            { "time", SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "0") }
+        };
+
+        this->getDatabase()->set(id, data);
+        this->getDatabase()->save();
+    }
+
+    void CdkPlugin::remove(const std::string& id) {
+        if (!this->isValid())
+            return;
+
+        this->getDatabase()->remove(id);
+        this->getDatabase()->save();
     }
 
     void CdkPlugin::convert(Player& player, const std::string& id) {
