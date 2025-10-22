@@ -276,7 +276,7 @@
     "wallet.tips.redenvelope": "§4无法发送红包",
     "wallet.tips.redenvelope.content": "§e玩家 §r{player} §e发送了一个 §bID §e为 §r${0} §e的价值 §r${1} §a*§r${2} §e的红包, §b如需领取请在 §r${3} §b秒内, §a在聊天框中输入 §r${4} §a领取",
     "wallet.tips.redenvelope.receive": "§a玩家 §r{player} §a已领取 §bID §a为 §r${0} §a的红包, §e获得了 §r${1} §e分数, §c目前领取进度 §r${2}§c/§r${3}",
-    "wallet.tips.redenvelope.receive.over": "§a玩家 §r{player} §a已领取 §bID §a为 §r${0} §a的红包, §e获得了 §r${1} §e分数, §c当前红包已被全部领取",
+    "wallet.tips.redenvelope.receive.over": "§c当前 §bID §c为 §r{0} §c的红包已被全部领取, §6玩家 §r{1} §6是运气王, §e共计获得了 §r{2} §e分数",
     "wallet.tips.redenvelope.timeout": "§c一个 §bID §c为 §r{0} §c的红包已过期, §c剩余未领取的部分已退回",
     "wallet.gui.title": "§eLOIWallet §b-> §a个人钱包",
     "wallet.gui.label": "§b拥有金钱: {0}\n§e今日税率: {1}",

@@ -60,6 +60,18 @@
 
 using I18nUtilsTools::tr;
 
+struct RedEnvelopeEntry {
+    std::string id;
+    std::string sender;
+
+    std::unordered_map<std::string, int> receivers;
+    std::unordered_map<std::string, std::string> names;
+
+    int count;
+    int capacity;
+    int people;
+};
+
 namespace LOICollection::Plugins {
     struct WalletPlugin::operation {
         CommandSelector<Player> Target;
@@ -67,7 +79,7 @@ namespace LOICollection::Plugins {
     };
 
     struct WalletPlugin::Impl {
-        std::unordered_map<std::string, std::vector<std::unordered_map<std::string, std::string>>> mRedEnvelopeMap;
+        std::unordered_map<std::string, std::vector<RedEnvelopeEntry>> mRedEnvelopeMap;
 
         C_Config::C_Plugins::C_Wallet options;
         
@@ -295,38 +307,41 @@ namespace LOICollection::Plugins {
 
             std::string mObjectUuid = event.self().getUuid().asString();
             for (auto& mObject : it->second) {
-                if (mObject.at("receiver").find(mObjectUuid) != std::string::npos)
+                if (mObject.receivers.find(mObjectUuid) != mObject.receivers.end())
                     continue;
 
-                int mObjectCapacity = SystemUtils::toInt(mObject.at("capacity"), 0);
-                int mObjectPeople = SystemUtils::toInt(mObject.at("people"), 0) + 1;
-                int mObjectCount = SystemUtils::toInt(mObject.at("count"), 0);
+                bool mLast = (mObject.people + 1) == mObject.count;
 
-                if ((mObjectPeople - 1) == mObjectCount) {
-                    ScoreboardUtils::addScore(event.self(), this->mImpl->options.TargetScoreboard, mObjectCapacity);
-
-                    std::string mTipsString = LOICollectionAPI::translateString(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "wallet.tips.redenvelope.receive.over"), event.self());
-                    TextPacket::createSystemMessage(fmt::format(fmt::runtime(mTipsString), mObject.at("id"), mObjectCapacity)).sendToClients();
-
-                    std::string mObjectId = mObject.at("id");
-                    it->second.erase(std::remove_if(it->second.begin(), it->second.end(), [mObjectId](auto& mObject) -> bool {
-                        return mObject.at("id") == mObjectId;
-                    }), it->second.end());
-                    
-                    continue;
-                }
-
-                int mMaxScore = (mObjectCapacity / (mObjectCount - mObjectPeople + 1)) * 2;
-                int mTargetMoney = ll::random_utils::rand(0, mMaxScore);
+                int mTargetMoney = mLast ?
+                    mObject.capacity :
+                    ll::random_utils::rand(0, 
+                        (mObject.capacity / (mObject.count - mObject.people + 2)) * 2
+                    );
 
                 ScoreboardUtils::addScore(event.self(), this->mImpl->options.TargetScoreboard, mTargetMoney);
 
                 std::string mTipsString = LOICollectionAPI::translateString(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "wallet.tips.redenvelope.receive"), event.self());
-                TextPacket::createSystemMessage(fmt::format(fmt::runtime(mTipsString), mObject.at("id"), mTargetMoney, mObjectPeople, mObjectCount)).sendToClients();
+                TextPacket::createSystemMessage(fmt::format(fmt::runtime(mTipsString), mObject.id, mTargetMoney, (mObject.people + 1), mObject.count)).sendToClients();
 
-                mObject["people"] = std::to_string(mObjectPeople);
-                mObject["capacity"] = std::to_string(mObjectCapacity - mTargetMoney);
-                mObject["receiver"].append(mObjectUuid + " ");
+                mObject.people++;
+                mObject.capacity -= mTargetMoney;
+                mObject.receivers.insert({ mObjectUuid, mTargetMoney });
+                mObject.names.insert({ mObjectUuid, event.self().getRealName() });
+
+                if (mLast) {
+                    auto mKingIt = std::max_element(mObject.receivers.begin(), mObject.receivers.end(), [](const auto& a, const auto& b) -> bool {
+                        return a.second < b.second;
+                    });
+
+                    std::string mTipsOverString = LOICollectionAPI::translateString(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "wallet.tips.redenvelope.receive.over"), event.self());
+                    TextPacket::createSystemMessage(fmt::format(fmt::runtime(mTipsOverString), mObject.id, mObject.names.at(mKingIt->first), mKingIt->second)).sendToClients();
+
+                    it->second.erase(std::remove_if(it->second.begin(), it->second.end(), [mObjectId = mObject.id](auto& mObject) -> bool {
+                        return mObject.id == mObjectId;
+                    }), it->second.end());
+                    
+                    continue;
+                }
             }
         });
     }
@@ -361,23 +376,24 @@ namespace LOICollection::Plugins {
         std::string mObjectId = SystemUtils::getCurrentTimestamp();
 
         this->mImpl->mRedEnvelopeMap[key].push_back({
-            { "id", mObjectId },
-            { "player", player.getUuid().asString() },
-            { "count", std::to_string(count) },
-            { "capacity", std::to_string(score * count) },
-            { "people", "0" },
-            { "receiver", "" }
+            mObjectId,
+            player.getUuid().asString(),
+            {},
+            {},
+            count,
+            score * count,
+            0,
         });
 
         ll::coro::keepThis([this, mObjectId, key]() -> ll::coro::CoroTask<> {
             co_await std::chrono::seconds(this->mImpl->options.RedEnvelopeTimeout);
             
-            std::vector<std::unordered_map<std::string, std::string>>& mObjects = this->mImpl->mRedEnvelopeMap[key];
-            for (std::unordered_map<std::string, std::string>& mObject : mObjects) {
-                if (mObject.at("id") != mObjectId)
+            std::vector<RedEnvelopeEntry>& mObjects = this->mImpl->mRedEnvelopeMap[key];
+            for (RedEnvelopeEntry& mObject : mObjects) {
+                if (mObject.id != mObjectId)
                     continue;
 
-                this->transfer(mObject.at("player"), SystemUtils::toInt(mObject.at("capacity"), 0));
+                this->transfer(mObject.sender, mObject.capacity);
 
                 TextPacket::createSystemMessage(
                     fmt::format(fmt::runtime(tr({}, "wallet.tips.redenvelope.timeout")), mObjectId)
@@ -387,7 +403,7 @@ namespace LOICollection::Plugins {
             };
 
             mObjects.erase(std::remove_if(mObjects.begin(), mObjects.end(), [mObjectId](auto& mObject) -> bool {
-                return mObject.at("id") == mObjectId;
+                return mObject.id  == mObjectId;
             }), mObjects.end());
         }).launch(ll::thread::ServerThreadExecutor::getDefault());
 
@@ -429,9 +445,8 @@ namespace LOICollection::Plugins {
         this->unlistenEvent();
 
         for (auto& it : this->mImpl->mRedEnvelopeMap) {
-            for (auto& mObject : it.second) {
-                this->transfer(mObject.at("player"), SystemUtils::toInt(mObject.at("capacity"), 0));
-            }
+            for (auto& mObject : it.second)
+                this->transfer(mObject.sender, mObject.capacity);
         }
 
         this->mImpl->mRedEnvelopeMap.clear();
