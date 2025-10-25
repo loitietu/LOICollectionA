@@ -210,7 +210,7 @@ namespace LOICollection::LOICollectionAPI {
         });
         registerVariable("entity", [](Player&, std::string name) -> std::string {
             std::vector<Actor*> mRuntimeActorList = ll::service::getLevel()->getRuntimeActorList();
-            int count = (int)std::count_if(mRuntimeActorList.begin(), mRuntimeActorList.end(), [&name](Actor* actor) {
+            int count = (int)std::count_if(mRuntimeActorList.begin(), mRuntimeActorList.end(), [&name](Actor* actor) -> bool {
                 return actor->getTypeName() == name;
             });
             return std::to_string(count);

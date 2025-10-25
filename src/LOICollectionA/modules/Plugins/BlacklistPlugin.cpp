@@ -259,7 +259,7 @@ namespace LOICollection::Plugins {
             auto& packet = static_cast<LoginPacket&>(const_cast<Packet&>(event.getPacket()));
 
             std::string mUuid = packet.mConnectionRequest->mLegacyMultiplayerToken->getIdentity().asString();
-            std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find(':'));
+            std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find_last_of(':' - 1));
             std::string mClientId = packet.mConnectionRequest->getDeviceId();
 
             std::vector<std::string> mKeys = getBlacklists();
@@ -310,7 +310,7 @@ namespace LOICollection::Plugins {
         this->getDatabase()->set("Blacklist", mTismestamp + ".TIME", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
         this->getDatabase()->set("Blacklist", mTismestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_UUID", player.getUuid().asString());
-        this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_IP", player.getIPAndPort().substr(0, player.getIPAndPort().find(':')));
+        this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_IP", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':') - 1));
         this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_CLIENTID", player.getConnectionRequest()->getDeviceId());
         transaction.commit();
 
@@ -344,7 +344,7 @@ namespace LOICollection::Plugins {
             return {};
 
         std::string mUuid = player.getUuid().asString();
-        std::string mIp = player.getIPAndPort().substr(0, player.getIPAndPort().find(':'));
+        std::string mIp = player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':') - 1);
         std::string mClientId = player.getConnectionRequest()->getDeviceId();
 
         std::vector<std::string> mKeys = this->getBlacklists();
