@@ -81,9 +81,7 @@ namespace LOICollection::Plugins {
                         if (mTarget.isSimulatedPlayer())
                             return true;
 
-                        std::string mNameTag = mName;
-
-                        LOICollectionAPI::translateString(mNameTag, mTarget);
+                        std::string mNameTag = LOICollectionAPI::translateString(mName, mTarget);
 
                         SetActorDataPacket packet(mTarget.getRuntimeID(), mTarget.mEntityData, 
                             nullptr, mTarget.mLevel->getCurrentTick().tickID, false
@@ -103,10 +101,9 @@ namespace LOICollection::Plugins {
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
                 return;
 
-            std::string mMessage = option.FormatText.join;
-
-            LOICollectionAPI::translateString(mMessage, event.self());
-            TextPacket::createSystemMessage(mMessage).sendToClients();
+            TextPacket::createSystemMessage(
+                LOICollectionAPI::translateString(option.FormatText.join, event.self())
+            ).sendToClients();
 
             mInterceptTextObjectPacket.push_back(event.self().getUuid().asString());
         });
@@ -115,10 +112,9 @@ namespace LOICollection::Plugins {
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
                 return;
 
-            std::string mMessage = option.FormatText.exit;
-
-            LOICollectionAPI::translateString(mMessage, event.self());
-            TextPacket::createSystemMessage(mMessage).sendToClients();
+            TextPacket::createSystemMessage(
+                LOICollectionAPI::translateString(option.FormatText.exit, event.self())
+            ).sendToClients();
 
             mInterceptTextObjectPacket.erase(std::remove(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), event.self().getUuid().asString()), mInterceptTextObjectPacket.end());
         });
@@ -142,10 +138,8 @@ namespace LOICollection::Plugins {
                     (mType == ScoreChangedType::add ? "+" : (mType == ScoreChangedType::reduce ? "-" : "")) + std::to_string(mScore),
                     mOriScore
                 );
-
-                LOICollectionAPI::translateString(mMessage, event.self());
                 
-                event.self().sendMessage(mMessage);
+                event.self().sendMessage(LOICollectionAPI::translateString(mMessage, event.self()));
             }
         });
 

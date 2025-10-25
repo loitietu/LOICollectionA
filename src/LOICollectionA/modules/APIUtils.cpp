@@ -1,5 +1,8 @@
+#include <any>
+#include <memory>
 #include <string>
 #include <vector>
+#include <utility>
 #include <algorithm>
 #include <functional>
 #include <unordered_map>
@@ -36,13 +39,54 @@
 #include "LOICollectionA/utils/SystemUtils.h"
 #include "LOICollectionA/utils/I18nUtils.h"
 
+#include "LOICollectionA/include/APIEngine.h"
+
 #include "LOICollectionA/include/APIUtils.h"
 
 std::unordered_map<std::string, std::function<std::string(Player&)>> mVariableMap;
 std::unordered_map<std::string, std::function<std::string(Player&, std::string)>> mVariableMapParameter;
 
 namespace LOICollection::LOICollectionAPI {
+    class VariableProcessor : public IContentProcessor {
+    public:
+        std::string process(const std::string& content, const Context& context) override {
+            auto [name, parameter] = parser(content);
+
+            if (parameter.empty())
+                return getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(context.params.at(0)));
+
+            return getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(context.params.at(0)), parameter);
+        }
+    
+        std::pair<std::string, std::string> parser(const std::string& content) {
+            size_t pos = content.find('(');
+            if (pos != std::string::npos && content.back() == ')')
+                return {
+                    content.substr(0, pos),
+                    content.substr(pos + 1, content.size() - pos - 2)
+                };
+            
+            return { content, "" };
+        }
+    };
+
+    class GrammarProcessor : public IContentProcessor {
+    public:
+        std::string process(const std::string& content, const Context&) override {
+            return tryGetGrammarResult(content);
+        }
+    };
+
     void initialization() {
+        APIEngine::getInstance().registery(
+            std::make_unique<VariableProcessor>(),
+            APIEngineConfig{ "variable", "{", "}", "$", 2 }
+        );
+        APIEngine::getInstance().registery(
+            std::make_unique<GrammarProcessor>(),
+            APIEngineConfig{ "grammar", "@", "@", "", 1 }
+        );
+
         registerVariable("version.mc", [](Player&) -> std::string {
             return ll::getGameVersion().to_string();
         });
@@ -249,113 +293,14 @@ namespace LOICollection::LOICollectionAPI {
     }
 
     std::string getVariableString(const std::string& str, Player& player) {
-        if (str.empty() || str.find_first_of("{}") == std::string::npos)
-            return str;
-
-        std::string result;
-        std::vector<VarOccurrence> occurrences;
-
-        result.reserve(str.size() * 2);
-        occurrences.reserve(30);
-
-        size_t mStartPos = 0;
-        while (mStartPos < str.size()) {
-            if (str[mStartPos] != '{') {
-                mStartPos++;
-                continue;
-            }
-
-            if (mStartPos > 0 && str[mStartPos - 1] == '$') {
-                occurrences.push_back({mStartPos - 1, 1, ""});
-                mStartPos = str.find('}', mStartPos + 1);
-                continue;
-            }
-
-            if (size_t mEndPos = str.find('}', mStartPos + 1); mEndPos != std::string::npos) {
-                std::string mVariableName = str.substr(mStartPos + 1, mEndPos - mStartPos - 1);
-                
-                if (mVariableName.find('(') != std::string::npos && mVariableName.back() == ')') {
-                    std::string mVariableParameterName = mVariableName.substr(0, mVariableName.find('('));
-                    std::string mVariableParameterValue = mVariableName.substr(mVariableName.find('(') + 1, mVariableName.length() - mVariableName.find('(') - 2);
-                    if (auto itp = mVariableMapParameter.find(mVariableParameterName); itp != mVariableMapParameter.end()) {
-                        std::string mValue = getValueForVariable(mVariableParameterName, player, mVariableParameterValue);
-                        occurrences.push_back({mStartPos, mEndPos - mStartPos + 1, mValue});
-                    }
-                } else if (auto it = mVariableMap.find(mVariableName); it != mVariableMap.end()) {
-                    std::string mValue = getValueForVariable(mVariableName, player);
-                    occurrences.push_back({mStartPos, mEndPos - mStartPos + 1, mValue});
-                }
-
-                mStartPos = mEndPos + 1;
-            }
-        }
-
-        size_t mPos = 0;
-        for (const auto& occ : occurrences) {
-            result.append(str, mPos, occ.start - mPos);
-            result.append(occ.replacement);
-            mPos = occ.start + occ.length;
-        }
-
-        if (mPos < str.size())
-            result.append(str, mPos, str.size() - mPos);
-
-        return result;
+        return APIEngine::getInstance().get("variable", str, { std::ref(player) });
     }
 
     std::string getGrammarString(const std::string& str) {
-        if (str.empty() || str.find('@') == std::string::npos)
-            return str;
-
-        std::string result;
-        std::vector<VarOccurrence> occurrences;
-
-        result.reserve(str.size() * 2);
-        occurrences.reserve(30);
-
-        size_t mStartPos = 0;
-        while (mStartPos < str.size()) {
-            if (str[mStartPos] != '@') {
-                mStartPos++;
-                continue;
-            }
-
-            size_t mEndPos = str.find('@', mStartPos + 1);
-            if (mEndPos == std::string::npos) 
-                break;
-
-            std::string mGrammar = str.substr(mStartPos + 1, mEndPos - mStartPos - 1);
-            std::string mValue = tryGetGrammarResult(mGrammar);
-            occurrences.push_back({mStartPos, mEndPos - mStartPos + 1, mValue});
-
-            mStartPos = mEndPos + 1;
-        }
-
-        size_t mPos = 0;
-        for (const auto& occ : occurrences) {
-            result.append(str, mPos, occ.start - mPos);
-            result.append(occ.replacement);
-            mPos = occ.start + occ.length;
-        }
-
-        if (mPos < str.size())
-            result.append(str, mPos, str.size() - mPos);
-
-        return result;
-    }
-
-    std::string translateString(std::string& str, Player& player) {
-        std::string mResult = getVariableString(str, player);
-        std::string mGrammarResult = getGrammarString(mResult);
-
-        str = mGrammarResult;
-
-        return mGrammarResult;
+        return APIEngine::getInstance().get("grammar", str);
     }
 
     std::string translateString(const std::string& str, Player& player) {
-        std::string mResult = getVariableString(str, player);
-        std::string mGrammarResult = getGrammarString(mResult);
-        return mGrammarResult;
+        return APIEngine::getInstance().process(str, { std::ref(player) });
     }
 }

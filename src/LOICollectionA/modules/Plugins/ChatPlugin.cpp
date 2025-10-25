@@ -373,8 +373,7 @@ namespace LOICollection::Plugins {
 
             event.cancel();
 
-            std::string mChat = this->mImpl->options.FormatText;
-            LOICollectionAPI::translateString(mChat, event.self());
+            std::string mChat = LOICollectionAPI::translateString(this->mImpl->options.FormatText, event.self());
             
             TextPacket packet = TextPacket::createChat("", 
                 fmt::format(fmt::runtime(mChat), event.message()), 
