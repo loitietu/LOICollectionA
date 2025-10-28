@@ -113,7 +113,7 @@ namespace LOICollection::Plugins {
         ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), 
             fmt::format(fmt::runtime(mObjectLabel), target,
                 this->mParent.getDatabase()->get("Mute", mObject + "." + target + "_NAME", "None"),
-                SystemUtils::formatDataTime(this->mParent.getDatabase()->get("Mute", mObject + "." + target + "_TIME", "None"), "None")
+                SystemUtils::toFormatTime(this->mParent.getDatabase()->get("Mute", mObject + "." + target + "_TIME", "None"), "None")
             )
         );
         form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.set.remove"), [this, target](Player& pl) -> void {

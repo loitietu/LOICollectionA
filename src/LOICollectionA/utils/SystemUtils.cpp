@@ -18,8 +18,10 @@ namespace SystemUtils {
             std::string result(size, '\0');
             if (!WideCharToMultiByte(CP_UTF8, 0, localeName, -1, result.data(), size, nullptr, nullptr))
                 return defaultValue;
+
             result.resize(size - 1);
             std::replace(result.begin(), result.end(), '-', '_');
+            
             return result;
         }
         return defaultValue;
@@ -37,24 +39,17 @@ namespace SystemUtils {
         return std::vformat("{:" + format + "}", std::make_format_args(zt));
     }
 
-    std::string formatDataTime(const std::string& timeString, const std::string& defaultValue) {
-        if (timeString.size() != 14)
-            return defaultValue;
-        
+    std::string toFormatTime(const std::string& str, const std::string& defaultValue) {
         std::chrono::local_seconds mTp;
-        std::istringstream iss(timeString);
-        iss >> std::chrono::parse("%Y%m%d%H%M%S", mTp);
-        if (iss.fail())
+        if ((std::istringstream(str) >> std::chrono::parse("%Y%m%d%H%M%S", mTp)).fail())
             return defaultValue;
         
         return std::format("{:%Y-%m-%d %H:%M:%S}", mTp);
     }
 
-    std::string timeCalculate(const std::string& timeString, int hours, const std::string& defaultValue) {
+    std::string toTimeCalculate(const std::string& str, int hours, const std::string& defaultValue) {
         std::chrono::local_seconds mTp;
-        std::istringstream iss(timeString);
-        iss >> std::chrono::parse("%Y-%m-%d %H:%M:%S", mTp);
-        if (iss.fail())
+        if ((std::istringstream(str) >> std::chrono::parse("%Y-%m-%d %H:%M:%S", mTp)).fail())
             return defaultValue;
         
         mTp += std::chrono::hours(hours);
@@ -83,14 +78,9 @@ namespace SystemUtils {
         return (endpt == str.c_str()) ? defaultValue : static_cast<int>(result);
     }
 
-    bool isReach(const std::string& timeString) {
-        if (timeString.size() != 14)
-            return false;
-        
+    bool isPastOrPresent(const std::string& str) {
         std::chrono::local_seconds mLocalTp;
-        std::istringstream iss(timeString);
-        iss >> std::chrono::parse("%Y%m%d%H%M%S", mLocalTp);
-        if (iss.fail())
+        if ((std::istringstream(str) >> std::chrono::parse("%Y%m%d%H%M%S", mLocalTp)).fail())
             return false;
         
         auto mTargetSysTp = std::chrono::current_zone()->to_sys(mLocalTp);

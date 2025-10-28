@@ -98,8 +98,8 @@ namespace LOICollection::Plugins {
             fmt::format(fmt::runtime(mObjectLabel), id,
                 mData.at(id + ".NAME"),
                 mData.at(id + ".CAUSE"),
-                SystemUtils::formatDataTime(mData.at(id + ".SUBTIME"), "None"),
-                SystemUtils::formatDataTime(mData.at(id + ".TIME"), "None")
+                SystemUtils::toFormatTime(mData.at(id + ".SUBTIME"), "None"),
+                SystemUtils::toFormatTime(mData.at(id + ".TIME"), "None")
             )
         );
         form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [this, id](Player&) -> void {
@@ -268,11 +268,11 @@ namespace LOICollection::Plugins {
 
             std::unordered_map<std::string, std::string> mData = this->getDatabase()->getByPrefix("Mute", mId + ".");
 
-            if (SystemUtils::isReach(mData.at(mId + ".TIME")))
+            if (SystemUtils::isPastOrPresent(mData.at(mId + ".TIME")))
                 return this->delMute(event.self());
 
             std::string mObjectTips = fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "mute.tips")), 
-                mData.at(mId + ".CAUSE"), SystemUtils::formatDataTime(mData.at(mId + ".TIME"), "None")
+                mData.at(mId + ".CAUSE"), SystemUtils::toFormatTime(mData.at(mId + ".TIME"), "None")
             );
             
             event.self().sendMessage(mObjectTips);
@@ -296,7 +296,7 @@ namespace LOICollection::Plugins {
         SQLite::Transaction transaction(*this->getDatabase()->getDatabase());
         this->getDatabase()->set("Mute", mTimestamp + ".NAME", player.getRealName());
         this->getDatabase()->set("Mute", mTimestamp + ".CAUSE", mCause);
-        this->getDatabase()->set("Mute", mTimestamp + ".TIME", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "0") : "0");
+        this->getDatabase()->set("Mute", mTimestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "0") : "0");
         this->getDatabase()->set("Mute", mTimestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         this->getDatabase()->set("Mute", mTimestamp + ".DATA", player.getUuid().asString());
         transaction.commit();

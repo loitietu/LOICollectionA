@@ -183,7 +183,7 @@ namespace LOICollection::Plugins {
         ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), 
             fmt::format(fmt::runtime(mObjectLabel), target,
                 this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_NAME", "None"),
-                SystemUtils::formatDataTime(this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None")
+                SystemUtils::toFormatTime(this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None")
             )
         );
         form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.set.remove"), [this, target](Player& pl) -> void {
@@ -401,7 +401,7 @@ namespace LOICollection::Plugins {
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         
-        this->getDatabase()->set("Titles", mObject + "." + text, time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
+        this->getDatabase()->set("Titles", mObject + "." + text, time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
         
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log2"), player)), text);
     }
@@ -459,7 +459,7 @@ namespace LOICollection::Plugins {
 
         std::string mTitle = this->mImpl->db2->get("OBJECT$" + mObject, "Chat_Title", "None");
         
-        if (SystemUtils::isReach(this->getDatabase()->get("Titles", mObject + "." + mTitle, "None"))) {
+        if (SystemUtils::isPastOrPresent(this->getDatabase()->get("Titles", mObject + "." + mTitle, "None"))) {
             this->mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", "None");
             this->getDatabase()->del("Titles", mObject + "." + mTitle);
             

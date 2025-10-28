@@ -255,7 +255,7 @@ namespace LOICollection::Plugins {
         ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), 
             fmt::format(fmt::runtime(mObjectLabel), target,
                 this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_NAME", "None"),
-                SystemUtils::formatDataTime(this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None")
+                SystemUtils::toFormatTime(this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None")
             )
         );
         form.appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist.set.remove"), [this, target](Player& pl) -> void {

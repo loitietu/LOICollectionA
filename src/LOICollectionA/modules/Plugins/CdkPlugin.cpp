@@ -247,7 +247,7 @@ namespace LOICollection::Plugins {
         ll::form::SimpleForm form(tr(mObjectLanguage, "cdk.gui.title"),
             fmt::format(fmt::runtime(mObjectLabel), id, 
                 this->mParent.getDatabase()->get_ptr<bool>("/" + id + "/personal", false) ? "true" : "false",
-                SystemUtils::formatDataTime(this->mParent.getDatabase()->get_ptr<std::string>("/" + id + "/time", "None"), "None")
+                SystemUtils::toFormatTime(this->mParent.getDatabase()->get_ptr<std::string>("/" + id + "/time", "None"), "None")
             )
         );
         form.appendButton(tr(mObjectLanguage, "cdk.gui.award.score"), "textures/items/diamond_sword", "path", [this, id](Player& pl) -> void {
@@ -346,7 +346,7 @@ namespace LOICollection::Plugins {
             { "scores", nlohmann::ordered_json::object() },
             { "item", nlohmann::ordered_json::array() },
             { "title", nlohmann::ordered_json::object() },
-            { "time", SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "0") }
+            { "time", SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "0") }
         };
 
         this->getDatabase()->set(id, data);
@@ -374,7 +374,7 @@ namespace LOICollection::Plugins {
             return;
         }
 
-        if (SystemUtils::isReach(data.value("time", ""))) {
+        if (SystemUtils::isPastOrPresent(data.value("time", ""))) {
             this->getDatabase()->remove(id);
             this->getDatabase()->save();
 

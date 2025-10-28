@@ -19,17 +19,17 @@ namespace LOICollection::modules {
 
         LOICOLLECTION_A_API   bool onLoad();
         LOICOLLECTION_A_API   bool onRegistry();
-        LOICOLLECTION_A_API   bool onUnRegistry();
+        LOICOLLECTION_A_API   bool onUnregistry();
 
         LOICOLLECTION_A_API   void onLoad(CallBackFunc func);
         LOICOLLECTION_A_API   void onRegistry(CallBackFunc func);
-        LOICOLLECTION_A_API   void onUnRegistry(CallBackFunc func);
+        LOICOLLECTION_A_API   void onUnregistry(CallBackFunc func);
 
         LOICOLLECTION_A_API   void release() noexcept;
 
         LOICOLLECTION_A_NDAPI bool isLoaded() const noexcept;
         LOICOLLECTION_A_NDAPI bool isRegistered() const noexcept;
-        LOICOLLECTION_A_NDAPI bool isUnRegistered() const noexcept;
+        LOICOLLECTION_A_NDAPI bool isUnregistered() const noexcept;
 
     private:
         struct Impl;

@@ -186,8 +186,8 @@ namespace LOICollection::Plugins {
         command.overload<operation>().text("query").text("event").text("time").required("Time").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
             std::vector<std::string> mResult = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
-                std::string mTime = SystemUtils::timeCalculate(value, time, "0");
-                return !SystemUtils::isReach(mTime);
+                std::string mTime = SystemUtils::toTimeCalculate(value, time, "0");
+                return !SystemUtils::isPastOrPresent(mTime);
             });
             std::string result = std::accumulate(mResult.cbegin(), mResult.cend(), std::string(), [](const std::string& a, const std::string& b) {
                 return a + (a.empty() ? "" : ", ") + b;
@@ -199,8 +199,8 @@ namespace LOICollection::Plugins {
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
             std::vector<std::string> mNames = this->getEvents({{ "EventName", param.EventName }});
             std::vector<std::string> mTimes = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
-                std::string mTime = SystemUtils::timeCalculate(value, time, "0");
-                return !SystemUtils::isReach(mTime);
+                std::string mTime = SystemUtils::toTimeCalculate(value, time, "0");
+                return !SystemUtils::isPastOrPresent(mTime);
             });
             std::vector<std::string> mResult = SystemUtils::getIntersection({ mNames, mTimes });
             std::string result = std::accumulate(mResult.cbegin(), mResult.cend(), std::string(), [](const std::string& a, const std::string& b) {
@@ -297,8 +297,8 @@ namespace LOICollection::Plugins {
                 return Vec3(x, y, z).distanceTo(mPosition) <= radius;
             });
             std::vector<std::string> mTimes = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
-                std::string mTime = SystemUtils::timeCalculate(value, time, "0");
-                return !SystemUtils::isReach(mTime);
+                std::string mTime = SystemUtils::toTimeCalculate(value, time, "0");
+                return !SystemUtils::isPastOrPresent(mTime);
             });
             std::vector<std::string> mTypes = this->getEvents({{ "EventType", "Operable" }});
             std::vector<std::string> mResult = this->filter(
@@ -330,8 +330,8 @@ namespace LOICollection::Plugins {
                 return x >= (double) mPositionMin.x && x <= (double) mPositionMax.x && y >= (double) mPositionMin.y && y <= (double) mPositionMax.y && z >= (double) mPositionMin.z && z <= (double) mPositionMax.z;
             });
             std::vector<std::string> mTimes = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
-                std::string mTime = SystemUtils::timeCalculate(value, time, "0");
-                return !SystemUtils::isReach(mTime);
+                std::string mTime = SystemUtils::toTimeCalculate(value, time, "0");
+                return !SystemUtils::isPastOrPresent(mTime);
             });
             std::vector<std::string> mTypes = this->getEvents({{ "EventType", "Operable" }});
             std::vector<std::string> mResult = this->filter(
@@ -867,8 +867,8 @@ namespace LOICollection::Plugins {
         std::for_each(mKeys.begin(), mKeys.end(), [this, hours](const std::string& mId) mutable {
             std::string mEventTime = this->getDatabase()->get("Events", mId + ".EventTime");
             
-            std::string mTime = SystemUtils::timeCalculate(mEventTime, hours, "0");
-            if (SystemUtils::isReach(mTime))
+            std::string mTime = SystemUtils::toTimeCalculate(mEventTime, hours, "0");
+            if (SystemUtils::isPastOrPresent(mTime))
                 this->getDatabase()->delByPrefix("Events", mId + ".");
         });
         transaction.commit();

@@ -107,8 +107,8 @@ namespace LOICollection::Plugins {
             fmt::format(fmt::runtime(mObjectLabel), id, 
                 this->mParent.getDatabase()->get("Blacklist", id + ".NAME", "None"), 
                 this->mParent.getDatabase()->get("Blacklist", id + ".CAUSE", "None"), 
-                SystemUtils::formatDataTime(this->mParent.getDatabase()->get("Blacklist", id + ".SUBTIME", "None"), "None"), 
-                SystemUtils::formatDataTime(this->mParent.getDatabase()->get("Blacklist", id + ".TIME", "None"), "None")
+                SystemUtils::toFormatTime(this->mParent.getDatabase()->get("Blacklist", id + ".SUBTIME", "None"), "None"), 
+                SystemUtils::toFormatTime(this->mParent.getDatabase()->get("Blacklist", id + ".TIME", "None"), "None")
             )
         );
         form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [this, id](Player&) -> void {
@@ -274,7 +274,7 @@ namespace LOICollection::Plugins {
 
             std::unordered_map<std::string, std::string> mData = this->getDatabase()->getByPrefix("Blacklist", mId + ".");
 
-            if (SystemUtils::isReach(mData.at(mId + ".TIME")))
+            if (SystemUtils::isPastOrPresent(mData.at(mId + ".TIME")))
                 return delBlacklist(mId);
 
             std::replace(mUuid.begin(), mUuid.end(), '-', '_');
@@ -284,7 +284,7 @@ namespace LOICollection::Plugins {
                 event.getNetworkIdentifier(), event.getSubClientId(), Connection::DisconnectFailReason::Kicked,
                 fmt::format(fmt::runtime(mObjectTips), 
                     mData.at(mId + ".CAUSE"),
-                    SystemUtils::formatDataTime(mData.at(mId + ".TIME"), "None")
+                    SystemUtils::toFormatTime(mData.at(mId + ".TIME"), "None")
                 ),
                 std::nullopt, false
             );
@@ -307,7 +307,7 @@ namespace LOICollection::Plugins {
         SQLite::Transaction transaction(*this->getDatabase()->getDatabase());
         this->getDatabase()->set("Blacklist", mTismestamp + ".NAME", player.getRealName());
         this->getDatabase()->set("Blacklist", mTismestamp + ".CAUSE", mCause);
-        this->getDatabase()->set("Blacklist", mTismestamp + ".TIME", time ? SystemUtils::timeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
+        this->getDatabase()->set("Blacklist", mTismestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
         this->getDatabase()->set("Blacklist", mTismestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_UUID", player.getUuid().asString());
         this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_IP", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':') - 1));
@@ -320,7 +320,7 @@ namespace LOICollection::Plugins {
         ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
             player.getNetworkIdentifier(), player.getClientSubId(), Connection::DisconnectFailReason::Kicked,
             fmt::format(fmt::runtime(mObjectTips), mCause,
-                SystemUtils::formatDataTime(this->getDatabase()->get("Blacklist", mTismestamp + ".TIME"), "None")
+                SystemUtils::toFormatTime(this->getDatabase()->get("Blacklist", mTismestamp + ".TIME"), "None")
             ),
             std::nullopt, false
         );

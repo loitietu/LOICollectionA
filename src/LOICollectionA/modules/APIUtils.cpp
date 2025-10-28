@@ -103,7 +103,7 @@ namespace LOICollection::LOICollectionAPI {
             return Plugins::ChatPlugin::getInstance().getTitle(player);
         });
         registerVariable("player.title.time", [](Player& player) -> std::string {
-            return SystemUtils::formatDataTime(
+            return SystemUtils::toFormatTime(
                 Plugins::ChatPlugin::getInstance().getTitleTime(player, Plugins::ChatPlugin::getInstance().getTitle(player)), "None"
             );
         });

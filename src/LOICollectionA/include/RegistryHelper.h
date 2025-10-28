@@ -19,7 +19,7 @@ namespace LOICollection::modules {
     };
 
     template<typename T>
-    concept UnRegistryable = requires(T t) {
+    concept Unregistryable = requires(T t) {
         { t.unregistry() } -> std::same_as<bool>;
     };
 
@@ -29,7 +29,7 @@ namespace LOICollection::modules {
 
         registry->onLoad(std::bind(&C::load, &binder));
         registry->onRegistry(std::bind(&C::registry, &binder));
-        registry->onUnRegistry(std::bind(&C::unregistry, &binder));
+        registry->onUnregistry(std::bind(&C::unregistry, &binder));
 
         ModManager::getInstance().registry(std::move(registry));
     }
@@ -38,7 +38,7 @@ namespace LOICollection::modules {
     const auto RegistryHelper = []() -> bool {                                                              \
         static_assert(LOICollection::modules::Loadable<CLASS>, #CLASS " must be loadable");                 \
         static_assert(LOICollection::modules::Registryable<CLASS>, #CLASS " must be registryable");         \
-        static_assert(LOICollection::modules::UnRegistryable<CLASS>, #CLASS " must be unregistryable");     \
+        static_assert(LOICollection::modules::Unregistryable<CLASS>, #CLASS " must be unregistryable");     \
                                                                                                             \
         LOICollection::modules::registry<CLASS>(NAME, BINDER);                                              \
         return true;                                                                                        \

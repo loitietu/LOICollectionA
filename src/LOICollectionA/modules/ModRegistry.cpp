@@ -9,68 +9,68 @@ namespace LOICollection::modules {
 
         CallBackFunc onLoaded;
         CallBackFunc onRegistry;
-        CallBackFunc onUnRegistry;
+        CallBackFunc onUnregistry;
     };
 
     ModRegistry::ModRegistry(const std::string& name) : mImpl(std::make_unique<Impl>()) {
-        mImpl->name = name;
+        this->mImpl->name = name;
     }
 
     ModRegistry::~ModRegistry() = default;
 
     std::string ModRegistry::getName() const noexcept {
-        return mImpl->name;
+        return this->mImpl->name;
     }
 
     bool ModRegistry::onLoad() {
-        if (!isLoaded())
+        if (!this->isLoaded())
             return false;
 
-        bool result = mImpl->onLoaded();
+        bool result = this->mImpl->onLoaded();
         return result;
     }
 
     bool ModRegistry::onRegistry() {
-        if (!isRegistered())
+        if (!this->isRegistered())
             return false;
 
-        bool result = mImpl->onRegistry();
+        bool result = this->mImpl->onRegistry();
         return result;
     }
 
-    bool ModRegistry::onUnRegistry() {
-        if (!isUnRegistered())
+    bool ModRegistry::onUnregistry() {
+        if (!this->isUnregistered())
             return false;
 
-        bool result = mImpl->onUnRegistry();
+        bool result = this->mImpl->onUnregistry();
         return result;
     }
 
     void ModRegistry::onLoad(CallBackFunc func) {
-        mImpl->onLoaded = func;
+        this->mImpl->onLoaded = std::move(func);
     }
 
     void ModRegistry::onRegistry(CallBackFunc func) {
-        mImpl->onRegistry = func;
+        this->mImpl->onRegistry = std::move(func);
     }
 
-    void ModRegistry::onUnRegistry(CallBackFunc func) {
-        mImpl->onUnRegistry = func;
+    void ModRegistry::onUnregistry(CallBackFunc func) {
+        this->mImpl->onUnregistry = std::move(func);
     }
 
     void ModRegistry::release() noexcept {
-        mImpl.reset();
+        this->mImpl.reset();
     }
 
     bool ModRegistry::isLoaded() const noexcept {
-        return mImpl->onLoaded != nullptr;
+        return this->mImpl->onLoaded != nullptr;
     }
 
     bool ModRegistry::isRegistered() const noexcept {
-        return mImpl->onRegistry != nullptr;
+        return this->mImpl->onRegistry != nullptr;
     }
 
-    bool ModRegistry::isUnRegistered() const noexcept {
-        return mImpl->onUnRegistry != nullptr;
+    bool ModRegistry::isUnregistered() const noexcept {
+        return this->mImpl->onUnregistry != nullptr;
     }
 }

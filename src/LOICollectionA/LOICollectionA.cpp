@@ -76,7 +76,7 @@ namespace LOICollection {
             modules::ModRegistry* mRegistry = modules::ModManager::getInstance().getRegistry(mod);
 
             if (!mRegistry) {
-                logger.error("Failed to load mod registry for mod {}", mod);
+                logger.error("Failed to get mod registry for mod {}", mod);
                 return;
             }
 
@@ -106,7 +106,7 @@ namespace LOICollection {
             modules::ModRegistry* mRegistry = modules::ModManager::getInstance().getRegistry(mod);
 
             if (!mRegistry) {
-                logger.error("Failed to load mod registry for mod {}", mod);
+                logger.error("Failed to get mod registry for mod {}", mod);
                 return;
             }
 
@@ -124,11 +124,11 @@ namespace LOICollection {
             modules::ModRegistry* mRegistry = modules::ModManager::getInstance().getRegistry(mod);
 
             if (!mRegistry) {
-                logger.error("Failed to load mod registry for mod {}", mod);
+                logger.error("Failed to get mod registry for mod {}", mod);
                 return;
             }
 
-            mRegistry->onUnRegistry();
+            mRegistry->onUnregistry();
         });
 
         return true;
