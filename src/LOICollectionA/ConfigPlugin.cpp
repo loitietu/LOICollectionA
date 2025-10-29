@@ -1,8 +1,8 @@
 #include <string>
 
+#include <ll/api/data/Version.h>
 #include <ll/api/Mod/Manifest.h>
 #include <ll/api/Mod/NativeMod.h>
-#include <ll/api/utils/StringUtils.h>
 #include <ll/api/reflection/Serialization.h>
 
 #include <nlohmann/json.hpp>
@@ -52,9 +52,21 @@ namespace Config {
     }
 
     void SynchronousPluginConfigVersion(C_Config& config) {
-        config.version = std::stoi(ll::string_utils::replaceAll(
-            GetVersion(), ".", ""
-        ));
+        const int mPrime = 31;
+        const int mMOD = 100000000;
+
+        size_t mHash = 0;
+
+        auto mVersion = LOICollection::A::getInstance().getSelf().getManifest().version;
+        if (!mVersion.has_value())
+            return;
+
+        mHash = std::hash<std::string>()(mVersion->to_string()) % mMOD;
+        mHash = (mHash * mPrime + mVersion->major) % mMOD;
+        mHash = (mHash * mPrime + mVersion->minor) % mMOD;
+        mHash = (mHash * mPrime + mVersion->patch) % mMOD;
+
+        config.version = static_cast<int>(mHash);
     }
 
     void SynchronousPluginConfigType(C_Config& config, const std::string& path) {
