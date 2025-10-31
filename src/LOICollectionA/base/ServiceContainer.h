@@ -36,6 +36,7 @@ public:
     template<typename TService>
     void registerInstance(std::shared_ptr<TService> instance, const std::string& name = "") {
         std::lock_guard<std::mutex> lock(mMutex);
+        
         mSingletonInstances[std::type_index(typeid(TService))][name] = instance;
     }
     
@@ -58,6 +59,7 @@ public:
             if (factoryIt != factoriesIt->second.end()) {
                 auto instance = std::any_cast<std::shared_ptr<TService>>(factoryIt->second());
                 mSingletonInstances[type][name] = instance;
+                
                 return instance;
             }
         }

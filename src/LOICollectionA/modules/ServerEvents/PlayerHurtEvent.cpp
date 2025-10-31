@@ -47,6 +47,7 @@ namespace LOICollection::ServerEvents {
     ) {
         if (!this->isPlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
             return origin(source, damage, knock, ignite);
+
         Actor* mSource = ll::service::getLevel()->fetchEntity(
             source.isChildEntitySource() ? source.getEntityUniqueID() : source.getDamagingEntityUniqueID(), false
         );
@@ -57,6 +58,7 @@ namespace LOICollection::ServerEvents {
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled()) 
             return false;
+
         return origin(source, damage, knock, ignite);
     };
 
@@ -73,6 +75,7 @@ namespace LOICollection::ServerEvents {
     ) {
         if (!this->isPlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
             return origin(source, damage, knock, ignite);
+
         Actor* mSource = ll::service::getLevel()->fetchEntity(
             source.isChildEntitySource() ? source.getEntityUniqueID() : source.getDamagingEntityUniqueID(), false
         );
@@ -83,6 +86,7 @@ namespace LOICollection::ServerEvents {
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled()) 
             return;
+
         return origin(source, damage, knock, ignite);
     };
 
@@ -97,6 +101,7 @@ namespace LOICollection::ServerEvents {
     ) {
         if (!this->isPlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
             return origin(source, damage);
+        
         Actor* mSource = ll::service::getLevel()->fetchEntity(
             source.isChildEntitySource() ? source.getEntityUniqueID() : source.getDamagingEntityUniqueID(), false
         );
@@ -107,6 +112,7 @@ namespace LOICollection::ServerEvents {
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled()) 
             return 0.0f;
+
         return origin(source, damage);
     };
 

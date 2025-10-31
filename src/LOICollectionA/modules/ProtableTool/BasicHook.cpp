@@ -63,6 +63,7 @@ namespace LOICollection::ProtableTool {
             return false;
 
         ServerStartGamePacketHook::hook();
+        
         return true;
     }
 

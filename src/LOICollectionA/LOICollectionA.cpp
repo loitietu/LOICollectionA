@@ -44,16 +44,21 @@ namespace LOICollection {
         if (!std::filesystem::exists(configFilePath)) {
             logger.info("Plugin - Configurations not found.");
             logger.info("Plugin - Saving default configurations.");
+
             if (!ll::config::saveConfig(this->config, configFilePath)) {
                 logger.error("Failed to save default configurations.");
+                
                 return false;
             }
         }
+
         Config::SynchronousPluginConfigType(this->config, configFilePath.string());
         if (!ll::config::loadConfig(this->config, configFilePath)) {
             logger.info("Plugin - Update configurations.");
+
             if (!ll::config::saveConfig(this->config, configFilePath)) {
                 logger.error("Failed to save default configurations.");
+
                 return false;
             }
         }
@@ -67,7 +72,7 @@ namespace LOICollection {
         std::filesystem::create_directory(dataFilePath);
         ServiceProvider::getInstance().registerInstance<std::string>(std::make_shared<std::string>(dataFilePath.string()), "DataPath");
         ServiceProvider::getInstance().registerInstance<std::string>(std::make_shared<std::string>(configDataPath.string()), "ConfigPath");
-        ServiceProvider::getInstance().registerSingleton<SQLiteStorage>([dataFilePath]() {
+        ServiceProvider::getInstance().registerSingleton<SQLiteStorage>([dataFilePath]() -> std::shared_ptr<SQLiteStorage> {
             return std::make_shared<SQLiteStorage>((dataFilePath / "settings.db").string());
         }, "SettingsDB");
 

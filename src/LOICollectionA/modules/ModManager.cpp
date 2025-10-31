@@ -33,6 +33,7 @@ namespace LOICollection::modules {
 
         for (auto& it : this->mRegistries)
             mods.push_back(it.first);
+        
         return mods;
     }
 }

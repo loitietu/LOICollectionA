@@ -1,4 +1,3 @@
-#include <map>
 #include <memory>
 #include <string>
 
@@ -14,7 +13,6 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
-#include <ll/api/event/player/PlayerDisconnectEvent.h>
 
 #include <mc/world/level/Level.h>
 
@@ -32,11 +30,11 @@
 #include "LOICollectionA/include/ServerEvents/PlayerHurtEvent.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
-#include "LOICollectionA/utils/SystemUtils.h"
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
 #include "LOICollectionA/base/Wrapper.h"
+#include "LOICollectionA/base/Throttle.h"
 #include "LOICollectionA/base/ServiceProvider.h"
 
 #include "LOICollectionA/ConfigPLugin.h"
@@ -47,7 +45,7 @@ using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
     struct PvpPlugin::Impl {
-        std::map<std::string, std::string> mPlayerPvpLists;
+        Throttle mThrottle;
 
         bool ModuleEnabled = false;
 
@@ -55,8 +53,9 @@ namespace LOICollection::Plugins {
         std::shared_ptr<ll::io::Logger> logger;
 
         ll::event::ListenerPtr PlayerJoinEventListener;
-        ll::event::ListenerPtr PlayerDisconnectEventListener;
         ll::event::ListenerPtr PlayerHurtEventListener;
+        
+        Impl() : mThrottle(std::chrono::seconds(1)) {}
     };
 
     PvpPlugin::PvpPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
@@ -126,31 +125,27 @@ namespace LOICollection::Plugins {
             if (!this->mImpl->db->has("OBJECT$" + mObject, "Pvp_Enable"))
                 this->mImpl->db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
         });
-        this->mImpl->PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([this](ll::event::PlayerDisconnectEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer())
-                return;
-            
-            this->mImpl->mPlayerPvpLists.erase(event.self().getUuid().asString());
-        });
         this->mImpl->PlayerHurtEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerHurtEvent>([this](LOICollection::ServerEvents::PlayerHurtEvent& event) mutable -> void {
             if (!event.getSource().isPlayer() || event.getSource().isSimulatedPlayer() || event.self().isSimulatedPlayer())
                 return;
             auto& source = static_cast<Player&>(event.getSource());
 
-            if (!this->isEnable(event.self()) || !this->isEnable(source)) {
-                if (!this->mImpl->mPlayerPvpLists.contains(source.getUuid().asString()) || this->mImpl->mPlayerPvpLists[source.getUuid().asString()] != SystemUtils::getNowTime("%Y%m%d%H%M%S"))
-                    source.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(source), "pvp.off"));
+            bool isPvp = this->isEnable(event.self()) && this->isEnable(source);
+            if (!isPvp)
                 event.cancel();
-            }
 
-            this->mImpl->mPlayerPvpLists[source.getUuid().asString()] = SystemUtils::getNowTime("%Y%m%d%H%M%S");
+            this->mImpl->mThrottle([isPvp, &source]() -> void {
+                if (isPvp)
+                    return;
+
+                source.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(source), "pvp.off"));
+            });
         });
     }
 
     void PvpPlugin::unlistenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
-        eventBus.removeListener(this->mImpl->PlayerDisconnectEventListener);
         eventBus.removeListener(this->mImpl->PlayerHurtEventListener);
     }
 

@@ -257,6 +257,7 @@ namespace LOICollection::LOICollectionAPI {
             int count = (int)std::count_if(mRuntimeActorList.begin(), mRuntimeActorList.end(), [&name](Actor* actor) -> bool {
                 return actor->getTypeName() == name;
             });
+            
             return std::to_string(count);
         });
     }

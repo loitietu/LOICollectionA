@@ -128,16 +128,15 @@ namespace LOICollection::ProtableTool {
 
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         this->mImpl->PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([this](ll::event::PlayerDisconnectEvent& event) mutable -> void {
-                if (event.self().isSimulatedPlayer())
-                    return;
+            if (event.self().isSimulatedPlayer())
+                return;
 
-                uint64 identifierHash = event.self().getNetworkIdentifier().getHash();
-                if (this->mImpl->mFormResponse.contains(identifierHash))
-                    this->mImpl->mFormResponse.erase(identifierHash);
-                if (this->mImpl->mFormLists.contains(identifierHash))
-                    this->mImpl->mFormLists.erase(identifierHash);
-            }
-        );
+            uint64 identifierHash = event.self().getNetworkIdentifier().getHash();
+            if (this->mImpl->mFormResponse.contains(identifierHash))
+                this->mImpl->mFormResponse.erase(identifierHash);
+            if (this->mImpl->mFormLists.contains(identifierHash))
+                this->mImpl->mFormLists.erase(identifierHash);
+        });
 
         return true;
     }

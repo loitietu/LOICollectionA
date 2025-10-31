@@ -58,6 +58,7 @@ namespace LOICollection::ServerEvents {
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled())
             return;
+
         origin(identifier, packet, subClientId);
     }
 
@@ -75,6 +76,7 @@ namespace LOICollection::ServerEvents {
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled())
             return;
+
         origin(source, packet, size);
     }
 
@@ -92,6 +94,7 @@ namespace LOICollection::ServerEvents {
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled())
             return;
+
         origin(exceptId, exceptSubid, packet);
     }
 
@@ -107,6 +110,7 @@ namespace LOICollection::ServerEvents {
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled())
             return;
+        
         origin(packet);
     }
 
