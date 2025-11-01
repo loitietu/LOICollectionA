@@ -21,7 +21,7 @@ namespace LOICollection::LOICollectionAPI {
     struct Context {
         std::unordered_map<int, std::any> params;
 
-        template<typename... Args>
+        template <typename... Args>
         Context(Args&&... args) {
             [&]<std::size_t... Is>(std::index_sequence<Is...>) {
                 ((params[Is] = std::forward<Args>(args)), ...);

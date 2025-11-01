@@ -1,17 +1,19 @@
 #include <memory>
 #include <string>
 
-#include <ll/api/memory/Hook.h>
+#include <ll/api/event/EventBus.h>
+#include <ll/api/event/ListenerBase.h>
 #include <ll/api/utils/RandomUtils.h>
 
 #include <mc/world/level/LevelSeed64.h>
 #include <mc/world/level/LevelSettings.h>
 
+#include <mc/network/MinecraftPacketIds.h>
 #include <mc/network/packet/StartGamePacket.h>
 
-#include <mc/deps/core/utility/BinaryStream.h>
-
 #include "LOICollectionA/include/RegistryHelper.h"
+
+#include "LOICollectionA/include/ServerEvents/NetworkPacketEvent.h"
 
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"
@@ -23,31 +25,35 @@
 namespace LOICollection::ProtableTool {
     struct BasicHook::Impl {
         C_Config::C_ProtableTool::C_BasicHook options;
-    };
-}
 
-LL_TYPE_INSTANCE_HOOK(
-    ServerStartGamePacketHook,
-    HookPriority::Normal,
-    StartGamePacket,
-    &StartGamePacket::$write,
-    void,
-    BinaryStream& stream
-) {
-    auto& instance = LOICollection::ProtableTool::BasicHook::getInstance();
+        ll::event::ListenerPtr NetworkPacketEventListener;
+    };  
 
-    if (std::string mFakeSeed = instance.mImpl->options.FakeSeed; !mFakeSeed.empty()) {
-        const char* ptr = mFakeSeed.data();
-        char* endpt{};
-        int64 result = std::strtoll(ptr, &endpt, 10);
-        this->mSettings->mSeed = LevelSeed64(ptr == endpt ? ll::random_utils::rand<int64_t>() : result);
-    }
-    return origin(stream);
-};
-
-namespace LOICollection::ProtableTool {
     BasicHook::BasicHook() : mImpl(std::make_unique<Impl>()) {};
     BasicHook::~BasicHook() = default;
+
+    void BasicHook::listenEvent() {
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+        this->mImpl->NetworkPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([this](LOICollection::ServerEvents::NetworkPacketEvent& event) -> void {
+            if (event.getPacket().getId() != MinecraftPacketIds::StartGame)
+                return;
+
+            auto& packet = static_cast<StartGamePacket&>(const_cast<Packet&>(event.getPacket()));
+
+            if (!this->mImpl->options.FakeSeed.empty()) {
+                const char* ptr = this->mImpl->options.FakeSeed.data();
+                char* endpt{};
+                int64 result = std::strtoll(ptr, &endpt, 10);
+                
+                packet.mSettings->mSeed = LevelSeed64(ptr == endpt ? ll::random_utils::rand<int64_t>() : result);
+            }
+        });
+    }
+
+    void BasicHook::unlistenEvent() {
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+        eventBus.removeListener(this->mImpl->NetworkPacketEventListener);
+    }
 
     bool BasicHook::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.BasicHook.ModuleEnabled)
@@ -58,11 +64,20 @@ namespace LOICollection::ProtableTool {
         return true;
     }
 
+    bool BasicHook::unload() {
+        if (!this->mImpl->options.ModuleEnabled)
+            return false;
+
+        this->mImpl->options = {};
+        
+        return true;
+    }
+
     bool BasicHook::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        ServerStartGamePacketHook::hook();
+        this->listenEvent();
         
         return true;
     }
@@ -71,7 +86,7 @@ namespace LOICollection::ProtableTool {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
         
-        ServerStartGamePacketHook::unhook();
+        this->unlistenEvent();
 
         return true;
     }

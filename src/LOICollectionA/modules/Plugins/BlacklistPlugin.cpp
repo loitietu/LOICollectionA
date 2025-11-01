@@ -262,9 +262,9 @@ namespace LOICollection::Plugins {
             std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find_last_of(':' - 1));
             std::string mClientId = packet.mConnectionRequest->getDeviceId();
 
-            std::vector<std::string> mKeys = getBlacklists();
+            std::vector<std::string> mKeys = this->getBlacklists();
             auto it = std::find_if(mKeys.begin(), mKeys.end(), [&](const std::string& mId) -> bool {
-                return isBlacklist(mId, mUuid, mIp, mClientId);
+                return this->isBlacklist(mId, mUuid, mIp, mClientId);
             });
 
             std::string mId = it != mKeys.end() ? *it : "";
@@ -275,7 +275,7 @@ namespace LOICollection::Plugins {
             std::unordered_map<std::string, std::string> mData = this->getDatabase()->getByPrefix("Blacklist", mId + ".");
 
             if (SystemUtils::isPastOrPresent(mData.at(mId + ".TIME")))
-                return delBlacklist(mId);
+                return this->delBlacklist(mId);
 
             std::replace(mUuid.begin(), mUuid.end(), '-', '_');
 
@@ -401,6 +401,17 @@ namespace LOICollection::Plugins {
         this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "blacklist.db").string());
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
+
+        return true;
+    }
+
+    bool BlacklistPlugin::unload() {
+        if (!this->mImpl->ModuleEnabled)
+            return false;
+
+        this->mImpl->db.reset();
+        this->mImpl->logger.reset();
+        this->mImpl->ModuleEnabled = false;
 
         return true;
     }

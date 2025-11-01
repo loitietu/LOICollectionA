@@ -27,7 +27,7 @@ public:
         return false;
     }
 
-    template<typename Func, typename... Args>
+    template <typename Func, typename... Args>
     bool operator()(Func&& func, Args&&... args) {
         if (allow()) {
             std::invoke(std::forward<Func>(func), std::forward<Args>(args)...);

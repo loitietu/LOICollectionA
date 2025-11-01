@@ -891,6 +891,17 @@ namespace LOICollection::Plugins {
         return true;
     }
 
+    bool BehaviorEventPlugin::unload() {
+        if (!this->mImpl->options.ModuleEnabled)
+            return false;
+
+        this->mImpl->db.reset();
+        this->mImpl->logger.reset();
+        this->mImpl->options = {};
+
+        return true;
+    }
+
     bool BehaviorEventPlugin::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;

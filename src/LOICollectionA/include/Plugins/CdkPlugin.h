@@ -32,6 +32,7 @@ namespace LOICollection::Plugins {
 
     public:
         LOICOLLECTION_A_API bool load();
+        LOICOLLECTION_A_API bool unload();
         LOICOLLECTION_A_API bool registry();
         LOICOLLECTION_A_API bool unregistry();
 

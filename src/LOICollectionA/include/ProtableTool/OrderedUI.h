@@ -4,9 +4,6 @@
 
 #include "LOICollectionA/base/Macro.h"
 
-struct ModalFormRequestPacketHook;
-struct ModalFormResponsePacketHook;
-
 namespace LOICollection::ProtableTool {
     class OrderedUI {
     public:
@@ -15,17 +12,18 @@ namespace LOICollection::ProtableTool {
             return instance;
         }
 
-        friend struct ::ModalFormRequestPacketHook;
-        friend struct ::ModalFormResponsePacketHook;
-
     public:
         LOICOLLECTION_A_API bool load();
+        LOICOLLECTION_A_API bool unload();
         LOICOLLECTION_A_API bool registry();
         LOICOLLECTION_A_API bool unregistry();
 
     private:
         OrderedUI();
         ~OrderedUI();
+
+        void listenEvent();
+        void unlistenEvent();
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;

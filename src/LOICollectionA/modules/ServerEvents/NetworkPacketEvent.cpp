@@ -40,10 +40,6 @@ namespace LOICollection::ServerEvents {
         return mSubClientId;
     }
 
-    ServerPlayer* NetworkPacketEvent::getPlayer() const {
-        return ll::service::getServerNetworkHandler()->_getServerPlayer(mNetworkIdentifier, mSubClientId);
-    }
-
     LL_TYPE_INSTANCE_HOOK(
         NetworkPacketEventHook1,
         HookPriority::Normal,

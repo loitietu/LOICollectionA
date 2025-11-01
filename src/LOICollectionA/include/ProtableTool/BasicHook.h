@@ -4,8 +4,6 @@
 
 #include "LOICollectionA/base/Macro.h"
 
-struct ServerStartGamePacketHook;
-
 namespace LOICollection::ProtableTool {
     class BasicHook {
     public:
@@ -14,16 +12,18 @@ namespace LOICollection::ProtableTool {
             return instance;
         }
 
-        friend struct ::ServerStartGamePacketHook;
-
     public:
         LOICOLLECTION_A_API bool load();
+        LOICOLLECTION_A_API bool unload();
         LOICOLLECTION_A_API bool registry();
         LOICOLLECTION_A_API bool unregistry();
 
     private:
         BasicHook();
         ~BasicHook();
+
+        void listenEvent();
+        void unlistenEvent();
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;

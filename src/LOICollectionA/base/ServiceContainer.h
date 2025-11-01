@@ -16,14 +16,14 @@ private:
     std::mutex mMutex;
     
 public:
-    template<typename TService, typename TImplementation = TService>
+    template <typename TService, typename TImplementation = TService>
     void registerSingleton(const std::string& name = "") {
         registerSingleton<TService, TImplementation>([]() {
             return std::make_shared<TImplementation>();
         }, name);
     }
     
-    template<typename TService, typename TImplementation = TService, typename TFactory>
+    template <typename TService, typename TImplementation = TService, typename TFactory>
     void registerSingleton(TFactory&& factory, const std::string& name = "") {
         std::lock_guard<std::mutex> lock(mMutex);
         
@@ -33,14 +33,14 @@ public:
             };
     }
     
-    template<typename TService>
+    template <typename TService>
     void registerInstance(std::shared_ptr<TService> instance, const std::string& name = "") {
         std::lock_guard<std::mutex> lock(mMutex);
         
         mSingletonInstances[std::type_index(typeid(TService))][name] = instance;
     }
     
-    template<typename TService>
+    template <typename TService>
     std::shared_ptr<TService> getService(const std::string& name = "") {
         std::lock_guard<std::mutex> lock(mMutex);
         
@@ -67,7 +67,7 @@ public:
         return nullptr;
     }
     
-    template<typename TService>
+    template <typename TService>
     std::vector<std::string> getServiceNames() {
         std::lock_guard<std::mutex> lock(mMutex);
         
@@ -91,7 +91,7 @@ public:
         return names;
     }
     
-    template<typename TService>
+    template <typename TService>
     bool isRegistered(const std::string& name = "") {
         std::lock_guard<std::mutex> lock(mMutex);
         
@@ -108,7 +108,7 @@ public:
         return false;
     }
     
-    template<typename TService>
+    template <typename TService>
     bool isInstantiated(const std::string& name = "") {
         std::lock_guard<std::mutex> lock(mMutex);
         
@@ -119,7 +119,7 @@ public:
                instancesIt->second.find(name) != instancesIt->second.end();
     }
     
-    template<typename TService>
+    template <typename TService>
     void removeService(const std::string& name = "") {
         std::lock_guard<std::mutex> lock(mMutex);
         

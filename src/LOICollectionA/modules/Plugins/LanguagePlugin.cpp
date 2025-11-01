@@ -177,6 +177,13 @@ namespace LOICollection::Plugins {
         return true;
     }
 
+    bool LanguagePlugin::unload() {
+        this->mImpl->db.reset();
+        this->mImpl->logger.reset();
+
+        return true;
+    }
+
     bool LanguagePlugin::registry() {
         this->registeryCommand();
         this->listenEvent();

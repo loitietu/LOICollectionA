@@ -907,6 +907,17 @@ namespace LOICollection::Plugins {
         return true;
     }
 
+    bool MenuPlugin::unload() {
+        if (!this->mImpl->options.ModuleEnabled)
+            return false;
+
+        this->mImpl->db.reset();
+        this->mImpl->logger.reset();
+        this->mImpl->options = {};
+
+        return true;
+    }
+
     bool MenuPlugin::registry() {     
         if (!this->mImpl->options.ModuleEnabled)
             return false;

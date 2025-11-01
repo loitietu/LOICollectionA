@@ -101,6 +101,24 @@ namespace LOICollection {
         return true;
     }
 
+    bool A::unload() {
+        ll::io::Logger& logger = this->mSelf.getLogger();
+
+        std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
+        std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {
+            modules::ModRegistry* mRegistry = modules::ModManager::getInstance().getRegistry(mod);
+
+            if (!mRegistry) {
+                logger.error("Failed to get mod registry for mod {}", mod);
+                return;
+            }
+
+            mRegistry->onUnload();
+        });
+
+        return true;
+    }
+
     bool A::enable() {
         LOICollectionAPI::initialization();
 

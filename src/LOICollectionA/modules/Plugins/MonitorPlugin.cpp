@@ -239,6 +239,15 @@ namespace LOICollection::Plugins {
         return true;
     }
 
+    bool MonitorPlugin::unload() {
+        if (!this->mImpl->options.ModuleEnabled)
+            return false;
+
+        this->mImpl->options = {};
+
+        return true;
+    }
+
     bool MonitorPlugin::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;

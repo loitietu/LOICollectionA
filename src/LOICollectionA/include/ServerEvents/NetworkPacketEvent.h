@@ -29,8 +29,6 @@ namespace LOICollection::ServerEvents {
         LOICOLLECTION_A_NDAPI const NetworkIdentifier& getNetworkIdentifier() const;
         LOICOLLECTION_A_NDAPI const Packet& getPacket() const;
         LOICOLLECTION_A_NDAPI SubClientId getSubClientId() const;
-
-        LOICOLLECTION_A_NDAPI ServerPlayer* getPlayer() const;
     };
 
     class NetworkBroadcastPacketEvent final : public ll::event::Cancellable<ll::event::Event> {

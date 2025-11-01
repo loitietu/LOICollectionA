@@ -8,6 +8,7 @@ namespace LOICollection::modules {
         std::string name;
 
         CallBackFunc onLoaded;
+        CallBackFunc onUnloaded;
         CallBackFunc onRegistry;
         CallBackFunc onUnregistry;
     };
@@ -27,6 +28,14 @@ namespace LOICollection::modules {
             return false;
 
         bool result = this->mImpl->onLoaded();
+        return result;
+    }
+
+    bool ModRegistry::onUnload() {
+        if (!this->isUnloaded())
+            return false;
+
+        bool result = this->mImpl->onUnloaded();
         return result;
     }
 
@@ -50,6 +59,10 @@ namespace LOICollection::modules {
         this->mImpl->onLoaded = std::move(func);
     }
 
+    void ModRegistry::onUnload(CallBackFunc func) {
+        this->mImpl->onUnloaded = std::move(func);
+    }
+
     void ModRegistry::onRegistry(CallBackFunc func) {
         this->mImpl->onRegistry = std::move(func);
     }
@@ -64,6 +77,10 @@ namespace LOICollection::modules {
 
     bool ModRegistry::isLoaded() const noexcept {
         return this->mImpl->onLoaded != nullptr;
+    }
+
+    bool ModRegistry::isUnloaded() const noexcept {
+        return this->mImpl->onUnloaded != nullptr;
     }
 
     bool ModRegistry::isRegistered() const noexcept {

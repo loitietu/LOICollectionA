@@ -16,6 +16,7 @@ namespace LOICollection {
         }
 
         bool load();
+        bool unload();
         bool enable();
         bool disable();
 

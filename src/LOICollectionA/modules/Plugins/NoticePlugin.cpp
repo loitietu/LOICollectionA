@@ -395,6 +395,18 @@ namespace LOICollection::Plugins {
         return true;
     }
 
+    bool NoticePlugin::unload() {
+        if (!this->mImpl->ModuleEnabled)
+            return false;
+
+        this->mImpl->db.reset();
+        this->mImpl->db2.reset();
+        this->mImpl->logger.reset();
+        this->mImpl->ModuleEnabled = false;
+
+        return true;
+    }
+
     bool NoticePlugin::registry() {
         if (!this->mImpl->ModuleEnabled)
             return false;

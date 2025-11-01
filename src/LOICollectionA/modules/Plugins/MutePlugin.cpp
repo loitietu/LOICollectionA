@@ -379,6 +379,17 @@ namespace LOICollection::Plugins {
         return true;
     }
 
+    bool MutePlugin::unload() {
+        if (!this->mImpl->ModuleEnabled)
+            return false;
+
+        this->mImpl->db.reset();
+        this->mImpl->logger.reset();
+        this->mImpl->ModuleEnabled = false;
+
+        return true;
+    }
+
     bool MutePlugin::registry() {
         if (!this->mImpl->ModuleEnabled)
             return false;

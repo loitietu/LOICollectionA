@@ -700,6 +700,17 @@ namespace LOICollection::Plugins {
         return true;
     }
 
+    bool ShopPlugin::unload() {
+        if (!this->mImpl->ModuleEnabled)
+            return false;
+
+        this->mImpl->db.reset();
+        this->mImpl->logger.reset();
+        this->mImpl->ModuleEnabled = false;
+
+        return true;
+    }
+
     bool ShopPlugin::registry() {
         if (!this->mImpl->ModuleEnabled)
             return false;

@@ -411,6 +411,18 @@ namespace LOICollection::Plugins {
         return true;
     }
 
+    bool TpaPlugin::unload() {
+        if (!this->mImpl->options.ModuleEnabled)
+            return false;
+
+        this->mImpl->db.reset();
+        this->mImpl->db2.reset();
+        this->mImpl->logger.reset();
+        this->mImpl->options = {};
+
+        return true;
+    }
+
     bool TpaPlugin::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
