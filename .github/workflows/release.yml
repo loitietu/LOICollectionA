@@ -17,7 +17,7 @@ jobs:
 
         runs-on: windows-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
             - uses: xmake-io/github-action-setup-xmake@v1
             - uses: actions/cache@v4
               with:
@@ -64,7 +64,7 @@ jobs:
                 copy "${{ github.workspace }}\*.md" "${{ github.workspace }}\build\bin\"
                 copy "${{ github.workspace }}\LICENSE" "${{ github.workspace }}\build\bin\"
 
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v5
               with:
                 name: ${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}windows-x64-${{ github.sha }}
                 path: |
@@ -79,7 +79,7 @@ jobs:
             current_tag: ${{ steps.get-tags.outputs.current_tag }}
             previous_tag: ${{ steps.get-tags.outputs.previous_tag }}
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
               with:
                 fetch-depth: 0
 
@@ -250,10 +250,10 @@ jobs:
                     - false
             max-parallel: 1
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
 
             - name: Download Artifact
-              uses: actions/download-artifact@v4
+              uses: actions/download-artifact@v6
               with:
                 name: ${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}windows-x64-${{ github.sha }}
                 path: artifact
