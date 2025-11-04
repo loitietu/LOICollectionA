@@ -11,6 +11,7 @@
 #include <mc/world/level/ChunkLocalHeight.h>
 
 #include <mc/world/level/block/Block.h>
+#include <mc/world/level/block/BlockChangeContext.h>
 #include <mc/world/level/block/actor/BlockActor.h>
 
 #include <mc/world/level/chunk/LevelChunk.h>
@@ -65,7 +66,7 @@ namespace BlockUtils {
         auto mDimension = ll::service::getLevel()->getDimension(dimension).lock();
         BlockSource& mBlockSource = mDimension->getBlockSourceFromMainChunkSource();
         if (auto mBlock = Block::tryGetFromRegistry(nbt); mBlock.has_value()) 
-            mBlockSource.setBlock(pos, mBlock.value(), 3, nullptr, nullptr);
+            mBlockSource.setBlock(pos, mBlock.value(), 3, nullptr, nullptr, BlockChangeContext());
     }
 
     void setBlockEntity(const BlockPos& pos, int dimension, const CompoundTag& nbt) {

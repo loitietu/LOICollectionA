@@ -14,6 +14,7 @@
 #include <mc/world/level/Level.h>
 #include <mc/world/level/BlockPos.h>
 #include <mc/world/level/BlockSource.h>
+#include <mc/world/level/block/BlockChangeContext.h>
 #include <mc/world/level/dimension/Dimension.h>
 
 #include "LOICollectionA/include/RegistryHelper.h"
@@ -64,7 +65,7 @@ namespace LOICollection::ProtableTool {
                 for (auto& it : this->mImpl->mRedStoneMap) {
                     for (auto it2 = it.second.begin(); it2 != it.second.end(); ++it2) {
                         if (it2->second >= this->mImpl->mRedStoneTick) {
-                            ll::service::getLevel()->destroyBlock(getBlockSource(it.first), it2->first, true);
+                            ll::service::getLevel()->destroyBlock(getBlockSource(it.first), it2->first, true, BlockChangeContext());
                             
                             this->getLogger()->info("RedStone: {}({})", it2->first.toString(), it.first);
                         }

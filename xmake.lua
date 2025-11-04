@@ -11,7 +11,7 @@ option("shared")
 option_end()
 
 add_requires("sqlitecpp 3.3.3", {configs = {shared = get_config("shared")}})
-add_requires("levilamina 1.6.1", {configs = {target_type = "server"}})
+add_requires("levilamina 1.7.0", {configs = {target_type = "server"}})
 add_requires(
     "levibuildscript",
     "nlohmann_json 3.12.0"
@@ -21,7 +21,7 @@ if not has_config("vs_runtime") then
     set_runtimes("MD")
 end
 
-set_version("1.8.1")
+set_version("1.8.2")
 
 target("LOICollectionA")
     add_rules("@levibuildscript/linkrule")
