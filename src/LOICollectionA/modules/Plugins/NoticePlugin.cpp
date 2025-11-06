@@ -209,6 +209,7 @@ namespace LOICollection::Plugins {
         form.appendButton(tr(mObjectLanguage, "notice.gui.remove"), "textures/ui/book_trash_default", "path", [this](Player& pl) -> void {
             this->contentRemove(pl);
         });
+        form.appendDivider();
         for (const std::string& key : this->mParent.getDatabase()->keys()) {
             form.appendButton(key, [this, key](Player& pl) {
                 this->content(pl, key);
@@ -232,7 +233,7 @@ namespace LOICollection::Plugins {
         });
 
         for (const auto& pair : mContent) {
-            nlohmann::ordered_json mObject = data.at(pair.first);
+            const nlohmann::ordered_json& mObject = data.at(pair.first);
             
             ll::form::CustomForm form(LOICollectionAPI::translateString(mObject.value("title", ""), player));
             for (const auto& line : mObject.value("content", nlohmann::ordered_json::array()))

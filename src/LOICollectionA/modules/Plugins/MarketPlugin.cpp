@@ -297,6 +297,7 @@ namespace LOICollection::Plugins {
             
             this->blacklistAdd(pl);
         });
+        form.appendDivider();
         for (std::string& mTarget : this->mParent.getBlacklist(player)) {
             form.appendButton(mTarget, [this, mTarget](Player& pl) -> void {
                 this->blacklistSet(pl, mTarget);
@@ -473,7 +474,7 @@ namespace LOICollection::Plugins {
         std::transform(mKeys.begin(), mKeys.end(), mResult.begin(), [](const std::string& mKey) -> std::string {
             size_t mPos = mKey.find('.');
             size_t mPos2 = mKey.find_last_of('_');
-            return (mPos != std::string::npos && mPos2 != std::string::npos) ? mKey.substr(0, mPos).substr(mPos + 1, mPos2 - mPos - 1) : "";
+            return (mPos != std::string::npos && mPos2 != std::string::npos && mPos < mPos2) ? mKey.substr(mPos + 1, mPos2 - mPos - 1) : "";
         });
 
         return mResult;
