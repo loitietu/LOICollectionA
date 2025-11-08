@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include <fmt/core.h>
+#include <nlohmann/json.hpp>
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
@@ -35,8 +36,6 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/ServerCommandOrigin.h>
 #include <mc/server/commands/MinecraftCommands.h>
-
-#include <nlohmann/json.hpp>
 
 #include "LOICollectionA/include/RegistryHelper.h"
 

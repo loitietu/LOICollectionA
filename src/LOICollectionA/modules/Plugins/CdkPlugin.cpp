@@ -3,6 +3,7 @@
 #include <filesystem>
 
 #include <fmt/core.h>
+#include <nlohmann/json.hpp>
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
@@ -26,8 +27,6 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 
 #include <mc/safety/RedactableString.h>
-
-#include <nlohmann/json.hpp>
 
 #include "LOICollectionA/include/RegistryHelper.h"
 

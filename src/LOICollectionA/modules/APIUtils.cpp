@@ -238,7 +238,7 @@ namespace LOICollection::LOICollectionAPI {
             return SystemUtils::getNowTime();
         });
         registerVariable("server.player.max", [](Player&) -> std::string {
-            return std::to_string(ll::memory::dAccess<int>(ll::service::getServerNetworkHandler().as_ptr(), 200 * 4));
+            return std::to_string(ll::service::getServerNetworkHandler()->mMaxNumPlayers);
         });
         registerVariable("server.player.online", [](Player&) -> std::string {
             return std::to_string(ll::service::getLevel()->getActivePlayerCount());

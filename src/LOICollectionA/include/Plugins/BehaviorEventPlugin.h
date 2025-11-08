@@ -30,7 +30,7 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_NDAPI std::vector<std::string> getEvents();
         LOICOLLECTION_A_NDAPI std::vector<std::string> getEvents(std::vector<std::pair<std::string, std::string>> conditions, std::function<bool(std::string)> filter = {});
-        LOICOLLECTION_A_NDAPI std::vector<std::string> getEventsByPoition(int dimension, std::function<bool(int x, int y, int z)> filter);
+        LOICOLLECTION_A_NDAPI std::vector<std::string> getEventsByPosition(int dimension, std::function<bool(int x, int y, int z)> filter);
         LOICOLLECTION_A_API   std::vector<std::string> filter(std::vector<std::string> ids);
 
         LOICOLLECTION_A_API   void back(const std::string& id);
