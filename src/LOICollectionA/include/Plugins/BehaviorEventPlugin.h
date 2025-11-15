@@ -3,8 +3,8 @@
 #include <memory>
 #include <string>
 #include <vector> 
+#include <utility>
 #include <functional>
-#include <unordered_map>
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -18,6 +18,9 @@ namespace ll::io {
 namespace LOICollection::Plugins {
     class BehaviorEventPlugin {
     public:
+        struct Event;
+
+    public:
         static BehaviorEventPlugin& getInstance() {
             static BehaviorEventPlugin instance;
             return instance;
@@ -26,13 +29,15 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
 
-        LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::string> getBasicEvent(const std::string& name, const std::string& type, const Vec3& position, int dimension);
+        LOICOLLECTION_A_NDAPI Event getBasicEvent(const std::string& name, const std::string& type, const Vec3& position, int dimension);
 
         LOICOLLECTION_A_NDAPI std::vector<std::string> getEvents();
         LOICOLLECTION_A_NDAPI std::vector<std::string> getEvents(std::vector<std::pair<std::string, std::string>> conditions, std::function<bool(std::string)> filter = {});
         LOICOLLECTION_A_NDAPI std::vector<std::string> getEventsByPosition(int dimension, std::function<bool(int x, int y, int z)> filter);
         LOICOLLECTION_A_API   std::vector<std::string> filter(std::vector<std::string> ids);
 
+        LOICOLLECTION_A_API   void refresh();
+        LOICOLLECTION_A_API   void write(const std::string& id, const Event& event);
         LOICOLLECTION_A_API   void back(const std::string& id);
         LOICOLLECTION_A_API   void clean(int hours);
 
@@ -56,5 +61,18 @@ namespace LOICollection::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
+    };
+
+    struct BehaviorEventPlugin::Event {
+        std::string eventName;
+        std::string eventTime;
+        std::string eventType;
+
+        int posX;
+        int posY;
+        int posZ;
+        int dimension;
+
+        std::vector<std::pair<std::string, std::string>> extendedFields;
     };
 }

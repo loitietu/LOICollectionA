@@ -1,3 +1,4 @@
+#include <memory>
 #include <vector>
 #include <string>
 #include <string_view>
@@ -24,10 +25,6 @@ SQLiteStorage::SQLiteStorage(const std::string& path) : database(std::make_uniqu
     database->exec("PRAGMA cache_size = 8096;"); 
 }
 SQLiteStorage::~SQLiteStorage() = default;
-
-SQLite::Database* SQLiteStorage::getDatabase() {
-    return database.get();
-}
 
 void SQLiteStorage::exec(std::string_view sql) {
     database->exec(std::string(sql));
@@ -107,6 +104,7 @@ bool SQLiteStorage::hasByPrefix(std::string_view table, std::string_view prefix,
     );
 
     auto guard = make_scope_guard([&] { stmt.reset(); });
+
     stmt.bind(1, std::string(prefix) + "%");
 
     if (!stmt.executeStep())
@@ -157,7 +155,7 @@ std::unordered_map<std::string, std::string> SQLiteStorage::getByPrefix(std::str
 std::string SQLiteStorage::get(std::string_view table, std::string_view key, std::string_view defaultValue) {
     if (!has(table))
         return std::string(defaultValue);
-    
+
     auto& stmt = getCachedStatement(
         "SELECT value FROM " + std::string(table) + " WHERE key = ?;"
     );
@@ -217,28 +215,29 @@ std::vector<std::string> SQLiteStorage::listByPrefix(std::string_view table, std
     return keys;
 }
 
-void SQLiteStorageBatch::set(std::string_view table, std::string_view key, std::unordered_map<std::string, std::string> value) {
-    const std::string mBaseSql = "INSERT INTO " + std::string(table) + " (key, value) VALUES ";
-        
-    auto it = value.begin();
-    while (it != value.end()) {
-        const size_t remaining = std::distance(it, value.end());
-        const size_t batchSize = std::min(remaining, (size_t) 500);
+SQLiteStorageTransaction::SQLiteStorageTransaction(SQLiteStorage& storage) : mStorage(storage) {
+    mTransaction = std::make_unique<SQLite::Transaction>(*mStorage.database);
+}
 
-        std::string placeholders;
-        placeholders.reserve(batchSize * 8);
+SQLiteStorageTransaction::~SQLiteStorageTransaction() {
+    if (!mTransaction) 
+        return;
 
-        for (size_t i = 0; i < batchSize; ++i)
-            placeholders += (i == 0) ? "(?, ?)" : ", (?, ?)";
+    commit();
+}
 
-        SQLite::Statement stmt(*database, mBaseSql + placeholders + " ON CONFLICT(key) DO UPDATE SET value = excluded.value;");
+void SQLiteStorageTransaction::commit() {
+    if (!mTransaction) 
+        return;
 
-        for (size_t i = 0; i < batchSize; ++i) {
-            stmt.bind(static_cast<int>(i * 2 + 1), std::string(key) + "." + it->first);
-            stmt.bind(static_cast<int>(i * 2 + 2), it->second);
-            ++it;
-        }
+    mTransaction->commit();
+    mTransaction.reset();
+}
 
-        stmt.exec();
-    }
+void SQLiteStorageTransaction::rollback() {
+    if (!mTransaction) 
+        return;
+
+    mTransaction->rollback();
+    mTransaction.reset();
 }

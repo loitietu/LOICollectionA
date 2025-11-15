@@ -7,7 +7,6 @@
 #include <unordered_map>
 
 #include <fmt/core.h>
-#include <SQLiteCpp/SQLiteCpp.h>
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
@@ -293,7 +292,7 @@ namespace LOICollection::Plugins {
 
         std::string mTimestamp = SystemUtils::getCurrentTimestamp();
 
-        SQLite::Transaction transaction(*this->getDatabase()->getDatabase());
+        SQLiteStorageTransaction transaction(*this->getDatabase());
         this->getDatabase()->set("Mute", mTimestamp + ".NAME", player.getRealName());
         this->getDatabase()->set("Mute", mTimestamp + ".CAUSE", mCause);
         this->getDatabase()->set("Mute", mTimestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "0") : "0");

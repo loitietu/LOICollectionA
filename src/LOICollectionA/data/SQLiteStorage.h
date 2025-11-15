@@ -11,14 +11,13 @@
 namespace SQLite {
     class Database;
     class Statement;
+    class Transaction;
 }
 
 class SQLiteStorage {
 public:
     LOICOLLECTION_A_API   explicit SQLiteStorage(const std::string& path);
     LOICOLLECTION_A_API   ~SQLiteStorage();
-
-    LOICOLLECTION_A_NDAPI SQLite::Database* getDatabase();
 
     LOICOLLECTION_A_API   void exec(std::string_view sql);
 
@@ -41,15 +40,26 @@ public:
     LOICOLLECTION_A_NDAPI std::vector<std::string> list();
     LOICOLLECTION_A_NDAPI std::vector<std::string> listByPrefix(std::string_view table, std::string_view prefix);
 
+public:
+    friend class SQLiteStorageTransaction;
+
 protected:
     std::unique_ptr<SQLite::Database> database;
-
     std::unordered_map<std::string, std::unique_ptr<SQLite::Statement>> stmtCache;
     
     SQLite::Statement& getCachedStatement(const std::string& sql);
 };
 
-class SQLiteStorageBatch : public SQLiteStorage {
+class SQLiteStorageTransaction {
 public:
-    LOICOLLECTION_A_API void set(std::string_view table, std::string_view key, std::unordered_map<std::string, std::string> value);
+    LOICOLLECTION_A_API explicit SQLiteStorageTransaction(SQLiteStorage& storage);
+    LOICOLLECTION_A_API ~SQLiteStorageTransaction();
+
+    LOICOLLECTION_A_API void commit();
+    LOICOLLECTION_A_API void rollback();
+
+private:
+    SQLiteStorage& mStorage;
+
+    std::unique_ptr<SQLite::Transaction> mTransaction;
 };

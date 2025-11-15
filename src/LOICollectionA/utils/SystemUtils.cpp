@@ -64,7 +64,7 @@ namespace SystemUtils {
         std::unordered_set<std::string> mCommonSet(it->begin(), it->end());
         for (auto iter = std::next(elements.begin()); iter != elements.end() && !mCommonSet.empty(); ++iter) {
             const std::unordered_set<std::string> mCurrentSet(iter->begin(), iter->end());
-            std::erase_if(mCommonSet, [&](const auto& element) {
+            std::erase_if(mCommonSet, [&](const auto& element) -> bool {
                 return !mCurrentSet.contains(element);
             });
         }
