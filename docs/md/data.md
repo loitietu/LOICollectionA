@@ -177,7 +177,7 @@
 ### menu.json
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.7.2 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。  
+> 以下内容取自 LOICollectionA 1.9.0 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。  
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `menu.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#menu) 进行编辑
@@ -315,6 +315,7 @@
                 "id": "Input",
                 "placeholder": "This is a content", // 输入框占位符
                 "defaultValue": "default", // 输入框默认值
+                "tooltip": "This is a tooltip", // 文本提示
                 "type": "Input" // 组件类型（Input 为输入框）
             },
             {
@@ -347,6 +348,7 @@
                 "type": "StepSlider" // 组件类型（StepSlider 为步骤滑块）
             }
         ],
+        "submit": "Submit", // 提交按钮标题
         "run": [ // 使用该表单时，所执行的命令（对于获取组件内容可通过 {组件ID} 进行获取）
             "execute as ${player} run say Input: {Input}",
             "execute as ${player} run say Dropdown: {Dropdown}",

@@ -557,6 +557,7 @@ namespace LOICollection::Plugins {
         auto data = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id);
 
         ll::form::CustomForm form(LOICollectionAPI::translateString(data.value("title", ""), player));
+        
         for (nlohmann::ordered_json& customize : data.value("customize", nlohmann::ordered_json())) {
             switch (ll::hash_utils::doHash(customize.value("type", ""))) {
                 case ll::hash_utils::doHash("header"):
@@ -573,7 +574,8 @@ namespace LOICollection::Plugins {
                         customize.value("id", "ID"),
                         LOICollectionAPI::translateString(customize.value("title", ""), player), 
                         customize.value("placeholder", ""),
-                        customize.value("defaultValue", "")
+                        customize.value("defaultValue", ""),
+                        customize.value("tooltip", "")
                     );
 
                     mCustomData[customize.value("id", "ID")] = customize.value("defaultValue", "");
@@ -588,7 +590,8 @@ namespace LOICollection::Plugins {
                         customize.value("id", "ID"),
                         LOICollectionAPI::translateString(customize.value("title", ""), player), 
                         mOptions,
-                        customize.value("defaultValue", 0)
+                        customize.value("defaultValue", 0),
+                        customize.value("tooltip", "")
                     );
 
                     mCustomData[customize.value("id", "ID")] = mOptions.at(customize.value("defaultValue", 0));
@@ -598,7 +601,8 @@ namespace LOICollection::Plugins {
                     form.appendToggle(
                         customize.value("id", "ID"),
                         LOICollectionAPI::translateString(customize.value("title", ""), player),
-                        customize.value("defaultValue", false)
+                        customize.value("defaultValue", false),
+                        customize.value("tooltip", "")
                     );
 
                     mCustomData[customize.value("id", "ID")] = customize.value("defaultValue", false);
@@ -611,7 +615,8 @@ namespace LOICollection::Plugins {
                         customize.value("min", 0),
                         customize.value("max", 100),
                         customize.value("step", 1),
-                        customize.value("defaultValue", 0)
+                        customize.value("defaultValue", 0),
+                        customize.value("tooltip", "")
                     );
 
                     mCustomData[customize.value("id", "ID")] = customize.value("defaultValue", 0);
@@ -626,7 +631,8 @@ namespace LOICollection::Plugins {
                         customize.value("id", "ID"),
                         LOICollectionAPI::translateString(customize.value("title", ""), player),
                         mOptions,
-                        customize.value("defaultValue", 0)
+                        customize.value("defaultValue", 0),
+                        customize.value("tooltip", "")
                     );
 
                     mCustomData[customize.value("id", "ID")] = mOptions.at(customize.value("defaultValue", 0));
@@ -634,6 +640,10 @@ namespace LOICollection::Plugins {
                 }
             }
         }
+
+        if (data.contains("submit"))
+            form.setSubmitButton(LOICollectionAPI::translateString(data.value("submit", ""), player));
+
         form.sendTo(player, [this, mCustomData, data](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
             if (!dt) return this->mParent.executeCommand(pl, data.value("info", nlohmann::ordered_json{}).value("exit", ""));
 
