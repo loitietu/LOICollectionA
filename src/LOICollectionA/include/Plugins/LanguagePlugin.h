@@ -26,6 +26,8 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI std::string getLanguage(const std::string& mObject);
         LOICOLLECTION_A_NDAPI std::string getLanguage(Player& player);
 
+        LOICOLLECTION_A_API   void set(Player& player, const std::string& langcode);
+
     public:
         LOICOLLECTION_A_API bool load();
         LOICOLLECTION_A_API bool unload();

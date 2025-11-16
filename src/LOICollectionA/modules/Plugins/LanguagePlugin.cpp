@@ -1,4 +1,5 @@
 #include <memory>
+#include <ranges>
 #include <string>
 #include <unordered_map>
 
@@ -38,13 +39,6 @@
 
 using I18nUtilsTools::tr;
 
-std::vector<std::string> keys() {
-    std::vector<std::string> keys;
-    for (const auto& item : I18nUtils::getInstance()->data)
-        keys.push_back(item.first);
-    return keys;
-}
-
 namespace LOICollection::Plugins {
     struct LanguagePlugin::Impl {
         std::unordered_map<std::string, std::string> mCache;
@@ -65,22 +59,19 @@ namespace LOICollection::Plugins {
 
     void LanguagePlugin::gui::open(Player& player) {
         std::string mObjectLanguage = this->mParent.getLanguage(player);
+
+        auto keys = std::views::keys(I18nUtils::getInstance()->data);
+
+        std::vector<std::string> langs(keys.begin(), keys.end());
         
         ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
         form.appendLabel(fmt::format(fmt::runtime(tr(mObjectLanguage, "language.gui.lang")), tr(mObjectLanguage, "name")));
-        form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys());
+        form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), langs);
         form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) mutable -> void {
             if (!dt) return;
 
-            std::string mObject = pl.getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-            auto it = this->mParent.mImpl->mCache.find(mObject);
-            if (it != this->mParent.mImpl->mCache.end())
-                this->mParent.mImpl->mCache.erase(it);
-
-            this->mParent.mImpl->db->set("OBJECT$" + mObject, "language", std::get<std::string>(dt->at("dropdown")));
+            this->mParent.set(pl, std::get<std::string>(dt->at("dropdown")));
             
             this->mParent.getLogger()->info(LOICollectionAPI::getVariableString(tr({}, "language.log"), pl));
         });
@@ -168,6 +159,15 @@ namespace LOICollection::Plugins {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         return this->getLanguage(mObject);
+    }
+
+    void LanguagePlugin::set(Player& player, const std::string& langcode) {
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+        this->mImpl->db->set("OBJECT$" + mObject, "language", langcode);
+
+        this->mImpl->mCache.emplace(mObject, langcode);
     }
 
     bool LanguagePlugin::load() {

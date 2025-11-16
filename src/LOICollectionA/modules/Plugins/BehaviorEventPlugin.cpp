@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <functional>
 #include <filesystem>
+#include <unordered_map>
 
 #include <fmt/core.h>
 #include <magic_enum/magic_enum.hpp>
