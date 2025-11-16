@@ -50,7 +50,8 @@ target("LOICollectionA")
     add_headerfiles("src/(LOICollectionA/**.h)")
     remove_headerfiles(
         "src/LOICollectionA/(frontend/**.h)",
-        "src/LOICollectionA/(utils/**.h)"
+        "src/LOICollectionA/(utils/**.h)",
+        "src/LOICollectionA/*.h"
     )
     add_packages(
         "levilamina",
