@@ -21,7 +21,7 @@ namespace LOICollection::Plugins {
         struct Event;
 
     public:
-        static BehaviorEventPlugin& getInstance() {
+        LOICOLLECTION_A_NDAPI static BehaviorEventPlugin& getInstance() {
             static BehaviorEventPlugin instance;
             return instance;
         }

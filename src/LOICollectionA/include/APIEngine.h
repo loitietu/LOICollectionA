@@ -43,7 +43,7 @@ namespace LOICollection::LOICollectionAPI {
     
     class APIEngine {
     public:
-        static APIEngine& getInstance() {
+        LOICOLLECTION_A_NDAPI static APIEngine& getInstance() {
             static APIEngine instance;
             return instance;
         }

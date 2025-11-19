@@ -7,7 +7,7 @@
 namespace LOICollection::Plugins {
     class MonitorPlugin {
     public:
-        static MonitorPlugin& getInstance() {
+        LOICOLLECTION_A_NDAPI static MonitorPlugin& getInstance() {
             static MonitorPlugin instance;
             return instance;
         }

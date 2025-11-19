@@ -27,7 +27,7 @@ namespace LOICollection::Plugins {
 
     class ShopPlugin {
     public:
-        static ShopPlugin& getInstance() {
+        LOICOLLECTION_A_NDAPI static ShopPlugin& getInstance() {
             static ShopPlugin instance;
             return instance;
         }

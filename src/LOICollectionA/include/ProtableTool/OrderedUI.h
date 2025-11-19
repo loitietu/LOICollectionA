@@ -7,7 +7,7 @@
 namespace LOICollection::ProtableTool {
     class OrderedUI {
     public:
-        static OrderedUI& getInstance() {
+        LOICOLLECTION_A_NDAPI static OrderedUI& getInstance() {
             static OrderedUI instance;
             return instance;
         }

@@ -23,7 +23,7 @@ namespace LOICollection::Plugins {
 
     class MenuPlugin {
     public:
-        static MenuPlugin& getInstance() {
+        LOICOLLECTION_A_NDAPI static MenuPlugin& getInstance() {
             static MenuPlugin instance;
             return instance;
         }

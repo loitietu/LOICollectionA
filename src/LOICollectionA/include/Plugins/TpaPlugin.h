@@ -21,7 +21,7 @@ namespace LOICollection::Plugins {
 
     class TpaPlugin {
     public:
-        static TpaPlugin& getInstance() {
+        LOICOLLECTION_A_NDAPI static TpaPlugin& getInstance() {
             static TpaPlugin instance;
             return instance;
         }

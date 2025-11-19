@@ -16,7 +16,7 @@ namespace ll::io {
 namespace LOICollection::Plugins {
     class MutePlugin {
     public:
-        static MutePlugin& getInstance() {
+        LOICOLLECTION_A_NDAPI static MutePlugin& getInstance() {
             static MutePlugin instance;
             return instance;
         }
