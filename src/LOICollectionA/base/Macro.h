@@ -1,17 +1,19 @@
 #pragma once
 
 #if defined(_WIN32)
-    #ifdef LOICOLLECTION_A_EXPORTS 
-        #define LOICOLLECTION_A_ORAPI __declspec(dllexport)
-    #else
-        #define LOICOLLECTION_A_ORAPI __declspec(dllimport)
-    #endif
-    #define LOICOLLECTION_A_NDAPI [[nodiscard]] LOICOLLECTION_A_ORAPI
     #define LOICOLLECTION_A_NOINLINE __declspec(noinline)
+    #ifdef LOICOLLECTION_A_EXPORTS 
+        #define LOICOLLECTION_A_API __declspec(dllexport) LOICOLLECTION_A_NOINLINE
+    #else
+        #define LOICOLLECTION_A_API __declspec(dllimport) LOICOLLECTION_A_NOINLINE
+    #endif
+    #define LOICOLLECTION_A_NDAPI [[nodiscard]] LOICOLLECTION_A_API
 #else
-    #define LOICOLLECTION_A_ORAPI __attribute__((visibility("default")))
-    #define LOICOLLECTION_A_NDAPI [[nodiscard]] LOICOLLECTION_A_ORAPI
     #define LOICOLLECTION_A_NOINLINE __attribute__((noinline))
+    #ifdef LOICOLLECTION_A_EXPORTS
+        #define LOICOLLECTION_A_API __attribute__((visibility("default"))) LOICOLLECTION_A_NOINLINE
+    #else
+        #define LOICOLLECTION_A_API LOICOLLECTION_A_NOINLINE
+    #endif
+    #define LOICOLLECTION_A_NDAPI [[nodiscard]] LOICOLLECTION_A_API
 #endif
-
-#define LOICOLLECTION_A_API LOICOLLECTION_A_ORAPI LOICOLLECTION_A_NOINLINE
