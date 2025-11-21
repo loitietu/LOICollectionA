@@ -17,37 +17,26 @@ namespace Config {
     C_Config mConfig;
 
     std::string GetVersion() {
-        return LOICollection::A::getInstance().getSelf().getManifest().version->to_string();
+        auto mVersion = LOICollection::A::getInstance().getSelf().getManifest().version;
+        return mVersion.has_value() ? mVersion->to_string() : "unknown";
     }
 
-    void InsertJson(int pos, nlohmann::ordered_json::iterator& source, nlohmann::ordered_json& target) {
-        nlohmann::ordered_json mInsertJson;
-        for (auto it = target.begin(); it != target.end(); ++it) {
-            if ((int) std::distance(target.begin(), it) == pos)
-                mInsertJson[source.key()] = source.value();
-            mInsertJson[it.key()] = it.value();
-        }
+    void MergePatch(nlohmann::ordered_json& source, nlohmann::ordered_json& patch) {
+        if (!source.is_object() || !patch.is_object())
+            return;
 
-        if (pos == (int) std::distance(target.begin(), target.end()))
-            mInsertJson[source.key()] = source.value();
-
-        target = mInsertJson;
-    }
-
-    void MergeJson(nlohmann::ordered_json& source, nlohmann::ordered_json& target) {
-        for (auto it = source.begin(); it != source.end(); ++it) {
-            if (!target.contains(it.key())) {
-                InsertJson((int)std::distance(source.begin(), it), it, target);
+        for (auto it = patch.begin(); it != patch.end(); ++it) {
+            if (!source.contains(it.key())) {
+                source[it.key()] = it.value();
                 continue;
             }
 
-            if (it.value().is_object() && target[it.key()].is_object()) {
-                MergeJson(it.value(), target[it.key()]);
+            if (it.value().type() != source[it.key()].type()) {
+                source[it.key()] = patch[it.key()];
                 continue;
             }
 
-            if (it->type() != target[it.key()].type())
-                target[it.key()] = it.value();
+            MergePatch(source[it.key()], it.value());
         }
     }
 
@@ -74,7 +63,7 @@ namespace Config {
         nlohmann::ordered_json mPatchJson = nlohmann::ordered_json::parse(
             ll::reflection::serialize<nlohmann::ordered_json>(config)->dump()
         );
-        MergeJson(mPatchJson, mConfigObject.get());
+        MergePatch(mConfigObject.get(), mPatchJson);
         mConfigObject.save();
     }
 }
