@@ -498,7 +498,7 @@ namespace LOICollection::Plugins {
             if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerDestroyBlock.ModuleEnabled)
                 return;
 
-            std::string mBlockNbt;
+            std::string mBlockType;
             std::string mPlayerName = event.self().getRealName();
 
             Event mEvent = this->getBasicEvent(
@@ -506,9 +506,9 @@ namespace LOICollection::Plugins {
             );
 
             if (auto mBlock = BlockUtils::getBlock(event.pos(), event.self().getDimensionId()); mBlock.has_value()) {
-                mBlockNbt = mBlock.value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0);
+                mBlockType = mBlock.value()->getTypeName();
 
-                mEvent.extendedFields.emplace_back("EventOperable", mBlockNbt);
+                mEvent.extendedFields.emplace_back("EventOperable", mBlock.value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
             }
             if (auto mBlockEntity = BlockUtils::getBlockEntity(event.pos(), event.self().getDimensionId()); mBlockEntity.has_value()) {
                 CompoundTag mTag;
@@ -523,7 +523,7 @@ namespace LOICollection::Plugins {
 
             if (this->mImpl->options.Events.onPlayerDestroyBlock.OutputConsole)
                 this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerdestroyblock")), 
-                    mPlayerName, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ, mBlockNbt
+                    mPlayerName, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ, mBlockType
                 );
         }, ll::event::EventPriority::Highest);
 
@@ -553,18 +553,15 @@ namespace LOICollection::Plugins {
                     break;
             }
 
-            std::string mBlockNbt;
+            std::string mBlockType = event.self().getCarriedItem().getTypeName();
             std::string mPlayerName = event.self().getRealName();
 
             Event mEvent = this->getBasicEvent(
                 "PlayerPlaceBlock", "Operable", mPosition, event.self().getDimensionId()
             );
 
-            if (auto mBlock = BlockUtils::getBlock(mPosition, event.self().getDimensionId()); mBlock.has_value()) {
-                mBlockNbt = mBlock.value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0);
-            
-                mEvent.extendedFields.emplace_back("EventOperable", mBlockNbt);
-            }
+            if (auto mBlock = BlockUtils::getBlock(mPosition, event.self().getDimensionId()); mBlock.has_value())
+                mEvent.extendedFields.emplace_back("EventOperable", mBlock.value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
             if (auto mBlockEntity = BlockUtils::getBlockEntity(event.pos(), event.self().getDimensionId()); mBlockEntity.has_value()) {
                 CompoundTag mTag;
                 mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
@@ -578,7 +575,7 @@ namespace LOICollection::Plugins {
 
             if (this->mImpl->options.Events.onPlayerPlaceBlock.OutputConsole)
                 this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerplaceblock")), 
-                    mPlayerName, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ, mBlockNbt
+                    mPlayerName, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ, mBlockType
                 );
         }, ll::event::EventPriority::Highest);
 
@@ -706,17 +703,13 @@ namespace LOICollection::Plugins {
             if (!this->mImpl->options.Events.onBlockExplode.ModuleEnabled)
                 return;
 
-            std::string mBlockNbt;
+            std::string mBlockType = event.getBlock().getTypeName();
 
             Event mEvent = this->getBasicEvent(
                 "BlockExplode", "Operable", event.getPosition(), event.getDimension().getDimensionId()
             );
 
-            if (auto mBlock = BlockUtils::getBlock(event.getPosition(), event.getDimension().getDimensionId()); mBlock.has_value()) {
-                mBlockNbt = mBlock.value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0);
-                
-                mEvent.extendedFields.emplace_back("EventOperable", mBlockNbt);
-            }
+            mEvent.extendedFields.emplace_back("EventOperable", event.getBlock().mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
             if (auto mBlockEntity = BlockUtils::getBlockEntity(event.getPosition(), event.getDimension().getDimensionId()); mBlockEntity.has_value()) {
                 CompoundTag mTag;
                 mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
@@ -729,7 +722,7 @@ namespace LOICollection::Plugins {
 
             if (this->mImpl->options.Events.onBlockExplode.OutputConsole)
                 this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.blockexplode")), 
-                    mBlockNbt, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ
+                    mBlockType, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ
                 );
         }, ll::event::EventPriority::Highest);
     }
