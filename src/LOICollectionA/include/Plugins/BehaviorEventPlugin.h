@@ -31,9 +31,9 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_NDAPI Event getBasicEvent(const std::string& name, const std::string& type, const Vec3& position, int dimension);
 
-        LOICOLLECTION_A_NDAPI std::vector<std::string> getEvents();
-        LOICOLLECTION_A_NDAPI std::vector<std::string> getEvents(std::vector<std::pair<std::string, std::string>> conditions, std::function<bool(std::string)> filter = {});
-        LOICOLLECTION_A_NDAPI std::vector<std::string> getEventsByPosition(int dimension, std::function<bool(int x, int y, int z)> filter);
+        LOICOLLECTION_A_NDAPI std::vector<std::string> getEvents(int limit = -1);
+        LOICOLLECTION_A_NDAPI std::vector<std::string> getEvents(std::vector<std::pair<std::string, std::string>> conditions, std::function<bool(std::string)> filter = {}, int limit = -1);
+        LOICOLLECTION_A_NDAPI std::vector<std::string> getEventsByPosition(int dimension, std::function<bool(int x, int y, int z)> filter, int limit = -1);
         LOICOLLECTION_A_API   std::vector<std::string> filter(std::vector<std::string> ids);
 
         LOICOLLECTION_A_API   void refresh();

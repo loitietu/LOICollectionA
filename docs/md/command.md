@@ -15,7 +15,7 @@
 [Server] - /blacklist add &ltTarget: target&gt [Cause: string] [Time: int]
 [Server] - /blacklist gui
 [Server] - /blacklist info &ltId: string&gt
-[Server] - /blacklist list
+[Server] - /blacklist list [Limit: int]
 [Server] - /blacklist remove &ltId: string&gt
 ```
 
@@ -35,8 +35,9 @@
   - 查看黑名单中的一个目标的信息。
   - 其中 `<Id: string>` 为目标的ID。
 
-- `/blacklist list`
+- `/blacklist list [Limit: int]`
   - 列出黑名单中的所有目标。
+  - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
 - `/blacklist remove <Id: string>`
   - 从黑名单中移除一个目标。
@@ -51,7 +52,7 @@
 [Server] - /mute add &ltTarget: target&gt [Cause: string] [Time: int]
 [Server] - /mute gui
 [Server] - /mute info &ltId: string&gt
-[Server] - /mute list
+[Server] - /mute list [Limit: int]
 [Server] - /mute remove id &ltId: string&gt
 [Server] - /mute remove target &ltTarget: target&gt
 ```
@@ -71,8 +72,9 @@
   - 查看禁言列表中的一个目标的信息。
   - 其中 `<Id: string>` 为目标的ID。
 
-- `/mute list`
+- `/mute list [Limit: int]`
   - 列出禁言列表中的所有目标。
+  - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
 - `/mute remove id <Id: string>`
   - 从禁言列表中移除一个目标。
@@ -312,16 +314,16 @@
 [Server] - /behaviorevent back position &ltPositionOrigin: x y z&gt &ltPositionTarget: x y z&gt &ltTime: int&gt
 [Server] - /behaviorevent back range &ltPositionOrigin: x y z&gt &ltRadius: int&gt &ltTime: int&gt
 [Server] - /behaviorevent clean
-[Server] - /behaviorevent query action position &ltPositionOrigin: x y z&gt &ltPositionTarget: x y z&gt
-[Server] - /behaviorevent query action range &ltPositionOrigin: x y z&gt &ltRadius: int&gt
-[Server] - /behaviorevent query event custom &ltTarget: string&gt &ltValue: string&gt
-[Server] - /behaviorevent query event dimension &ltDimension: Dimension&gt
-[Server] - /behaviorevent query event foundation &ltEventName: string&gt &ltTime: int&gt
+[Server] - /behaviorevent query action position &ltPositionOrigin: x y z&gt &ltPositionTarget: x y z&gt [Limit: int]
+[Server] - /behaviorevent query action range &ltPositionOrigin: x y z&gt &ltRadius: int&gt [Limit: int]
+[Server] - /behaviorevent query event custom &ltTarget: string&gt &ltValue: string&gt [Limit: int]
+[Server] - /behaviorevent query event dimension &ltDimension: Dimension&gt [Limit: int]
+[Server] - /behaviorevent query event foundation &ltEventName: string&gt &ltTime: int&gt [Limit: int]
 [Server] - /behaviorevent query event info &ltEventId: string&gt
-[Server] - /behaviorevent query event name &ltEventName: string&gtW
-[Server] - /behaviorevent query event position &ltPositionOrigin: x y z&gt
-[Server] - /behaviorevent query event site &ltPositionOrigin: x y z&gt &ltDimension: Dimension&gt
-[Server] - /behaviorevent query event time &ltTime: int&gt
+[Server] - /behaviorevent query event name &ltEventName: string&gtW [Limit: int]
+[Server] - /behaviorevent query event position &ltPositionOrigin: x y z&gt [Limit: int]
+[Server] - /behaviorevent query event site &ltPositionOrigin: x y z&gt &ltDimension: Dimension&gt [Limit: int]
+[Server] - /behaviorevent query event time &ltTime: int&gt [Limit: int]
 ```
 
 ?> 其中 `behaviorevent` 为 BehaviourEvent 的顶层命令（权限等级: GameDirectors）。
@@ -341,50 +343,59 @@
 - `/behaviorevent clean`
   - 清除所有满足条件的行为事件记录。
 
-- `/behaviorevent query action position <PositionOrigin: x y z> <PositionTarget: x y z>`
+- `/behaviorevent query action position <PositionOrigin: x y z> <PositionTarget: x y z> [Limit: int]`
   - 查询指定区域内的行为事件。
   - 其中 `<PositionOrigin: x y z>` 为行为事件查询的起始位置。
   - 其中 `<PositionTarget: x y z>` 为行为事件查询的目标位置。
+  - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
-- `/behaviorevent query action range <PositionOrigin: x y z> <Radius: int>`
+- `/behaviorevent query action range <PositionOrigin: x y z> <Radius: int> [Limit: int]`
   - 查询指定区间内的行为事件。
   - 其中 `<PositionOrigin: x y z>` 为行为事件查询的起始位置。
   - 其中 `<Radius: int>` 为行为事件查询的半径。
+  - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
-- `/behaviorevent query event custom <Target: string> <Value: string>`
+- `/behaviorevent query event custom <Target: string> <Value: string> [Limit: int]`
   - 查询指定自定义事件。
   - 其中 `<Target: string>` 为事件目标。
   - 其中 `<Value: string>` 为事件值。
+  - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
-- `/behaviorevent query event dimension <Dimension: Dimension>`
+- `/behaviorevent query event dimension <Dimension: Dimension> [Limit: int]`
   - 查询指定维度的行为事件。
   - 其中 `<Dimension: Dimension>` 为事件维度。
+  - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
-- `/behaviorevent query event foundation <EventName: string> <Time: int>`
+- `/behaviorevent query event foundation <EventName: string> <Time: int> [Limit: int]`
   - 查询指定基础信息的行为事件。
   - 其中 `<EventName: string>` 为事件名称。
   - 其中 `<Time: int>` 为事件发生时间。
+  - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
 - `/behaviorevent query event info <EventId: string>`
   - 查询指定事件的详细信息。
   - 其中 `<EventId: string>` 为事件ID。
 
-- `/behaviorevent query event name <EventName: string>`
+- `/behaviorevent query event name <EventName: string> [Limit: int]`
   - 查询指定名称的行为事件。
   - 其中 `<EventName: string>` 为事件名称。
+  - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
-- `/behaviorevent query event position <PositionOrigin: x y z>`
+- `/behaviorevent query event position <PositionOrigin: x y z> [Limit: int]`
   - 查询指定位置的行为事件。
   - 其中 `<PositionOrigin: x y z>` 为事件发生位置。
+  - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
-- `/behaviorevent query event site <PositionOrigin: x y z> <Dimension: Dimension>`
+- `/behaviorevent query event site <PositionOrigin: x y z> <Dimension: Dimension> [Limit: int]`
   - 查询指定区域的行为事件。
   - 其中 `<PositionOrigin: x y z>` 为事件发生位置。
   - 其中 `<Dimension: Dimension>` 为事件发生维度。
+  - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
-- `/behaviorevent query event time <Time: int>`
+- `/behaviorevent query event time <Time: int> [Limit: int]`
   - 查询指定时间范围内的行为事件。
   - 其中 `<Time: int>` 为事件发生时间。
+  - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
 > [!NOTE]
-> 以上内容均属于 LOICollectionA 1.7.0 版本的命令列表，对于后续版本的命令列表可能会有所不同。
+> 以上内容均属于 LOICollectionA 1.9.0 版本的命令列表，对于后续版本的命令列表可能会有所不同。

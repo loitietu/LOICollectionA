@@ -29,7 +29,7 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_NDAPI std::string getBlacklist(Player& player);
 
-        LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklists();
+        LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklists(int limit = -1);
         
         LOICOLLECTION_A_NDAPI bool isBlacklist(const std::string& mId, const std::string& uuid, const std::string& ip, const std::string& clientId);
         LOICOLLECTION_A_NDAPI bool isBlacklist(Player& player);

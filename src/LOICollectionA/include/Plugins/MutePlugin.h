@@ -30,7 +30,7 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_NDAPI std::string getMute(Player& player);
         
-        LOICOLLECTION_A_NDAPI std::vector<std::string> getMutes();
+        LOICOLLECTION_A_NDAPI std::vector<std::string> getMutes(int limit = -1);
         
         LOICOLLECTION_A_NDAPI bool isMute(Player& player);
         LOICOLLECTION_A_NDAPI bool isValid();

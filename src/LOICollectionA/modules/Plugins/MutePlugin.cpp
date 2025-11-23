@@ -64,6 +64,7 @@ namespace LOICollection::Plugins {
         
         std::string Cause;
         int Time = 0;
+        int Limit = 100;
     };
 
     struct MutePlugin::Impl {
@@ -237,13 +238,14 @@ namespace LOICollection::Plugins {
                 output.success("{0}: {1}", mKey, mPair.second);
             });
         });
-        command.overload().text("list").execute([this](CommandOrigin const&, CommandOutput& output) -> void {
-            std::vector<std::string> mObjectList = this->getMutes();
+        command.overload<operation>().text("list").optional("Limit").execute(
+            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            std::vector<std::string> mObjectList = this->getMutes(param.Limit);
             std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), [](const std::string& a, const std::string& b) {
                 return a + (a.empty() ? "" : ", ") + b;
             });
 
-            output.success(fmt::runtime(tr({}, "commands.mute.success.list")), result.empty() ? "None" : result);
+            output.success(fmt::runtime(tr({}, "commands.mute.success.list")), param.Limit, result.empty() ? "None" : result);
         });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
@@ -337,7 +339,7 @@ namespace LOICollection::Plugins {
         return it != mKeys.end() ? *it : "";
     }
 
-    std::vector<std::string> MutePlugin::getMutes() {
+    std::vector<std::string> MutePlugin::getMutes(int limit) {
         if (!this->isValid())
             return {};
         
@@ -348,6 +350,9 @@ namespace LOICollection::Plugins {
             size_t mPos = mKey.find('.');
             return mPos != std::string::npos ? mKey.substr(0, mPos) : "";
         });
+
+        if (limit > 0 && (int) mResult.size() > limit)
+            mResult.resize(limit);
 
         return mResult;
     }
