@@ -1,4 +1,5 @@
 #include <tuple>
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <ranges>
@@ -18,8 +19,8 @@
 #include <ll/api/io/LoggerRegistry.h>
 
 #include <ll/api/coro/CoroTask.h>
-#include <ll/api/chrono/GameChrono.h>
-#include <ll/api/thread/ServerThreadExecutor.h>
+#include <ll/api/coro/InterruptableSleep.h>
+#include <ll/api/thread/ThreadPoolExecutor.h>
 
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
@@ -126,8 +127,11 @@ namespace LOICollection::Plugins {
 
         ll::event::ListenerPtr BlockExplodeEventListener;
 
-        bool WriteDatabaseTaskRunning = true;
-        bool CleanDatabaseTaskRunning = true;
+        ll::coro::InterruptableSleep WirteDatabaseTaskSleep;
+        ll::coro::InterruptableSleep CleanDatabaseTaskSleep;
+
+        std::atomic<bool> WriteDatabaseTaskRunning{ true };
+        std::atomic<bool> CleanDatabaseTaskRunning{ true };
     };
 
     BehaviorEventPlugin::BehaviorEventPlugin() : mImpl(std::make_unique<Impl>()) {};
@@ -340,8 +344,11 @@ namespace LOICollection::Plugins {
 
     void BehaviorEventPlugin::listenEvent() {
         ll::coro::keepThis([this]() -> ll::coro::CoroTask<> {
-            while (this->mImpl->WriteDatabaseTaskRunning) {
-                co_await std::chrono::minutes(this->mImpl->options.RefreshIntervalInMinutes);
+            while (this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire)) {
+                co_await this->mImpl->WirteDatabaseTaskSleep.sleepFor(std::chrono::minutes(this->mImpl->options.RefreshIntervalInMinutes));
+
+                if (!this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire))
+                    break;
 
                 this->refresh();
 
@@ -353,15 +360,18 @@ namespace LOICollection::Plugins {
 
                 this->mImpl->mEvents.clear();
             }
-        }).launch(ll::thread::ServerThreadExecutor::getDefault());
+        }).launch(ll::thread::ThreadPoolExecutor::getDefault());
 
         ll::coro::keepThis([this]() -> ll::coro::CoroTask<> {
-            while (this->mImpl->CleanDatabaseTaskRunning) {
-                co_await std::chrono::hours(this->mImpl->options.CleanDatabaseInterval);
+            while (this->mImpl->CleanDatabaseTaskRunning.load(std::memory_order_acquire)) {
+                co_await this->mImpl->CleanDatabaseTaskSleep.sleepFor(std::chrono::minutes(this->mImpl->options.CleanDatabaseInterval));
+
+                if (!this->mImpl->CleanDatabaseTaskRunning.load(std::memory_order_acquire))
+                    break;
 
                 this->clean(this->mImpl->options.OrganizeDatabaseInterval);
             }
-        }).launch(ll::thread::ServerThreadExecutor::getDefault());
+        }).launch(ll::thread::ThreadPoolExecutor::getDefault());
 
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         this->mImpl->PlayerConnectEventListener = eventBus.emplaceListener<ll::event::PlayerConnectEvent>([this](ll::event::PlayerConnectEvent& event) mutable -> void {
@@ -746,8 +756,11 @@ namespace LOICollection::Plugins {
 
         eventBus.removeListener(this->mImpl->BlockExplodeEventListener);
 
-        this->mImpl->WriteDatabaseTaskRunning = false;
-        this->mImpl->CleanDatabaseTaskRunning = false;
+        this->mImpl->WriteDatabaseTaskRunning.store(false, std::memory_order_release);
+        this->mImpl->CleanDatabaseTaskRunning.store(false, std::memory_order_release);
+
+        this->mImpl->WirteDatabaseTaskSleep.interrupt();
+        this->mImpl->CleanDatabaseTaskSleep.interrupt();
     }
 
     BehaviorEventPlugin::Event BehaviorEventPlugin::getBasicEvent(const std::string& name, const std::string& type, const Vec3& position, int dimension) {
@@ -981,7 +994,7 @@ namespace LOICollection::Plugins {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        unlistenEvent();
+        this->unlistenEvent();
 
         this->getDatabase()->exec("VACUUM;");
 
