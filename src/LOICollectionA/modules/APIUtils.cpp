@@ -35,9 +35,9 @@
 #include "LOICollectionA/include/Plugins/ChatPlugin.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
-#include "LOICollectionA/utils/ScoreboardUtils.h"
-#include "LOICollectionA/utils/SystemUtils.h"
 #include "LOICollectionA/utils/I18nUtils.h"
+#include "LOICollectionA/utils/mc/ScoreboardUtils.h"
+#include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/include/APIEngine.h"
 

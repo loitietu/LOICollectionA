@@ -31,8 +31,8 @@
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
-#include "LOICollectionA/utils/SystemUtils.h"
 #include "LOICollectionA/utils/I18nUtils.h"
+#include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/JsonStorage.h"
 #include "LOICollectionA/data/SQLiteStorage.h"

@@ -145,7 +145,7 @@ jobs:
                             $parts = $_ -Split $separator
                             $message = $parts[0] -ireplace "^$type(\([^\)]+\))?:", ""
                             $message = $message.Trim()
-                            '- ' + $message + ' `' + $parts[1] + '` by ' + $parts[2]
+                            '- ' + $message + ' `' + $parts[1] + '` (by ' + $parts[2] + ')'
                         }
                         
                         "$($categories[$type])||$($notes -Join "`n")" | Out-File -Append categorized.txt

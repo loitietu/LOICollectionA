@@ -7,7 +7,7 @@
 
 #include <mc/util/LootTableUtils.h>
 
-#include "LOICollectionA/utils/InventoryUtils.h"
+#include "LOICollectionA/utils/mc/InventoryUtils.h"
 
 namespace InventoryUtils {
     void clearItem(Player& player, const std::string& mTypeName, int mNumber) {

@@ -19,7 +19,7 @@
 
 #include <mc/dataloadhelper/DefaultDataLoadHelper.h>
 
-#include "LOICollectionA/utils/BlockUtils.h"
+#include "LOICollectionA/utils/mc/BlockUtils.h"
 
 DefaultDataLoadHelper mDataLoadHelper;
 

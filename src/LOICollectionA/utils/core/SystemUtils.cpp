@@ -6,7 +6,7 @@
 
 #include <Windows.h>
 
-#include "LOICollectionA/utils/SystemUtils.h"
+#include "LOICollectionA/utils/core/SystemUtils.h"
 
 namespace SystemUtils {
     std::string getSystemLocaleCode(const std::string& defaultValue) {

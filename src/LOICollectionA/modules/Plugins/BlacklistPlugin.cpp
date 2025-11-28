@@ -50,8 +50,8 @@
 
 #include "LOICollectionA/include/ServerEvents/NetworkPacketEvent.h"
 
-#include "LOICollectionA/utils/SystemUtils.h"
 #include "LOICollectionA/utils/I18nUtils.h"
+#include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 

@@ -74,9 +74,9 @@
 #include "LOICollectionA/include/ServerEvents/BlockExplodedEvent.h"
 #include "LOICollectionA/include/ServerEvents/PlayerContainerEvent.h"
 
-#include "LOICollectionA/utils/BlockUtils.h"
-#include "LOICollectionA/utils/SystemUtils.h"
 #include "LOICollectionA/utils/I18nUtils.h"
+#include "LOICollectionA/utils/mc/BlockUtils.h"
+#include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 

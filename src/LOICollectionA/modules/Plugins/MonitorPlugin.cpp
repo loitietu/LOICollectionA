@@ -42,7 +42,7 @@
 #include "LOICollectionA/include/ServerEvents/NetworkPacketEvent.h"
 #include "LOICollectionA/include/ServerEvents/PlayerScoreChangedEvent.h"
 
-#include "LOICollectionA/utils/ScoreboardUtils.h"
+#include "LOICollectionA/utils/mc/ScoreboardUtils.h"
 
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"

@@ -9,8 +9,8 @@
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/Mod/RegisterHelper.h>
 
-#include "LOICollectionA/utils/SystemUtils.h"
 #include "LOICollectionA/utils/I18nUtils.h"
+#include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
@@ -72,9 +72,7 @@ namespace LOICollection {
         std::filesystem::create_directory(dataFilePath);
         ServiceProvider::getInstance().registerInstance<std::string>(std::make_shared<std::string>(dataFilePath.string()), "DataPath");
         ServiceProvider::getInstance().registerInstance<std::string>(std::make_shared<std::string>(configDataPath.string()), "ConfigPath");
-        ServiceProvider::getInstance().registerSingleton<SQLiteStorage>([dataFilePath]() -> std::shared_ptr<SQLiteStorage> {
-            return std::make_shared<SQLiteStorage>((dataFilePath / "settings.db").string());
-        }, "SettingsDB");
+        ServiceProvider::getInstance().registerInstance<SQLiteStorage>(std::make_shared<SQLiteStorage>((dataFilePath / "settings.db").string()), "SettingsDB");
 
         std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
         std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {

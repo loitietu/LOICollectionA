@@ -11,7 +11,7 @@
 #include <mc/world/scores/ScoreboardOperationResult.h>
 #include <mc/world/scores/PlayerScoreSetFunction.h>
 
-#include "LOICollectionA/utils/ScoreboardUtils.h"
+#include "LOICollectionA/utils/mc/ScoreboardUtils.h"
 
 namespace ScoreboardUtils {
     bool hasScoreboard(const std::string& name) {

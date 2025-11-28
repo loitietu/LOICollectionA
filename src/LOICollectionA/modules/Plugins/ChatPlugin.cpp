@@ -39,8 +39,8 @@
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 #include "LOICollectionA/include/Plugins/MutePlugin.h"
 
-#include "LOICollectionA/utils/SystemUtils.h"
 #include "LOICollectionA/utils/I18nUtils.h"
+#include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 

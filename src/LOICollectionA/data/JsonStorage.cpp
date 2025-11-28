@@ -1,56 +1,84 @@
 #include <vector>
 #include <string>
-#include <string_view>
 #include <fstream>
 #include <filesystem>
+#include <string_view>
+#include <shared_mutex>
 
 #include <nlohmann/json.hpp>
 
 #include "LOICollectionA/data/JsonStorage.h"
 
-JsonStorage::JsonStorage(std::filesystem::path path) : d_path(std::move(path)) {
-    if (std::filesystem::exists(d_path)) {
-        if (std::ifstream file(d_path); file)
-            file >> d_json;
-    } else {
-        std::filesystem::create_directories(d_path.parent_path());
-        d_json = nlohmann::ordered_json::object();
-        save();
+JsonStorage::JsonStorage(std::filesystem::path path) : mPath(std::move(path)) {
+    if (std::filesystem::exists(mPath)) {
+        std::ifstream file(mPath, std::ios::binary);
+        
+        if (file.is_open())
+            file >> this->mJson;
+
+        return;
     }
+
+    std::filesystem::create_directories(mPath.parent_path());
+
+    this->mJson = nlohmann::ordered_json::object();
+
+    this->save();
+}
+JsonStorage::~JsonStorage() = default;
+
+void JsonStorage::remove(std::string_view key) {
+    std::unique_lock lock(this->mMutex);
+
+    this->mJson.erase(key);
 }
 
-bool JsonStorage::remove(std::string_view key) {
-    return d_json.erase(key) > 0;
-}
+void JsonStorage::remove_ptr(std::string_view ptr) {
+    std::unique_lock lock(this->mMutex);
 
-bool JsonStorage::remove_ptr(std::string_view ptr) {
-    nlohmann::json_pointer<std::string> ptrs = nlohmann::json_pointer<std::string>(std::string(ptr));
-    return d_json.contains(ptrs) ? (d_json.erase(ptrs.to_string()), true) : false;
+    nlohmann::json_pointer<std::string> ptrs((std::string(ptr)));
+    if (!this->mJson.contains(ptrs)) 
+        return;
+
+    auto& parent = this->mJson.at(ptrs.parent_pointer());
+    parent.erase(ptrs.back());
 }
 
 bool JsonStorage::has(std::string_view key) const {
-    return d_json.contains(key);
+    std::shared_lock lock(this->mMutex);
+    
+    return this->mJson.contains(key);
 }
 
 bool JsonStorage::has_ptr(std::string_view ptr) const {
-    return d_json.contains(nlohmann::json_pointer<std::string>(std::string(ptr)));
+    std::shared_lock lock(this->mMutex);
+
+    nlohmann::json_pointer<std::string> ptrs((std::string(ptr)));
+    return this->mJson.contains(ptrs);
 }
 
-nlohmann::ordered_json& JsonStorage::get() {
-    return d_json;
+const nlohmann::ordered_json& JsonStorage::get() const {
+    return this->mJson;
 }
 
 std::vector<std::string> JsonStorage::keys() const {
+    std::shared_lock lock(this->mMutex);
+
     std::vector<std::string> keys;
-    keys.reserve(d_json.size());
-    
-    for (const auto& [key, _] : d_json.items())
-        keys.emplace_back(key);
+    keys.reserve(this->mJson.size());
+
+    for (const auto& item : this->mJson.items())
+        keys.emplace_back(item.key());
+
     return keys;
 }
 
 void JsonStorage::save() const {
-    std::filesystem::create_directories(d_path.parent_path());
-    if (std::ofstream file{d_path, std::ios::trunc})
-        file << d_json.dump(4);
+    std::unique_lock lock(this->mMutex);
+
+    std::filesystem::create_directories(this->mPath.parent_path());
+    std::ofstream file(this->mPath, std::ios::binary | std::ios::trunc);
+
+    if (file.is_open())
+        file << this->mJson.dump(4);
 }

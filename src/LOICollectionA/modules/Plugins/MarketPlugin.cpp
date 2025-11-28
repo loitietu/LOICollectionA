@@ -40,10 +40,10 @@
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
-#include "LOICollectionA/utils/InventoryUtils.h"
-#include "LOICollectionA/utils/ScoreboardUtils.h"
-#include "LOICollectionA/utils/SystemUtils.h"
 #include "LOICollectionA/utils/I18nUtils.h"
+#include "LOICollectionA/utils/mc/InventoryUtils.h"
+#include "LOICollectionA/utils/mc/ScoreboardUtils.h"
+#include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 

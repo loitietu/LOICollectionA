@@ -25,16 +25,6 @@ public:
         return getContainer()->getServiceNames<TService>();
     }
     
-    template <typename TService, typename TImplementation = TService>
-    void registerSingleton(const std::string& name = "") {
-        getContainer()->registerSingleton<TService, TImplementation>(name);
-    }
-    
-    template <typename TService, typename TFactory>
-    void registerSingleton(TFactory&& factory, const std::string& name = "") {
-        getContainer()->registerSingleton<TService>(std::forward<TFactory>(factory), name);
-    }
-    
     template <typename TService>
     void registerInstance(std::shared_ptr<TService> instance, const std::string& name = "") {
         getContainer()->registerInstance<TService>(instance, name);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+#include <queue>
 #include <memory>
 #include <vector>
 #include <string>
@@ -14,9 +16,11 @@ namespace SQLite {
     class Transaction;
 }
 
+class SQLiteConnectionPool;
+
 class SQLiteStorage {
 public:
-    LOICOLLECTION_A_API   explicit SQLiteStorage(const std::string& path);
+    LOICOLLECTION_A_API   explicit SQLiteStorage(const std::string& path, size_t size = 5);
     LOICOLLECTION_A_API   ~SQLiteStorage();
 
     LOICOLLECTION_A_API   void exec(std::string_view sql);
@@ -41,13 +45,45 @@ public:
     LOICOLLECTION_A_NDAPI std::vector<std::string> listByPrefix(std::string_view table, std::string_view prefix);
 
 public:
+    friend class SQLiteConnectionPool;
     friend class SQLiteStorageTransaction;
 
 protected:
-    std::unique_ptr<SQLite::Database> database;
-    std::unordered_map<std::string, std::unique_ptr<SQLite::Statement>> stmtCache;
+    mutable std::mutex mMutex;
+
+    std::unique_ptr<SQLiteConnectionPool> writeConnectionPool;
+    std::unique_ptr<SQLiteConnectionPool> readConnectionPool;
+
+    struct ConnectionContext {
+        std::mutex cacheMutex;
+
+        std::unique_ptr<SQLite::Database> database;
+        std::unordered_map<std::string, std::unique_ptr<SQLite::Statement>> stmtCache;
+        
+        ConnectionContext(const std::string& path, bool readOnly = false);
+    };
     
-    SQLite::Statement& getCachedStatement(const std::string& sql);
+    SQLite::Statement& getCachedStatement(ConnectionContext& context, const std::string& sql);
+};
+
+class SQLiteConnectionPool {
+public:
+    LOICOLLECTION_A_API   explicit SQLiteConnectionPool(const std::string& path, size_t size, bool readOnly = false);
+    LOICOLLECTION_A_API   ~SQLiteConnectionPool();
+    
+    LOICOLLECTION_A_NDAPI std::shared_ptr<SQLiteStorage::ConnectionContext> getConnection();
+    
+    LOICOLLECTION_A_API   void returnConnection(std::shared_ptr<SQLiteStorage::ConnectionContext> conn);
+
+private:
+    mutable std::mutex mMutex;
+
+    std::vector<std::shared_ptr<SQLiteStorage::ConnectionContext>> mConnections;
+    std::queue<std::shared_ptr<SQLiteStorage::ConnectionContext>> mAvailableConnections;
+    
+    std::condition_variable mConnectionAvailable;
+
+    std::atomic<size_t> mActiveConnections{ 0 };
 };
 
 class SQLiteStorageTransaction {
@@ -61,5 +97,6 @@ public:
 private:
     SQLiteStorage& mStorage;
 
+    std::shared_ptr<SQLiteStorage::ConnectionContext> mConnection;
     std::unique_ptr<SQLite::Transaction> mTransaction;
 };
