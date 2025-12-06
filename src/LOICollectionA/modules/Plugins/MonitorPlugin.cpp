@@ -2,6 +2,7 @@
 #include <ranges>
 #include <string>
 #include <algorithm>
+#include <unordered_map>
 
 #include <ll/api/coro/CoroTask.h>
 #include <ll/api/chrono/GameChrono.h>
@@ -57,13 +58,7 @@ namespace LOICollection::Plugins {
     struct MonitorPlugin::Impl {
         C_Config::C_Plugins::C_Monitor options;
 
-        ll::event::ListenerPtr PlayerConnectEventListener;
-        ll::event::ListenerPtr PlayerDisconnectEventListener;
-        ll::event::ListenerPtr PlayerScoreChangedEventListener;
-        ll::event::ListenerPtr ExecuteCommandEventListener;
-        ll::event::ListenerPtr NetworkPacketEventCommandListener;
-
-        ll::event::ListenerPtr NetworkPacketEventTextListener;
+        std::unordered_map<std::string, ll::event::ListenerPtr> mListeners;
 
         bool BelowNameTaskRunning = true;
     };
@@ -97,7 +92,7 @@ namespace LOICollection::Plugins {
         }
 
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        this->mImpl->PlayerConnectEventListener = eventBus.emplaceListener<ll::event::PlayerConnectEvent>([option = this->mImpl->options.ServerToast](ll::event::PlayerConnectEvent& event) -> void {
+        this->mImpl->mListeners.emplace("PlayerConnect", eventBus.emplaceListener<ll::event::PlayerConnectEvent>([option = this->mImpl->options.ServerToast](ll::event::PlayerConnectEvent& event) -> void {
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
                 return;
 
@@ -106,9 +101,9 @@ namespace LOICollection::Plugins {
             ).sendToClients();
 
             mInterceptTextObjectPacket.push_back(event.self().getUuid().asString());
-        });
+        }));
 
-        this->mImpl->PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([option = this->mImpl->options.ServerToast](ll::event::PlayerDisconnectEvent& event) -> void {
+        this->mImpl->mListeners.emplace("PlayerDisconnect", eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([option = this->mImpl->options.ServerToast](ll::event::PlayerDisconnectEvent& event) -> void {
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
                 return;
 
@@ -117,9 +112,9 @@ namespace LOICollection::Plugins {
             ).sendToClients();
 
             mInterceptTextObjectPacket.erase(std::remove(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), event.self().getUuid().asString()), mInterceptTextObjectPacket.end());
-        });
+        }));
 
-        this->mImpl->PlayerScoreChangedEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerScoreChangedEvent>([option = this->mImpl->options.ChangeScore](LOICollection::ServerEvents::PlayerScoreChangedEvent& event) -> void {
+        this->mImpl->mListeners.emplace("PlayerScoreChanged", eventBus.emplaceListener<LOICollection::ServerEvents::PlayerScoreChangedEvent>([option = this->mImpl->options.ChangeScore](LOICollection::ServerEvents::PlayerScoreChangedEvent& event) -> void {
             using LOICollection::ServerEvents::ScoreChangedType;
 
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled || !event.getScore())
@@ -141,9 +136,9 @@ namespace LOICollection::Plugins {
                 
                 event.self().sendMessage(LOICollectionAPI::translateString(mMessage, event.self()));
             }
-        });
+        }));
 
-        this->mImpl->ExecuteCommandEventListener = eventBus.emplaceListener<ll::event::ExecutingCommandEvent>([option = this->mImpl->options.DisableCommand](ll::event::ExecutingCommandEvent& event) -> void {
+        this->mImpl->mListeners.emplace("ExecutingCommand", eventBus.emplaceListener<ll::event::ExecutingCommandEvent>([option = this->mImpl->options.DisableCommand](ll::event::ExecutingCommandEvent& event) -> void {
             std::string mCommand = event.commandContext().mCommand.substr(1);
 
             if (!option.ModuleEnabled || event.commandContext().mOrigin == nullptr || mCommand.empty())
@@ -163,9 +158,9 @@ namespace LOICollection::Plugins {
 
                 player->sendMessage(LOICollectionAPI::translateString(option.FormatText, *player));
             }
-        });
+        }));
 
-        this->mImpl->NetworkPacketEventCommandListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([option = this->mImpl->options.DisableCommand](LOICollection::ServerEvents::NetworkPacketEvent& event) -> void {
+        this->mImpl->mListeners.emplace("NetworkPacketEvent", eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([option = this->mImpl->options.DisableCommand](LOICollection::ServerEvents::NetworkPacketEvent& event) -> void {
             if (!option.ModuleEnabled || event.getPacket().getId() != MinecraftPacketIds::AvailableCommands)
                 return;
 
@@ -193,10 +188,10 @@ namespace LOICollection::Plugins {
                 }
                 packet.mCommands->pop_back();
             }
-        });
+        }));
 
         std::vector<std::string> mTextPacketType{"multiplayer.player.joined", "multiplayer.player.left"};
-        this->mImpl->NetworkPacketEventTextListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkBroadcastPacketEvent>([mTextPacketType, option = this->mImpl->options.ServerToast](LOICollection::ServerEvents::NetworkBroadcastPacketEvent& event) -> void {
+        this->mImpl->mListeners.emplace("NetworkBroadcastPacketEvent", eventBus.emplaceListener<LOICollection::ServerEvents::NetworkBroadcastPacketEvent>([mTextPacketType, option = this->mImpl->options.ServerToast](LOICollection::ServerEvents::NetworkBroadcastPacketEvent& event) -> void {
             if (!option.ModuleEnabled || event.getPacket().getId() != MinecraftPacketIds::Text)
                 return;
 
@@ -214,18 +209,13 @@ namespace LOICollection::Plugins {
                 if (std::find(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), mUuid) != mInterceptTextObjectPacket.end())
                     event.cancel();
             }
-        });
+        }));
     }
 
     void MonitorPlugin::unlistenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(this->mImpl->PlayerConnectEventListener);
-        eventBus.removeListener(this->mImpl->PlayerDisconnectEventListener);
-        eventBus.removeListener(this->mImpl->PlayerScoreChangedEventListener);
-        eventBus.removeListener(this->mImpl->ExecuteCommandEventListener);
-        eventBus.removeListener(this->mImpl->NetworkPacketEventCommandListener);
-
-        eventBus.removeListener(this->mImpl->NetworkPacketEventTextListener);
+        for (auto& listener : this->mImpl->mListeners)
+            eventBus.removeListener(listener.second);
 
         this->mImpl->BelowNameTaskRunning = false;
     }

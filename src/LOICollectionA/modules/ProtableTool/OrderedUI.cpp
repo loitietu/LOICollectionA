@@ -106,6 +106,8 @@ namespace LOICollection::ProtableTool {
 
     void OrderedUI::unlistenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+        eventBus.removeListener(this->mImpl->ModalFormRequestEventListener);
+        eventBus.removeListener(this->mImpl->ModalFormResponseEventListener);
         eventBus.removeListener(this->mImpl->PlayerDisconnectEventListener);
     }
 

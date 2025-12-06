@@ -255,7 +255,7 @@ namespace LOICollection::Plugins {
 
     void TpaPlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-            .getOrCreateCommand("tpa", tr({}, "commands.tpa.description"), CommandPermissionLevel::Any);
+            .getOrCreateCommand("tpa", tr({}, "commands.tpa.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("invite").required("Type").required("Target").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
             Actor* entity = origin.getEntity();

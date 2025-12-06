@@ -11,11 +11,23 @@
 class Vec3;
 class SQLiteStorage;
 
-namespace ll::io {
-    class Logger;
+namespace ll {
+    namespace event {
+        class Event;
+    }
+
+    namespace io {
+        class Logger;
+    }
 }
 
 namespace LOICollection::Plugins {
+    enum class BehaviorEventConfig {
+        ModuleEnabled,
+        RecordDatabase,
+        OutputConsole
+    };
+
     class BehaviorEventPlugin {
     public:
         struct Event;
@@ -36,9 +48,8 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI std::vector<std::string> getEventsByPosition(int dimension, std::function<bool(int x, int y, int z)> filter, int limit = -1);
         LOICOLLECTION_A_API   std::vector<std::string> filter(std::vector<std::string> ids);
 
-        LOICOLLECTION_A_API   void refresh();
         LOICOLLECTION_A_API   void write(const std::string& id, const Event& event);
-        LOICOLLECTION_A_API   void back(const std::string& id);
+        LOICOLLECTION_A_API   void back(std::vector<std::string>& ids);
         LOICOLLECTION_A_API   void clean(int hours);
 
         LOICOLLECTION_A_NDAPI bool isValid();
@@ -52,6 +63,16 @@ namespace LOICollection::Plugins {
     private:
         BehaviorEventPlugin();
         ~BehaviorEventPlugin();
+
+        template <typename T>
+        void registeryEvent(
+            const std::string& name,
+            const std::string& type,
+            const std::string& id,
+            std::function<bool(BehaviorEventConfig)> config,
+            std::function<void(ll::event::Event&, Event&)> process,
+            std::function<std::string(std::string, ll::event::Event&)> formatter
+        );
 
         void registeryCommand();
         void listenEvent();

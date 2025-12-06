@@ -295,7 +295,7 @@ namespace LOICollection::Plugins {
 
     void CdkPlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-            .getOrCreateCommand("cdk", tr({}, "commands.cdk.description"), CommandPermissionLevel::Any);
+            .getOrCreateCommand("cdk", tr({}, "commands.cdk.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("convert").required("Id").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
             Actor* entity = origin.getEntity();

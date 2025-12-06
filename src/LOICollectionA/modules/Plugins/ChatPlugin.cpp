@@ -1,7 +1,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <numeric>
+#include <algorithm>
 #include <filesystem>
 
 #include <fmt/core.h>
@@ -264,7 +264,7 @@ namespace LOICollection::Plugins {
 
     void ChatPlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-            .getOrCreateCommand("chat", tr({}, "commands.chat.description"), CommandPermissionLevel::Any);
+            .getOrCreateCommand("chat", tr({}, "commands.chat.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("add").required("Target").required("Title").optional("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
             if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
@@ -324,11 +324,11 @@ namespace LOICollection::Plugins {
 
             for (Player*& player : results) {
                 std::vector<std::string> mObjectList = this->getTitles(*player);
-                std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), [](std::string a, const std::string& b) -> std::string {
-                    return a.append(a.empty() ? "" : ", ").append(b);
-                });
+                
+                if (mObjectList.empty())
+                    return output.success(fmt::runtime(tr({}, "commands.chat.success.list")), player->getRealName(), "None");
 
-                output.success(fmt::runtime(tr({}, "commands.chat.success.list")), player->getRealName(), result.empty() ? "None" : result);
+                output.success(fmt::runtime(tr({}, "commands.chat.success.list")), player->getRealName(), fmt::join(mObjectList, ", "));
             }
         });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {

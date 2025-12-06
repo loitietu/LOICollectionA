@@ -1,8 +1,8 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <numeric>
 #include <algorithm>
+#include <execution>
 #include <filesystem>
 #include <unordered_map>
 
@@ -182,7 +182,7 @@ namespace LOICollection::Plugins {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(MuteObjectName, getMutes());
 
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-            .getOrCreateCommand("mute", tr({}, "commands.mute.description"), CommandPermissionLevel::GameDirectors);
+            .getOrCreateCommand("mute", tr({}, "commands.mute.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("add").required("Target").optional("Cause").optional("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
             CommandSelectorResults<Player> results = param.Target.results(origin);
@@ -194,6 +194,7 @@ namespace LOICollection::Plugins {
                     output.error(fmt::runtime(tr({}, "commands.mute.error.add")), pl->getRealName());
                     continue;
                 }
+
                 this->addMute(*pl, param.Cause, param.Time);
 
                 output.success(fmt::runtime(tr({}, "commands.mute.success.add")), pl->getRealName());
@@ -210,6 +211,7 @@ namespace LOICollection::Plugins {
                     output.error(fmt::runtime(tr({}, "commands.mute.error.remove")), pl->getRealName());
                     continue;
                 }
+
                 this->delMute(*pl);
 
                 output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), pl->getRealName());
@@ -241,11 +243,11 @@ namespace LOICollection::Plugins {
         command.overload<operation>().text("list").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
             std::vector<std::string> mObjectList = this->getMutes(param.Limit);
-            std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), [](const std::string& a, const std::string& b) {
-                return a + (a.empty() ? "" : ", ") + b;
-            });
+            
+            if (mObjectList.empty())
+                return output.success(fmt::runtime(tr({}, "commands.mute.success.list")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.mute.success.list")), param.Limit, result.empty() ? "None" : result);
+            output.success(fmt::runtime(tr({}, "commands.mute.success.list")), param.Limit, fmt::join(mObjectList, ", "));
         });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
@@ -291,15 +293,17 @@ namespace LOICollection::Plugins {
             return;
 
         std::string mCause = cause.empty() ? "None" : cause;
-
         std::string mTimestamp = SystemUtils::getCurrentTimestamp();
 
         SQLiteStorageTransaction transaction(*this->getDatabase());
-        this->getDatabase()->set("Mute", mTimestamp + ".NAME", player.getRealName());
-        this->getDatabase()->set("Mute", mTimestamp + ".CAUSE", mCause);
-        this->getDatabase()->set("Mute", mTimestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "0") : "0");
-        this->getDatabase()->set("Mute", mTimestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
-        this->getDatabase()->set("Mute", mTimestamp + ".DATA", player.getUuid().asString());
+        auto connection = transaction.connection();
+
+        this->getDatabase()->set(connection, "Mute", mTimestamp + ".NAME", player.getRealName());
+        this->getDatabase()->set(connection, "Mute", mTimestamp + ".CAUSE", mCause);
+        this->getDatabase()->set(connection, "Mute", mTimestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "0") : "0");
+        this->getDatabase()->set(connection, "Mute", mTimestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
+        this->getDatabase()->set(connection, "Mute", mTimestamp + ".DATA", player.getUuid().asString());
+
         transaction.commit();
 
         ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MuteObjectName, { mTimestamp });
@@ -332,7 +336,7 @@ namespace LOICollection::Plugins {
         std::string mUuid = player.getUuid().asString();
 
         std::vector<std::string> mKeys = this->getMutes();
-        auto it = std::find_if(mKeys.begin(), mKeys.end(), [this, &mUuid](const std::string& mId) -> bool {
+        auto it = std::find_if(std::execution::par, mKeys.begin(), mKeys.end(), [this, &mUuid](const std::string& mId) -> bool {
             return this->getDatabase()->get("Mute", mId + ".DATA") == mUuid;
         });
 

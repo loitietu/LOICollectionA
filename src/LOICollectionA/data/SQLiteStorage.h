@@ -19,9 +19,44 @@ namespace SQLite {
 class SQLiteConnectionPool;
 
 class SQLiteStorage {
+protected:
+    std::unique_ptr<SQLiteConnectionPool> writeConnectionPool;
+    std::unique_ptr<SQLiteConnectionPool> readConnectionPool;
+
+    struct ConnectionContext {
+        std::mutex cacheMutex;
+
+        std::unique_ptr<SQLite::Database> database;
+        std::unordered_map<std::string, std::unique_ptr<SQLite::Statement>> stmtCache;
+        
+        ConnectionContext(const std::string& path, bool readOnly = false);
+    };
+    
+    SQLite::Statement& getCachedStatement(ConnectionContext& context, const std::string& sql);
+
 public:
     LOICOLLECTION_A_API   explicit SQLiteStorage(const std::string& path, size_t size = 5);
     LOICOLLECTION_A_API   ~SQLiteStorage();
+
+    LOICOLLECTION_A_API   void exec(std::shared_ptr<ConnectionContext> context, std::string_view sql);
+    LOICOLLECTION_A_API   void create(std::shared_ptr<ConnectionContext> context, std::string_view table);
+    LOICOLLECTION_A_API   void remove(std::shared_ptr<ConnectionContext> context, std::string_view table);
+    LOICOLLECTION_A_API   void set(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view value);
+    LOICOLLECTION_A_API   void del(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key);
+    LOICOLLECTION_A_API   void delByPrefix(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view prefix);
+
+    LOICOLLECTION_A_NDAPI bool has(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key);
+    LOICOLLECTION_A_NDAPI bool has(std::shared_ptr<ConnectionContext> context, std::string_view table);
+    LOICOLLECTION_A_NDAPI bool hasByPrefix(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view prefix, int size);
+
+    LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::string> get(std::shared_ptr<ConnectionContext> context, std::string_view table);
+    LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::string> getByPrefix(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view prefix);
+
+    LOICOLLECTION_A_NDAPI std::string get(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view defaultValue = "");
+
+    LOICOLLECTION_A_NDAPI std::vector<std::string> list(std::shared_ptr<ConnectionContext> context, std::string_view table);
+    LOICOLLECTION_A_NDAPI std::vector<std::string> list(std::shared_ptr<ConnectionContext> context);
+    LOICOLLECTION_A_NDAPI std::vector<std::string> listByPrefix(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view prefix);
 
     LOICOLLECTION_A_API   void exec(std::string_view sql);
 
@@ -47,23 +82,6 @@ public:
 public:
     friend class SQLiteConnectionPool;
     friend class SQLiteStorageTransaction;
-
-protected:
-    mutable std::mutex mMutex;
-
-    std::unique_ptr<SQLiteConnectionPool> writeConnectionPool;
-    std::unique_ptr<SQLiteConnectionPool> readConnectionPool;
-
-    struct ConnectionContext {
-        std::mutex cacheMutex;
-
-        std::unique_ptr<SQLite::Database> database;
-        std::unordered_map<std::string, std::unique_ptr<SQLite::Statement>> stmtCache;
-        
-        ConnectionContext(const std::string& path, bool readOnly = false);
-    };
-    
-    SQLite::Statement& getCachedStatement(ConnectionContext& context, const std::string& sql);
 };
 
 class SQLiteConnectionPool {
@@ -91,8 +109,10 @@ public:
     LOICOLLECTION_A_API explicit SQLiteStorageTransaction(SQLiteStorage& storage);
     LOICOLLECTION_A_API ~SQLiteStorageTransaction();
 
-    LOICOLLECTION_A_API void commit();
-    LOICOLLECTION_A_API void rollback();
+    LOICOLLECTION_A_API   bool commit();
+    LOICOLLECTION_A_API   bool rollback();
+
+    LOICOLLECTION_A_NDAPI std::shared_ptr<SQLiteStorage::ConnectionContext> connection() const;
 
 private:
     SQLiteStorage& mStorage;

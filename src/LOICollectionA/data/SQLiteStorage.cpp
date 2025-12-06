@@ -18,11 +18,11 @@ SQLiteStorage::ConnectionContext::ConnectionContext(const std::string& path, boo
     if (readOnly)
         return;
 
-    database->exec("PRAGMA journal_mode = WAL;");
-    database->exec("PRAGMA synchronous = NORMAL;");
-    database->exec("PRAGMA temp_store = MEMORY;");
-    database->exec("PRAGMA cache_size = 8096;");
-    database->exec("PRAGMA busy_timeout = 5000;");
+    this->database->exec("PRAGMA journal_mode = WAL;");
+    this->database->exec("PRAGMA synchronous = NORMAL;");
+    this->database->exec("PRAGMA temp_store = MEMORY;");
+    this->database->exec("PRAGMA cache_size = 8096;");
+    this->database->exec("PRAGMA busy_timeout = 5000;");
 }
 
 SQLiteConnectionPool::SQLiteConnectionPool(const std::string& path, size_t size, bool readOnly) {
@@ -86,55 +86,29 @@ SQLite::Statement& SQLiteStorage::getCachedStatement(ConnectionContext& context,
     return *context.stmtCache.emplace(sql, std::move(stmt)).first->second;
 }
 
-void SQLiteStorage::exec(std::string_view sql) {
-    std::unique_lock lock(this->mMutex);
-
-    auto conn = this->writeConnectionPool->getConnection();
-    auto guard = make_scope_guard([this, conn]() -> void { 
-        this->writeConnectionPool->returnConnection(conn); 
-    });
-    
-    conn->database->exec(std::string(sql));
+void SQLiteStorage::exec(std::shared_ptr<ConnectionContext> context, std::string_view sql) {
+    context->database->exec(std::string(sql));
 }
 
-void SQLiteStorage::create(std::string_view table) {
-    std::unique_lock lock(this->mMutex);
-
-    auto conn = this->writeConnectionPool->getConnection();
-    auto guard = make_scope_guard([this, conn]() -> void { 
-        this->writeConnectionPool->returnConnection(conn); 
-    });
-    
-    conn->database->exec("CREATE TABLE IF NOT EXISTS " + std::string(table) + " (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;");
+void SQLiteStorage::create(std::shared_ptr<ConnectionContext> context, std::string_view table) {
+    context->database->exec("CREATE TABLE IF NOT EXISTS " + std::string(table) + " (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;");
 }
 
-void SQLiteStorage::remove(std::string_view table) {
-    std::unique_lock lock(this->mMutex);
+void SQLiteStorage::remove(std::shared_ptr<ConnectionContext> context, std::string_view table) {
+    context->database->exec("DROP TABLE IF EXISTS " + std::string(table) + ";");
 
-    auto conn = this->writeConnectionPool->getConnection();
-    auto guard = make_scope_guard([this, conn]() -> void { 
-        this->writeConnectionPool->returnConnection(conn); 
-    });
-    
-    conn->database->exec("DROP TABLE IF EXISTS " + std::string(table) + ";");
+    std::unique_lock cachelock(context->cacheMutex);
 
-    std::unique_lock cachelock(conn->cacheMutex);
-
-    conn->stmtCache.clear();
+    context->stmtCache.clear();
 }
 
-void SQLiteStorage::set(std::string_view table, std::string_view key, std::string_view value) {
-    std::unique_lock lock(this->mMutex);
-
-    auto conn = this->writeConnectionPool->getConnection();
-    auto& stmt = getCachedStatement(*conn,
+void SQLiteStorage::set(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view value) {
+    auto& stmt = getCachedStatement(*context,
         "INSERT INTO " + std::string(table) + " (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value;"
     );
 
-    auto guard = make_scope_guard([this, conn, &stmt]() -> void { 
+    auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
-
-        this->writeConnectionPool->returnConnection(conn); 
     });
 
     stmt.bind(1, std::string(key));
@@ -142,84 +116,65 @@ void SQLiteStorage::set(std::string_view table, std::string_view key, std::strin
     stmt.exec();
 }
 
-void SQLiteStorage::del(std::string_view table, std::string_view key) {
-    std::unique_lock lock(this->mMutex);
-
-    auto conn = this->writeConnectionPool->getConnection();
-    auto& stmt = getCachedStatement(*conn,
+void SQLiteStorage::del(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key) {
+    auto& stmt = getCachedStatement(*context,
         "DELETE FROM " + std::string(table) + " WHERE key = ?;"
     );
 
-    auto guard = make_scope_guard([this, conn, &stmt]() -> void { 
+    auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
-
-        this->writeConnectionPool->returnConnection(conn); 
     });
 
     stmt.bind(1, std::string(key));
     stmt.exec();
 }
 
-void SQLiteStorage::delByPrefix(std::string_view table, std::string_view prefix) {
-    std::unique_lock lock(this->mMutex);
-    
-    auto conn = this->writeConnectionPool->getConnection();
-    auto& stmt = getCachedStatement(*conn,
+void SQLiteStorage::delByPrefix(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view prefix) {
+    auto& stmt = getCachedStatement(*context,
         "DELETE FROM " + std::string(table) + " WHERE key LIKE ? ESCAPE '\\';"
     );
 
-    auto guard = make_scope_guard([this, conn, &stmt]() -> void { 
+    auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
-
-        this->writeConnectionPool->returnConnection(conn); 
     });
 
     stmt.bind(1, std::string(prefix) + "%");
     stmt.exec();
 }
 
-bool SQLiteStorage::has(std::string_view table, std::string_view key) {
-    auto conn = this->readConnectionPool->getConnection();
-    auto& stmt = getCachedStatement(*conn,
+bool SQLiteStorage::has(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key) {
+    auto& stmt = getCachedStatement(*context,
         "SELECT 1 FROM " + std::string(table) + " WHERE key = ? LIMIT 1;"
     );
 
-    auto guard = make_scope_guard([this, conn, &stmt]() -> void { 
+    auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
-
-        this->readConnectionPool->returnConnection(conn); 
     });
 
     stmt.bind(1, std::string(key));
     return stmt.executeStep();
 }
 
-bool SQLiteStorage::has(std::string_view table) {
-    auto conn = this->readConnectionPool->getConnection();
-    auto& stmt = getCachedStatement(*conn,
+bool SQLiteStorage::has(std::shared_ptr<ConnectionContext> context, std::string_view table) {
+    auto& stmt = getCachedStatement(*context,
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name = ? LIMIT 1;"
     );
 
-    auto guard = make_scope_guard([this, conn, &stmt]() -> void { 
+    auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
-
-        this->readConnectionPool->returnConnection(conn); 
     });
 
     stmt.bind(1, std::string(table));
     return stmt.executeStep();
 }
 
-bool SQLiteStorage::hasByPrefix(std::string_view table, std::string_view prefix, int size) {
-    auto conn = this->readConnectionPool->getConnection();
-    auto& stmt = getCachedStatement(*conn,
+bool SQLiteStorage::hasByPrefix(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view prefix, int size) {
+    auto& stmt = getCachedStatement(*context,
         "SELECT COUNT(*) FROM " + std::string(table) + " WHERE key LIKE ? ESCAPE '\\';"
     );
 
-    auto guard = make_scope_guard([this, conn, &stmt]() -> void { 
+    auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
-
-        this->readConnectionPool->returnConnection(conn); 
     });
 
     stmt.bind(1, std::string(prefix) + "%");
@@ -229,16 +184,13 @@ bool SQLiteStorage::hasByPrefix(std::string_view table, std::string_view prefix,
     return stmt.getColumn(0).getInt() == size;
 }
 
-std::unordered_map<std::string, std::string> SQLiteStorage::get(std::string_view table) {
-    auto conn = this->readConnectionPool->getConnection();
-    auto& stmt = getCachedStatement(*conn,
+std::unordered_map<std::string, std::string> SQLiteStorage::get(std::shared_ptr<ConnectionContext> context, std::string_view table) {
+    auto& stmt = getCachedStatement(*context,
         "SELECT key, value FROM " + std::string(table) + ";"
     );
 
-    auto guard = make_scope_guard([this, conn, &stmt]() -> void { 
+    auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
-
-        this->readConnectionPool->returnConnection(conn); 
     });
 
     std::unordered_map<std::string, std::string> result;
@@ -252,16 +204,13 @@ std::unordered_map<std::string, std::string> SQLiteStorage::get(std::string_view
     return result;
 }
 
-std::unordered_map<std::string, std::string> SQLiteStorage::getByPrefix(std::string_view table, std::string_view prefix) {
-    auto conn = this->readConnectionPool->getConnection();
-    auto& stmt = getCachedStatement(*conn,
+std::unordered_map<std::string, std::string> SQLiteStorage::getByPrefix(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view prefix) {
+    auto& stmt = getCachedStatement(*context,
         "SELECT key, value FROM " + std::string(table) + " WHERE key LIKE ? ESCAPE '\\';"
     );
 
-    auto guard = make_scope_guard([this, conn, &stmt]() -> void { 
+    auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
-
-        this->readConnectionPool->returnConnection(conn); 
     });
 
     stmt.bind(1, std::string(prefix) + "%");
@@ -277,16 +226,13 @@ std::unordered_map<std::string, std::string> SQLiteStorage::getByPrefix(std::str
     return result;
 }
 
-std::string SQLiteStorage::get(std::string_view table, std::string_view key, std::string_view defaultValue) {
-    auto conn = this->readConnectionPool->getConnection();
-    auto& stmt = getCachedStatement(*conn,
+std::string SQLiteStorage::get(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view defaultValue) {
+    auto& stmt = getCachedStatement(*context,
         "SELECT value FROM " + std::string(table) + " WHERE key = ?;"
     );
 
-    auto guard = make_scope_guard([this, conn, &stmt]() -> void { 
+    auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
-
-        this->readConnectionPool->returnConnection(conn); 
     });
 
     stmt.bind(1, std::string(key));
@@ -296,16 +242,13 @@ std::string SQLiteStorage::get(std::string_view table, std::string_view key, std
     return std::string(defaultValue);
 }
 
-std::vector<std::string> SQLiteStorage::list(std::string_view table) {
-    auto conn = this->readConnectionPool->getConnection();
-    auto& stmt = getCachedStatement(*conn,
+std::vector<std::string> SQLiteStorage::list(std::shared_ptr<ConnectionContext> context, std::string_view table) {
+    auto& stmt = getCachedStatement(*context,
         "SELECT key FROM " + std::string(table) + ";"
     );
 
-    auto guard = make_scope_guard([this, conn, &stmt]() -> void { 
+    auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
-
-        this->readConnectionPool->returnConnection(conn); 
     });
 
     std::vector<std::string> keys;
@@ -315,16 +258,13 @@ std::vector<std::string> SQLiteStorage::list(std::string_view table) {
     return keys;
 }
 
-std::vector<std::string> SQLiteStorage::list() {
-    auto conn = this->readConnectionPool->getConnection();
-    auto& stmt = getCachedStatement(*conn,
+std::vector<std::string> SQLiteStorage::list(std::shared_ptr<ConnectionContext> context) {
+    auto& stmt = getCachedStatement(*context,
         "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
     );
 
-    auto guard = make_scope_guard([this, conn, &stmt]() -> void { 
+    auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
-
-        this->readConnectionPool->returnConnection(conn); 
     });
 
     std::vector<std::string> tables;
@@ -334,16 +274,13 @@ std::vector<std::string> SQLiteStorage::list() {
     return tables;
 }
 
-std::vector<std::string> SQLiteStorage::listByPrefix(std::string_view table, std::string_view prefix) {
-    auto conn = this->readConnectionPool->getConnection();
-    auto& stmt = getCachedStatement(*conn,
+std::vector<std::string> SQLiteStorage::listByPrefix(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view prefix) {
+    auto& stmt = getCachedStatement(*context,
         "SELECT key FROM " + std::string(table) + " WHERE key LIKE ? ESCAPE '\\';"
     );
 
-    auto guard = make_scope_guard([this, conn, &stmt]() -> void { 
+    auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
-
-        this->readConnectionPool->returnConnection(conn); 
     });
 
     stmt.bind(1, std::string(prefix) + "%");
@@ -353,6 +290,141 @@ std::vector<std::string> SQLiteStorage::listByPrefix(std::string_view table, std
         keys.emplace_back(stmt.getColumn(0).getText());
 
     return keys;
+}
+
+void SQLiteStorage::exec(std::string_view sql) {
+    auto conn = this->writeConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->writeConnectionPool->returnConnection(conn); 
+    });
+    
+    this->exec(conn, sql);
+}
+
+void SQLiteStorage::create(std::string_view table) {
+    auto conn = this->writeConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->writeConnectionPool->returnConnection(conn); 
+    });
+    
+    this->create(conn, table);
+}
+
+void SQLiteStorage::remove(std::string_view table) {
+    auto conn = this->writeConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->writeConnectionPool->returnConnection(conn); 
+    });
+    
+    this->remove(conn, table);
+}
+
+void SQLiteStorage::set(std::string_view table, std::string_view key, std::string_view value) {
+    auto conn = this->writeConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->writeConnectionPool->returnConnection(conn); 
+    });
+
+    this->set(conn, table, key, value);
+}
+
+void SQLiteStorage::del(std::string_view table, std::string_view key) {
+    auto conn = this->writeConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->writeConnectionPool->returnConnection(conn); 
+    });
+
+    this->del(conn, table, key);
+}
+
+void SQLiteStorage::delByPrefix(std::string_view table, std::string_view prefix) {
+    auto conn = this->writeConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->writeConnectionPool->returnConnection(conn); 
+    });
+
+    this->delByPrefix(conn, table, prefix);
+}
+
+bool SQLiteStorage::has(std::string_view table, std::string_view key) {
+    auto conn = this->readConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->readConnectionPool->returnConnection(conn); 
+    });
+
+    return this->has(conn, table, key);
+}
+
+bool SQLiteStorage::has(std::string_view table) {
+    auto conn = this->readConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->readConnectionPool->returnConnection(conn); 
+    });
+
+    return this->has(conn, table);
+}
+
+bool SQLiteStorage::hasByPrefix(std::string_view table, std::string_view prefix, int size) {
+    auto conn = this->readConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->readConnectionPool->returnConnection(conn); 
+    });
+
+    return this->hasByPrefix(conn, table, prefix, size);
+}
+
+std::unordered_map<std::string, std::string> SQLiteStorage::get(std::string_view table) {
+    auto conn = this->readConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->readConnectionPool->returnConnection(conn); 
+    });
+
+    return this->get(conn, table);
+}
+
+std::unordered_map<std::string, std::string> SQLiteStorage::getByPrefix(std::string_view table, std::string_view prefix) {
+    auto conn = this->readConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->readConnectionPool->returnConnection(conn); 
+    });
+
+    return this->getByPrefix(conn, table, prefix);
+}
+
+std::string SQLiteStorage::get(std::string_view table, std::string_view key, std::string_view defaultValue) {
+    auto conn = this->readConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->readConnectionPool->returnConnection(conn); 
+    });
+
+    return this->get(conn, table, key, defaultValue);
+}
+
+std::vector<std::string> SQLiteStorage::list(std::string_view table) {
+    auto conn = this->readConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->readConnectionPool->returnConnection(conn); 
+    });
+
+    return this->list(conn, table);
+}
+
+std::vector<std::string> SQLiteStorage::list() {
+    auto conn = this->readConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->readConnectionPool->returnConnection(conn); 
+    });
+
+    return this->list(conn);
+}
+
+std::vector<std::string> SQLiteStorage::listByPrefix(std::string_view table, std::string_view prefix) {
+    auto conn = this->readConnectionPool->getConnection();
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->readConnectionPool->returnConnection(conn); 
+    });
+
+    return this->listByPrefix(conn, table, prefix);
 }
 
 SQLiteStorageTransaction::SQLiteStorageTransaction(SQLiteStorage& storage) : mStorage(storage) {
@@ -364,29 +436,41 @@ SQLiteStorageTransaction::~SQLiteStorageTransaction() {
     if (!this->mTransaction) 
         return;
 
-    this->commit();
+    this->rollback();
 }
 
-void SQLiteStorageTransaction::commit() {
+bool SQLiteStorageTransaction::commit() {
     if (!this->mTransaction) 
-        return;
+        return false;
 
     try {
         this->mTransaction->commit();
         this->mTransaction.reset();
-    } catch (...) {}
+    } catch (...) {
+        this->mStorage.writeConnectionPool->returnConnection(mConnection);
+        return false;
+    }
 
     this->mStorage.writeConnectionPool->returnConnection(mConnection);
+    return true;
 }
 
-void SQLiteStorageTransaction::rollback() {
+bool SQLiteStorageTransaction::rollback() {
     if (!this->mTransaction) 
-        return;
+        return false;
 
     try {
         this->mTransaction->rollback();
         this->mTransaction.reset();
-    } catch(...) {}
+    } catch(...) {
+        this->mStorage.writeConnectionPool->returnConnection(mConnection);
+        return false;
+    }
 
     this->mStorage.writeConnectionPool->returnConnection(mConnection);
+    return true;
+}
+
+std::shared_ptr<SQLiteStorage::ConnectionContext> SQLiteStorageTransaction::connection() const {
+    return this->mConnection;
 }

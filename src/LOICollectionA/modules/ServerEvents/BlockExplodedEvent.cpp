@@ -25,8 +25,8 @@ namespace LOICollection::ServerEvents {
         return mBlock;
     }
 
-    Dimension& BlockExplodedEvent::getDimension() const {
-        return mDimension;
+    int BlockExplodedEvent::getDimensionId() const {
+        return mDimensionId;
     }
 
     Actor* BlockExplodedEvent::getSource() const {
@@ -47,7 +47,7 @@ namespace LOICollection::ServerEvents {
         if (destroyedBlock.isAir())
             return origin(dimension, blockPos, destroyedBlock, source);
 
-        BlockExplodedEvent event(blockPos, destroyedBlock, dimension, source);
+        BlockExplodedEvent event(blockPos, destroyedBlock, dimension.getDimensionId(), source);
         ll::event::EventBus::getInstance().publish(event);
 
         return origin(dimension, blockPos, destroyedBlock, source);

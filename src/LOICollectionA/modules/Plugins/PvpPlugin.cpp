@@ -80,7 +80,7 @@ namespace LOICollection::Plugins {
 
     void PvpPlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-            .getOrCreateCommand("pvp", tr({}, "commands.pvp.description"), CommandPermissionLevel::Any);
+            .getOrCreateCommand("pvp", tr({}, "commands.pvp.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())

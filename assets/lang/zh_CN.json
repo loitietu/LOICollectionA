@@ -383,10 +383,10 @@
     "behaviorevent.event.playerdestroyblock": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置破坏 {5} 方块",
     "behaviorevent.event.playerplaceblock": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置放置 {5} 方块",
     "behaviorevent.event.playerdie": "玩家 {0} 因 {1} 在维度ID为 {2} 的 ({3}, {4}, {5}) 位置死亡",
-    "behaviorevent.event.playerpickupitem": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置捡起 Nbt 为 {5} 的物品",
-    "behaviorevent.event.playerinteractblock": "玩家 {0} 与维度ID为 {1} 的 ({2}, {3}, {4}) 位置 Nbt 为 {5} 的方块交互",
+    "behaviorevent.event.playerpickupitem": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置捡起 {5} 物品",
+    "behaviorevent.event.playerinteractblock": "玩家 {0} 与维度ID为 {1} 的 ({2}, {3}, {4}) 位置的 {5} 方块交互",
     "behaviorevent.event.playerrespawn": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置进行重生",
-    "behaviorevent.event.playeruseitem": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置使用 Nbt 为 {5} 的物品",
-    "behaviorevent.event.playeropencontainer": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置打开 Nbt 为 {5} 的容器",
+    "behaviorevent.event.playeruseitem": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置使用 {5} 物品",
+    "behaviorevent.event.playeropencontainer": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置打开容器",
     "behaviorevent.event.blockexplode": "方块 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置被爆炸破坏"
 }

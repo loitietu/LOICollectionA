@@ -1,9 +1,9 @@
 #include <memory>
 #include <vector>
 #include <string>
-#include <numeric>
 #include <optional>
 #include <algorithm>
+#include <execution>
 #include <filesystem>
 #include <unordered_map>
 
@@ -191,7 +191,7 @@ namespace LOICollection::Plugins {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(BlacklistObjectName, getBlacklists());
 
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-            .getOrCreateCommand("blacklist", tr({}, "commands.blacklist.description"), CommandPermissionLevel::GameDirectors);
+            .getOrCreateCommand("blacklist", tr({}, "commands.blacklist.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("add").required("Target").optional("Cause").optional("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
             CommandSelectorResults<Player> results = param.Target.results(origin);
@@ -203,6 +203,7 @@ namespace LOICollection::Plugins {
                     output.error(fmt::runtime(tr({}, "commands.blacklist.error.add")), pl->getRealName());
                     continue;
                 }
+
                 this->addBlacklist(*pl, param.Cause, param.Time);
 
                 output.success(fmt::runtime(tr({}, "commands.blacklist.success.add")), pl->getRealName());
@@ -212,6 +213,7 @@ namespace LOICollection::Plugins {
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
             if (!this->getDatabase()->hasByPrefix("Blacklist", param.Object + ".", 7))
                 return output.error(fmt::runtime(tr({}, "commands.blacklist.error.remove")), param.Object);
+            
             this->delBlacklist(param.Object);
 
             output.success(fmt::runtime(tr({}, "commands.blacklist.success.remove")), param.Object);
@@ -233,11 +235,11 @@ namespace LOICollection::Plugins {
         command.overload<operation>().text("list").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
             std::vector<std::string> mObjectList = this->getBlacklists(param.Limit);
-            std::string result = std::accumulate(mObjectList.cbegin(), mObjectList.cend(), std::string(), [](const std::string& a, const std::string& b) {
-                return a + (a.empty() ? "" : ", ") + b;
-            });
+            
+            if (mObjectList.empty())
+                return output.success(fmt::runtime(tr({}, "commands.blacklist.success.list")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.blacklist.success.list")), param.Limit, result.empty() ? "None" : result);
+            output.success(fmt::runtime(tr({}, "commands.blacklist.success.list")), param.Limit, fmt::join(mObjectList, ", "));
         });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
@@ -302,17 +304,19 @@ namespace LOICollection::Plugins {
             return;
 
         std::string mCause = cause.empty() ? "None" : cause;
-
         std::string mTismestamp = SystemUtils::getCurrentTimestamp();
 
         SQLiteStorageTransaction transaction(*this->getDatabase());
-        this->getDatabase()->set("Blacklist", mTismestamp + ".NAME", player.getRealName());
-        this->getDatabase()->set("Blacklist", mTismestamp + ".CAUSE", mCause);
-        this->getDatabase()->set("Blacklist", mTismestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
-        this->getDatabase()->set("Blacklist", mTismestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
-        this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_UUID", player.getUuid().asString());
-        this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_IP", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':') - 1));
-        this->getDatabase()->set("Blacklist", mTismestamp + ".DATA_CLIENTID", player.getConnectionRequest()->getDeviceId());
+        auto connection = transaction.connection();
+
+        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".NAME", player.getRealName());
+        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".CAUSE", mCause);
+        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
+        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
+        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".DATA_UUID", player.getUuid().asString());
+        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".DATA_IP", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':') - 1));
+        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".DATA_CLIENTID", player.getConnectionRequest()->getDeviceId());
+        
         transaction.commit();
 
         ll::command::CommandRegistrar::getInstance().addSoftEnumValues(BlacklistObjectName, { mTismestamp });
@@ -349,7 +353,7 @@ namespace LOICollection::Plugins {
         std::string mClientId = player.getConnectionRequest()->getDeviceId();
 
         std::vector<std::string> mKeys = this->getBlacklists();
-        auto it = std::find_if(mKeys.begin(), mKeys.end(), [this, mUuid, mIp, mClientId](const std::string& mId) -> bool {
+        auto it = std::find_if(std::execution::par, mKeys.begin(), mKeys.end(), [this, mUuid, mIp, mClientId](const std::string& mId) -> bool {
             return this->isBlacklist(mId, mUuid, mIp, mClientId);
         });
 

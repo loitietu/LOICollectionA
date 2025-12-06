@@ -11,9 +11,10 @@ option("shared")
 option_end()
 
 add_requires("sqlitecpp 3.3.3", {configs = {shared = get_config("shared")}})
-add_requires("levilamina 1.7.5", {configs = {target_type = "server"}})
+add_requires("levilamina 1.7.7", {configs = {target_type = "server"}})
 add_requires(
     "levibuildscript",
+    "preloader 1.15.5",
     "nlohmann_json 3.12.0"
 )
  
@@ -55,6 +56,7 @@ target("LOICollectionA")
     )
     add_packages(
         "levilamina",
+        "preloader",
         "nlohmann_json",
         "sqlitecpp"
     )

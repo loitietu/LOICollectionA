@@ -352,7 +352,7 @@ namespace LOICollection::Plugins {
 
     void MarketPlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-            .getOrCreateCommand("market", tr({}, "commands.market.description"), CommandPermissionLevel::Any);
+            .getOrCreateCommand("market", tr({}, "commands.market.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
@@ -434,13 +434,16 @@ namespace LOICollection::Plugins {
         std::string mTimestamp = SystemUtils::getCurrentTimestamp();
 
         SQLiteStorageTransaction transaction(*this->getDatabase());
-        this->getDatabase()->set("Item", mTimestamp + ".NAME", name);
-        this->getDatabase()->set("Item", mTimestamp + ".ICON", icon);
-        this->getDatabase()->set("Item", mTimestamp + ".INTRODUCE", intr);
-        this->getDatabase()->set("Item", mTimestamp + ".SCORE", std::to_string(score));
-        this->getDatabase()->set("Item", mTimestamp + ".DATA", item.save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0));
-        this->getDatabase()->set("Item", mTimestamp + ".PLAYER_NAME", player.getRealName());
-        this->getDatabase()->set("Item", mTimestamp + ".PLAYER_UUID", player.getUuid().asString());
+        auto connection = transaction.connection();
+
+        this->getDatabase()->set(connection, "Item", mTimestamp + ".NAME", name);
+        this->getDatabase()->set(connection, "Item", mTimestamp + ".ICON", icon);
+        this->getDatabase()->set(connection, "Item", mTimestamp + ".INTRODUCE", intr);
+        this->getDatabase()->set(connection, "Item", mTimestamp + ".SCORE", std::to_string(score));
+        this->getDatabase()->set(connection, "Item", mTimestamp + ".DATA", item.save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0));
+        this->getDatabase()->set(connection, "Item", mTimestamp + ".PLAYER_NAME", player.getRealName());
+        this->getDatabase()->set(connection, "Item", mTimestamp + ".PLAYER_UUID", player.getUuid().asString());
+        
         transaction.commit();
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "market.log2"), player)), name);
@@ -500,11 +503,21 @@ namespace LOICollection::Plugins {
 
         std::string mObject = player.getUuid().asString();
 
+        std::vector<std::string> mKeys = this->getItems();
+
+        std::unordered_map<size_t, std::vector<std::string>> mResultLocal;
+        std::for_each(mKeys.begin(), mKeys.end(), [this, &mResultLocal, mObject](const std::string& mItem) -> void {
+            if (this->getDatabase()->get("Item", mItem + ".PLAYER_UUID") != mObject)
+                return;
+
+            size_t id = std::hash<std::thread::id>()(std::this_thread::get_id());
+
+            mResultLocal[id].push_back(mItem);
+        });
+
         std::vector<std::string> mResult;
-        for (auto& mItem : this->getItems()) {
-            if (this->getDatabase()->get("Item", mItem + ".PLAYER_UUID") == mObject)
-                mResult.push_back(mItem);
-        }
+        for (auto& mLocal : mResultLocal)
+            mResult.insert(mResult.end(), mLocal.second.begin(), mLocal.second.end());
 
         return mResult;
     }

@@ -1,13 +1,14 @@
-#include <tuple>
+#include <mutex>
 #include <atomic>
 #include <chrono>
 #include <memory>
 #include <ranges>
 #include <string>
 #include <vector>
-#include <numeric>
 #include <utility>
+#include <concepts>
 #include <algorithm>
+#include <execution>
 #include <functional>
 #include <filesystem>
 #include <unordered_map>
@@ -104,6 +105,8 @@ namespace LOICollection::Plugins {
     };
 
     struct BehaviorEventPlugin::Impl {
+        std::mutex mMutex;
+
         std::vector<Event> mEvents;
 
         C_Config::C_Plugins::C_BehaviorEvent options;
@@ -111,22 +114,7 @@ namespace LOICollection::Plugins {
         std::unique_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
 
-        ll::event::ListenerPtr PlayerConnectEventListener;
-        ll::event::ListenerPtr PlayerDisconnectEventListener;
-        ll::event::ListenerPtr PlayerChatEventListener;
-        ll::event::ListenerPtr PlayerAddExperienceEventListener;
-        ll::event::ListenerPtr PlayerAttackEventListener;
-        ll::event::ListenerPtr PlayerChangePermEventListener;
-        ll::event::ListenerPtr PlayerDestroyBlockEventListener;
-        ll::event::ListenerPtr PlayerPlaceBlockEventListener;
-        ll::event::ListenerPtr PlayerDieEventListener;
-        ll::event::ListenerPtr PlayerPickUpItemEventListener;
-        ll::event::ListenerPtr PlayerInteractBlockEventListener;
-        ll::event::ListenerPtr PlayerRespawnEventListener;
-        ll::event::ListenerPtr PlayerUseItemEventListener;
-        ll::event::ListenerPtr PlayerContainerInteractEventListener;
-
-        ll::event::ListenerPtr BlockExplodeEventListener;
+        std::unordered_map<std::string, ll::event::ListenerPtr> mListeners;
 
         ll::coro::InterruptableSleep WirteDatabaseTaskSleep;
         ll::coro::InterruptableSleep CleanDatabaseTaskSleep;
@@ -146,9 +134,57 @@ namespace LOICollection::Plugins {
         return this->mImpl->logger.get();
     }
 
+    template<typename T>
+    void BehaviorEventPlugin::registeryEvent(
+        const std::string& name,
+        const std::string& type,
+        const std::string& id,
+        std::function<bool(BehaviorEventConfig)> config,
+        std::function<void(ll::event::Event&, Event&)> process,
+        std::function<std::string(std::string, ll::event::Event&)> formatter
+    ) {
+        auto& eventBus = ll::event::EventBus::getInstance();
+
+        auto listener = eventBus.emplaceListener<T>([this, name, type, id, config, process, formatter](T& event) mutable -> void {
+            if (!config(BehaviorEventConfig::ModuleEnabled))
+                return;
+            
+            Vec3 mPosition;
+            int mDimension;
+
+            if constexpr (requires (const T& t) {
+                { t.self() } -> std::convertible_to<Player&>;
+            }) {
+                if (event.self().isSimulatedPlayer())
+                    return;
+
+                mPosition = event.self().getPosition();
+                mDimension = event.self().getDimensionId();
+            } else {
+                mPosition = event.getPosition();
+                mDimension = event.getDimensionId();
+            }
+
+            if (config(BehaviorEventConfig::RecordDatabase)) {
+                std::lock_guard lock(this->mImpl->mMutex);
+
+                Event mEvent = this->getBasicEvent(name, type, mPosition, mDimension);
+
+                process(event, mEvent);
+
+                this->mImpl->mEvents.push_back(mEvent);
+            }
+
+            if (config(BehaviorEventConfig::OutputConsole))
+                this->getLogger()->info(formatter(tr({}, id), event));
+        }, ll::event::EventPriority::Highest);
+
+        mImpl->mListeners.emplace(name, listener);
+    }
+
     void BehaviorEventPlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-            .getOrCreateCommand("behaviorevent", tr({}, "commands.behaviorevent.description"), CommandPermissionLevel::GameDirectors);
+            .getOrCreateCommand("behaviorevent", tr({}, "commands.behaviorevent.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload().text("clean").execute([this](CommandOrigin const&, CommandOutput& output) -> void {
             this->clean(this->mImpl->options.OrganizeDatabaseInterval);
 
@@ -171,11 +207,11 @@ namespace LOICollection::Plugins {
         command.overload<operation>().text("query").text("event").text("name").required("EventName").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
             std::vector<std::string> mResult = this->getEvents({{ "EventName", param.EventName }}, {}, param.Limit);
-            std::string result = std::accumulate(mResult.cbegin(), mResult.cend(), std::string(), [](const std::string& a, const std::string& b) {
-                return a + (a.empty() ? "" : ", ") + b;
-            });
+            
+            if (mResult.empty())
+                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, result.empty() ? "None" : result);
+            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
         });
         command.overload<operation>().text("query").text("event").text("time").required("Time").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
@@ -183,11 +219,11 @@ namespace LOICollection::Plugins {
                 std::string mTime = SystemUtils::toTimeCalculate(value, time, "0");
                 return !SystemUtils::isPastOrPresent(mTime);
             }, param.Limit);
-            std::string result = std::accumulate(mResult.cbegin(), mResult.cend(), std::string(), [](const std::string& a, const std::string& b) {
-                return a + (a.empty() ? "" : ", ") + b;
-            });
+            
+            if (mResult.empty())
+                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, result.empty() ? "None" : result);
+            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
         });
         command.overload<operation>().text("query").text("event").text("foundation").required("EventName").required("Time").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
@@ -197,11 +233,11 @@ namespace LOICollection::Plugins {
                 return !SystemUtils::isPastOrPresent(mTime);
             }, param.Limit);
             std::vector<std::string> mResult = SystemUtils::getIntersection({ mNames, mTimes });
-            std::string result = std::accumulate(mResult.cbegin(), mResult.cend(), std::string(), [](const std::string& a, const std::string& b) {
-                return a + (a.empty() ? "" : ", ") + b;
-            });
+            
+            if (mResult.empty())
+                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, result.empty() ? "None" : result);
+            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
         });
         command.overload<operation>().text("query").text("event").text("position").required("PositionOrigin").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
@@ -212,20 +248,20 @@ namespace LOICollection::Plugins {
                 { "Position.y", std::to_string((int) mPosition.y) },
                 { "Position.z", std::to_string((int) mPosition.z) }
             }, {}, param.Limit);
-            std::string result = std::accumulate(mResult.cbegin(), mResult.cend(), std::string(), [](const std::string& a, const std::string& b) {
-                return a + (a.empty() ? "" : ", ") + b;
-            });
+            
+            if (mResult.empty())
+                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, result.empty() ? "None" : result);
+            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
         });
         command.overload<operation>().text("query").text("event").text("dimension").required("Dimension").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
             std::vector<std::string> mResult = this->getEvents({{ "Position.dimension", std::to_string(param.Dimension) }}, {}, param.Limit);
-            std::string result = std::accumulate(mResult.cbegin(), mResult.cend(), std::string(), [](const std::string& a, const std::string& b) {
-                return a + (a.empty() ? "" : ", ") + b;
-            });
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, result.empty() ? "None" : result);
+            if (mResult.empty())
+                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+
+            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
         });
         command.overload<operation>().text("query").text("event").text("site").required("PositionOrigin").required("Dimension").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
@@ -238,33 +274,33 @@ namespace LOICollection::Plugins {
             }, {}, param.Limit);
             std::vector<std::string> mDimensions = this->getEvents({{ "Position.dimension", std::to_string(param.Dimension) }}, {}, param.Limit);
             std::vector<std::string> mResult = SystemUtils::getIntersection({ mPositions, mDimensions });
-            std::string result = std::accumulate(mResult.cbegin(), mResult.cend(), std::string(), [](const std::string& a, const std::string& b) {
-                return a + (a.empty() ? "" : ", ") + b;
-            });
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, result.empty() ? "None" : result);
+            if (mResult.empty())
+                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+
+            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
         });
         command.overload<operation>().text("query").text("event").text("custom").required("Target").required("Value").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
             std::vector<std::string> mResult = this->getEvents({ { param.Target, param.Value } }, {}, param.Limit);
-            std::string result = std::accumulate(mResult.cbegin(), mResult.cend(), std::string(), [](const std::string& a, const std::string& b) {
-                return a + (a.empty() ? "" : ", ") + b;
-            });
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, result.empty() ? "None" : result);
+            if (mResult.empty())
+                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+
+            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
         });
         command.overload<operation>().text("query").text("action").text("range").required("PositionOrigin").required("Radius").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
             Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
             std::vector<std::string> mResult = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPosition, radius = param.Radius](int x, int y, int z) -> bool {
-                return Vec3(x, y, z).distanceTo(mPosition) <= radius;
+                return Vec3(x, y, z).distanceToSqr(mPosition) <= radius;
             }, param.Limit);
-            std::string result = std::accumulate(mResult.cbegin(), mResult.cend(), std::string(), [](const std::string& a, const std::string& b) {
-                return a + (a.empty() ? "" : ", ") + b;
-            });
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, result.empty() ? "None" : result);
+            if (mResult.empty())
+                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+
+            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
         });
         command.overload<operation>().text("query").text("action").text("position").required("PositionOrigin").required("PositionTarget").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
@@ -277,18 +313,18 @@ namespace LOICollection::Plugins {
             std::vector<std::string> mResult = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPositionMin, mPositionMax](int x, int y, int z) -> bool {
                 return x >= (double) mPositionMin.x && x <= (double) mPositionMax.x && y >= (double) mPositionMin.y && y <= (double) mPositionMax.y && z >= (double) mPositionMin.z && z <= (double) mPositionMax.z;
             }, param.Limit);
-            std::string result = std::accumulate(mResult.cbegin(), mResult.cend(), std::string(), [](const std::string& a, const std::string& b) {
-                return a + (a.empty() ? "" : ", ") + b;
-            });
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, result.empty() ? "None" : result);
+            if (mResult.empty())
+                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+
+            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
         });
         command.overload<operation>().text("back").text("range").required("PositionOrigin").required("Radius").required("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
             Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
-            std::vector<std::string> mAreas = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPosition, radius = param.Radius](int x, int y, int z) -> bool {
-                return Vec3(x, y, z).distanceTo(mPosition) <= radius;
+            std::vector<std::string> mAreas = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPosition, radius = (param.Radius * param.Radius)](int x, int y, int z) -> bool {
+                return Vec3(x, y, z).distanceToSqr(mPosition) <= radius;
             });
             std::vector<std::string> mTimes = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
                 std::string mTime = SystemUtils::toTimeCalculate(value, time, "0");
@@ -302,11 +338,7 @@ namespace LOICollection::Plugins {
             if (mResult.empty())
                 return output.error(tr({}, "commands.behaviorevent.error.back"));
 
-            SQLiteStorageTransaction transaction(*this->getDatabase());
-            std::for_each(mResult.begin(), mResult.end(), [this](const std::string& mId) {
-                this->back(mId);
-            });
-            transaction.commit();
+            this->back(mResult);
 
             output.success(tr({}, "commands.behaviorevent.success.back"));
         });
@@ -333,11 +365,7 @@ namespace LOICollection::Plugins {
             if (mResult.empty())
                 return output.error(tr({}, "commands.behaviorevent.error.back"));
 
-            SQLiteStorageTransaction transaction(*this->getDatabase());
-            std::for_each(mResult.begin(), mResult.end(), [this](const std::string& mId) {
-                this->back(mId);
-            });
-            transaction.commit();
+            this->back(mResult);
 
             output.success(tr({}, "commands.behaviorevent.success.back"));
         });
@@ -351,7 +379,15 @@ namespace LOICollection::Plugins {
                 if (!this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire))
                     break;
 
-                this->refresh();
+                std::lock_guard lock(this->mImpl->mMutex);
+
+                std::ranges::sort(this->mImpl->mEvents, {}, [](const Event& mEvent) {
+                    return std::tie(mEvent.eventName, mEvent.eventTime, mEvent.eventType, mEvent.posX, mEvent.posY, mEvent.posZ, mEvent.dimension);
+                });
+                auto [first, last] = std::ranges::unique(this->mImpl->mEvents, {}, [](const Event& mEvent) {
+                    return std::tie(mEvent.eventName, mEvent.eventTime, mEvent.eventType, mEvent.posX, mEvent.posY, mEvent.posZ, mEvent.dimension);
+                });
+                this->mImpl->mEvents.erase(first, last);
 
                 std::for_each(this->mImpl->mEvents.begin(), this->mImpl->mEvents.end(), [this](const Event& mEvent) mutable -> void {
                     std::string mTismestamp = SystemUtils::getCurrentTimestamp();
@@ -374,388 +410,323 @@ namespace LOICollection::Plugins {
             }
         }).launch(ll::thread::ThreadPoolExecutor::getDefault());
 
-        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        this->mImpl->PlayerConnectEventListener = eventBus.emplaceListener<ll::event::PlayerConnectEvent>([this](ll::event::PlayerConnectEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerConnect.ModuleEnabled)
-                return;
+        this->registeryEvent<ll::event::PlayerConnectEvent>("PlayerConnect", "Normal", "behaviorevent.event.playerconnect", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerConnect.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerConnect.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerConnect.OutputConsole;
+            }
 
-            std::string mPlayerName = event.self().getRealName();
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<ll::event::PlayerConnectEvent&>(event);
 
-            Event mEvent = this->getBasicEvent(
-                "PlayerConnect", "Normal", event.self().getPosition(), event.self().getDimensionId()
-            );
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<ll::event::PlayerConnectEvent&>(event);
+            
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+                sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z);
+        });
 
-            if (this->mImpl->options.Events.onPlayerConnect.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
+        this->registeryEvent<ll::event::PlayerDisconnectEvent>("PlayerDisconnect", "Normal", "behaviorevent.event.playerdisconnect", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerDisconnect.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerDisconnect.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerDisconnect.OutputConsole;
+            }
 
-            if (this->mImpl->options.Events.onPlayerConnect.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerconnect")), 
-                    mPlayerName, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ
-                );
-        }, ll::event::EventPriority::Highest);
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<ll::event::PlayerDisconnectEvent&>(event);
 
-        this->mImpl->PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([this](ll::event::PlayerDisconnectEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerDisconnect.ModuleEnabled)
-                return;
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<ll::event::PlayerDisconnectEvent&>(event);
+            
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+                sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z);
+        });
 
-            std::string mPlayerName = event.self().getRealName();
+        this->registeryEvent<ll::event::PlayerChatEvent>("PlayerChat", "Normal", "behaviorevent.event.playerchat", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerChat.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerChat.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerChat.OutputConsole;
+            }
 
-            Event mEvent = this->getBasicEvent(
-                "PlayerDisconnect", "Normal", event.self().getPosition(), event.self().getDimensionId()
-            );
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<ll::event::PlayerChatEvent&>(event);
 
-            if (this->mImpl->options.Events.onPlayerDisconnect.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
+            mEvent.extendedFields.emplace_back("EventMessage", sevent.message());
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<ll::event::PlayerChatEvent&>(event);
+            
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.message());
+        });
 
-            if (this->mImpl->options.Events.onPlayerDisconnect.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerdisconnect")), 
-                    mPlayerName, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ
-                );
-        }, ll::event::EventPriority::Highest);
+        this->registeryEvent<ll::event::PlayerAddExperienceEvent>("PlayerAddExperience", "Normal", "behaviorevent.event.playeraddexperience", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerAddExperience.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerAddExperience.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerAddExperience.OutputConsole;
+            }
 
-        this->mImpl->PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>([this](ll::event::PlayerChatEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerChat.ModuleEnabled)
-                return;
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<ll::event::PlayerAddExperienceEvent&>(event);
 
-            std::string mMessage = event.message();
-            std::string mPlayerName = event.self().getRealName();
+            mEvent.extendedFields.emplace_back("EventExperience", std::to_string(sevent.experience()));
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<ll::event::PlayerAddExperienceEvent&>(event);
+            
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.experience());
+        });
 
-            Event mEvent = this->getBasicEvent(
-                "PlayerChat", "Normal", event.self().getPosition(), event.self().getDimensionId()
-            );
-            mEvent.extendedFields.emplace_back("EventMessage", mMessage);
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
+        this->registeryEvent<ll::event::PlayerAttackEvent>("PlayerAttack", "Normal", "behaviorevent.event.playerattack", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerAttack.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerAttack.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerAttack.OutputConsole;
+            }
 
-            if (this->mImpl->options.Events.onPlayerChat.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<ll::event::PlayerAttackEvent&>(event);
 
-            if (this->mImpl->options.Events.onPlayerChat.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerchat")), 
-                    mPlayerName, mMessage
-                );
-        }, ll::event::EventPriority::Highest);
+            mEvent.extendedFields.emplace_back("EventTarget", sevent.target().getTypeName());
+            mEvent.extendedFields.emplace_back("EventCause", magic_enum::enum_name(sevent.cause()).data());
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<ll::event::PlayerAttackEvent&>(event);
+            
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), magic_enum::enum_name(sevent.cause()).data(), sevent.target().getTypeName());
+        });
 
-        this->mImpl->PlayerAddExperienceEventListener = eventBus.emplaceListener<ll::event::PlayerAddExperienceEvent>([this](ll::event::PlayerAddExperienceEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerAddExperience.ModuleEnabled)
-                return;
+        this->registeryEvent<ll::event::PlayerChangePermEvent>("PlayerChangePerm", "Normal", "behaviorevent.event.playerchangeperm", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerChangePerm.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerChangePerm.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerChangePerm.OutputConsole;
+            }
 
-            std::string mExperience = std::to_string(event.experience());
-            std::string mPlayerName = event.self().getRealName();
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<ll::event::PlayerChangePermEvent&>(event);
 
-            Event mEvent = this->getBasicEvent(
-                "PlayerAddExperience", "Normal", event.self().getPosition(), event.self().getDimensionId()
-            );
-            mEvent.extendedFields.emplace_back("EventExperience", mExperience);
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
+            mEvent.extendedFields.emplace_back("EventPerm", magic_enum::enum_name(sevent.newPerm()).data());
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<ll::event::PlayerChangePermEvent&>(event);
+            
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), magic_enum::enum_name(sevent.newPerm()).data());
+        });
 
-            if (this->mImpl->options.Events.onPlayerAddExperience.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
+        this->registeryEvent<ll::event::PlayerDestroyBlockEvent>("PlayerDestroyBlock", "Operable", "behaviorevent.event.playerdestroyblock", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerDestroyBlock.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerDestroyBlock.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerDestroyBlock.OutputConsole;
+            }
 
-            if (this->mImpl->options.Events.onPlayerAddExperience.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playeraddexperience")), 
-                    mPlayerName, mExperience
-                );
-        }, ll::event::EventPriority::Highest);
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<ll::event::PlayerDestroyBlockEvent&>(event);
 
-        this->mImpl->PlayerAttackEventListener = eventBus.emplaceListener<ll::event::PlayerAttackEvent>([this](ll::event::PlayerAttackEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerAttack.ModuleEnabled)
-                return;
+            if (auto mBlock = BlockUtils::getBlock(sevent.pos(), sevent.self().getDimensionId()); mBlock.has_value())
+                mEvent.extendedFields.emplace_back("EventOperable", mBlock.value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
+            if (auto mBlockEntity = BlockUtils::getBlockEntity(sevent.pos(), sevent.self().getDimensionId()); mBlockEntity.has_value()) {
+                CompoundTag mTag;
+                mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
 
-            std::string mTargetType = event.target().getTypeName();
-            std::string mCause = magic_enum::enum_name(event.cause()).data();
-            std::string mPlayerName = event.self().getRealName();
-
-            Event mEvent = this->getBasicEvent(
-                "PlayerAttack", "Normal", event.self().getPosition(), event.self().getDimensionId()
-            );
-            mEvent.extendedFields.emplace_back("EventTarget", mTargetType);
-            mEvent.extendedFields.emplace_back("EventCause", mCause);
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
-
-            if (this->mImpl->options.Events.onPlayerAttack.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
-
-            if (this->mImpl->options.Events.onPlayerAttack.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerattack")), 
-                    mPlayerName, mCause, mTargetType
-                );
-        }, ll::event::EventPriority::Highest);
-
-        this->mImpl->PlayerChangePermEventListener = eventBus.emplaceListener<ll::event::PlayerChangePermEvent>([this](ll::event::PlayerChangePermEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerChangePerm.ModuleEnabled)
-                return;
-
-            std::string mPermName = magic_enum::enum_name(event.newPerm()).data();
-            std::string mPlayerName = event.self().getRealName();
-
-            Event mEvent = this->getBasicEvent(
-                "PlayerChangePerm", "Normal", event.self().getPosition(), event.self().getDimensionId()
-            );
-            mEvent.extendedFields.emplace_back("EventPerm", mPermName);
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
-
-            if (this->mImpl->options.Events.onPlayerChangePerm.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
-
-            if (this->mImpl->options.Events.onPlayerChangePerm.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerchangeperm")), 
-                    mPlayerName, mPermName
-                );
-        }, ll::event::EventPriority::Highest);
-
-        this->mImpl->PlayerDestroyBlockEventListener = eventBus.emplaceListener<ll::event::PlayerDestroyBlockEvent>([this](ll::event::PlayerDestroyBlockEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerDestroyBlock.ModuleEnabled)
-                return;
+                mEvent.extendedFields.emplace_back("EventBlockEntity", mTag.toSnbt(SnbtFormat::Minimize, 0));
+            }
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<ll::event::PlayerDestroyBlockEvent&>(event);
 
             std::string mBlockType;
-            std::string mPlayerName = event.self().getRealName();
-
-            Event mEvent = this->getBasicEvent(
-                "PlayerDestroyBlock", "Operable", event.pos(), event.self().getDimensionId()
-            );
-
-            if (auto mBlock = BlockUtils::getBlock(event.pos(), event.self().getDimensionId()); mBlock.has_value()) {
+            if (auto mBlock = BlockUtils::getBlock(sevent.pos(), sevent.self().getDimensionId()); mBlock.has_value())
                 mBlockType = mBlock.value()->getTypeName();
+            
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+                sevent.pos().x, sevent.pos().y, sevent.pos().z, mBlockType.empty() ? "Unknown" : mBlockType);
+        });
 
-                mEvent.extendedFields.emplace_back("EventOperable", mBlock.value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
+        this->registeryEvent<ll::event::PlayerPlacingBlockEvent>("PlayerPlaceBlock", "Operable", "behaviorevent.event.playerplaceblock", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerPlaceBlock.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerPlaceBlock.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerPlaceBlock.OutputConsole;
             }
-            if (auto mBlockEntity = BlockUtils::getBlockEntity(event.pos(), event.self().getDimensionId()); mBlockEntity.has_value()) {
+
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<ll::event::PlayerPlacingBlockEvent&>(event);
+
+            BlockPos mPosition = sevent.pos();
+            BlockUtils::setCorrect(mPosition, sevent.face());
+
+            if (auto mBlock = BlockUtils::getBlock(mPosition, sevent.self().getDimensionId()); mBlock.has_value())
+                mEvent.extendedFields.emplace_back("EventOperable", mBlock.value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
+            if (auto mBlockEntity = BlockUtils::getBlockEntity(mPosition, sevent.self().getDimensionId()); mBlockEntity.has_value()) {
                 CompoundTag mTag;
                 mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
 
                 mEvent.extendedFields.emplace_back("EventBlockEntity", mTag.toSnbt(SnbtFormat::Minimize, 0));
             }
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<ll::event::PlayerPlacingBlockEvent&>(event);
 
-            if (this->mImpl->options.Events.onPlayerDestroyBlock.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
+            BlockPos mPosition = sevent.pos();
+            BlockUtils::setCorrect(mPosition, sevent.face());
+            
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+                mPosition.x, mPosition.y, mPosition.z, sevent.self().getCarriedItem().getTypeName());
+        });
 
-            if (this->mImpl->options.Events.onPlayerDestroyBlock.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerdestroyblock")), 
-                    mPlayerName, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ, mBlockType
-                );
-        }, ll::event::EventPriority::Highest);
-
-        this->mImpl->PlayerPlaceBlockEventListener = eventBus.emplaceListener<ll::event::PlayerPlacingBlockEvent>([this](ll::event::PlayerPlacingBlockEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerPlaceBlock.ModuleEnabled)
-                return;
-
-            BlockPos mPosition = event.pos();
-            switch (event.face()) {
-                case 0:
-                    --mPosition.y;
-                    break;
-                case 1:
-                    ++mPosition.y;
-                    break;
-                case 2:
-                    --mPosition.z;
-                    break;
-                case 3:
-                    ++mPosition.z;
-                    break;
-                case 4:
-                    --mPosition.x;
-                    break;
-                case 5:
-                    ++mPosition.x;
-                    break;
+        this->registeryEvent<ll::event::PlayerDieEvent>("PlayerDie", "Normal", "behaviorevent.event.playerdie", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerDie.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerDie.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerDie.OutputConsole;
             }
 
-            std::string mBlockType = event.self().getCarriedItem().getTypeName();
-            std::string mPlayerName = event.self().getRealName();
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<ll::event::PlayerDieEvent&>(event);
 
-            Event mEvent = this->getBasicEvent(
-                "PlayerPlaceBlock", "Operable", mPosition, event.self().getDimensionId()
-            );
+            mEvent.extendedFields.emplace_back("EventSource", magic_enum::enum_name(sevent.source().mCause).data());
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<ll::event::PlayerDieEvent&>(event);
+            
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), magic_enum::enum_name(sevent.source().mCause).data(),
+                sevent.self().getDimensionId().id, sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z);
+        });
 
-            if (auto mBlock = BlockUtils::getBlock(mPosition, event.self().getDimensionId()); mBlock.has_value())
-                mEvent.extendedFields.emplace_back("EventOperable", mBlock.value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
-            if (auto mBlockEntity = BlockUtils::getBlockEntity(event.pos(), event.self().getDimensionId()); mBlockEntity.has_value()) {
-                CompoundTag mTag;
-                mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
-
-                mEvent.extendedFields.emplace_back("EventBlockEntity", mTag.toSnbt(SnbtFormat::Minimize, 0));
+        this->registeryEvent<ll::event::PlayerPickUpItemEvent>("PlayerPickUpItem", "Normal", "behaviorevent.event.playerpickupitem", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerPickUpItem.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerPickUpItem.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerPickUpItem.OutputConsole;
             }
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
 
-            if (this->mImpl->options.Events.onPlayerPlaceBlock.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<ll::event::PlayerPickUpItemEvent&>(event);
 
-            if (this->mImpl->options.Events.onPlayerPlaceBlock.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerplaceblock")), 
-                    mPlayerName, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ, mBlockType
-                );
-        }, ll::event::EventPriority::Highest);
+            mEvent.extendedFields.emplace_back("EventItem", sevent.itemActor().item().save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0));
+            mEvent.extendedFields.emplace_back("EventOrgCount", std::to_string(sevent.orgCount()));
+            mEvent.extendedFields.emplace_back("EventFavoredSlot", std::to_string(sevent.favoredSlot()));
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<ll::event::PlayerPickUpItemEvent&>(event);
 
-        this->mImpl->PlayerDieEventListener = eventBus.emplaceListener<ll::event::PlayerDieEvent>([this](ll::event::PlayerDieEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerDie.ModuleEnabled)
-                return;
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+                sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z, sevent.itemActor().item().getTypeName());
+        });
 
-            std::string mSource = magic_enum::enum_name(event.source().mCause).data();
-            std::string mPlayerName = event.self().getRealName();
+        this->registeryEvent<ll::event::PlayerRespawnEvent>("PlayerRespawn", "Normal", "behaviorevent.event.playerrespawn", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerRespawn.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerRespawn.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerRespawn.OutputConsole;
+            }
 
-            Event mEvent = this->getBasicEvent(
-                "PlayerDie", "Normal", event.self().getPosition(), event.self().getDimensionId()
-            );
-            mEvent.extendedFields.emplace_back("EventSource", mSource);
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<ll::event::PlayerRespawnEvent&>(event);
 
-            if (this->mImpl->options.Events.onPlayerDie.RecordDatabase)
-                this->mImpl->mEvents.push_back(mEvent);
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<ll::event::PlayerRespawnEvent&>(event);
             
-            if (this->mImpl->options.Events.onPlayerDie.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerdie")), 
-                    mPlayerName, mSource, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ
-                );
-        }, ll::event::EventPriority::Highest);
-
-        this->mImpl->PlayerPickUpItemEventListener = eventBus.emplaceListener<ll::event::PlayerPickUpItemEvent>([this](ll::event::PlayerPickUpItemEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerPickUpItem.ModuleEnabled)
-                return;
-
-            std::string mItemNbt = event.itemActor().item().save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0);
-            std::string mOrgCount = std::to_string(event.orgCount());
-            std::string mFavoredSlot = std::to_string(event.favoredSlot());
-            std::string mPlayerName = event.self().getRealName();
-
-            Event mEvent = this->getBasicEvent(
-                "PlayerPickUpItem", "Normal", event.self().getPosition(), event.self().getDimensionId()
-            );
-            mEvent.extendedFields.emplace_back("EventItem", mItemNbt);
-            mEvent.extendedFields.emplace_back("EventOrgCount", mOrgCount);
-            mEvent.extendedFields.emplace_back("EventFavoredSlot", mFavoredSlot);
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
-
-            if (this->mImpl->options.Events.onPlayerPickUpItem.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
-
-            if (this->mImpl->options.Events.onPlayerPickUpItem.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerpickupitem")), 
-                    mPlayerName, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ, mItemNbt
-                );
-        }, ll::event::EventPriority::Highest);
-
-        this->mImpl->PlayerRespawnEventListener = eventBus.emplaceListener<ll::event::PlayerRespawnEvent>([this](ll::event::PlayerRespawnEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerRespawn.ModuleEnabled)
-                return;
-            
-            std::string mPlayerName = event.self().getRealName();
-
-            Event mEvent = this->getBasicEvent(
-                "PlayerRespawn", "Normal", event.self().getPosition(), event.self().getDimensionId()
-            );
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
-
-            if (this->mImpl->options.Events.onPlayerRespawn.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
-
-            if (this->mImpl->options.Events.onPlayerRespawn.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playerrespawn")), 
-                    mPlayerName, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ
-                );
-        }, ll::event::EventPriority::Highest);
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+                sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z);
+        });
         
-        this->mImpl->PlayerUseItemEventListener = eventBus.emplaceListener<ll::event::PlayerUseItemEvent>([this](ll::event::PlayerUseItemEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerUseItem.ModuleEnabled)
-                return;
+        this->registeryEvent<ll::event::PlayerUseItemEvent>("PlayerUseItem", "Normal", "behaviorevent.event.playeruseitem", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerUseItem.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerUseItem.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerUseItem.OutputConsole;
+            }
 
-            std::string mItemNbt = event.item().save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0);
-            std::string mPlayerName = event.self().getRealName();
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<ll::event::PlayerUseItemEvent&>(event);
 
-            Event mEvent = this->getBasicEvent(
-                "PlayerUseItem", "Normal", event.self().getPosition(), event.self().getDimensionId()
-            );
-            mEvent.extendedFields.emplace_back("EventItem", mItemNbt);
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
+            mEvent.extendedFields.emplace_back("EventItem", sevent.item().save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0));
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<ll::event::PlayerUseItemEvent&>(event);
 
-            if (this->mImpl->options.Events.onPlayerUseItem.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+                sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z, sevent.item().getTypeName());
+        });
 
-            if (this->mImpl->options.Events.onPlayerUseItem.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playeruseitem")), 
-                    mPlayerName, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ, mItemNbt
-                );
-        }, ll::event::EventPriority::Highest);
+        this->registeryEvent<LOICollection::ServerEvents::PlayerOpenContainerEvent>("PlayerOpenContainer", "Operable", "behaviorevent.event.playeropencontainer", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerContainerInteract.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerContainerInteract.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onPlayerContainerInteract.OutputConsole;
+            }
 
-        this->mImpl->PlayerContainerInteractEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerOpenContainerEvent>([this](LOICollection::ServerEvents::PlayerOpenContainerEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer() || !this->mImpl->options.Events.onPlayerContainerInteract.ModuleEnabled)
-                return;
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<LOICollection::ServerEvents::PlayerOpenContainerEvent&>(event);
 
-            std::string mBlockNbt;
-            std::string mPlayerName = event.self().getRealName();
-
-            Event mEvent = this->getBasicEvent(
-                "PlayerContainerInteract", "Operable", event.getPosition(), event.getDimensionId()
-            );
-
-            if (auto mBlockEntity = BlockUtils::getBlockEntity(event.getPosition(), event.getDimensionId()); mBlockEntity.has_value()) {
+            if (auto mBlockEntity = BlockUtils::getBlockEntity(sevent.getPosition(), sevent.getDimensionId()); mBlockEntity.has_value()) {
                 CompoundTag mTag;
                 mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
 
-                mBlockNbt = mTag.toSnbt(SnbtFormat::Minimize, 0);
-
-                mEvent.extendedFields.emplace_back("EventOperableEntity", mBlockNbt);
+                mEvent.extendedFields.emplace_back("EventOperableEntity", mTag.toSnbt(SnbtFormat::Minimize, 0));
             }
-            mEvent.extendedFields.emplace_back("PlayerName", mPlayerName);
+            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<LOICollection::ServerEvents::PlayerOpenContainerEvent&>(event);
 
-            if (this->mImpl->options.Events.onPlayerContainerInteract.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.getDimensionId(),
+                sevent.getPosition().x, sevent.getPosition().y, sevent.getPosition().z);
+        });
 
-            if (this->mImpl->options.Events.onPlayerContainerInteract.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.playeropencontainer")), 
-                    mPlayerName, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ, mBlockNbt
-                );
-        }, ll::event::EventPriority::Highest);
+        this->registeryEvent<LOICollection::ServerEvents::BlockExplodedEvent>("BlockExplode", "Operable", "behaviorevent.event.blockexplode", [this](BehaviorEventConfig config) -> bool {
+            switch (config) {
+                case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onBlockExplode.ModuleEnabled;
+                case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onBlockExplode.RecordDatabase;
+                case BehaviorEventConfig::OutputConsole: return this->mImpl->options.Events.onBlockExplode.OutputConsole;
+            }
 
-        this->mImpl->BlockExplodeEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::BlockExplodedEvent>([this](LOICollection::ServerEvents::BlockExplodedEvent& event) mutable -> void {
-            if (!this->mImpl->options.Events.onBlockExplode.ModuleEnabled)
-                return;
+            return false;
+        }, [](ll::event::Event& event, Event& mEvent) -> void {
+            auto& sevent = static_cast<LOICollection::ServerEvents::BlockExplodedEvent&>(event);
 
-            std::string mBlockType = event.getBlock().getTypeName();
-
-            Event mEvent = this->getBasicEvent(
-                "BlockExplode", "Operable", event.getPosition(), event.getDimension().getDimensionId()
-            );
-
-            mEvent.extendedFields.emplace_back("EventOperable", event.getBlock().mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
-            if (auto mBlockEntity = BlockUtils::getBlockEntity(event.getPosition(), event.getDimension().getDimensionId()); mBlockEntity.has_value()) {
+            mEvent.extendedFields.emplace_back("EventOperable", sevent.getBlock().mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
+            if (auto mBlockEntity = BlockUtils::getBlockEntity(sevent.getPosition(), sevent.getDimensionId()); mBlockEntity.has_value()) {
                 CompoundTag mTag;
                 mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
 
                 mEvent.extendedFields.emplace_back("EventBlockEntity", mTag.toSnbt(SnbtFormat::Minimize, 0));
             }
+        }, [](std::string message, ll::event::Event& event) -> std::string {
+            auto& sevent = static_cast<LOICollection::ServerEvents::BlockExplodedEvent&>(event);
 
-            if (this->mImpl->options.Events.onBlockExplode.RecordDatabase) 
-                this->mImpl->mEvents.push_back(mEvent);
-
-            if (this->mImpl->options.Events.onBlockExplode.OutputConsole)
-                this->mImpl->logger->info(fmt::runtime(tr({}, "behaviorevent.event.blockexplode")), 
-                    mBlockType, mEvent.dimension, mEvent.posX, mEvent.posY, mEvent.posZ
-                );
-        }, ll::event::EventPriority::Highest);
+            return fmt::format(fmt::runtime(message), sevent.getBlock().getTypeName(), sevent.getDimensionId(),
+                sevent.getPosition().x, sevent.getPosition().y, sevent.getPosition().z);
+        });
     }
 
     void BehaviorEventPlugin::unlistenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(this->mImpl->PlayerConnectEventListener);
-        eventBus.removeListener(this->mImpl->PlayerDisconnectEventListener);
-        eventBus.removeListener(this->mImpl->PlayerChatEventListener);
-        eventBus.removeListener(this->mImpl->PlayerAddExperienceEventListener);
-        eventBus.removeListener(this->mImpl->PlayerAttackEventListener);
-        eventBus.removeListener(this->mImpl->PlayerChangePermEventListener);
-        eventBus.removeListener(this->mImpl->PlayerDestroyBlockEventListener);
-        eventBus.removeListener(this->mImpl->PlayerPlaceBlockEventListener);
-        eventBus.removeListener(this->mImpl->PlayerDieEventListener);
-        eventBus.removeListener(this->mImpl->PlayerPickUpItemEventListener);
-        eventBus.removeListener(this->mImpl->PlayerInteractBlockEventListener);
-        eventBus.removeListener(this->mImpl->PlayerRespawnEventListener);
-        eventBus.removeListener(this->mImpl->PlayerUseItemEventListener);
-        eventBus.removeListener(this->mImpl->PlayerContainerInteractEventListener);
+        for (auto& listener : this->mImpl->mListeners)
+            eventBus.removeListener(listener.second);
 
-        eventBus.removeListener(this->mImpl->BlockExplodeEventListener);
+        this->mImpl->mListeners.clear();
 
         this->mImpl->WriteDatabaseTaskRunning.store(false, std::memory_order_release);
         this->mImpl->CleanDatabaseTaskRunning.store(false, std::memory_order_release);
@@ -802,19 +773,30 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return {};
 
-        std::vector<std::string> mResult;
+        std::vector<std::string> mKeys = this->getEvents(limit);
 
-        std::vector<std::string> mKeys = getEvents(limit);
+        std::unordered_map<size_t, std::vector<std::string>> mResultLocal;
+        std::for_each(std::execution::par, mKeys.begin(), mKeys.end(), [this, &mResultLocal, conditions, filter](const std::string& mId) -> void {
+            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->getByPrefix("Events", mId + ".");
 
-        SQLiteStorageTransaction transaction(*this->getDatabase());
-        std::for_each(conditions.begin(), conditions.end(), [this, &mResult, &mKeys, filter](const std::pair<std::string, std::string>& mCondition) -> void {
-            auto mView = mKeys | std::views::filter([this, &mCondition, filter](const std::string& mId) -> bool {
-                std::string mTarget = this->getDatabase()->get("Events", mId + "." + mCondition.first);
-                return (!filter && mTarget == mCondition.second) || (filter && filter(mTarget));
+            auto mView = conditions | std::views::filter([&mEvent, &mId, filter](const std::pair<std::string, std::string>& mCondition) -> bool {
+                auto it = mEvent.find(mId + "." + mCondition.first);
+                if (it == mEvent.end())
+                    return false;
+
+                return (!filter && it->second == mCondition.second) || (filter && filter(it->second));
             });
-            std::copy(mView.begin(), mView.end(), std::back_inserter(mResult));
+
+            if ((size_t) std::distance(mView.begin(), mView.end()) == conditions.size()) {
+                size_t id = std::hash<std::thread::id>()(std::this_thread::get_id());
+
+                mResultLocal[id].emplace_back(mId);
+            }
         });
-        transaction.commit();
+
+        std::vector<std::string> mResult;
+        for (auto& mLocal : mResultLocal)
+            mResult.insert(mResult.end(), mLocal.second.begin(), mLocal.second.end());
 
         return mResult;
     }
@@ -823,12 +805,10 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return {};
 
-        std::vector<std::string> mResult;
+        std::vector<std::string> mKeys = this->getEvents(limit);
 
-        std::vector<std::string> mKeys = getEvents(limit);
-        
-        SQLiteStorageTransaction transaction(*this->getDatabase());
-        std::for_each(mKeys.begin(), mKeys.end(), [this, &mResult, dimension, filter](const std::string& mId) -> void {
+        std::unordered_map<size_t, std::vector<std::string>> mResultLocal;
+        std::for_each(std::execution::par, mKeys.begin(), mKeys.end(), [this, &mResultLocal, dimension, filter](const std::string& mId) -> void {
             std::unordered_map<std::string, std::string> data = this->getDatabase()->getByPrefix("Events", mId + ".");
 
             if (SystemUtils::toInt(data.at(mId + ".Position.dimension"), 0) != dimension)
@@ -838,9 +818,16 @@ namespace LOICollection::Plugins {
             int y = SystemUtils::toInt(data.at(mId + ".Position.y"), 0);
             int z = SystemUtils::toInt(data.at(mId + ".Position.z"), 0);
 
-            if (filter(x, y, z)) mResult.push_back(mId);
+            if (filter(x, y, z)) {
+                size_t id = std::hash<std::thread::id>()(std::this_thread::get_id());
+
+                mResultLocal[id].emplace_back(mId);
+            }
         });
-        transaction.commit();
+
+        std::vector<std::string> mResult;
+        for (auto& mLocal : mResultLocal)
+            mResult.insert(mResult.end(), mLocal.second.begin(), mLocal.second.end());
 
         return mResult;
     }
@@ -852,8 +839,8 @@ namespace LOICollection::Plugins {
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mEvents;
 
         SQLiteStorageTransaction transaction(*this->getDatabase());
-        std::for_each(ids.begin(), ids.end(), [this, &mEvents](const std::string& mId) -> void {
-            std::unordered_map<std::string, std::string> data = this->getDatabase()->getByPrefix("Events", mId + ".");
+        std::for_each(ids.begin(), ids.end(), [this, connection = transaction.connection(), &mEvents](const std::string& mId) -> void {
+            std::unordered_map<std::string, std::string> data = this->getDatabase()->getByPrefix(connection, "Events", mId + ".");
 
             auto it = mEvents.find(mId);
             if (it == mEvents.end())
@@ -867,28 +854,9 @@ namespace LOICollection::Plugins {
         });
         transaction.commit();
 
-        std::vector<std::string> mResult;
-        mResult.reserve(mEvents.size());
-        
-        for (auto& mEvent : mEvents)
-            mResult.emplace_back(mEvent.first);
+        auto keys = std::views::keys(mEvents);
 
-        return mResult;
-    }
-
-    void BehaviorEventPlugin::refresh() {
-        if (!this->isValid())
-            return;
-
-        std::ranges::sort(this->mImpl->mEvents, {}, [](const Event& mEvent) {
-            return std::tie(mEvent.eventName, mEvent.eventTime, mEvent.eventType, mEvent.posX, mEvent.posY, mEvent.posZ, mEvent.dimension);
-        });
-
-        auto [first, last] = std::ranges::unique(this->mImpl->mEvents, {}, [](const Event& mEvent) {
-            return std::tie(mEvent.eventName, mEvent.eventTime, mEvent.eventType, mEvent.posX, mEvent.posY, mEvent.posZ, mEvent.dimension);
-        });
-
-        this->mImpl->mEvents.erase(first, last);
+        return { keys.begin(), keys.end() };
     }
 
     void BehaviorEventPlugin::write(const std::string& id, const Event& event) {
@@ -896,60 +864,66 @@ namespace LOICollection::Plugins {
             return;
 
         SQLiteStorageTransaction transaction(*this->getDatabase());
-        this->getDatabase()->set("Events", id + ".EventName", event.eventName);
-        this->getDatabase()->set("Events", id + ".EventTime", event.eventTime);
-        this->getDatabase()->set("Events", id + ".EventType", event.eventType);
-        this->getDatabase()->set("Events", id + ".Position.x", std::to_string(event.posX));
-        this->getDatabase()->set("Events", id + ".Position.y", std::to_string(event.posY));
-        this->getDatabase()->set("Events", id + ".Position.z", std::to_string(event.posZ));
-        this->getDatabase()->set("Events", id + ".Position.dimension", std::to_string(event.dimension));
+
+        auto connection = transaction.connection();
+
+        this->getDatabase()->set(connection, "Events", id + ".EventName", event.eventName);
+        this->getDatabase()->set(connection, "Events", id + ".EventTime", event.eventTime);
+        this->getDatabase()->set(connection, "Events", id + ".EventType", event.eventType);
+        this->getDatabase()->set(connection, "Events", id + ".Position.x", std::to_string(event.posX));
+        this->getDatabase()->set(connection, "Events", id + ".Position.y", std::to_string(event.posY));
+        this->getDatabase()->set(connection, "Events", id + ".Position.z", std::to_string(event.posZ));
+        this->getDatabase()->set(connection, "Events", id + ".Position.dimension", std::to_string(event.dimension));
         
         for (auto& fieled : event.extendedFields)
-            this->getDatabase()->set("Events", id + "." + fieled.first, fieled.second);
+            this->getDatabase()->set(connection, "Events", id + "." + fieled.first, fieled.second);
 
         transaction.commit();
     }
 
-    void BehaviorEventPlugin::back(const std::string& id) {
+    void BehaviorEventPlugin::back(std::vector<std::string>& ids) {
         if (!this->isValid())
             return;
 
-        std::unordered_map<std::string, std::string> data = this->getDatabase()->getByPrefix("Events", id + ".");
+        SQLiteStorageTransaction transaction(*this->getDatabase());
+        std::for_each(ids.begin(), ids.end(), [this, connection = transaction.connection()](const std::string& mId) -> void {
+            std::unordered_map<std::string, std::string> data = this->getDatabase()->getByPrefix(connection, "Events", mId + ".");
 
-        int mDimension = SystemUtils::toInt(data.at(id + ".Position.dimension"), 0);
+            BlockPos mPosition(
+                SystemUtils::toInt(data.at(mId + ".Position.x"), 0),
+                SystemUtils::toInt(data.at(mId + ".Position.y"), 0),
+                SystemUtils::toInt(data.at(mId + ".Position.z"), 0)
+            );
+            int mDimension = SystemUtils::toInt(data.at(mId + ".Position.dimension"), 0);
 
-        BlockPos mPosition(
-            SystemUtils::toInt(data.at(id + ".Position.x"), 0),
-            SystemUtils::toInt(data.at(id + ".Position.y"), 0),
-            SystemUtils::toInt(data.at(id + ".Position.z"), 0)
-        );
+            if (data.contains(mId + ".EventOperable")) {
+                CompoundTag mNbt = CompoundTag::fromSnbt(data.at(mId + ".EventOperable"))->mTags;
 
-        if (data.contains(id + ".EventOperable")) {
-            CompoundTag mNbt = CompoundTag::fromSnbt(data.at(id + ".EventOperable"))->mTags;
+                BlockUtils::setBlock(mPosition, mDimension, mNbt);
+            } else if (data.contains(mId + ".EventOperableEntity")) {
+                CompoundTag mNbt = CompoundTag::fromSnbt(data.at(mId + ".EventOperableEntity"))->mTags;
 
-            BlockUtils::setBlock(mPosition, mDimension, mNbt);
-        } else if (data.contains(id + ".EventOperableEntity")) {
-            CompoundTag mNbt = CompoundTag::fromSnbt(data.at(id + ".EventOperableEntity"))->mTags;
+                BlockUtils::setBlockEntity(mPosition, mDimension, mNbt);
+            }
 
-            BlockUtils::setBlockEntity(mPosition, mDimension, mNbt);
-        }
-
-        this->getDatabase()->delByPrefix("Events", id + ".");
+            this->getDatabase()->delByPrefix(connection, "Events", mId + ".");
+        });
+        transaction.commit();
     }
 
     void BehaviorEventPlugin::clean(int hours) {
         if (!this->isValid())
             return;
 
-        std::vector<std::string> mKeys = getEvents();
+        std::vector<std::string> mKeys = this->getEvents();
 
         SQLiteStorageTransaction transaction(*this->getDatabase());
-        std::for_each(mKeys.begin(), mKeys.end(), [this, hours](const std::string& mId) mutable {
-            std::string mEventTime = this->getDatabase()->get("Events", mId + ".EventTime");
+        std::for_each(mKeys.begin(), mKeys.end(), [this, connection = transaction.connection(), hours](const std::string& mId) mutable {
+            std::string mEventTime = this->getDatabase()->get(connection, "Events", mId + ".EventTime");
             
             std::string mTime = SystemUtils::toTimeCalculate(mEventTime, hours, "0");
             if (SystemUtils::isPastOrPresent(mTime))
-                this->getDatabase()->delByPrefix("Events", mId + ".");
+                this->getDatabase()->delByPrefix(connection, "Events", mId + ".");
         });
         transaction.commit();
     }

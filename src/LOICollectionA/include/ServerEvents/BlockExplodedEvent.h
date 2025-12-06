@@ -15,21 +15,23 @@ namespace LOICollection::ServerEvents {
         const BlockPos& mPosition;
         const Block& mBlock;
 
-        Dimension& mDimension;
+        int mDimensionId;
+
         Actor* mSource;
     
     public:
         constexpr explicit BlockExplodedEvent(
             const BlockPos& position,
             const Block& block,
-            Dimension& dimension,
+            int dimension,
             Actor* source
-        ) : mPosition(position), mBlock(block), mDimension(dimension), mSource(source) {}
+        ) : mPosition(position), mBlock(block), mDimensionId(dimension), mSource(source) {}
 
         LOICOLLECTION_A_NDAPI const BlockPos& getPosition() const;
         LOICOLLECTION_A_NDAPI const Block& getBlock() const;
         
-        LOICOLLECTION_A_NDAPI Dimension& getDimension() const;
+        LOICOLLECTION_A_NDAPI int getDimensionId() const;
+        
         LOICOLLECTION_A_NDAPI Actor* getSource() const;
     };
 }

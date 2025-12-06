@@ -754,7 +754,7 @@ namespace LOICollection::Plugins {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(MenuObjectName, this->getDatabase()->keys());
 
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
-            .getOrCreateCommand("menu", tr({}, "commands.menu.description"), CommandPermissionLevel::Any);
+            .getOrCreateCommand("menu", tr({}, "commands.menu.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").optional("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
             Actor* entity = origin.getEntity();

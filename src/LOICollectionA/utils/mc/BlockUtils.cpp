@@ -26,7 +26,7 @@ DefaultDataLoadHelper mDataLoadHelper;
 namespace BlockUtils {
     bool isValidRange(const BlockPos& pos, int dimension) {
         auto mDimension = ll::service::getLevel()->getDimension(dimension).lock();
-        if (!mDimension || pos.x > mDimension->mHeightRange->mMax || pos.x < mDimension->mHeightRange->mMin)
+        if (!mDimension || pos.y > mDimension->mHeightRange->mMax || pos.y < mDimension->mHeightRange->mMin)
             return false;
 
         return true;
@@ -57,6 +57,18 @@ namespace BlockUtils {
         BlockSource& mBlockSource = mDimension->getBlockSourceFromMainChunkSource();
         BlockActor* mBlockEntity = mBlockSource.getBlockEntity(pos);
         return mBlockEntity ? std::optional(mBlockEntity) : std::nullopt;
+    }
+
+    void setCorrect(BlockPos& pos, int face) {
+        switch (face) {
+            case 0: --pos.y; break;
+            case 1: ++pos.y; break;
+            case 2: --pos.z; break;
+            case 3: ++pos.z; break;
+            case 4: --pos.x; break;
+            case 5: ++pos.x; break;
+            default: break;
+        }
     }
 
     void setBlock(const BlockPos& pos, int dimension, const CompoundTag& nbt) {
