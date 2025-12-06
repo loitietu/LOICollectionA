@@ -22,6 +22,9 @@ namespace LOICollection::frontend {
         
         std::string valueToString(const Value& val);
 
+        Value applyArithmetic(const Value& left, const Value& right, const std::string& op);
+        Value applyUnary(const Value& operand, const std::string& op);
+
         bool valueToBool(const Value& val);
         bool applyComparison(const Value& left, const Value& right, const std::string& op);
     };

@@ -93,7 +93,7 @@ ${variable}
 > 判断语句用于判断条件是否成立，如果成立则将`result_yes` 的内容替换掉原语句，否则将以 `result_no` 的内容替换掉原语句  
 
 ```text
-@if (condition) ? result_yes : result_no@
+@if (condition)[result_yes : result_no]@
 ```
 
 | 参数 | 备注 |
@@ -112,9 +112,48 @@ ${variable}
 !> 需要注意的是语句的原 `result` 无法解析特殊字符，需要将其整合为字符串类型
 
 ```text
-@if({player.ms.avg} <= 50) ? "§a" : if( {player.ms.avg} > 50 && {player.ms.avg} <= 250) ? "§e" : "§c"@ {player.ms.avg}§bms
+@if({player.ms.avg} <= 50)["§a" : if( {player.ms.avg} > 50 && {player.ms.avg} <= 250)["§e" : "§c"]]@ {player.ms.avg}§bms
 ```
 
 - **当判断条件满足 `{player.ms.avg} <= 50` 时，其会返回 "§a {player.ms.avg}§bms"**  
 - **当判断条件满足 `{player.ms.avg} > 50 && {player.ms.avg} <= 250` 时，其会返回 "§e {player.ms.avg}§bms"**  
 - **当判断条件不满足以上条件时，其会返回 "§c {player.ms.avg}§bms"**
+
+## 运算符 - math
+
+> 运算符通常是用于 `if` 语句中进行更加方便快捷的条件转换的工具，包括但不限于 `+`、`-`、`*`、`/` 等。
+
+| 运算符1 | 说明 | 运算符2 | 说明 |
+| --- | --- | --- | --- |
+| + | 加法 | - | 减法 |
+| * | 乘法 | / | 除法 |
+| % | 取模 | ^ | 幂运算 |
+| ! | 逻辑非 | && | 逻辑与 |
+| \|\| | 逻辑或 | == | 等于 |
+| != | 不等于 | > | 大于 |
+| < | 小于 | >= | 大于等于 |
+| <= | 小于等于 | ... | ... |
+
+### **运算符具体使用实例**  
+
+以上内容中的大部分均为表面含义，可直接使用，故不再赘述。  
+接下来将展示一些`特殊用法`。
+
+1. 字符串拼接
+
+    ```text
+    "Hello" + "World"
+    ```
+
+    - 返回结果："HelloWorld"
+
+2. 字符串比较
+
+    ```text
+    "Hello" <= "World"
+    ```
+
+    - 返回结果：false
+
+    > [!TIP]
+    > 这里的比较大致可以参考 `C++` 的比较规则

@@ -4,10 +4,12 @@
 #include <utility>
 
 namespace LOICollection::frontend {
-    enum TokenType {
-        TOKEN_IF, TOKEN_LPAREN, TOKEN_RPAREN, TOKEN_IDENT, 
-        TOKEN_NUMBER, TOKEN_STRING, TOKEN_OP, TOKEN_BOOL_OP, 
-        TOKEN_EOF, TOKEN_QUESTION, TOKEN_COLON, TOKEN_BOOL_LIT
+    enum class TokenType {
+        TOKEN_IF, TOKEN_LPAREN, TOKEN_RPAREN, TOKEN_LBRCKET,
+        TOKEN_RBRCKET, TOKEN_IDENT, TOKEN_NUMBER, TOKEN_STRING,
+        TOKEN_OP, TOKEN_BOOL_OP, TOKEN_EOF, TOKEN_COLON,
+        TOKEN_BOOL_LIT, TOKEN_PLUS, TOKEN_MINUS, TOKEN_MULTIPLY, 
+        TOKEN_DIVIDE, TOKEN_MOD, TOKEN_POWER
     };
     
     struct Token {
@@ -31,7 +33,7 @@ namespace LOICollection::frontend {
         Token getNextToken();
 
     private:
-        Token parseString();
+        Token parseString(char delimiter);
         Token parseIdentifier();
         Token parseNumber();
         Token parseOperator();

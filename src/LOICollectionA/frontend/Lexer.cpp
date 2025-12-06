@@ -18,53 +18,64 @@ namespace LOICollection::frontend {
                 continue;
             }
 
-            if (current_char == '"') return parseString();
-            if (isalpha(current_char)) return parseIdentifier();
-            if (isdigit(current_char)) return parseNumber();
-            if (current_char == '(') return makeToken(TOKEN_LPAREN);
-            if (current_char == ')') return makeToken(TOKEN_RPAREN);
-            if (current_char == '?') return makeToken(TOKEN_QUESTION);
-            if (current_char == ':') return makeToken(TOKEN_COLON);
-            if (strchr("=><!&|", current_char)) return parseOperator();
+            switch (current_char) {
+                case '"': return parseString('"');
+                case '\'': return parseString('\'');
+                case '(': return makeToken(TokenType::TOKEN_LPAREN);
+                case ')': return makeToken(TokenType::TOKEN_RPAREN);
+                case '[': return makeToken(TokenType::TOKEN_LBRCKET);
+                case ']': return makeToken(TokenType::TOKEN_RBRCKET);
+                case ':': return makeToken(TokenType::TOKEN_COLON);
+                case '+': return makeToken(TokenType::TOKEN_PLUS);
+                case '-': return makeToken(TokenType::TOKEN_MINUS);
+                case '*': return makeToken(TokenType::TOKEN_MULTIPLY);
+                case '/': return makeToken(TokenType::TOKEN_DIVIDE);
+                case '%': return makeToken(TokenType::TOKEN_MOD);
+                case '^': return makeToken(TokenType::TOKEN_POWER);
+            }
 
-            throw std::runtime_error("Unexpected character: " + std::string(1, current_char));
+            if (std::isdigit(current_char)) return parseNumber();
+            if (std::strchr("=><!&|", current_char)) return parseOperator();
+
+            return parseIdentifier();
         }
-        return {TOKEN_EOF, "", position};
+        
+        return { TokenType::TOKEN_EOF, "", position };
     }
 
-    Token Lexer::parseString() {
+    Token Lexer::parseString(char delimiter) {
         advance();
         
         size_t start = position;
-        while (current_char != '"' && current_char != 0)
+        while (current_char != delimiter && current_char != 0)
             advance();
 
-        if (current_char != '"')
+        if (current_char != delimiter)
             throw std::runtime_error("Unclosed string");
 
         advance();
-        return {TOKEN_STRING, input.substr(start, position - start - 1), start};
+        return { TokenType::TOKEN_STRING, input.substr(start, position - start - 1), start };
     }
 
     Token Lexer::parseIdentifier() {
         size_t start = position;
-        while (isalnum(current_char) || current_char == '_')
+        while (current_char != 0 && !std::isspace(current_char) && !std::strchr("()[]=><!&|", current_char))
             advance();
 
         std::string id = input.substr(start, position - start);
 
-        if (id == "if") return {TOKEN_IF, std::move(id), start};
-        if (id == "true" || id == "false") return {TOKEN_BOOL_LIT, std::move(id), start};
+        if (id == "if") return { TokenType::TOKEN_IF, std::move(id), start };
+        if (id == "true" || id == "false") return { TokenType::TOKEN_BOOL_LIT, std::move(id), start };
         
-        return {TOKEN_IDENT, std::move(id), start};
+        return { TokenType::TOKEN_IDENT, std::move(id), start };
     }
 
     Token Lexer::parseNumber() {
         size_t start = position;
-        while (isdigit(current_char))
+        while (std::isdigit(current_char))
             advance();
         
-        return {TOKEN_NUMBER, input.substr(start, position - start), start};
+        return { TokenType::TOKEN_NUMBER, input.substr(start, position - start), start };
     }
 
     Token Lexer::parseOperator() {
@@ -78,7 +89,7 @@ namespace LOICollection::frontend {
             op += current_char;
             
             advance();
-            return {TOKEN_BOOL_OP, op, start};
+            return { TokenType::TOKEN_BOOL_OP, op, start };
         }
 
         if (current_char == '=') {
@@ -86,19 +97,19 @@ namespace LOICollection::frontend {
             op += '=';
 
             advance();
-            return {TOKEN_OP, op, start};
+            return { TokenType::TOKEN_OP, op, start };
         }
 
-        return {TOKEN_OP, std::string(1, first), start};
+        return { TokenType::TOKEN_OP, std::string(1, first), start };
     }
 
     void Lexer::skipWhitespace() {
-        while (isspace(current_char))
+        while (std::isspace(current_char))
             advance();
     }
 
     Token Lexer::makeToken(TokenType type) {
-        Token t{type, std::string(1, current_char), position};
+        Token t{ type, std::string(1, current_char), position };
         advance();
         return t;
     }

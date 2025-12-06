@@ -8,7 +8,8 @@
 namespace LOICollection::frontend {
     struct ASTNode {
         enum class Type { 
-            Value, Compare, Logical, If, Template, Expr
+            Value, Compare, Logical, If, Template, Expr,
+            Arithmetic, Unary 
         };
         [[nodiscard]] virtual Type getType() const = 0;
         
@@ -72,6 +73,34 @@ namespace LOICollection::frontend {
         
         [[nodiscard]] Type getType() const override {
             return Type::If;
+        }
+    };
+
+    struct ArithmeticNode : ExprNode {
+        std::unique_ptr<ExprNode> left;
+        std::unique_ptr<ExprNode> right;
+        std::string op;
+        
+        ArithmeticNode(auto&& l, auto&& r, std::string o)
+            : left(std::forward<decltype(l)>(l)),
+              right(std::forward<decltype(r)>(r)),
+              op(std::move(o)) {}
+        
+        [[nodiscard]] Type getType() const override {
+            return Type::Arithmetic;
+        }
+    };
+
+    struct UnaryNode : ExprNode {
+        std::unique_ptr<ExprNode> operand;
+        std::string op;
+        
+        UnaryNode(auto&& expr, std::string o)
+            : operand(std::forward<decltype(expr)>(expr)),
+              op(std::move(o)) {}
+        
+        [[nodiscard]] Type getType() const override {
+            return Type::Unary;
         }
     };
 

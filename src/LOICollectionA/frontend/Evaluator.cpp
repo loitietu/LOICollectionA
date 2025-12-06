@@ -1,6 +1,9 @@
 #include <string>
-#include <stdexcept>
 #include <variant>
+#include <stdexcept>
+#include <type_traits>
+
+#include "LOICollectionA/frontend/AST.h"
 
 #include "LOICollectionA/frontend/Evaluator.h"
 
@@ -31,6 +34,17 @@ namespace LOICollection::frontend {
             
                 bool right = valueToBool(evalExpr(*log.right));
                 return (log.op == "&&") ? (left && right) : (left || right);
+            }
+            case ASTNode::Type::Arithmetic: {
+                const auto& arith = static_cast<const ArithmeticNode&>(expr);
+                Value left = evalExpr(*arith.left);
+                Value right = evalExpr(*arith.right);
+                return applyArithmetic(left, right, arith.op);
+            }
+            case ASTNode::Type::Unary: {
+                const auto& unary = static_cast<const UnaryNode&>(expr);
+                Value operand = evalExpr(*unary.operand);
+                return applyUnary(operand, unary.op);
             }
             default:
                 throw std::runtime_error("Unsupported expression node type");
@@ -77,6 +91,44 @@ namespace LOICollection::frontend {
             else if constexpr (std::is_same_v<T, std::string>)
                 return arg;
         }, val);
+    }
+
+    Evaluator::Value Evaluator::applyArithmetic(const Value& left, const Value& right, const std::string& op) {
+        return std::visit([&](auto&& l, auto&& r) -> Value {
+            using T = std::decay_t<decltype(l)>;
+            using U = std::decay_t<decltype(r)>;
+            
+            if constexpr (!std::is_same_v<T, U>)
+                throw std::runtime_error("Type mismatch in arithmetic operation");
+            else {
+                if (op == "+") return l + r;
+
+                if constexpr (std::is_integral_v<T> && std::is_integral_v<U>) {
+                    if (op == "-") return l - r;
+                    if (op == "*") return l * r;
+                    if (op == "/") return l / r;
+                    if (op == "%") return l % r;
+                    if (op == "^") return l ^ r;
+                }
+                
+                throw std::runtime_error("Unsupported arithmetic operator: " + op);
+            }
+        }, left, right);
+    }
+
+    Evaluator::Value Evaluator::applyUnary(const Value& operand, const std::string& op) {
+        return std::visit([&](auto&& arg) -> Value {
+            using T = std::decay_t<decltype(arg)>;
+
+            if constexpr (std::is_integral_v<T>) {
+                if (op == "+") return arg;
+                if (op == "-") return -arg;
+            }
+
+            if (op == "!") return !valueToBool(arg);
+
+            throw std::runtime_error("Unsupported unary operator: " + op);
+        }, operand);
     }
 
     bool Evaluator::valueToBool(const Value& val) {
