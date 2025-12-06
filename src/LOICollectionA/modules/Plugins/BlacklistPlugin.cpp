@@ -261,12 +261,12 @@ namespace LOICollection::Plugins {
 
             auto& packet = static_cast<LoginPacket&>(const_cast<Packet&>(event.getPacket()));
 
-            std::string mUuid = packet.mConnectionRequest->mLegacyMultiplayerToken->getIdentity().asString();
-            std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find_last_of(':' - 1));
+            std::string mUuid = packet.mConnectionRequest->mAuthenticationInfo->AuthenticatedUuid->asString();
+            std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find_last_of(':') - 1);
             std::string mClientId = packet.mConnectionRequest->getDeviceId();
 
             std::vector<std::string> mKeys = this->getBlacklists();
-            auto it = std::find_if(mKeys.begin(), mKeys.end(), [&](const std::string& mId) -> bool {
+            auto it = std::find_if(std::execution::par, mKeys.begin(), mKeys.end(), [&](const std::string& mId) -> bool {
                 return this->isBlacklist(mId, mUuid, mIp, mClientId);
             });
 
