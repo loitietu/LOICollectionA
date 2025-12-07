@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/github/license/loitietu/LOICollectionA)](LICENSE)
 
 [![English](https://img.shields.io/badge/English-inactive?style=for-the-badge)](README.md)
-![中文](https://img.shields.io/badge/简体中文-informational?style=for-the-badge)
+[![中文](https://img.shields.io/badge/简体中文-informational?style=for-the-badge)](README.zh.md)
 
 LOICollectionA 是源于插件 LOICollection 所演化而来的内容，其在原有的基础上对于整体进行了一次完整的重构，并由此为契机进行了对 LeviLamina 的适配。
 
