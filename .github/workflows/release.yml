@@ -96,12 +96,12 @@ jobs:
                     Write-Error "::error::No valid semantic tags (vX.Y.Z) found. Release aborted."
                     exit 1
                 } else {
-                    $latestTag = $tags[0]
-                    
-                    if ($tags.Count -gt 1) {
-                        $prevTag = $tags[1]
-                    } else {
+                    if ($tags.Count -eq 1) {
+                        $latestTag = $tags
                         $prevTag = git rev-list --max-parents=0 HEAD
+                    } else {
+                        $latestTag = $tags[0]
+                        $prevTag = $tags[1]
                     }
 
                     "current_tag=$latestTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
