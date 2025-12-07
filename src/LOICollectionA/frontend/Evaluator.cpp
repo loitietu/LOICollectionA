@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include <type_traits>
 
+#include "LOICollectionA/utils/core/MathUtils.h"
+
 #include "LOICollectionA/frontend/AST.h"
 
 #include "LOICollectionA/frontend/Evaluator.h"
@@ -108,7 +110,7 @@ namespace LOICollection::frontend {
                     if (op == "*") return l * r;
                     if (op == "/") return l / r;
                     if (op == "%") return l % r;
-                    if (op == "^") return l ^ r;
+                    if (op == "^") return MathUtils::pow(l, r);
                 }
                 
                 throw std::runtime_error("Unsupported arithmetic operator: " + op);
