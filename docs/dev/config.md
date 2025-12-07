@@ -13,7 +13,7 @@
     ```lua
     package("LOICollectionA")
         add_urls("https://github.com/loitietu/LOICollectionA.git")
-        add_versions("1.8.1", "3edd61e87a4889d7a8c6a8da6b9ce5e177025a64")
+        add_versions("1.9.0", "e1af7bf87732dd6e6cf39ce85b88a66ac9093c31")
 
         on_install(function (package)
             import("package.tools.xmake").install(package)
