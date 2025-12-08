@@ -18,7 +18,7 @@ namespace SQLite {
 
 class SQLiteConnectionPool;
 
-class SQLiteStorage {
+class SQLiteStorage final {
 protected:
     std::unique_ptr<SQLiteConnectionPool> writeConnectionPool;
     std::unique_ptr<SQLiteConnectionPool> readConnectionPool;
@@ -84,7 +84,7 @@ public:
     friend class SQLiteStorageTransaction;
 };
 
-class SQLiteConnectionPool {
+class SQLiteConnectionPool final {
 public:
     LOICOLLECTION_A_API   explicit SQLiteConnectionPool(const std::string& path, size_t size, bool readOnly = false);
     LOICOLLECTION_A_API   ~SQLiteConnectionPool();
@@ -104,7 +104,7 @@ private:
     std::atomic<size_t> mActiveConnections{ 0 };
 };
 
-class SQLiteStorageTransaction {
+class SQLiteStorageTransaction final {
 public:
     LOICOLLECTION_A_API explicit SQLiteStorageTransaction(SQLiteStorage& storage);
     LOICOLLECTION_A_API ~SQLiteStorageTransaction();

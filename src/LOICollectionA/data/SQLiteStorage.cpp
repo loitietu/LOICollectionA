@@ -23,6 +23,7 @@ SQLiteStorage::ConnectionContext::ConnectionContext(const std::string& path, boo
     this->database->exec("PRAGMA temp_store = MEMORY;");
     this->database->exec("PRAGMA cache_size = 8096;");
     this->database->exec("PRAGMA busy_timeout = 5000;");
+    this->database->exec("PRAGMA optimize;");
 }
 
 SQLiteConnectionPool::SQLiteConnectionPool(const std::string& path, size_t size, bool readOnly) {

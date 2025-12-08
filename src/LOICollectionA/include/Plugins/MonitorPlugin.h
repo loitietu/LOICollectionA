@@ -5,7 +5,7 @@
 #include "LOICollectionA/base/Macro.h"
 
 namespace LOICollection::Plugins {
-    class MonitorPlugin {
+    class MonitorPlugin final {
     public:
         LOICOLLECTION_A_NDAPI static MonitorPlugin& getInstance() {
             static MonitorPlugin instance;

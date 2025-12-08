@@ -11,7 +11,7 @@
 
 #include "LOICollectionA/base/Macro.h"
 
-class JsonStorage {
+class JsonStorage final {
 public:
     LOICOLLECTION_A_API   explicit JsonStorage(std::filesystem::path path);
     LOICOLLECTION_A_API   ~JsonStorage();

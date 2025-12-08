@@ -13,7 +13,7 @@ namespace ll::io {
 }
 
 namespace LOICollection::Plugins {
-    class LanguagePlugin {
+    class LanguagePlugin final {
     public:
         LOICOLLECTION_A_NDAPI static LanguagePlugin& getInstance() {
             static LanguagePlugin instance;

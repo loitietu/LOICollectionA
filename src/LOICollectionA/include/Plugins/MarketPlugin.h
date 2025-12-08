@@ -15,7 +15,7 @@ namespace ll::io {
 }
 
 namespace LOICollection::Plugins {
-    class MarketPlugin {
+    class MarketPlugin final {
     public:
         LOICOLLECTION_A_NDAPI static MarketPlugin& getInstance() {
             static MarketPlugin instance;

@@ -41,7 +41,7 @@ namespace LOICollection::LOICollectionAPI {
         virtual std::string process(const std::string& content, const Context& context) = 0;
     };
     
-    class APIEngine {
+    class APIEngine final {
     public:
         LOICOLLECTION_A_NDAPI static APIEngine& getInstance() {
             static APIEngine instance;

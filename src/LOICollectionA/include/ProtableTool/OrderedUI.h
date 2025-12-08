@@ -5,7 +5,7 @@
 #include "LOICollectionA/base/Macro.h"
 
 namespace LOICollection::ProtableTool {
-    class OrderedUI {
+    class OrderedUI final {
     public:
         LOICOLLECTION_A_NDAPI static OrderedUI& getInstance() {
             static OrderedUI instance;

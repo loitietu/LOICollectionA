@@ -13,7 +13,7 @@ namespace ll::io {
 }
 
 namespace LOICollection::Plugins {
-    class NoticePlugin {
+    class NoticePlugin final {
     public:
         LOICOLLECTION_A_NDAPI static NoticePlugin& getInstance() {
             static NoticePlugin instance;

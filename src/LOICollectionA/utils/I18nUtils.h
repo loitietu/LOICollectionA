@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 
-class I18nUtils {
+class I18nUtils final {
 public:
     inline static std::unique_ptr<I18nUtils>& getInstance() {
         static std::unique_ptr<I18nUtils> instance;

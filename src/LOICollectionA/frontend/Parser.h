@@ -7,7 +7,7 @@
 #include "LOICollectionA/frontend/Lexer.h"
 
 namespace LOICollection::frontend {
-    class Parser {
+    class Parser final {
         Lexer& lexer;
         Token current_token;
 

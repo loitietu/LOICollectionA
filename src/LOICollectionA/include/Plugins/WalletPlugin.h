@@ -17,7 +17,7 @@ namespace LOICollection::Plugins {
         offline
     };
 
-    class WalletPlugin {
+    class WalletPlugin final {
     public:
         LOICOLLECTION_A_NDAPI static WalletPlugin& getInstance() {
             static WalletPlugin instance;

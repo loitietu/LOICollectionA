@@ -7,7 +7,7 @@
 #include "LOICollectionA/base/Macro.h"
 
 namespace LOICollection::modules {
-    class ModRegistry {
+    class ModRegistry final {
     public:
         using CallBackType = bool();
         using CallBackFunc = std::function<CallBackType>;

@@ -6,7 +6,7 @@
 #include "LOICollectionA/frontend/AST.h"
 
 namespace LOICollection::frontend {
-    class Evaluator {
+    class Evaluator final {
     public:
         std::string evaluate(const ASTNode& root);
 

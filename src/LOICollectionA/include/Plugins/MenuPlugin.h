@@ -21,7 +21,7 @@ namespace LOICollection::Plugins {
         Custom
     };
 
-    class MenuPlugin {
+    class MenuPlugin final {
     public:
         LOICOLLECTION_A_NDAPI static MenuPlugin& getInstance() {
             static MenuPlugin instance;

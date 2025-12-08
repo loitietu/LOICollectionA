@@ -16,8 +16,19 @@ namespace LOICollection::frontend {
             if (tpl->parts.size() >= 100)
                 throw std::runtime_error("Too many parts in template");
 
-            if (current_token.type == TokenType::TOKEN_IDENT) tpl->addPart(parseValue());
-            if (current_token.type == TokenType::TOKEN_IF) tpl->addPart(parseIfStatement());
+            switch (current_token.type) {
+                case TokenType::TOKEN_IF:
+                    tpl->addPart(parseIfStatement());
+                    break;
+                case TokenType::TOKEN_IDENT:
+                case TokenType::TOKEN_STRING:
+                case TokenType::TOKEN_NUMBER:
+                case TokenType::TOKEN_BOOL_LIT:
+                    tpl->addPart(parseAdditiveExpression());
+                    break;
+                default:
+                    throw std::runtime_error("Invalid token in template");
+            };
         }
 
         return tpl;
@@ -220,7 +231,7 @@ namespace LOICollection::frontend {
                 
                 tpl->addPart(parseIfStatement(stopToken));
             } else {
-                buffer += current_token.value;
+                buffer.append(current_token.value);
                 eat(current_token.type);
             }
         }
