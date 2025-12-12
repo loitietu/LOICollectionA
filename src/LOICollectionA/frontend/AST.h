@@ -9,7 +9,7 @@ namespace LOICollection::frontend {
     struct ASTNode {
         enum class Type { 
             Value, Compare, Logical, If, Template, Expr,
-            Arithmetic, Unary 
+            Arithmetic, Unary, Function
         };
         [[nodiscard]] virtual Type getType() const = 0;
         
@@ -21,10 +21,28 @@ namespace LOICollection::frontend {
             return Type::Expr;
         }
     };
+
+    struct IfNode : ASTNode {
+        std::unique_ptr<ExprNode> condition;
+        std::unique_ptr<ASTNode> trueBranch;
+        std::unique_ptr<ASTNode> falseBranch;
+        IfNode(auto&& c, auto&& t, auto&& f)
+            : condition(std::forward<decltype(c)>(c)), 
+              trueBranch(std::forward<decltype(t)>(t)), 
+              falseBranch(std::forward<decltype(f)>(f)) {}
+        
+        [[nodiscard]] Type getType() const override {
+            return Type::If;
+        }
+    };
     
     struct ValueNode : ExprNode {
-        std::variant<int, std::string> value;
+        using ValueType = std::variant<int, float, std::string>;
+
+        ValueType value;
+        
         explicit ValueNode(int v) : value(v) {}
+        explicit ValueNode(float v) : value(v) {}
         explicit ValueNode(const std::string& v) : value(v) {}
 
         [[nodiscard]] Type getType() const override {
@@ -62,17 +80,18 @@ namespace LOICollection::frontend {
         }
     };
 
-    struct IfNode : ASTNode {
-        std::unique_ptr<ExprNode> condition;
-        std::unique_ptr<ASTNode> trueBranch;
-        std::unique_ptr<ASTNode> falseBranch;
-        IfNode(auto&& c, auto&& t, auto&& f)
-            : condition(std::forward<decltype(c)>(c)), 
-              trueBranch(std::forward<decltype(t)>(t)), 
-              falseBranch(std::forward<decltype(f)>(f)) {}
+    struct FunctionNode : ExprNode {
+        std::unique_ptr<ASTNode> args; 
+        std::string namespaces;
+        std::string name;
+
+        FunctionNode(auto&& a, std::string ns, std::string n)
+            : args(std::forward<decltype(a)>(a)),
+              namespaces(std::move(ns)),
+              name(std::move(n)) {}
         
         [[nodiscard]] Type getType() const override {
-            return Type::If;
+            return Type::Function;
         }
     };
 

@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <string>
 #include <stdexcept>
 #include <cstring>
@@ -25,22 +26,35 @@ namespace LOICollection::frontend {
                 case ')': return makeToken(TokenType::TOKEN_RPAREN);
                 case '[': return makeToken(TokenType::TOKEN_LBRCKET);
                 case ']': return makeToken(TokenType::TOKEN_RBRCKET);
-                case ':': return makeToken(TokenType::TOKEN_COLON);
+                case ':': return parseColon();
                 case '+': return makeToken(TokenType::TOKEN_PLUS);
                 case '-': return makeToken(TokenType::TOKEN_MINUS);
                 case '*': return makeToken(TokenType::TOKEN_MULTIPLY);
                 case '/': return makeToken(TokenType::TOKEN_DIVIDE);
                 case '%': return makeToken(TokenType::TOKEN_MOD);
                 case '^': return makeToken(TokenType::TOKEN_POWER);
+                case ',': return makeToken(TokenType::TOKEN_COMMA);
             }
 
-            if (std::isdigit(current_char)) return parseNumber();
+            if (std::isdigit(current_char) || current_char == '.') return parseNumber();
             if (std::strchr("=><!&|", current_char)) return parseOperator();
 
             return parseIdentifier();
         }
         
         return { TokenType::TOKEN_EOF, "", position };
+    }
+
+    Token Lexer::peekNextToken() {
+        size_t pos = position;
+        char c = current_char;
+
+        Token t = getNextToken();
+
+        position = pos;
+        current_char = c;
+
+        return t;
     }
 
     Token Lexer::parseString(char delimiter) {
@@ -59,7 +73,7 @@ namespace LOICollection::frontend {
 
     Token Lexer::parseIdentifier() {
         size_t start = position;
-        while (current_char != 0 && !std::isspace(current_char) && !std::strchr("()[]=><!&|", current_char))
+        while (current_char != 0 && !std::isspace(current_char) && !std::strchr("()[]=><!&|.:", current_char))
             advance();
 
         std::string id = input.substr(start, position - start);
@@ -72,10 +86,30 @@ namespace LOICollection::frontend {
 
     Token Lexer::parseNumber() {
         size_t start = position;
-        while (std::isdigit(current_char))
+
+        while (std::isdigit(current_char) || current_char == '.')
             advance();
         
-        return { TokenType::TOKEN_NUMBER, input.substr(start, position - start), start };
+        std::string num = input.substr(start, position - start);
+
+        if (num.find('.') != std::string::npos)
+            return { TokenType::TOKEN_FLOAT, num, start };
+
+        return { TokenType::TOKEN_INT, num, start };
+    }
+
+    Token Lexer::parseColon() {
+        size_t start = position;
+
+        advance();
+
+        if (current_char == ':') {
+            advance();
+
+            return { TokenType::TOKEN_NAMESPACE, "::", start };
+        }
+
+        return { TokenType::TOKEN_COLON, ":", start };
     }
 
     Token Lexer::parseOperator() {

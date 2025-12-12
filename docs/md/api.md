@@ -121,7 +121,7 @@ ${variable}
 
 ## 运算符 - math
 
-> 运算符通常是用于 `if` 语句中进行更加方便快捷的条件转换的工具，包括但不限于 `+`、`-`、`*`、`/` 等。
+> 运算符通常是用于原始语句中进行更加方便快捷的处理工具，包括但不限于 `+`、`-`、`*`、`/` 等。
 
 | 运算符1 | 说明 | 运算符2 | 说明 |
 | --- | --- | --- | --- |
@@ -155,5 +155,58 @@ ${variable}
 
     - 返回结果：false
 
-    > [!TIP]
+    > [!NOTE]
     > 这里的比较大致可以参考 `C++` 的比较规则
+
+## 函数 - function
+
+> 函数是一些常用的功能的集合，可以帮助我们更加方便的进行一些操作。  
+> 以下将提供一些内置的函数，更多函数可自行进行扩展。
+
+```text
+@namespaces::function_name(parameter1, parameter2,...)@
+```
+
+| 参数 | 备注 |
+| --- | --- |
+| namespaces | 命名空间，用于区分不同功能 |
+| function_name | 函数名 |
+| parameter1 | 参数1 |
+| parameter2 | 参数2 |
+| ... | ... |
+
+> [!WARNING]
+> 在函数调用中，参数最大数量只支持到 `100` 个，超出数量将会解析失败
+
+### 数学函数 - math
+
+> [!TIP]
+> 以下内容中 `number` 代表的是 `int` 或 `float` 类型的数据
+
+| 函数名 | 说明 | 参数类型 | 函数名 | 说明 | 参数类型 |
+| --- | --- | --- | --- | --- | --- |
+| abs | 取绝对值 | number | min | 取最小值 | number, number |
+| max | 取最大值 | number, number | sqrt | 开平方 | number |
+| pow | 求次方 | number, number | log | 取对数 | number |
+| sin | 正弦 | number | cos | 余弦 | number |
+| random | 随机数 | number, number | ... | ... | ... |
+
+### 字符串函数 - string
+
+| 函数名 | 说明 | 参数类型 | 函数名 | 说明 | 参数类型 |
+| --- | --- | --- | --- | --- | --- |
+| length | 字符串长度 | string | upper | 转大写 | string |
+| lower | 转小写 | string | substr | 取子串 | string, start, int |
+| trim | 去除首尾空格 | string | replace | 替换字符串 | string, string, string |
+
+### **函数具体使用实例**
+
+以下将展示计算 `cos(sqrt(100))` 和 `sin(sqrt(100))` 的最大值，并取其绝对值。
+
+?> 需要注意的是，函数的调用需要使用 `::` 进行分隔，且函数的参数需要使用 `,` 进行分隔。
+
+```text
+@math::abs(math::max(math::cos(math::sqrt(100)), math::sin(math::sqrt(100))))@
+```
+
+- 返回结果：0.544021

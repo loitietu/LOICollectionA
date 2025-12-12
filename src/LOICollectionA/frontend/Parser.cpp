@@ -22,12 +22,13 @@ namespace LOICollection::frontend {
                     break;
                 case TokenType::TOKEN_IDENT:
                 case TokenType::TOKEN_STRING:
-                case TokenType::TOKEN_NUMBER:
+                case TokenType::TOKEN_INT:
+                case TokenType::TOKEN_FLOAT:
                 case TokenType::TOKEN_BOOL_LIT:
-                    tpl->addPart(parseAdditiveExpression());
+                    tpl->addPart(parseBaseExpression());
                     break;
                 default:
-                    throw std::runtime_error("Invalid token in template");
+                    throw std::runtime_error("Invalid token in template: " + getTokenName(current_token.type));
             };
         }
 
@@ -58,12 +59,57 @@ namespace LOICollection::frontend {
         );
     }
 
+    std::unique_ptr<FunctionNode> Parser::parseFunction() {
+        std::string namespaces = current_token.value;
+
+        eat(TokenType::TOKEN_IDENT);
+        eat(TokenType::TOKEN_NAMESPACE);
+
+        std::string name = current_token.value;
+
+        eat(TokenType::TOKEN_IDENT);
+        eat(TokenType::TOKEN_LPAREN);
+
+        std::unique_ptr<ASTNode> args = parseArgs();
+
+        eat(TokenType::TOKEN_RPAREN);
+
+        return std::make_unique<FunctionNode>(
+            std::move(args),
+            std::move(namespaces),
+            std::move(name)
+        );
+    }
+
+    std::unique_ptr<TemplateNode> Parser::parseArgs(TokenType delimiterToken, TokenType stopToken) {
+        auto tpl = std::make_unique<TemplateNode>();
+
+        while (current_token.type != stopToken) {
+            if (tpl->parts.size() >= 100)
+                throw std::runtime_error("Too many args in function call");
+
+            if (current_token.type == delimiterToken) {
+                eat(delimiterToken);
+                continue;
+            }
+
+            tpl->addPart(parseBaseExpression());
+        }
+
+        return tpl;
+    }
+
+    std::unique_ptr<ExprNode> Parser::parseBaseExpression() {
+        return parseBoolExpression();
+    }
+
     std::unique_ptr<ExprNode> Parser::parseBoolExpression() {
         return parseOrExpression();
     }
 
     std::unique_ptr<ExprNode> Parser::parseOrExpression() {
         auto left = parseAndExpression();
+
         while (current_token.type == TokenType::TOKEN_BOOL_OP && current_token.value == "||") {
             eat(TokenType::TOKEN_BOOL_OP);
 
@@ -76,6 +122,7 @@ namespace LOICollection::frontend {
     
     std::unique_ptr<ExprNode> Parser::parseAndExpression() {
         auto left = parseComparison();
+        
         while (current_token.type == TokenType::TOKEN_BOOL_OP && current_token.value == "&&") {
             eat(TokenType::TOKEN_BOOL_OP);
 
@@ -187,15 +234,26 @@ namespace LOICollection::frontend {
             return expr;
         }
 
+        if (current_token.type == TokenType::TOKEN_IDENT) {
+            if (peek() == TokenType::TOKEN_NAMESPACE)
+                return parseFunction();
+        }
+
         return parseValue();
     }
 
     std::unique_ptr<ValueNode> Parser::parseValue() {
         switch (current_token.type) {
-            case TokenType::TOKEN_NUMBER: {
+            case TokenType::TOKEN_INT: {
                 int value = std::stoi(current_token.value);
 
-                eat(TokenType::TOKEN_NUMBER);
+                eat(TokenType::TOKEN_INT);
+                return std::make_unique<ValueNode>(value);
+            }
+            case TokenType::TOKEN_FLOAT: {
+                float value = std::stof(current_token.value);
+
+                eat(TokenType::TOKEN_FLOAT);
                 return std::make_unique<ValueNode>(value);
             }
             case TokenType::TOKEN_STRING: {
@@ -240,6 +298,10 @@ namespace LOICollection::frontend {
         return tpl;
     }
 
+    TokenType Parser::peek() {
+        return lexer.peekNextToken().type;
+    }
+
     void Parser::eat(TokenType expected) {
         if (current_token.type != expected) {
             throw std::runtime_error("Syntax error at position " + std::to_string(current_token.pos)
@@ -268,7 +330,8 @@ namespace LOICollection::frontend {
             case TokenType::TOKEN_LBRCKET: return "[";
             case TokenType::TOKEN_RBRCKET: return "]";
             case TokenType::TOKEN_IDENT: return "IDENT";
-            case TokenType::TOKEN_NUMBER: return "NUMBER";
+            case TokenType::TOKEN_INT: return "NUMBER";
+            case TokenType::TOKEN_FLOAT: return "FLOAT";
             case TokenType::TOKEN_STRING: return "STRING";
             case TokenType::TOKEN_OP: return "OP";
             case TokenType::TOKEN_BOOL_OP: return "BOOL_OP";
@@ -281,6 +344,8 @@ namespace LOICollection::frontend {
             case TokenType::TOKEN_DIVIDE: return "/";
             case TokenType::TOKEN_MOD: return "%";
             case TokenType::TOKEN_POWER: return "^";
+            case TokenType::TOKEN_NAMESPACE: return "NAMESPACE";
+            case TokenType::TOKEN_COMMA: return ",";
             default: return "UNKNOWN";
         }
     }

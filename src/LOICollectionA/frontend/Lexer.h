@@ -6,10 +6,11 @@
 namespace LOICollection::frontend {
     enum class TokenType {
         TOKEN_IF, TOKEN_LPAREN, TOKEN_RPAREN, TOKEN_LBRCKET,
-        TOKEN_RBRCKET, TOKEN_IDENT, TOKEN_NUMBER, TOKEN_STRING,
-        TOKEN_OP, TOKEN_BOOL_OP, TOKEN_EOF, TOKEN_COLON,
-        TOKEN_BOOL_LIT, TOKEN_PLUS, TOKEN_MINUS, TOKEN_MULTIPLY, 
-        TOKEN_DIVIDE, TOKEN_MOD, TOKEN_POWER
+        TOKEN_RBRCKET, TOKEN_IDENT, TOKEN_INT, TOKEN_FLOAT, 
+        TOKEN_STRING, TOKEN_OP, TOKEN_BOOL_OP, TOKEN_EOF,
+        TOKEN_COLON, TOKEN_BOOL_LIT, TOKEN_PLUS, TOKEN_MINUS,
+        TOKEN_MULTIPLY, TOKEN_DIVIDE, TOKEN_MOD, TOKEN_POWER, 
+        TOKEN_NAMESPACE, TOKEN_COMMA
     };
     
     struct Token {
@@ -31,11 +32,13 @@ namespace LOICollection::frontend {
         void advance();
 
         Token getNextToken();
+        Token peekNextToken();
 
     private:
         Token parseString(char delimiter);
         Token parseIdentifier();
         Token parseNumber();
+        Token parseColon();
         Token parseOperator();
 
         void skipWhitespace();

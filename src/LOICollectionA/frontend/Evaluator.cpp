@@ -1,4 +1,6 @@
+#include <cmath>
 #include <string>
+#include <vector>
 #include <variant>
 #include <stdexcept>
 #include <type_traits>
@@ -6,6 +8,7 @@
 #include "LOICollectionA/utils/core/MathUtils.h"
 
 #include "LOICollectionA/frontend/AST.h"
+#include "LOICollectionA/frontend/FunctionCall.h"
 
 #include "LOICollectionA/frontend/Evaluator.h"
 
@@ -18,12 +21,15 @@ namespace LOICollection::frontend {
         switch (expr.getType()) {
             case ASTNode::Type::Value: {
                 const auto& v = static_cast<const ValueNode&>(expr);
+
                 return v.value;
             }
             case ASTNode::Type::Compare: {
                 const auto& cmp = static_cast<const CompareNode&>(expr);
+
                 Value left = evalExpr(*cmp.left);
                 Value right = evalExpr(*cmp.right);
+
                 return applyComparison(left, right, cmp.op);
             }
             case ASTNode::Type::Logical: {
@@ -39,13 +45,17 @@ namespace LOICollection::frontend {
             }
             case ASTNode::Type::Arithmetic: {
                 const auto& arith = static_cast<const ArithmeticNode&>(expr);
+
                 Value left = evalExpr(*arith.left);
                 Value right = evalExpr(*arith.right);
+
                 return applyArithmetic(left, right, arith.op);
             }
             case ASTNode::Type::Unary: {
                 const auto& unary = static_cast<const UnaryNode&>(expr);
+
                 Value operand = evalExpr(*unary.operand);
+
                 return applyUnary(operand, unary.op);
             }
             default:
@@ -68,16 +78,31 @@ namespace LOICollection::frontend {
         switch (node.getType()) {
             case ASTNode::Type::Value: {
                 const auto& val = static_cast<const ValueNode&>(node);
+
                 return valueToString(val.value);
             }
             case ASTNode::Type::If: {
                 const auto& ifNode = static_cast<const IfNode&>(node);
+
                 return evalCondition(*ifNode.condition) ? 
                     evalNode(*ifNode.trueBranch) : 
                     evalNode(*ifNode.falseBranch);
             }
+            case ASTNode::Type::Function: {
+                const auto& func = static_cast<const FunctionNode&>(node);
+                const auto& args = static_cast<const TemplateNode&>(*func.args);
+                
+                std::vector<std::string> values;
+
+                values.reserve(args.parts.size());
+                for (const auto& arg : args.parts)
+                    values.push_back(evalNode(*arg));
+
+                return FunctionCall::getInstance().callFunction(func.namespaces, func.name, values);
+            }
             case ASTNode::Type::Template: {
                 const auto& tpl = static_cast<const TemplateNode&>(node);
+
                 return evalTemplate(tpl);
             }
             default:
@@ -90,6 +115,15 @@ namespace LOICollection::frontend {
             using T = std::decay_t<decltype(arg)>;
             if constexpr (std::is_same_v<T, int>)
                 return std::to_string(arg);
+            else if constexpr (std::is_same_v<T, float>) {
+                std::string result = std::to_string(arg);
+
+                result.erase(result.find_last_not_of('0') + 1, std::string::npos);
+                if (result.back() == '.')
+                    result.pop_back();
+
+                return result;
+            }
             else if constexpr (std::is_same_v<T, std::string>)
                 return arg;
         }, val);
@@ -105,13 +139,19 @@ namespace LOICollection::frontend {
             else {
                 if (op == "+") return l + r;
 
-                if constexpr (std::is_integral_v<T> && std::is_integral_v<U>) {
+                if constexpr ((std::is_integral_v<T> && std::is_integral_v<U>) || (std::is_floating_point_v<T> && std::is_floating_point_v<U>)) {
                     if (op == "-") return l - r;
                     if (op == "*") return l * r;
                     if (op == "/") return l / r;
+                }
+
+                if constexpr (std::is_integral_v<T> && std::is_integral_v<U>) {
                     if (op == "%") return l % r;
                     if (op == "^") return MathUtils::pow(l, r);
                 }
+
+                if constexpr (std::is_floating_point_v<T> && std::is_floating_point_v<U>)
+                    if (op == "^") return std::pow(l, r);
                 
                 throw std::runtime_error("Unsupported arithmetic operator: " + op);
             }
@@ -138,6 +178,8 @@ namespace LOICollection::frontend {
             using T = std::decay_t<decltype(arg)>;
             if constexpr (std::is_same_v<T, int>)
                 return arg != 0;
+            else if constexpr (std::is_same_v<T, float>)
+                return std::abs(arg) > std::numeric_limits<float>::epsilon();
             else if constexpr (std::is_same_v<T, std::string>)
                 return !arg.empty();
         }, val);

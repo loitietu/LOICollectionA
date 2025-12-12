@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <variant>
 
 #include "LOICollectionA/frontend/AST.h"
 
@@ -11,7 +10,7 @@ namespace LOICollection::frontend {
         std::string evaluate(const ASTNode& root);
 
     private:
-        using Value = std::variant<int, std::string>;
+        using Value = ValueNode::ValueType;
 
         Value evalExpr(const ExprNode& expr);
 

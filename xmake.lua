@@ -22,7 +22,7 @@ if not has_config("vs_runtime") then
     set_runtimes("MD")
 end
 
-set_version("1.9.0")
+set_version("1.9.1")
 
 target("LOICollectionA")
     add_rules("@levibuildscript/linkrule")
