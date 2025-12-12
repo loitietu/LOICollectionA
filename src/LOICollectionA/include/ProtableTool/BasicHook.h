@@ -7,10 +7,7 @@
 namespace LOICollection::ProtableTool {
     class BasicHook final {
     public:
-        LOICOLLECTION_A_NDAPI static BasicHook& getInstance() {
-            static BasicHook instance;
-            return instance;
-        }
+        LOICOLLECTION_A_NDAPI static BasicHook& getInstance();
 
     public:
         LOICOLLECTION_A_API bool load();

@@ -74,6 +74,11 @@ namespace LOICollection::Plugins {
     ChatPlugin::ChatPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
     ChatPlugin::~ChatPlugin() = default;
 
+    ChatPlugin& ChatPlugin::getInstance() {
+        static ChatPlugin instance;
+        return instance;
+    }
+
     SQLiteStorage* ChatPlugin::getDatabase() {
         return this->mImpl->db.get();
     }

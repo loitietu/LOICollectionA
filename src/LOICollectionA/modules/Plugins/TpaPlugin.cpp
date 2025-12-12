@@ -75,6 +75,11 @@ namespace LOICollection::Plugins {
 
     TpaPlugin::TpaPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
     TpaPlugin::~TpaPlugin() = default;
+
+    TpaPlugin& TpaPlugin::getInstance() {
+        static TpaPlugin instance;
+        return instance;
+    }
     
     SQLiteStorage* TpaPlugin::getDatabase() {
         return this->mImpl->db.get();

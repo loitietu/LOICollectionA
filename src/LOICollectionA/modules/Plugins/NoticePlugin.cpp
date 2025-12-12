@@ -67,6 +67,11 @@ namespace LOICollection::Plugins {
 
     NoticePlugin::NoticePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
     NoticePlugin::~NoticePlugin() = default;
+
+    NoticePlugin& NoticePlugin::getInstance() {
+        static NoticePlugin instance;
+        return instance;
+    }
     
     JsonStorage* NoticePlugin::getDatabase() {
         return this->mImpl->db.get();

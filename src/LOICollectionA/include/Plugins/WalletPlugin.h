@@ -19,10 +19,7 @@ namespace LOICollection::Plugins {
 
     class WalletPlugin final {
     public:
-        LOICOLLECTION_A_NDAPI static WalletPlugin& getInstance() {
-            static WalletPlugin instance;
-            return instance;
-        }
+        LOICOLLECTION_A_NDAPI static WalletPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
 

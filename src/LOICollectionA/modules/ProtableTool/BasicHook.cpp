@@ -32,6 +32,11 @@ namespace LOICollection::ProtableTool {
     BasicHook::BasicHook() : mImpl(std::make_unique<Impl>()) {};
     BasicHook::~BasicHook() = default;
 
+    BasicHook& BasicHook::getInstance() {
+        static BasicHook instance;
+        return instance;
+    };
+
     void BasicHook::listenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         this->mImpl->NetworkPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([this](LOICollection::ServerEvents::NetworkPacketEvent& event) -> void {

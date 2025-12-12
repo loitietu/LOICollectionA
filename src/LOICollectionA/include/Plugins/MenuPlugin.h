@@ -23,10 +23,7 @@ namespace LOICollection::Plugins {
 
     class MenuPlugin final {
     public:
-        LOICOLLECTION_A_NDAPI static MenuPlugin& getInstance() {
-            static MenuPlugin instance;
-            return instance;
-        }
+        LOICOLLECTION_A_NDAPI static MenuPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI JsonStorage* getDatabase();
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();

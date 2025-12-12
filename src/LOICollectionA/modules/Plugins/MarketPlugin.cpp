@@ -70,6 +70,11 @@ namespace LOICollection::Plugins {
     MarketPlugin::MarketPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
     MarketPlugin::~MarketPlugin() = default;
 
+    MarketPlugin& MarketPlugin::getInstance() {
+        static MarketPlugin instance;
+        return instance;
+    }
+
     SQLiteStorage* MarketPlugin::getDatabase() {
         return this->mImpl->db.get();
     }

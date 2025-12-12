@@ -53,6 +53,11 @@ namespace LOICollection::Plugins {
     LanguagePlugin::LanguagePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
     LanguagePlugin::~LanguagePlugin() = default;
 
+    LanguagePlugin& LanguagePlugin::getInstance() {
+        static LanguagePlugin instance;
+        return instance;
+    }
+
     ll::io::Logger* LanguagePlugin::getLogger() {
         return this->mImpl->logger.get();
     }

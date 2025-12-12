@@ -43,10 +43,7 @@ namespace LOICollection::LOICollectionAPI {
     
     class APIEngine final {
     public:
-        LOICOLLECTION_A_NDAPI static APIEngine& getInstance() {
-            static APIEngine instance;
-            return instance;
-        }
+        LOICOLLECTION_A_NDAPI static APIEngine& getInstance();
 
         LOICOLLECTION_A_NDAPI bool has(const std::string& name) const;
 

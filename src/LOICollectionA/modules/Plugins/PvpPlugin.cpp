@@ -61,6 +61,11 @@ namespace LOICollection::Plugins {
     PvpPlugin::PvpPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
     PvpPlugin::~PvpPlugin() = default;
 
+    PvpPlugin& PvpPlugin::getInstance() {
+        static PvpPlugin instance;
+        return instance;
+    }
+
     ll::io::Logger* PvpPlugin::getLogger() {
         return this->mImpl->logger.get();
     }

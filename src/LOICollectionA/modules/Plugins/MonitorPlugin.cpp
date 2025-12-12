@@ -66,6 +66,11 @@ namespace LOICollection::Plugins {
     MonitorPlugin::MonitorPlugin() : mImpl(std::make_unique<Impl>()) {};
     MonitorPlugin::~MonitorPlugin() = default;
 
+    MonitorPlugin& MonitorPlugin::getInstance() {
+        static MonitorPlugin instance;
+        return instance;
+    }
+
     void MonitorPlugin::listenEvent() {
         if (this->mImpl->options.BelowName.ModuleEnabled) {
             ll::coro::keepThis([this, option = this->mImpl->options.BelowName]() -> ll::coro::CoroTask<> {

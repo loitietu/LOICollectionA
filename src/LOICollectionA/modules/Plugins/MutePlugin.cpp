@@ -78,6 +78,11 @@ namespace LOICollection::Plugins {
 
     MutePlugin::MutePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
     MutePlugin::~MutePlugin() = default;
+
+    MutePlugin& MutePlugin::getInstance() {
+        static MutePlugin instance;
+        return instance;
+    }
     
     SQLiteStorage* MutePlugin::getDatabase() {
         return this->mImpl->db.get();

@@ -49,6 +49,11 @@ namespace LOICollection::ProtableTool {
     RedStone::RedStone() : mImpl(std::make_unique<Impl>()) {};
     RedStone::~RedStone() = default;
 
+    RedStone& RedStone::getInstance() {
+        static RedStone instance;
+        return instance;
+    }
+
     ll::io::Logger* RedStone::getLogger() {
         return this->mImpl->logger.get();
     }

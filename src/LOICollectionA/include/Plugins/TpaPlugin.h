@@ -21,10 +21,7 @@ namespace LOICollection::Plugins {
 
     class TpaPlugin final {
     public:
-        LOICOLLECTION_A_NDAPI static TpaPlugin& getInstance() {
-            static TpaPlugin instance;
-            return instance;
-        }
+        LOICOLLECTION_A_NDAPI static TpaPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();

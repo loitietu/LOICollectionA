@@ -90,6 +90,11 @@ namespace LOICollection::Plugins {
 
     BlacklistPlugin::BlacklistPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
     BlacklistPlugin::~BlacklistPlugin() = default;
+
+    BlacklistPlugin& BlacklistPlugin::getInstance() {
+        static BlacklistPlugin instance;
+        return instance;
+    }
     
     SQLiteStorage* BlacklistPlugin::getDatabase() {
         return this->mImpl->db.get();

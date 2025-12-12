@@ -27,10 +27,7 @@ namespace LOICollection::Plugins {
 
     class ShopPlugin final {
     public:
-        LOICOLLECTION_A_NDAPI static ShopPlugin& getInstance() {
-            static ShopPlugin instance;
-            return instance;
-        }
+        LOICOLLECTION_A_NDAPI static ShopPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI JsonStorage* getDatabase();
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();

@@ -93,6 +93,11 @@ namespace LOICollection::Plugins {
     WalletPlugin::WalletPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
     WalletPlugin::~WalletPlugin() = default;
 
+    WalletPlugin& WalletPlugin::getInstance() {
+        static WalletPlugin instance;
+        return instance;
+    }
+
     ll::io::Logger* WalletPlugin::getLogger() {
         return this->mImpl->logger.get();
     }

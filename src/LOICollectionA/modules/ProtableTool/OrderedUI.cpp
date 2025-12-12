@@ -42,6 +42,11 @@ namespace LOICollection::ProtableTool {
     OrderedUI::OrderedUI() : mImpl(std::make_unique<Impl>()) {};
     OrderedUI::~OrderedUI() = default;
 
+    OrderedUI& OrderedUI::getInstance() {
+        static OrderedUI instance;
+        return instance;
+    }
+
     void OrderedUI::listenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         this->mImpl->ModalFormRequestEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([this](LOICollection::ServerEvents::NetworkPacketEvent& event) mutable -> void {

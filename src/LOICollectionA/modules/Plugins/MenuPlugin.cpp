@@ -80,6 +80,11 @@ namespace LOICollection::Plugins {
     MenuPlugin::MenuPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
     MenuPlugin::~MenuPlugin() = default;
 
+    MenuPlugin& MenuPlugin::getInstance() {
+        static MenuPlugin instance;
+        return instance;
+    }
+
     JsonStorage* MenuPlugin::getDatabase() {
         return this->mImpl->db.get();
     }

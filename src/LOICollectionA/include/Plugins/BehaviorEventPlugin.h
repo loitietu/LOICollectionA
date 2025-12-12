@@ -33,10 +33,7 @@ namespace LOICollection::Plugins {
         struct Event;
 
     public:
-        LOICOLLECTION_A_NDAPI static BehaviorEventPlugin& getInstance() {
-            static BehaviorEventPlugin instance;
-            return instance;
-        }
+        LOICOLLECTION_A_NDAPI static BehaviorEventPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();

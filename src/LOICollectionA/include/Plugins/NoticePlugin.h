@@ -15,10 +15,7 @@ namespace ll::io {
 namespace LOICollection::Plugins {
     class NoticePlugin final {
     public:
-        LOICOLLECTION_A_NDAPI static NoticePlugin& getInstance() {
-            static NoticePlugin instance;
-            return instance;
-        }
+        LOICOLLECTION_A_NDAPI static NoticePlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI JsonStorage* getDatabase();
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();

@@ -74,6 +74,11 @@ namespace LOICollection::Plugins {
 
     ShopPlugin::ShopPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
     ShopPlugin::~ShopPlugin() = default;
+
+    ShopPlugin& ShopPlugin::getInstance() {
+        static ShopPlugin instance;
+        return instance;
+    }
     
     JsonStorage* ShopPlugin::getDatabase() {
         return this->mImpl->db.get();

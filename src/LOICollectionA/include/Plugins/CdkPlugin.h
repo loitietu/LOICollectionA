@@ -15,10 +15,7 @@ namespace ll::io {
 namespace LOICollection::Plugins {
     class CdkPlugin final {
     public:
-        LOICOLLECTION_A_NDAPI static CdkPlugin& getInstance() {
-            static CdkPlugin instance;
-            return instance;
-        }
+        LOICOLLECTION_A_NDAPI static CdkPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI JsonStorage* getDatabase();
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();

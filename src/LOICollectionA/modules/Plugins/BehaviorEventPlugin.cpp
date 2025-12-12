@@ -126,6 +126,11 @@ namespace LOICollection::Plugins {
     BehaviorEventPlugin::BehaviorEventPlugin() : mImpl(std::make_unique<Impl>()) {};
     BehaviorEventPlugin::~BehaviorEventPlugin() = default;
 
+    BehaviorEventPlugin& BehaviorEventPlugin::getInstance() {
+        static BehaviorEventPlugin instance;
+        return instance;
+    }
+
     SQLiteStorage* BehaviorEventPlugin::getDatabase() {
         return this->mImpl->db.get();
     }

@@ -65,6 +65,11 @@ namespace LOICollection::Plugins {
     CdkPlugin::CdkPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
     CdkPlugin::~CdkPlugin() = default;
 
+    CdkPlugin& CdkPlugin::getInstance() {
+        static CdkPlugin instance;
+        return instance;
+    }
+
     JsonStorage* CdkPlugin::getDatabase() {
         return this->mImpl->db.get();
     }

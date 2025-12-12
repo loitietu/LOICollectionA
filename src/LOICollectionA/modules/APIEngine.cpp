@@ -24,6 +24,11 @@ namespace LOICollection::LOICollectionAPI {
     APIEngine::APIEngine() : mImpl(std::make_unique<Impl>()) {};
     APIEngine::~APIEngine() = default;
 
+    APIEngine& APIEngine::getInstance() {
+        static APIEngine instance;
+        return instance;
+    }
+
     bool APIEngine::has(const std::string& name) const {
         return std::find_if(this->mImpl->mProcessors.begin(), this->mImpl->mProcessors.end(), [&name](const Entry& entry) -> bool {
             return entry.config.name == name;
