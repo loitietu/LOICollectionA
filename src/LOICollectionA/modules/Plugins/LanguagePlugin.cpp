@@ -15,7 +15,6 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
-#include <ll/api/event/player/PlayerDisconnectEvent.h>
 
 #include <mc/certificates/WebToken.h>
 #include <mc/network/ConnectionRequest.h>
@@ -33,6 +32,7 @@
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
+#include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/ServiceProvider.h"
 
 #include "LOICollectionA/Include/Plugins/LanguagePlugin.h"
@@ -41,13 +41,14 @@ using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
     struct LanguagePlugin::Impl {
-        std::unordered_map<std::string, std::string> mCache;
+        LRUKCache<std::string, std::string> Cache;
 
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
         
         ll::event::ListenerPtr PlayerJoinEventListener;
-        ll::event::ListenerPtr PlayerDisconnectEventListener;
+
+        Impl() : Cache(100, 100) {}
     }; 
 
     LanguagePlugin::LanguagePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
@@ -116,23 +117,11 @@ namespace LOICollection::Plugins {
             if (!this->mImpl->db->has("OBJECT$" + mObject, "language"))
                 this->mImpl->db->set("OBJECT$" + mObject, "language", langcode);
         });
-        this->mImpl->PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([this](ll::event::PlayerDisconnectEvent& event) mutable -> void {
-            if (event.self().isSimulatedPlayer())
-                return;
-
-            std::string mObject = event.self().getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-            auto it = this->mImpl->mCache.find(mObject);
-            if (it != this->mImpl->mCache.end())
-                this->mImpl->mCache.erase(it);
-        });
     }
 
     void LanguagePlugin::unlistenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
-        eventBus.removeListener(this->mImpl->PlayerDisconnectEventListener);
     }
 
     std::string LanguagePlugin::getLanguageCode(Player& player) {
@@ -149,13 +138,12 @@ namespace LOICollection::Plugins {
     std::string LanguagePlugin::getLanguage(const std::string& mObject) {
         std::string defaultLocale = I18nUtils::getInstance()->defaultLocale;
 
-        auto it = this->mImpl->mCache.find(mObject);
-        if (it != this->mImpl->mCache.end())
-            return it->second;
+        if (this->mImpl->Cache.contains(mObject))
+            return this->mImpl->Cache.get(mObject).value();
         
         std::string langcode = this->mImpl->db->get("OBJECT$" + mObject, "language", defaultLocale);
         
-        this->mImpl->mCache.emplace(mObject, langcode);
+        this->mImpl->Cache.put(mObject, langcode);
         return langcode;
     }
 
@@ -172,7 +160,7 @@ namespace LOICollection::Plugins {
 
         this->mImpl->db->set("OBJECT$" + mObject, "language", langcode);
 
-        this->mImpl->mCache.emplace(mObject, langcode);
+        this->mImpl->Cache.put(mObject, langcode);
     }
 
     bool LanguagePlugin::load() {

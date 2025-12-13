@@ -44,6 +44,7 @@
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
+#include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"
 
@@ -61,6 +62,8 @@ namespace LOICollection::Plugins {
     };
 
     struct ChatPlugin::Impl {
+        LRUKCache<std::string, std::vector<std::string>> BlacklistCache;
+
         C_Config::C_Plugins::C_Chat options;
 
         std::unique_ptr<SQLiteStorage> db;
@@ -69,6 +72,8 @@ namespace LOICollection::Plugins {
 
         ll::event::ListenerPtr PlayerChatEventListener;
         ll::event::ListenerPtr PlayerJoinEventListener;
+
+        Impl() : BlacklistCache(100, 100) {}
     };
 
     ChatPlugin::ChatPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
@@ -425,6 +430,11 @@ namespace LOICollection::Plugins {
         this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log5"), player)), mTargetObject);
+
+        if (this->mImpl->BlacklistCache.contains(mObject))
+            this->mImpl->BlacklistCache.update(mObject, [mTargetObject](std::vector<std::string>& mList) -> void {
+                mList.push_back(mTargetObject);
+            });
     }
 
     void ChatPlugin::delTitle(Player& player, const std::string& text) {
@@ -454,6 +464,10 @@ namespace LOICollection::Plugins {
             this->getDatabase()->delByPrefix("Blacklist", mObject + "." + target);
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log6"), player)), target);
+
+        this->mImpl->BlacklistCache.update(mObject, [target](std::vector<std::string>& mList) -> void {
+            mList.erase(std::remove(mList.begin(), mList.end(), target), mList.end());
+        });
     }
 
     std::string ChatPlugin::getTitle(Player& player) {
@@ -510,6 +524,9 @@ namespace LOICollection::Plugins {
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
+        if (this->mImpl->BlacklistCache.contains(mObject))
+             return this->mImpl->BlacklistCache.get(mObject).value();
+
         std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Blacklist", mObject + ".%\\_NAME");
 
         std::vector<std::string> mResult(mKeys.size());
@@ -518,6 +535,8 @@ namespace LOICollection::Plugins {
             size_t mPos2 = mKey.find_last_of('_');
             return (mPos != std::string::npos && mPos2 != std::string::npos && mPos < mPos2) ? mKey.substr(mPos + 1, mPos2 - mPos - 1) : "";
         });
+
+        this->mImpl->BlacklistCache.put(mObject, mResult);
 
         return mResult;
     }
@@ -540,6 +559,11 @@ namespace LOICollection::Plugins {
         std::string mTargetObject = target.getUuid().asString();
         std::replace(mObjcet.begin(), mObjcet.end(), '-', '_');
         std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
+
+        if (this->mImpl->BlacklistCache.contains(mObjcet)) {
+            std::vector<std::string> mList = this->mImpl->BlacklistCache.get(mObjcet).value();
+            return std::find(mList.begin(), mList.end(), mTargetObject) != mList.end();
+        }
 
         return this->getDatabase()->has("Blacklist", mObjcet + "." + mTargetObject + "_TIME");
     }

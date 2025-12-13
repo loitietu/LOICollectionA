@@ -37,6 +37,7 @@
 #include "LOICollectionA/data/JsonStorage.h"
 #include "LOICollectionA/data/SQLiteStorage.h"
 
+#include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"
 
@@ -56,6 +57,8 @@ namespace LOICollection::Plugins {
     };
 
     struct NoticePlugin::Impl {
+        LRUKCache<std::string, bool> CloseCache;
+
         bool ModuleEnabled = false;
 
         std::unique_ptr<JsonStorage> db;
@@ -63,6 +66,8 @@ namespace LOICollection::Plugins {
         std::shared_ptr<ll::io::Logger> logger;
         
         ll::event::ListenerPtr PlayerJoinEventListener;
+
+        Impl() : CloseCache(100, 100) {}
     };
 
     NoticePlugin::NoticePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
@@ -377,9 +382,15 @@ namespace LOICollection::Plugins {
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (this->mImpl->db2->has("OBJECT$" + mObject, "Notice_Toggle1"))
-            return this->mImpl->db2->get("OBJECT$" + mObject, "Notice_Toggle1") == "true";
-        return false;
+
+        if (this->mImpl->CloseCache.contains(mObject))
+            return this->mImpl->CloseCache.get(mObject).value();
+
+        bool result = this->mImpl->db2->get("OBJECT$" + mObject, "Notice_Toggle1") == "true";
+
+        this->mImpl->CloseCache.put(mObject, result);
+
+        return result;
     }
 
     bool NoticePlugin::isValid() {

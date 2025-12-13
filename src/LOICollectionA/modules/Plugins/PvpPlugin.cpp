@@ -33,6 +33,7 @@
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
+#include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/Throttle.h"
 #include "LOICollectionA/base/ServiceProvider.h"
@@ -45,6 +46,8 @@ using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
     struct PvpPlugin::Impl {
+        LRUKCache<std::string, bool> PvpCache;
+
         Throttle mThrottle;
 
         bool ModuleEnabled = false;
@@ -55,7 +58,7 @@ namespace LOICollection::Plugins {
         ll::event::ListenerPtr PlayerJoinEventListener;
         ll::event::ListenerPtr PlayerHurtEventListener;
         
-        Impl() : mThrottle(std::chrono::seconds(1)) {}
+        Impl() : PvpCache(100, 100), mThrottle(std::chrono::seconds(1)) {}
     };
 
     PvpPlugin::PvpPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
@@ -161,15 +164,13 @@ namespace LOICollection::Plugins {
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
+        this->mImpl->db->set("OBJECT$" + mObject, "Pvp_Enable", (value ? "true" : "false"));
+
         if (value) {
-            if (this->mImpl->db->has("OBJECT$" + mObject))
-                this->mImpl->db->set("OBJECT$" + mObject, "Pvp_Enable", "true");
             this->getLogger()->info(LOICollectionAPI::getVariableString(tr({}, "pvp.log1"), player));
             return;
         }
-
-        if (this->mImpl->db->has("OBJECT$" + mObject))
-            this->mImpl->db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
+        
         this->getLogger()->info(LOICollectionAPI::getVariableString(tr({}, "pvp.log2"), player));
     }
 
@@ -179,9 +180,15 @@ namespace LOICollection::Plugins {
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
-        if (this->mImpl->db->has("OBJECT$" + mObject))
-            return this->mImpl->db->get("OBJECT$" + mObject, "Pvp_Enable") == "true";
-        return false;
+
+        if (this->mImpl->PvpCache.contains(mObject)) 
+            return this->mImpl->PvpCache.get(mObject).value();
+
+        bool result = this->mImpl->db->get("OBJECT$" + mObject, "Pvp_Enable") == "true";
+
+        this->mImpl->PvpCache.put(mObject, result);
+
+        return result;
     }
 
     bool PvpPlugin::isValid() {

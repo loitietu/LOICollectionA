@@ -43,6 +43,7 @@
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
+#include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"
 
@@ -64,6 +65,9 @@ namespace LOICollection::Plugins {
     };
 
     struct TpaPlugin::Impl {
+        LRUKCache<std::string, std::vector<std::string>> BlacklistCache;
+        LRUKCache<std::string, bool> InviteCache;
+
         C_Config::C_Plugins::C_Tpa options;
 
         std::unique_ptr<SQLiteStorage> db;
@@ -71,6 +75,8 @@ namespace LOICollection::Plugins {
         std::shared_ptr<ll::io::Logger> logger;
         
         ll::event::ListenerPtr PlayerJoinEventListener;
+
+        Impl() : BlacklistCache(100, 100), InviteCache(100, 100) {}
     };
 
     TpaPlugin::TpaPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
@@ -353,6 +359,11 @@ namespace LOICollection::Plugins {
         this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "tpa.log2"), player)), mTargetObject);
+
+        if (this->mImpl->BlacklistCache.contains(mObject))
+            this->mImpl->BlacklistCache.update(mObject, [mTargetObject](std::vector<std::string>& mList) -> void {
+                mList.push_back(mTargetObject);
+            });
     }
 
     void TpaPlugin::delBlacklist(Player& player, const std::string& target) {
@@ -366,6 +377,10 @@ namespace LOICollection::Plugins {
             this->getDatabase()->delByPrefix("Blacklist", mObject + "." + target);
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "tpa.log3"), player)), target);
+
+        this->mImpl->BlacklistCache.update(mObject, [target](std::vector<std::string>& mList) -> void {
+            mList.erase(std::remove(mList.begin(), mList.end(), target), mList.end());
+        });
     }
 
     std::vector<std::string> TpaPlugin::getBlacklist(Player& player) {
@@ -374,6 +389,9 @@ namespace LOICollection::Plugins {
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+        if (this->mImpl->BlacklistCache.contains(mObject))
+            return this->mImpl->BlacklistCache.get(mObject).value();
         
         std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Blacklist", mObject + ".%\\_NAME");
 
@@ -384,6 +402,8 @@ namespace LOICollection::Plugins {
             return (mPos != std::string::npos && mPos2 != std::string::npos && mPos < mPos2) ? mKey.substr(mPos + 1, mPos2 - mPos - 1) : "";
         });
 
+        this->mImpl->BlacklistCache.put(mObject, mResult);
+
         return mResult;
     }
 
@@ -393,10 +413,15 @@ namespace LOICollection::Plugins {
 
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
+
+        if (this->mImpl->InviteCache.contains(mObject))
+            return this->mImpl->InviteCache.get(mObject).value();
         
-        if (this->mImpl->db2->has("OBJECT$" + mObject))
-            return this->mImpl->db2->get("OBJECT$" + mObject, "Tpa_Toggle1") == "true";
-        return false;
+        bool result = this->mImpl->db2->get("OBJECT$" + mObject, "Tpa_Toggle1") == "true";
+
+        this->mImpl->InviteCache.put(mObject, result);
+
+        return result;
     }
 
     bool TpaPlugin::isValid() {
