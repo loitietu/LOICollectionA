@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <functional>
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -23,6 +24,9 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_API   void addBlacklist(Player& player, const std::string& cause, int time);
         LOICOLLECTION_A_API   void delBlacklist(const std::string& id);
+
+        LOICOLLECTION_A_API   void onBlacklistAdd(std::function<void(const std::string&)> fn);
+        LOICOLLECTION_A_API   void onBlacklistDel(std::function<void(const std::string&)> fn);
 
         LOICOLLECTION_A_NDAPI std::string getBlacklist(Player& player);
 

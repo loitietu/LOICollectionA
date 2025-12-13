@@ -1,6 +1,7 @@
 #include <memory>
 #include <string>
 #include <filesystem>
+#include <functional>
 
 #include <fmt/core.h>
 #include <nlohmann/json.hpp>
@@ -66,6 +67,9 @@ namespace LOICollection::Plugins {
     };
 
     struct ShopPlugin::Impl {
+        std::vector<std::function<void(const std::string&)>> onShopCreates;
+        std::vector<std::function<void(const std::string&)>> onShopRemoves;
+
         bool ModuleEnabled = false;
 
         std::unique_ptr<JsonStorage> db;
@@ -602,6 +606,13 @@ namespace LOICollection::Plugins {
     void ShopPlugin::registeryCommand() {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(ShopObjectName, this->getDatabase()->keys());
 
+        this->onShopCreate([](const std::string& id) -> void {
+            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(ShopObjectName, { id });
+        });
+        this->onShopRemove([](const std::string& id) -> void {
+            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(ShopObjectName, { id });
+        });
+
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("shop", tr({}, "commands.shop.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").required("Object").execute(
@@ -638,7 +649,8 @@ namespace LOICollection::Plugins {
             this->getDatabase()->set(id, data);
         this->getDatabase()->save();
 
-        ll::command::CommandRegistrar::getInstance().addSoftEnumValues(ShopObjectName, { id });
+        for (auto& fn : this->mImpl->onShopCreates)
+            fn(id);
     }
 
     void ShopPlugin::remove(const std::string& id) {
@@ -648,7 +660,16 @@ namespace LOICollection::Plugins {
         this->getDatabase()->remove(id);
         this->getDatabase()->save();
 
-        ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(ShopObjectName, { id });
+        for (auto& fn : this->mImpl->onShopRemoves)
+            fn(id);
+    }
+
+    void ShopPlugin::onShopCreate(std::function<void(const std::string&)> fn) {
+        this->mImpl->onShopCreates.push_back(fn);
+    }
+
+    void ShopPlugin::onShopRemove(std::function<void(const std::string&)> fn) {
+        this->mImpl->onShopRemoves.push_back(fn);
     }
 
     void ShopPlugin::executeCommand(Player& player, std::string cmd) {

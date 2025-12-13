@@ -14,6 +14,7 @@ namespace LOICollection::frontend {
     private:
         using Value = ValueNode::ValueType;
 
+    private:
         Value evalExpr(const ExprNode& expr);
 
         bool evalCondition(const ExprNode& expr);

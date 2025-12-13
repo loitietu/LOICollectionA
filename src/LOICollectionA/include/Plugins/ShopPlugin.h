@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <functional>
 
 #include <nlohmann/json_fwd.hpp>
 
@@ -34,6 +35,9 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_API   void create(const std::string& id, const nlohmann::ordered_json& data);
         LOICOLLECTION_A_API   void remove(const std::string& id);
+
+        LOICOLLECTION_A_API   void onShopCreate(std::function<void(const std::string&)> fn);
+        LOICOLLECTION_A_API   void onShopRemove(std::function<void(const std::string&)> fn);
 
         LOICOLLECTION_A_API   void executeCommand(Player& player, std::string cmd);
 

@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <functional>
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -24,6 +25,9 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_API   void addMute(Player& player, const std::string& cause, int time);
         LOICOLLECTION_A_API   void delMute(Player& player);
         LOICOLLECTION_A_API   void delMute(const std::string& id);
+
+        LOICOLLECTION_A_API   void onMuteAdd(std::function<void(const std::string&)> fn);
+        LOICOLLECTION_A_API   void onMuteDel(std::function<void(const std::string&)> fn);
 
         LOICOLLECTION_A_NDAPI std::string getMute(Player& player);
         

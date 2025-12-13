@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <functional>
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -22,6 +23,9 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_API   void create(const std::string& id, const std::string& title, int priority, bool poiontout);
         LOICOLLECTION_A_API   void remove(const std::string& id);
+
+        LOICOLLECTION_A_API   void onNoticeCreate(std::function<void(const std::string&)> fn);
+        LOICOLLECTION_A_API   void onNoticeRemove(std::function<void(const std::string&)> fn);
 
         LOICOLLECTION_A_NDAPI bool isClose(Player& player);
         LOICOLLECTION_A_NDAPI bool isValid();

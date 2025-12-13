@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <execution>
 #include <filesystem>
+#include <functional>
 #include <unordered_map>
 
 #include <fmt/core.h>
@@ -68,6 +69,9 @@ namespace LOICollection::Plugins {
     };
 
     struct MutePlugin::Impl {
+        std::vector<std::function<void(const std::string&)>> onMuteAdds;
+        std::vector<std::function<void(const std::string&)>> onMuteDels;
+
         bool ModuleEnabled = false;
 
         std::unique_ptr<SQLiteStorage> db;
@@ -185,6 +189,13 @@ namespace LOICollection::Plugins {
 
     void MutePlugin::registeryCommand() {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(MuteObjectName, getMutes());
+
+        this->onMuteAdd([](const std::string& id) {
+            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MuteObjectName, { id });
+        });
+        this->onMuteDel([](const std::string& id) {
+            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(MuteObjectName, { id });
+        });
 
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("mute", tr({}, "commands.mute.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
@@ -311,9 +322,10 @@ namespace LOICollection::Plugins {
 
         transaction.commit();
 
-        ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MuteObjectName, { mTimestamp });
-
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "mute.log1"), player)), mCause);
+
+        for (auto& fn : this->mImpl->onMuteAdds)
+            fn(mTimestamp);
     }
 
     void MutePlugin::delMute(Player& player) {
@@ -329,9 +341,18 @@ namespace LOICollection::Plugins {
 
         this->getDatabase()->delByPrefix("Mute", id + ".");
 
-        ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(MuteObjectName, { id });
-
         this->getLogger()->info(fmt::runtime(tr({}, "mute.log2")), id);
+
+        for (auto& fn : this->mImpl->onMuteDels)
+            fn(id);
+    }
+
+    void MutePlugin::onMuteAdd(std::function<void(const std::string&)> fn) {
+        this->mImpl->onMuteAdds.push_back(fn);
+    }
+
+    void MutePlugin::onMuteDel(std::function<void(const std::string&)> fn) {
+        this->mImpl->onMuteDels.push_back(fn);
     }
 
     std::string MutePlugin::getMute(Player& player) {

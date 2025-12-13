@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <filesystem>
+#include <functional>
 
 #include <fmt/core.h>
 #include <nlohmann/json.hpp>
@@ -68,6 +69,9 @@ namespace LOICollection::Plugins {
     };
 
     struct MenuPlugin::Impl {
+        std::vector<std::function<void(const std::string&)>> onMenuCreates;
+        std::vector<std::function<void(const std::string&)>> onMenuRemoves;
+
         C_Config::C_Plugins::C_Menu options;
         
         std::unique_ptr<JsonStorage> db;
@@ -758,6 +762,13 @@ namespace LOICollection::Plugins {
     void MenuPlugin::registeryCommand() {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(MenuObjectName, this->getDatabase()->keys());
 
+        this->onMenuCreate([](const std::string& id) {
+            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MenuObjectName, { id });
+        });
+        this->onMenuRemove([](const std::string& id) {
+            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(MenuObjectName, { id });
+        });
+
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("menu", tr({}, "commands.menu.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").optional("Object").execute(
@@ -840,7 +851,8 @@ namespace LOICollection::Plugins {
             this->getDatabase()->set(id, data);
         this->getDatabase()->save();
 
-        ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MenuObjectName, { id });
+        for (auto& fn : this->mImpl->onMenuCreates)
+            fn(id);
     }
 
     void MenuPlugin::remove(const std::string& id) {
@@ -850,7 +862,16 @@ namespace LOICollection::Plugins {
         this->getDatabase()->remove(id);
         this->getDatabase()->save();
 
-        ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(MenuObjectName, { id });
+        for (auto& fn : this->mImpl->onMenuRemoves)
+            fn(id);
+    }
+
+    void MenuPlugin::onMenuCreate(std::function<void(const std::string&)> fn) {
+        this->mImpl->onMenuCreates.push_back(fn);
+    }
+
+    void MenuPlugin::onMenuRemove(std::function<void(const std::string&)> fn) {
+        this->mImpl->onMenuRemoves.push_back(fn);
     }
 
     void MenuPlugin::executeCommand(Player& player, std::string cmd) {

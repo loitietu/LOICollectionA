@@ -13,6 +13,7 @@ namespace LOICollection::frontend {
         using CallBackType = std::string(std::vector<std::string>&);
         using CallBackFunc = std::function<CallBackType>;
 
+    public:
         LOICOLLECTION_A_NDAPI static FunctionCall& getInstance();
 
         LOICOLLECTION_A_API   void registerFunction(const std::string& namespaces, const std::string& function, CallBackFunc callback, size_t argsCount);

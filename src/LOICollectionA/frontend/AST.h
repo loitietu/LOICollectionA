@@ -26,6 +26,7 @@ namespace LOICollection::frontend {
         std::unique_ptr<ExprNode> condition;
         std::unique_ptr<ASTNode> trueBranch;
         std::unique_ptr<ASTNode> falseBranch;
+        
         IfNode(auto&& c, auto&& t, auto&& f)
             : condition(std::forward<decltype(c)>(c)), 
               trueBranch(std::forward<decltype(t)>(t)), 

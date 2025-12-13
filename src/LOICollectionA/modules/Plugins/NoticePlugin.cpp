@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <functional>
 
 #include <fmt/core.h>
 #include <nlohmann/json.hpp>
@@ -58,6 +59,9 @@ namespace LOICollection::Plugins {
 
     struct NoticePlugin::Impl {
         LRUKCache<std::string, bool> CloseCache;
+
+        std::vector<std::function<void(const std::string&)>> onNoticeCreates;
+        std::vector<std::function<void(const std::string&)>> onNoticeRemoves;
 
         bool ModuleEnabled = false;
 
@@ -287,6 +291,13 @@ namespace LOICollection::Plugins {
     void NoticePlugin::registeryCommand() {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(NoticeObjectName, this->getDatabase()->keys());
 
+        this->onNoticeCreate([](const std::string& id) {
+            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(NoticeObjectName, { id });
+        });
+        this->onNoticeRemove([](const std::string& id) {
+            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(NoticeObjectName, { id });
+        });
+
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("notice", tr({}, "commands.notice.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").optional("Object").execute(
@@ -363,7 +374,8 @@ namespace LOICollection::Plugins {
         this->getDatabase()->set(id, data);
         this->getDatabase()->save();
 
-        ll::command::CommandRegistrar::getInstance().addSoftEnumValues(NoticeObjectName, { id });
+        for (auto& fn : this->mImpl->onNoticeCreates)
+            fn(id);
     }
 
     void NoticePlugin::remove(const std::string& id) {
@@ -373,7 +385,16 @@ namespace LOICollection::Plugins {
         this->getDatabase()->remove(id);
         this->getDatabase()->save();
 
-        ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(NoticeObjectName, { id });
+        for (auto& fn : this->mImpl->onNoticeRemoves)
+            fn(id);
+    }
+
+    void NoticePlugin::onNoticeCreate(std::function<void(const std::string&)> fn) {
+        this->mImpl->onNoticeCreates.push_back(fn);
+    }
+
+    void NoticePlugin::onNoticeRemove(std::function<void(const std::string&)> fn) {
+        this->mImpl->onNoticeRemoves.push_back(fn);
     }
 
     bool NoticePlugin::isClose(Player& player) {

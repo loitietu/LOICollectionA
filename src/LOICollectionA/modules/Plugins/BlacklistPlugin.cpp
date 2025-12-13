@@ -1,10 +1,10 @@
 #include <memory>
 #include <vector>
 #include <string>
-#include <optional>
 #include <algorithm>
 #include <execution>
 #include <filesystem>
+#include <functional>
 #include <unordered_map>
 
 #include <fmt/core.h>
@@ -80,6 +80,9 @@ namespace LOICollection::Plugins {
     };
 
     struct BlacklistPlugin::Impl {
+        std::vector<std::function<void(const std::string&)>> mBlacklistAdds;
+        std::vector<std::function<void(const std::string&)>> mBlacklistDels;
+
         bool ModuleEnabled = false;
         
         std::unique_ptr<SQLiteStorage> db;
@@ -194,6 +197,13 @@ namespace LOICollection::Plugins {
 
     void BlacklistPlugin::registeryCommand() {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(BlacklistObjectName, getBlacklists());
+
+        this->onBlacklistAdd([](const std::string& id) -> void {
+            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(BlacklistObjectName, { id });
+        });
+        this->onBlacklistDel([](const std::string& id) -> void {
+            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(BlacklistObjectName, { id });
+        });
 
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("blacklist", tr({}, "commands.blacklist.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
@@ -324,8 +334,6 @@ namespace LOICollection::Plugins {
         
         transaction.commit();
 
-        ll::command::CommandRegistrar::getInstance().addSoftEnumValues(BlacklistObjectName, { mTismestamp });
-
         std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(player), "blacklist.tips");
         ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
             player.getNetworkIdentifier(), player.getClientSubId(), Connection::DisconnectFailReason::Kicked,
@@ -336,6 +344,9 @@ namespace LOICollection::Plugins {
         );
 
         this->getLogger()->info(LOICollectionAPI::getVariableString(tr({}, "blacklist.log1"), player));
+
+        for (auto& fn : this->mImpl->mBlacklistAdds)
+            fn(mTismestamp);
     }
 
     void BlacklistPlugin::delBlacklist(const std::string& id) {
@@ -344,9 +355,18 @@ namespace LOICollection::Plugins {
 
         this->getDatabase()->delByPrefix("Blacklist", id + ".");
 
-        ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(BlacklistObjectName, { id });
-
         this->getLogger()->info(fmt::runtime(tr({}, "blacklist.log2")), id);
+
+        for (auto& fn : this->mImpl->mBlacklistDels)
+            fn(id);
+    }
+
+    void BlacklistPlugin::onBlacklistAdd(std::function<void(const std::string&)> fn) {
+        this->mImpl->mBlacklistAdds.push_back(fn);
+    }
+
+    void BlacklistPlugin::onBlacklistDel(std::function<void(const std::string&)> fn) {
+        this->mImpl->mBlacklistDels.push_back(fn);
     }
 
     std::string BlacklistPlugin::getBlacklist(Player& player) {
