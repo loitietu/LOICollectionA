@@ -1,6 +1,7 @@
 #include <chrono>
 #include <string>
 #include <sstream>
+#include <charconv>
 #include <algorithm>
 #include <unordered_set>
 
@@ -73,9 +74,10 @@ namespace SystemUtils {
     }
 
     int toInt(const std::string& str, int defaultValue) {
-        char* endpt{};
-        long result = std::strtol(str.c_str(), &endpt, 10);
-        return (endpt == str.c_str()) ? defaultValue : static_cast<int>(result);
+        int result;
+        auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
+
+        return (ec == std::errc() && ptr == str.data() + str.size()) ? result : defaultValue;
     }
 
     bool isPastOrPresent(const std::string& str) {
