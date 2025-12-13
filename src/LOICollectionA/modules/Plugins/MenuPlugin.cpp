@@ -182,7 +182,7 @@ namespace LOICollection::Plugins {
 
             this->mParent.create(mObjectId, mData);
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "menu.log1"), pl)), mObjectId);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "menu.log1"), pl)), mObjectId);
         });
     }
 
@@ -217,7 +217,7 @@ namespace LOICollection::Plugins {
 
             this->mParent.remove(id);
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "menu.log2"), pl)), id);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "menu.log2"), pl)), id);
         });
     }
 
@@ -292,7 +292,7 @@ namespace LOICollection::Plugins {
             this->mParent.getDatabase()->set_ptr("/" + id + "/permission", (int) std::get<double>(dt->at("Slider")));
             this->mParent.getDatabase()->save();
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "menu.log5"), pl)), id);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "menu.log5"), pl)), id);
         });
     }
 
@@ -396,7 +396,7 @@ namespace LOICollection::Plugins {
             this->mParent.getDatabase()->set_ptr("/" + id, mData);
             this->mParent.getDatabase()->save();
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "menu.log6"), pl)), id);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "menu.log6"), pl)), id);
         });
     }
 
@@ -420,7 +420,7 @@ namespace LOICollection::Plugins {
             this->mParent.getDatabase()->set_ptr("/" + id + "/customize", mContent);
             this->mParent.getDatabase()->save();
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "menu.log3"), pl)), id, packageid);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "menu.log3"), pl)), id, packageid);
         });
     }
 
@@ -476,7 +476,7 @@ namespace LOICollection::Plugins {
 
             this->editAwardCommand(pl, id);
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "menu.log4"), pl)), id);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "menu.log4"), pl)), id);
         });
     }
 
@@ -565,15 +565,15 @@ namespace LOICollection::Plugins {
 
         auto data = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id);
 
-        ll::form::CustomForm form(LOICollectionAPI::translateString(data.value("title", ""), player));
+        ll::form::CustomForm form(LOICollectionAPI::APIUtils::getInstance().translateString(data.value("title", ""), player));
         
         for (nlohmann::ordered_json& customize : data.value("customize", nlohmann::ordered_json())) {
             switch (ll::hash_utils::doHash(customize.value("type", ""))) {
                 case ll::hash_utils::doHash("header"):
-                    form.appendHeader(LOICollectionAPI::translateString(customize.value("title", ""), player));
+                    form.appendHeader(LOICollectionAPI::APIUtils::getInstance().translateString(customize.value("title", ""), player));
                     break;
                 case ll::hash_utils::doHash("Label"):
-                    form.appendLabel(LOICollectionAPI::translateString(customize.value("title", ""), player));
+                    form.appendLabel(LOICollectionAPI::APIUtils::getInstance().translateString(customize.value("title", ""), player));
                     break;
                 case ll::hash_utils::doHash("divider"):
                     form.appendDivider();
@@ -581,7 +581,7 @@ namespace LOICollection::Plugins {
                 case ll::hash_utils::doHash("Input"): {
                     form.appendInput(
                         customize.value("id", "ID"),
-                        LOICollectionAPI::translateString(customize.value("title", ""), player), 
+                        LOICollectionAPI::APIUtils::getInstance().translateString(customize.value("title", ""), player), 
                         customize.value("placeholder", ""),
                         customize.value("defaultValue", ""),
                         customize.value("tooltip", "")
@@ -597,7 +597,7 @@ namespace LOICollection::Plugins {
 
                     form.appendDropdown(
                         customize.value("id", "ID"),
-                        LOICollectionAPI::translateString(customize.value("title", ""), player), 
+                        LOICollectionAPI::APIUtils::getInstance().translateString(customize.value("title", ""), player), 
                         mOptions,
                         customize.value("defaultValue", 0),
                         customize.value("tooltip", "")
@@ -609,7 +609,7 @@ namespace LOICollection::Plugins {
                 case ll::hash_utils::doHash("Toggle"): {
                     form.appendToggle(
                         customize.value("id", "ID"),
-                        LOICollectionAPI::translateString(customize.value("title", ""), player),
+                        LOICollectionAPI::APIUtils::getInstance().translateString(customize.value("title", ""), player),
                         customize.value("defaultValue", false),
                         customize.value("tooltip", "")
                     );
@@ -620,7 +620,7 @@ namespace LOICollection::Plugins {
                 case ll::hash_utils::doHash("Slider"): {
                     form.appendSlider(
                         customize.value("id", "ID"), 
-                        LOICollectionAPI::translateString(customize.value("title", ""), player),
+                        LOICollectionAPI::APIUtils::getInstance().translateString(customize.value("title", ""), player),
                         customize.value("min", 0),
                         customize.value("max", 100),
                         customize.value("step", 1),
@@ -638,7 +638,7 @@ namespace LOICollection::Plugins {
 
                     form.appendStepSlider(
                         customize.value("id", "ID"),
-                        LOICollectionAPI::translateString(customize.value("title", ""), player),
+                        LOICollectionAPI::APIUtils::getInstance().translateString(customize.value("title", ""), player),
                         mOptions,
                         customize.value("defaultValue", 0),
                         customize.value("tooltip", "")
@@ -651,7 +651,7 @@ namespace LOICollection::Plugins {
         }
 
         if (data.contains("submit"))
-            form.setSubmitButton(LOICollectionAPI::translateString(data.value("submit", ""), player));
+            form.setSubmitButton(LOICollectionAPI::APIUtils::getInstance().translateString(data.value("submit", ""), player));
 
         form.sendTo(player, [this, mCustomData, data](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
             if (!dt) return this->mParent.executeCommand(pl, data.value("info", nlohmann::ordered_json{}).value("exit", ""));
@@ -682,20 +682,20 @@ namespace LOICollection::Plugins {
     void MenuPlugin::gui::simple(Player& player, const std::string& id) {
         auto data = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id);
 
-        ll::form::SimpleForm form(LOICollectionAPI::translateString(data.value("title", ""), player), LOICollectionAPI::translateString(data.value("content", ""), player));
+        ll::form::SimpleForm form(LOICollectionAPI::APIUtils::getInstance().translateString(data.value("title", ""), player), LOICollectionAPI::APIUtils::getInstance().translateString(data.value("content", ""), player));
         for (nlohmann::ordered_json& customize : data.value("customize", nlohmann::ordered_json())) {
             switch (ll::hash_utils::doHash(customize.value("type", ""))) {
                 case ll::hash_utils::doHash("button"):
                 case ll::hash_utils::doHash("from"):
-                    form.appendButton(LOICollectionAPI::translateString(customize.value("title", ""), player), customize.value("image", ""), "path", [this, data, customize](Player& pl) -> void {
+                    form.appendButton(LOICollectionAPI::APIUtils::getInstance().translateString(customize.value("title", ""), player), customize.value("image", ""), "path", [this, data, customize](Player& pl) -> void {
                         this->mParent.handleAction(pl, customize, data);
                     });
                     break;
                 case ll::hash_utils::doHash("header"):
-                    form.appendHeader(LOICollectionAPI::translateString(customize.value("title", ""), player));
+                    form.appendHeader(LOICollectionAPI::APIUtils::getInstance().translateString(customize.value("title", ""), player));
                     break;
                 case ll::hash_utils::doHash("label"): 
-                    form.appendLabel(LOICollectionAPI::translateString(customize.value("title", ""), player));
+                    form.appendLabel(LOICollectionAPI::APIUtils::getInstance().translateString(customize.value("title", ""), player));
                     break;
                 case ll::hash_utils::doHash("divider"):
                     form.appendDivider();
@@ -716,10 +716,10 @@ namespace LOICollection::Plugins {
             return;
 
         ll::form::ModalForm form(
-            LOICollectionAPI::translateString(data.value("title", ""), player),
-            LOICollectionAPI::translateString(data.value("content", ""), player),
-            LOICollectionAPI::translateString(mConfirmButton.value("title", ""), player),
-            LOICollectionAPI::translateString(mCancelButton.value("title", ""), player)
+            LOICollectionAPI::APIUtils::getInstance().translateString(data.value("title", ""), player),
+            LOICollectionAPI::APIUtils::getInstance().translateString(data.value("content", ""), player),
+            LOICollectionAPI::APIUtils::getInstance().translateString(mConfirmButton.value("title", ""), player),
+            LOICollectionAPI::APIUtils::getInstance().translateString(mCancelButton.value("title", ""), player)
         );
         form.sendTo(player, [this, data, mConfirmButton, mCancelButton](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
             if (result == ll::form::ModalFormSelectedButton::Upper) 

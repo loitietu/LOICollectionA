@@ -14,8 +14,6 @@
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
-#include "LOICollectionA/include/APIUtils.h"
-
 #include "LOICollectionA/include/ModManager.h"
 #include "LOICollectionA/include/ModRegistry.h"
 
@@ -118,8 +116,6 @@ namespace LOICollection {
     }
 
     bool A::enable() {
-        LOICollectionAPI::initialization();
-
         ll::io::Logger& logger = this->mSelf.getLogger();
 
         std::vector<std::string> mMods = modules::ModManager::getInstance().mods();

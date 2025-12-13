@@ -149,7 +149,7 @@ namespace LOICollection::Plugins {
 
             this->content(pl, id);
 
-            this->mParent.getLogger()->info(LOICollectionAPI::getVariableString(tr({}, "notice.log1"), pl));
+            this->mParent.getLogger()->info(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "notice.log1"), pl));
         });
     }
 
@@ -177,7 +177,7 @@ namespace LOICollection::Plugins {
                 SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 0), (bool) std::get<uint64>(dt->at("Toggle1"))
             );
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "notice.log2"), pl)), mObjectId);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "notice.log2"), pl)), mObjectId);
         });
     }
     
@@ -194,7 +194,7 @@ namespace LOICollection::Plugins {
 
             this->mParent.remove(id);
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "notice.log3"), pl)), id);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "notice.log3"), pl)), id);
         });
     }
 
@@ -248,9 +248,9 @@ namespace LOICollection::Plugins {
         for (const auto& pair : mContent) {
             const nlohmann::ordered_json& mObject = data.at(pair.first);
             
-            ll::form::CustomForm form(LOICollectionAPI::translateString(mObject.value("title", ""), player));
+            ll::form::CustomForm form(LOICollectionAPI::APIUtils::getInstance().translateString(mObject.value("title", ""), player));
             for (const auto& line : mObject.value("content", nlohmann::ordered_json::array()))
-                form.appendLabel(LOICollectionAPI::translateString(line, player));
+                form.appendLabel(LOICollectionAPI::APIUtils::getInstance().translateString(line, player));
             form.sendTo(player);
         }
     }
@@ -261,9 +261,9 @@ namespace LOICollection::Plugins {
             return;
         }
 
-        ll::form::CustomForm form(LOICollectionAPI::translateString(this->mParent.getDatabase()->get_ptr<std::string>("/" + id + "/title", ""), player));
+        ll::form::CustomForm form(LOICollectionAPI::APIUtils::getInstance().translateString(this->mParent.getDatabase()->get_ptr<std::string>("/" + id + "/title", ""), player));
         for (const auto& line : this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/content"))
-            form.appendLabel(LOICollectionAPI::translateString(line, player));
+            form.appendLabel(LOICollectionAPI::APIUtils::getInstance().translateString(line, player));
         form.sendTo(player);
     }
 
@@ -281,7 +281,7 @@ namespace LOICollection::Plugins {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         ll::form::SimpleForm form(tr(mObjectLanguage, "notice.gui.title"), tr(mObjectLanguage, "notice.gui.label"));
         for (const auto& pair : mContent) {
-            form.appendButton(LOICollectionAPI::translateString(data.at(pair.first).value("title", ""), player), [this, id = pair.first](Player& pl) {
+            form.appendButton(LOICollectionAPI::APIUtils::getInstance().translateString(data.at(pair.first).value("title", ""), player), [this, id = pair.first](Player& pl) {
                 this->notice(pl, id);
             });
         }

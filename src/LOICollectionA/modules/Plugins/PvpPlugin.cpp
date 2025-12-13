@@ -167,11 +167,11 @@ namespace LOICollection::Plugins {
         this->mImpl->db->set("OBJECT$" + mObject, "Pvp_Enable", (value ? "true" : "false"));
 
         if (value) {
-            this->getLogger()->info(LOICollectionAPI::getVariableString(tr({}, "pvp.log1"), player));
+            this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "pvp.log1"), player));
             return;
         }
         
-        this->getLogger()->info(LOICollectionAPI::getVariableString(tr({}, "pvp.log2"), player));
+        this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "pvp.log2"), player));
     }
 
     bool PvpPlugin::isEnable(Player& player) {

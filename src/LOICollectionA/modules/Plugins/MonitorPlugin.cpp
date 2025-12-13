@@ -81,7 +81,7 @@ namespace LOICollection::Plugins {
                         if (mTarget.isSimulatedPlayer())
                             return true;
 
-                        std::string mNameTag = LOICollectionAPI::translateString(mName, mTarget);
+                        std::string mNameTag = LOICollectionAPI::APIUtils::getInstance().translateString(mName, mTarget);
 
                         SetActorDataPacket packet(mTarget.getRuntimeID(), mTarget.mEntityData, 
                             nullptr, mTarget.mLevel->getCurrentTick().tickID, false
@@ -102,7 +102,7 @@ namespace LOICollection::Plugins {
                 return;
 
             TextPacket::createSystemMessage(
-                LOICollectionAPI::translateString(option.FormatText.join, event.self())
+                LOICollectionAPI::APIUtils::getInstance().translateString(option.FormatText.join, event.self())
             ).sendToClients();
 
             mInterceptTextObjectPacket.push_back(event.self().getUuid().asString());
@@ -113,7 +113,7 @@ namespace LOICollection::Plugins {
                 return;
 
             TextPacket::createSystemMessage(
-                LOICollectionAPI::translateString(option.FormatText.exit, event.self())
+                LOICollectionAPI::APIUtils::getInstance().translateString(option.FormatText.exit, event.self())
             ).sendToClients();
 
             mInterceptTextObjectPacket.erase(std::remove(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), event.self().getUuid().asString()), mInterceptTextObjectPacket.end());
@@ -139,7 +139,7 @@ namespace LOICollection::Plugins {
                     mOriScore
                 );
                 
-                event.self().sendMessage(LOICollectionAPI::translateString(mMessage, event.self()));
+                event.self().sendMessage(LOICollectionAPI::APIUtils::getInstance().translateString(mMessage, event.self()));
             }
         }));
 
@@ -161,7 +161,7 @@ namespace LOICollection::Plugins {
                     return;
                 auto player = static_cast<Player*>(entity);
 
-                player->sendMessage(LOICollectionAPI::translateString(option.FormatText, *player));
+                player->sendMessage(LOICollectionAPI::APIUtils::getInstance().translateString(option.FormatText, *player));
             }
         }));
 

@@ -322,7 +322,7 @@ namespace LOICollection::Plugins {
 
         transaction.commit();
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "mute.log1"), player)), mCause);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "mute.log1"), player)), mCause);
 
         for (auto& fn : this->mImpl->onMuteAdds)
             fn(mTimestamp);

@@ -168,7 +168,7 @@ namespace LOICollection::Plugins {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         
         ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
-        form.appendLabel(LOICollectionAPI::translateString(tr(mObjectLanguage, "chat.gui.setTitle.label"), player));
+        form.appendLabel(LOICollectionAPI::APIUtils::getInstance().translateString(tr(mObjectLanguage, "chat.gui.setTitle.label"), player));
         form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.setTitle.dropdown"), this->mParent.getTitles(player));
         form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) mutable -> void {
             if (!dt) return this->setting(pl);
@@ -178,7 +178,7 @@ namespace LOICollection::Plugins {
 
             this->mParent.mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", std::get<std::string>(dt->at("dropdown")));
             
-            this->mParent.getLogger()->info(LOICollectionAPI::getVariableString(tr({}, "chat.log1"), pl));
+            this->mParent.getLogger()->info(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "chat.log1"), pl));
         });
     }
 
@@ -384,7 +384,7 @@ namespace LOICollection::Plugins {
 
             event.cancel();
 
-            std::string mChat = LOICollectionAPI::translateString(this->mImpl->options.FormatText, event.self());
+            std::string mChat = LOICollectionAPI::APIUtils::getInstance().translateString(this->mImpl->options.FormatText, event.self());
             
             TextPacket packet = TextPacket::createChat("", 
                 fmt::format(fmt::runtime(mChat), event.message()), 
@@ -414,7 +414,7 @@ namespace LOICollection::Plugins {
         
         this->getDatabase()->set("Titles", mObject + "." + text, time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
         
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log2"), player)), text);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "chat.log2"), player)), text);
     }
 
     void ChatPlugin::addBlacklist(Player& player, Player& target) {
@@ -429,7 +429,7 @@ namespace LOICollection::Plugins {
         this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
         this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log5"), player)), mTargetObject);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "chat.log5"), player)), mTargetObject);
 
         if (this->mImpl->BlacklistCache.contains(mObject))
             this->mImpl->BlacklistCache.update(mObject, [mTargetObject](std::vector<std::string>& mList) -> void {
@@ -450,7 +450,7 @@ namespace LOICollection::Plugins {
         if (this->mImpl->db2->get("OBJECT$" + mObject, "Chat_Title", "None") == text)
             this->mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", "None");
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log3"), player)), text);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "chat.log3"), player)), text);
     }
 
     void ChatPlugin::delBlacklist(Player& player, const std::string& target) {
@@ -463,7 +463,7 @@ namespace LOICollection::Plugins {
         if (this->getDatabase()->hasByPrefix("Blacklist", mObject + "." + target + "_TIME", 2))
             this->getDatabase()->delByPrefix("Blacklist", mObject + "." + target);
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::getVariableString(tr({}, "chat.log6"), player)), target);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "chat.log6"), player)), target);
 
         this->mImpl->BlacklistCache.update(mObject, [target](std::vector<std::string>& mList) -> void {
             mList.erase(std::remove(mList.begin(), mList.end(), target), mList.end());
