@@ -9,6 +9,10 @@
 #include "LOICollectionA/frontend/Parser.h"
 
 namespace LOICollection::frontend {
+    Parser::Parser(Lexer& l) : lexer(l) {
+        current_token = lexer.getNextToken();
+    }
+
     std::unique_ptr<ASTNode> Parser::parse() {
         std::unique_ptr<TemplateNode> tpl = std::make_unique<TemplateNode>();
 

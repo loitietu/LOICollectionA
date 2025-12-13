@@ -4,10 +4,12 @@
 
 #include "LOICollectionA/frontend/AST.h"
 
+#include "LOICollectionA/base/Macro.h"
+
 namespace LOICollection::frontend {
     class Evaluator final {
     public:
-        std::string evaluate(const ASTNode& root);
+        LOICOLLECTION_A_NDAPI std::string evaluate(const ASTNode& root);
 
     private:
         using Value = ValueNode::ValueType;

@@ -1,7 +1,8 @@
 #pragma once
 
 #include <string>
-#include <utility>
+
+#include "LOICollectionA/base/Macro.h"
 
 namespace LOICollection::frontend {
     enum class TokenType {
@@ -25,14 +26,12 @@ namespace LOICollection::frontend {
         char current_char;
 
     public:
-        Lexer(std::string str) : input(std::move(str)), position(0) {
-            current_char = input.empty() ? static_cast<char>(0) : input[0];
-        }
+        LOICOLLECTION_A_API   Lexer(std::string str);
 
-        void advance();
+        LOICOLLECTION_A_API   void advance();
 
-        Token getNextToken();
-        Token peekNextToken();
+        LOICOLLECTION_A_NDAPI Token getNextToken();
+        LOICOLLECTION_A_NDAPI Token peekNextToken();
 
     private:
         Token parseString(char delimiter);

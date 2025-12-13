@@ -6,17 +6,17 @@
 #include "LOICollectionA/frontend/AST.h"
 #include "LOICollectionA/frontend/Lexer.h"
 
+#include "LOICollectionA/base/Macro.h"
+
 namespace LOICollection::frontend {
     class Parser final {
         Lexer& lexer;
         Token current_token;
 
     public:
-        Parser(Lexer& l) : lexer(l) {
-            current_token = lexer.getNextToken();
-        }
+        LOICOLLECTION_A_API   Parser(Lexer& l);
 
-        std::unique_ptr<ASTNode> parse();
+        LOICOLLECTION_A_NDAPI std::unique_ptr<ASTNode> parse();
     private:
         std::unique_ptr<IfNode> parseIfStatement(TokenType falsePartToken = TokenType::TOKEN_RBRCKET);
         std::unique_ptr<FunctionNode> parseFunction();

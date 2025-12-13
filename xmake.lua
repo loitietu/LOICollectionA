@@ -50,7 +50,7 @@ target("LOICollectionA")
     add_includedirs("src")
     add_headerfiles("src/(LOICollectionA/**.h)")
     remove_headerfiles(
-        "src/LOICollectionA/(frontend/**.h)",
+        "src/LOICollectionA/frontend/(builtin/**.h)",
         "src/LOICollectionA/(utils/**.h)",
         "src/LOICollectionA/*.h"
     )

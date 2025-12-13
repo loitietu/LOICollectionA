@@ -1,12 +1,16 @@
-#include <cstddef>
 #include <string>
-#include <stdexcept>
+#include <cstddef>
 #include <cstring>
 #include <utility>
+#include <stdexcept>
 
 #include "LOICollectionA/frontend/Lexer.h"
 
 namespace LOICollection::frontend {
+    Lexer::Lexer(std::string str)  : input(std::move(str)), position(0) {
+        current_char = input.empty() ? static_cast<char>(0) : input[0];
+    }
+
     void Lexer::advance() {
         position++;
         current_char = (position < input.size()) ? input[position] : static_cast<char>(0);
