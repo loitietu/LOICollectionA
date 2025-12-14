@@ -28,7 +28,7 @@ namespace LOICollection::Plugins {
         OutputConsole
     };
 
-    class BehaviorEventPlugin final {
+    class BehaviorEventPlugin {
     public:
         struct Event;
 

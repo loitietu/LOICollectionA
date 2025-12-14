@@ -18,7 +18,7 @@ namespace SQLite {
 
 class SQLiteConnectionPool;
 
-class SQLiteStorage final {
+class SQLiteStorage {
 protected:
     std::unique_ptr<SQLiteConnectionPool> writeConnectionPool;
     std::unique_ptr<SQLiteConnectionPool> readConnectionPool;

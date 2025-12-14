@@ -9,7 +9,7 @@
 class Player;
 
 namespace LOICollection::LOICollectionAPI {
-    class APIUtils final {
+    class APIUtils {
     public:
         LOICOLLECTION_A_NDAPI static APIUtils& getInstance();
 

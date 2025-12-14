@@ -15,7 +15,7 @@ namespace ll::io {
 }
 
 namespace LOICollection::Plugins {
-    class BlacklistPlugin final {
+    class BlacklistPlugin {
     public:
         LOICOLLECTION_A_NDAPI static BlacklistPlugin& getInstance();
 

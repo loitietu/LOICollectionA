@@ -9,7 +9,7 @@ namespace ll::io {
 }
 
 namespace LOICollection::ProtableTool{
-    class RedStone final {
+    class RedStone {
     public:
         LOICOLLECTION_A_NDAPI static RedStone& getInstance();
 

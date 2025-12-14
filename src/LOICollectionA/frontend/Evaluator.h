@@ -7,7 +7,7 @@
 #include "LOICollectionA/base/Macro.h"
 
 namespace LOICollection::frontend {
-    class Evaluator final {
+    class Evaluator {
     public:
         LOICOLLECTION_A_NDAPI std::string evaluate(const ASTNode& root);
 

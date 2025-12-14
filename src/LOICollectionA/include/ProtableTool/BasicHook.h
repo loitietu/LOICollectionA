@@ -5,7 +5,7 @@
 #include "LOICollectionA/base/Macro.h"
 
 namespace LOICollection::ProtableTool {
-    class BasicHook final {
+    class BasicHook {
     public:
         LOICOLLECTION_A_NDAPI static BasicHook& getInstance();
 

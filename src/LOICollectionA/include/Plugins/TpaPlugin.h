@@ -19,7 +19,7 @@ namespace LOICollection::Plugins {
         tphere
     };
 
-    class TpaPlugin final {
+    class TpaPlugin {
     public:
         LOICOLLECTION_A_NDAPI static TpaPlugin& getInstance();
 

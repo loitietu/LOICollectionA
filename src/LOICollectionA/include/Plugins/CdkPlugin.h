@@ -13,7 +13,7 @@ namespace ll::io {
 }
 
 namespace LOICollection::Plugins {
-    class CdkPlugin final {
+    class CdkPlugin {
     public:
         LOICOLLECTION_A_NDAPI static CdkPlugin& getInstance();
 

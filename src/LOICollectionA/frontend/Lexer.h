@@ -20,7 +20,7 @@ namespace LOICollection::frontend {
         size_t pos;
     };
     
-    class Lexer final {
+    class Lexer {
         std::string input;
         size_t position;
         char current_char;

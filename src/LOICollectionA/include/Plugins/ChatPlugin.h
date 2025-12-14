@@ -14,7 +14,7 @@ namespace ll::io {
 }
 
 namespace LOICollection::Plugins {
-    class ChatPlugin final {
+    class ChatPlugin {
     public:
         LOICOLLECTION_A_NDAPI static ChatPlugin& getInstance();
 

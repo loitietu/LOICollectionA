@@ -11,7 +11,7 @@ namespace ll::io {
 }
 
 namespace LOICollection::Plugins {
-    class PvpPlugin final {
+    class PvpPlugin {
     public:
         LOICOLLECTION_A_NDAPI static PvpPlugin& getInstance();
 

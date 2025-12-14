@@ -9,7 +9,7 @@
 #include "LOICollectionA/base/Macro.h"
 
 namespace LOICollection::frontend {
-    class Parser final {
+    class Parser {
         Lexer& lexer;
         Token current_token;
 

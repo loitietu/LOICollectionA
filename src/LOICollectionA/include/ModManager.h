@@ -9,7 +9,7 @@
 
 namespace LOICollection::modules {
     class ModRegistry;
-    class ModManager final {
+    class ModManager {
     public:
         static ModManager& getInstance() {
             static ModManager instance;
