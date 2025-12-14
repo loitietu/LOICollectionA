@@ -1,3 +1,4 @@
+#include <mutex>
 #include <atomic>
 #include <memory>
 #include <string>
@@ -70,6 +71,8 @@ namespace LOICollection::Plugins {
     };
 
     struct MutePlugin::Impl {
+        std::mutex mFnMutex;
+
         std::vector<std::function<void(const std::string&)>> onMuteAdds;
         std::vector<std::function<void(const std::string&)>> onMuteDels;
 
@@ -351,10 +354,14 @@ namespace LOICollection::Plugins {
     }
 
     void MutePlugin::onMuteAdd(std::function<void(const std::string&)> fn) {
+        std::lock_guard lock(this->mImpl->mFnMutex);
+
         this->mImpl->onMuteAdds.push_back(fn);
     }
 
     void MutePlugin::onMuteDel(std::function<void(const std::string&)> fn) {
+        std::lock_guard lock(this->mImpl->mFnMutex);
+
         this->mImpl->onMuteDels.push_back(fn);
     }
 

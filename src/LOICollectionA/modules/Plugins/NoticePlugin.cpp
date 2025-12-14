@@ -1,3 +1,4 @@
+#include <mutex>
 #include <atomic>
 #include <memory>
 #include <string>
@@ -60,6 +61,8 @@ namespace LOICollection::Plugins {
 
     struct NoticePlugin::Impl {
         LRUKCache<std::string, bool> CloseCache;
+
+        std::mutex mFnMutex;
 
         std::vector<std::function<void(const std::string&)>> onNoticeCreates;
         std::vector<std::function<void(const std::string&)>> onNoticeRemoves;
@@ -393,10 +396,14 @@ namespace LOICollection::Plugins {
     }
 
     void NoticePlugin::onNoticeCreate(std::function<void(const std::string&)> fn) {
+        std::lock_guard lock(this->mImpl->mFnMutex);
+
         this->mImpl->onNoticeCreates.push_back(fn);
     }
 
     void NoticePlugin::onNoticeRemove(std::function<void(const std::string&)> fn) {
+        std::lock_guard lock(this->mImpl->mFnMutex);
+
         this->mImpl->onNoticeRemoves.push_back(fn);
     }
 

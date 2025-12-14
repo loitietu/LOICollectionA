@@ -1,3 +1,4 @@
+#include <mutex>
 #include <atomic>
 #include <memory>
 #include <vector>
@@ -70,6 +71,8 @@ namespace LOICollection::Plugins {
     };
 
     struct MenuPlugin::Impl {
+        std::mutex mFnMutex;
+
         std::vector<std::function<void(const std::string&)>> onMenuCreates;
         std::vector<std::function<void(const std::string&)>> onMenuRemoves;
 
@@ -870,10 +873,14 @@ namespace LOICollection::Plugins {
     }
 
     void MenuPlugin::onMenuCreate(std::function<void(const std::string&)> fn) {
+        std::lock_guard lock(this->mImpl->mFnMutex);
+
         this->mImpl->onMenuCreates.push_back(fn);
     }
 
     void MenuPlugin::onMenuRemove(std::function<void(const std::string&)> fn) {
+        std::lock_guard lock(this->mImpl->mFnMutex);
+
         this->mImpl->onMenuRemoves.push_back(fn);
     }
 

@@ -1,3 +1,4 @@
+#include <mutex>
 #include <atomic>
 #include <memory>
 #include <string>
@@ -68,6 +69,8 @@ namespace LOICollection::Plugins {
     };
 
     struct ShopPlugin::Impl {
+        std::mutex mFnMutex;
+
         std::vector<std::function<void(const std::string&)>> onShopCreates;
         std::vector<std::function<void(const std::string&)>> onShopRemoves;
 
@@ -668,10 +671,14 @@ namespace LOICollection::Plugins {
     }
 
     void ShopPlugin::onShopCreate(std::function<void(const std::string&)> fn) {
+        std::lock_guard lock(this->mImpl->mFnMutex);
+
         this->mImpl->onShopCreates.push_back(fn);
     }
 
     void ShopPlugin::onShopRemove(std::function<void(const std::string&)> fn) {
+        std::lock_guard lock(this->mImpl->mFnMutex);
+
         this->mImpl->onShopRemoves.push_back(fn);
     }
 

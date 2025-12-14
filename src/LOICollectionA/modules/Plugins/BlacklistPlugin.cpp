@@ -1,3 +1,4 @@
+#include <mutex>
 #include <atomic>
 #include <memory>
 #include <vector>
@@ -81,6 +82,8 @@ namespace LOICollection::Plugins {
     };
 
     struct BlacklistPlugin::Impl {
+        std::mutex mFnMutex;
+
         std::vector<std::function<void(const std::string&)>> mBlacklistAdds;
         std::vector<std::function<void(const std::string&)>> mBlacklistDels;
 
@@ -365,10 +368,14 @@ namespace LOICollection::Plugins {
     }
 
     void BlacklistPlugin::onBlacklistAdd(std::function<void(const std::string&)> fn) {
+        std::lock_guard lock(this->mImpl->mFnMutex);
+
         this->mImpl->mBlacklistAdds.push_back(fn);
     }
 
     void BlacklistPlugin::onBlacklistDel(std::function<void(const std::string&)> fn) {
+        std::lock_guard lock(this->mImpl->mFnMutex);
+
         this->mImpl->mBlacklistDels.push_back(fn);
     }
 
