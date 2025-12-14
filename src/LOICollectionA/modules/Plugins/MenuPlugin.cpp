@@ -143,7 +143,7 @@ namespace LOICollection::Plugins {
             nlohmann::ordered_json mData = {
                 { "title", mObjectTitle },
                 { "info", nlohmann::ordered_json::object() },
-                { "permission", std::to_string((int) std::get<double>(dt->at("Slider"))) }
+                { "permission", (int) std::get<double>(dt->at("Slider")) }
             };
 
             switch (type) {
