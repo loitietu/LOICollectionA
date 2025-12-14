@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <ranges>
 #include <string>
@@ -42,6 +43,8 @@ using I18nUtilsTools::tr;
 namespace LOICollection::Plugins {
     struct LanguagePlugin::Impl {
         LRUKCache<std::string, std::string> Cache;
+
+        std::atomic<bool> mRegistered{ false };
 
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
@@ -164,6 +167,9 @@ namespace LOICollection::Plugins {
     }
 
     bool LanguagePlugin::load() {
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            return true;
+
         this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
 
@@ -174,12 +180,17 @@ namespace LOICollection::Plugins {
         this->mImpl->db.reset();
         this->mImpl->logger.reset();
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            this->unlistenEvent();
+
         return true;
     }
 
     bool LanguagePlugin::registry() {
         this->registeryCommand();
         this->listenEvent();
+
+        this->mImpl->mRegistered.store(true, std::memory_order_release);
 
         return true;
     }
@@ -188,6 +199,8 @@ namespace LOICollection::Plugins {
         this->unlistenEvent();
 
         this->mImpl->db->exec("VACUUM;");
+
+        this->mImpl->mRegistered.store(false, std::memory_order_release);
 
         return true;
     }

@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -31,6 +32,8 @@ namespace LOICollection::ProtableTool {
     struct OrderedUI::Impl {
         std::unordered_map<uint64, uint> mFormResponse;
         std::unordered_map<uint64, std::unordered_map<uint, std::string>> mFormLists;
+
+        std::atomic<bool> mRegistered{ false };
 
         bool ModuleEnabled = false;
 
@@ -120,6 +123,9 @@ namespace LOICollection::ProtableTool {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.OrderedUI)
             return false;
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            return true;
+
         this->mImpl->ModuleEnabled = true;
 
         return true;
@@ -131,6 +137,9 @@ namespace LOICollection::ProtableTool {
 
         this->mImpl->ModuleEnabled = false;
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            this->unlistenEvent();
+
         return true;
     }
 
@@ -140,6 +149,8 @@ namespace LOICollection::ProtableTool {
 
         this->listenEvent();
 
+        this->mImpl->mRegistered.store(true, std::memory_order_release);
+
         return true;
     }
 
@@ -148,6 +159,8 @@ namespace LOICollection::ProtableTool {
             return false;
 
         this->unlistenEvent();
+
+        this->mImpl->mRegistered.store(false, std::memory_order_release);
 
         return true;
     }

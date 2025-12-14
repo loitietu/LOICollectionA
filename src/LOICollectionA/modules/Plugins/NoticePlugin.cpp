@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -62,6 +63,8 @@ namespace LOICollection::Plugins {
 
         std::vector<std::function<void(const std::string&)>> onNoticeCreates;
         std::vector<std::function<void(const std::string&)>> onNoticeRemoves;
+
+        std::atomic<bool> mRegistered{ false };
 
         bool ModuleEnabled = false;
 
@@ -422,6 +425,9 @@ namespace LOICollection::Plugins {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Notice)
             return false;
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            return true;
+
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("ConfigPath")->data());
 
         this->mImpl->db = std::make_unique<JsonStorage>(mDataPath / "notice.json");
@@ -441,6 +447,9 @@ namespace LOICollection::Plugins {
         this->mImpl->logger.reset();
         this->mImpl->ModuleEnabled = false;
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            this->unlistenEvent();
+
         return true;
     }
 
@@ -450,6 +459,8 @@ namespace LOICollection::Plugins {
 
         this->registeryCommand();
         this->listenEvent();
+
+        this->mImpl->mRegistered.store(true, std::memory_order_release);
 
         return true;
     }
@@ -461,6 +472,8 @@ namespace LOICollection::Plugins {
         this->unlistenEvent();
 
         this->getDatabase()->save();
+
+        this->mImpl->mRegistered.store(false, std::memory_order_release);
 
         return true;
     }

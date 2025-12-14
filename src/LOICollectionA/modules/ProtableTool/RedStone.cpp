@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <unordered_map>
 
@@ -5,11 +6,14 @@
 #include <ll/api/io/LoggerRegistry.h>
 
 #include <ll/api/coro/CoroTask.h>
-#include <ll/api/chrono/GameChrono.h>
+#include <ll/api/coro/InterruptableSleep.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
+
+#include <ll/api/chrono/GameChrono.h>
+#include <ll/api/service/Bedrock.h>
+
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
-#include <ll/api/service/Bedrock.h>
 
 #include <mc/world/level/Level.h>
 #include <mc/world/level/BlockPos.h>
@@ -36,6 +40,8 @@ namespace LOICollection::ProtableTool {
     struct RedStone::Impl {
         std::unordered_map<int, std::unordered_map<BlockPos, int>> mRedStoneMap;
 
+        std::atomic<bool> mRegistered{ false };
+
         bool ModuleEnabled = false;
         int mRedStoneTick = 0;
 
@@ -43,7 +49,9 @@ namespace LOICollection::ProtableTool {
 
         ll::event::ListenerPtr mRedStoneEventListener;
 
-        bool RedStoneTaskRunning = false;
+        ll::coro::InterruptableSleep RedStoneTaskSleep;
+
+        std::atomic<bool> RedStoneTaskRunning{ false };
     };
 
     RedStone::RedStone() : mImpl(std::make_unique<Impl>()) {};
@@ -59,11 +67,12 @@ namespace LOICollection::ProtableTool {
     }
 
     void RedStone::listenEvent() {
-        this->mImpl->RedStoneTaskRunning = true;
+        this->mImpl->RedStoneTaskRunning.store(true, std::memory_order_release);
 
         ll::coro::keepThis([this]() -> ll::coro::CoroTask<> {
-            while (this->mImpl->RedStoneTaskRunning) {
-                co_await ll::chrono::ticks(20);
+            while (this->mImpl->RedStoneTaskRunning.load(std::memory_order_acquire)) {
+                co_await this->mImpl->RedStoneTaskSleep.sleepFor(ll::chrono::ticks(20));
+
                 if (this->mImpl->mRedStoneMap.empty()) 
                     continue;
 
@@ -88,15 +97,20 @@ namespace LOICollection::ProtableTool {
     }
     
     void RedStone::unlistenEvent() {
-        this->mImpl->RedStoneTaskRunning = false;
-
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->mRedStoneEventListener);
+
+        this->mImpl->RedStoneTaskRunning.store(false, std::memory_order_release);
+
+        this->mImpl->RedStoneTaskSleep.interrupt();
     }
 
     bool RedStone::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.RedStone)
             return false;
+
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            return true;
 
         this->mImpl->mRedStoneTick = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.RedStone;
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
@@ -111,6 +125,9 @@ namespace LOICollection::ProtableTool {
         
         this->mImpl->logger.reset();
         this->mImpl->ModuleEnabled = false;
+
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            this->unlistenEvent();
         
         return true;
     }
@@ -121,6 +138,8 @@ namespace LOICollection::ProtableTool {
 
         this->listenEvent();
 
+        this->mImpl->mRegistered.store(true, std::memory_order_release);
+
         return true;
     }
 
@@ -129,6 +148,8 @@ namespace LOICollection::ProtableTool {
             return false;
 
         this->unlistenEvent();
+
+        this->mImpl->mRegistered.store(false, std::memory_order_release);
 
         return true;
     }

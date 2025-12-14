@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -49,6 +50,8 @@ namespace LOICollection::Plugins {
         LRUKCache<std::string, bool> PvpCache;
 
         Throttle mThrottle;
+
+        std::atomic<bool> mRegistered{ false };
 
         bool ModuleEnabled = false;
 
@@ -199,6 +202,9 @@ namespace LOICollection::Plugins {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Pvp)
             return false;
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            return true;
+
         this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
@@ -214,6 +220,9 @@ namespace LOICollection::Plugins {
         this->mImpl->logger.reset();
         this->mImpl->ModuleEnabled = false;
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            this->unlistenEvent();
+
         return true;
     }
 
@@ -224,6 +233,8 @@ namespace LOICollection::Plugins {
         this->registeryCommand();
         this->listenEvent();
 
+        this->mImpl->mRegistered.store(true, std::memory_order_release);
+
         return true;
     }
 
@@ -232,6 +243,8 @@ namespace LOICollection::Plugins {
             return false;
 
         this->unlistenEvent();
+
+        this->mImpl->mRegistered.store(false, std::memory_order_release);
 
         return true;
     }

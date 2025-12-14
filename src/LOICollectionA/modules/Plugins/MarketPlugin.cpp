@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -58,6 +59,8 @@ using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
     struct MarketPlugin::Impl {
+        std::atomic<bool> mRegistered{ false };
+
         C_Config::C_Plugins::C_Market options;
 
         std::unique_ptr<SQLiteStorage> db;
@@ -534,6 +537,9 @@ namespace LOICollection::Plugins {
     bool MarketPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Market.ModuleEnabled)
             return false;
+
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            return true;
         
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
 
@@ -554,6 +560,9 @@ namespace LOICollection::Plugins {
         this->mImpl->logger.reset();
         this->mImpl->options = {};
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            this->unlistenEvent();
+
         return true;
     }
 
@@ -567,6 +576,8 @@ namespace LOICollection::Plugins {
         this->registeryCommand();
         this->listenEvent();
 
+        this->mImpl->mRegistered.store(true, std::memory_order_release);
+
         return true;
     }
 
@@ -577,6 +588,8 @@ namespace LOICollection::Plugins {
         this->unlistenEvent();
 
         this->getDatabase()->exec("VACUUM;");
+
+        this->mImpl->mRegistered.store(false, std::memory_order_release);
 
         return true;
     }

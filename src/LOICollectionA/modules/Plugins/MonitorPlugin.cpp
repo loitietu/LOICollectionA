@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <ranges>
 #include <string>
@@ -5,8 +6,10 @@
 #include <unordered_map>
 
 #include <ll/api/coro/CoroTask.h>
-#include <ll/api/chrono/GameChrono.h>
+#include <ll/api/coro/InterruptableSleep.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
+
+#include <ll/api/chrono/GameChrono.h>
 #include <ll/api/service/Bedrock.h>
 
 #include <ll/api/event/EventBus.h>
@@ -56,11 +59,15 @@ std::vector<std::string> mInterceptTextObjectPacket;
 
 namespace LOICollection::Plugins {
     struct MonitorPlugin::Impl {
+        std::atomic<bool> mRegistered{ false };
+
         C_Config::C_Plugins::C_Monitor options;
 
         std::unordered_map<std::string, ll::event::ListenerPtr> mListeners;
 
-        bool BelowNameTaskRunning = true;
+        ll::coro::InterruptableSleep BelowNameTaskSleep;
+
+        std::atomic<bool> BelowNameTaskRunning{ true };
     };
 
     MonitorPlugin::MonitorPlugin() : mImpl(std::make_unique<Impl>()) {};
@@ -74,8 +81,8 @@ namespace LOICollection::Plugins {
     void MonitorPlugin::listenEvent() {
         if (this->mImpl->options.BelowName.ModuleEnabled) {
             ll::coro::keepThis([this, option = this->mImpl->options.BelowName]() -> ll::coro::CoroTask<> {
-                while (this->mImpl->BelowNameTaskRunning) {
-                    co_await ll::chrono::ticks(option.RefreshInterval);
+                while (this->mImpl->BelowNameTaskRunning.load(std::memory_order_acquire)) {
+                    co_await this->mImpl->BelowNameTaskSleep.sleepFor(ll::chrono::ticks(option.RefreshInterval));
 
                     ll::service::getLevel()->forEachPlayer([mName = option.FormatText](Player& mTarget) -> bool {
                         if (mTarget.isSimulatedPlayer())
@@ -222,12 +229,19 @@ namespace LOICollection::Plugins {
         for (auto& listener : this->mImpl->mListeners)
             eventBus.removeListener(listener.second);
 
-        this->mImpl->BelowNameTaskRunning = false;
+        this->mImpl->mListeners.clear();
+
+        this->mImpl->BelowNameTaskRunning.store(false, std::memory_order_release);
+
+        this->mImpl->BelowNameTaskSleep.interrupt();
     }
 
     bool MonitorPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Monitor.ModuleEnabled)
             return false;
+
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            return true;
 
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Monitor;
 
@@ -240,6 +254,9 @@ namespace LOICollection::Plugins {
 
         this->mImpl->options = {};
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            this->unlistenEvent();
+
         return true;
     }
 
@@ -249,6 +266,8 @@ namespace LOICollection::Plugins {
 
         this->listenEvent();
 
+        this->mImpl->mRegistered.store(true, std::memory_order_release);
+
         return true;
     }
 
@@ -257,6 +276,8 @@ namespace LOICollection::Plugins {
             return false;
 
         this->unlistenEvent();
+
+        this->mImpl->mRegistered.store(false, std::memory_order_release);
 
         return true;
     }

@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <string>
 #include <filesystem>
@@ -69,6 +70,8 @@ namespace LOICollection::Plugins {
     struct ShopPlugin::Impl {
         std::vector<std::function<void(const std::string&)>> onShopCreates;
         std::vector<std::function<void(const std::string&)>> onShopRemoves;
+
+        std::atomic<bool> mRegistered{ false };
 
         bool ModuleEnabled = false;
 
@@ -716,6 +719,9 @@ namespace LOICollection::Plugins {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Shop)
             return false;
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            return true;
+
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("ConfigPath")->data());
 
         this->mImpl->db = std::make_unique<JsonStorage>(mDataPath / "shop.json");
@@ -742,6 +748,8 @@ namespace LOICollection::Plugins {
         
         this->registeryCommand();
 
+        this->mImpl->mRegistered.store(true, std::memory_order_release);
+
         return true;
     }
 
@@ -750,6 +758,8 @@ namespace LOICollection::Plugins {
             return false;
 
         this->getDatabase()->save();
+
+        this->mImpl->mRegistered.store(false, std::memory_order_release);
 
         return true;
     }

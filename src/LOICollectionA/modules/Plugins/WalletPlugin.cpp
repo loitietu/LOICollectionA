@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -80,6 +81,8 @@ namespace LOICollection::Plugins {
 
     struct WalletPlugin::Impl {
         std::unordered_map<std::string, std::vector<RedEnvelopeEntry>> mRedEnvelopeMap;
+
+        std::atomic<bool> mRegistered{ false };
 
         C_Config::C_Plugins::C_Wallet options;
         
@@ -430,6 +433,9 @@ namespace LOICollection::Plugins {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Wallet.ModuleEnabled)
             return false;
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            return true;
+
         this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Wallet;
@@ -445,6 +451,9 @@ namespace LOICollection::Plugins {
         this->mImpl->logger.reset();
         this->mImpl->options = {};
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            this->unlistenEvent();
+
         return true;
     }
 
@@ -454,6 +463,8 @@ namespace LOICollection::Plugins {
         
         this->registeryCommand();
         this->listenEvent();
+
+        this->mImpl->mRegistered.store(true, std::memory_order_release);
 
         return true;
     }
@@ -470,6 +481,8 @@ namespace LOICollection::Plugins {
         }
 
         this->mImpl->mRedEnvelopeMap.clear();
+
+        this->mImpl->mRegistered.store(false, std::memory_order_release);
 
         return true;
     }

@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <string>
 
@@ -24,6 +25,8 @@
 
 namespace LOICollection::ProtableTool {
     struct BasicHook::Impl {
+        std::atomic<bool> mRegistered{ false };
+
         C_Config::C_ProtableTool::C_BasicHook options;
 
         ll::event::ListenerPtr NetworkPacketEventListener;
@@ -64,6 +67,9 @@ namespace LOICollection::ProtableTool {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.BasicHook.ModuleEnabled)
             return false;
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            return true;
+
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.BasicHook;
 
         return true;
@@ -74,6 +80,9 @@ namespace LOICollection::ProtableTool {
             return false;
 
         this->mImpl->options = {};
+
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            this->unlistenEvent();
         
         return true;
     }
@@ -83,6 +92,8 @@ namespace LOICollection::ProtableTool {
             return false;
 
         this->listenEvent();
+
+        this->mImpl->mRegistered.store(true, std::memory_order_release);
         
         return true;
     }
@@ -92,6 +103,8 @@ namespace LOICollection::ProtableTool {
             return false;
         
         this->unlistenEvent();
+
+        this->mImpl->mRegistered.store(false, std::memory_order_release);
 
         return true;
     }

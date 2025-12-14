@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <vector>
 #include <string>
@@ -82,6 +83,8 @@ namespace LOICollection::Plugins {
     struct BlacklistPlugin::Impl {
         std::vector<std::function<void(const std::string&)>> mBlacklistAdds;
         std::vector<std::function<void(const std::string&)>> mBlacklistDels;
+
+        std::atomic<bool> mRegistered{ false };
 
         bool ModuleEnabled = false;
         
@@ -429,6 +432,9 @@ namespace LOICollection::Plugins {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Blacklist)
             return false;
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            return true;
+
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
 
         this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "blacklist.db").string());
@@ -446,6 +452,9 @@ namespace LOICollection::Plugins {
         this->mImpl->logger.reset();
         this->mImpl->ModuleEnabled = false;
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            this->unlistenEvent();
+
         return true;
     }
 
@@ -458,6 +467,8 @@ namespace LOICollection::Plugins {
         this->registeryCommand();
         this->listenEvent();
 
+        this->mImpl->mRegistered.store(true, std::memory_order_release);
+
         return true;
     }
 
@@ -468,6 +479,8 @@ namespace LOICollection::Plugins {
         this->unlistenEvent();
 
         this->getDatabase()->exec("VACUUM;");
+
+        this->mImpl->mRegistered.store(false, std::memory_order_release);
 
         return true;
     }

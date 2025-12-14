@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <vector>
 #include <string>
@@ -71,6 +72,8 @@ namespace LOICollection::Plugins {
     struct MenuPlugin::Impl {
         std::vector<std::function<void(const std::string&)>> onMenuCreates;
         std::vector<std::function<void(const std::string&)>> onMenuRemoves;
+
+        std::atomic<bool> mRegistered{ false };
 
         C_Config::C_Plugins::C_Menu options;
         
@@ -933,6 +936,9 @@ namespace LOICollection::Plugins {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Menu.ModuleEnabled)
             return false;
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            return true;
+
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("ConfigPath")->data());
 
         this->mImpl->db = std::make_unique<JsonStorage>(mDataPath / "menu.json");
@@ -950,6 +956,9 @@ namespace LOICollection::Plugins {
         this->mImpl->logger.reset();
         this->mImpl->options = {};
 
+        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
+            this->unlistenEvent();
+
         return true;
     }
 
@@ -959,6 +968,8 @@ namespace LOICollection::Plugins {
         
         this->registeryCommand();
         this->listenEvent();
+
+        this->mImpl->mRegistered.store(true, std::memory_order_release);
 
         return true;
     }
@@ -970,6 +981,8 @@ namespace LOICollection::Plugins {
         this->unlistenEvent();
 
         this->getDatabase()->save();
+
+        this->mImpl->mRegistered.store(false, std::memory_order_release);
 
         return true;
     }

@@ -25,6 +25,7 @@ namespace SystemUtils {
             
             return result;
         }
+
         return defaultValue;
     }
 
