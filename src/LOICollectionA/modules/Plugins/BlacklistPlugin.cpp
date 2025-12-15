@@ -283,7 +283,7 @@ namespace LOICollection::Plugins {
             auto& packet = static_cast<LoginPacket&>(const_cast<Packet&>(event.getPacket()));
 
             std::string mUuid = packet.mConnectionRequest->mAuthenticationInfo->AuthenticatedUuid->asString();
-            std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find_last_of(':') - 1);
+            std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find_last_of(':'));
             std::string mClientId = packet.mConnectionRequest->getDeviceId();
 
             std::vector<std::string> mKeys = this->getBlacklists();
@@ -335,7 +335,7 @@ namespace LOICollection::Plugins {
         this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
         this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".DATA_UUID", player.getUuid().asString());
-        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".DATA_IP", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':') - 1));
+        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".DATA_IP", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':')));
         this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".DATA_CLIENTID", player.getConnectionRequest()->getDeviceId());
         
         transaction.commit();
@@ -384,7 +384,7 @@ namespace LOICollection::Plugins {
             return {};
 
         std::string mUuid = player.getUuid().asString();
-        std::string mIp = player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':') - 1);
+        std::string mIp = player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':'));
         std::string mClientId = player.getConnectionRequest()->getDeviceId();
 
         std::vector<std::string> mKeys = this->getBlacklists();
