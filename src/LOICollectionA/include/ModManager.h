@@ -11,10 +11,7 @@ namespace LOICollection::modules {
     class ModRegistry;
     class ModManager {
     public:
-        static ModManager& getInstance() {
-            static ModManager instance;
-            return instance;
-        }
+        static ModManager& getInstance();
 
         ModManager(const ModManager&) = delete;
         ModManager& operator=(const ModManager&) = delete;

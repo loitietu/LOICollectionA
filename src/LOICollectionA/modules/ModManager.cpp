@@ -7,6 +7,11 @@
 #include "LOICollectionA/include/ModManager.h"
 
 namespace LOICollection::modules {
+    ModManager& ModManager::getInstance() {
+        static ModManager instance;
+        return instance;
+    }
+
     void ModManager::registry(std::unique_ptr<ModRegistry> registry) {
         this->mRegistries[registry->getName()] = std::move(registry);
     }
