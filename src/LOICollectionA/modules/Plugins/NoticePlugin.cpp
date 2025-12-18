@@ -432,9 +432,6 @@ namespace LOICollection::Plugins {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Notice)
             return false;
 
-        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
-            return true;
-
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("ConfigPath")->data());
 
         this->mImpl->db = std::make_unique<JsonStorage>(mDataPath / "notice.json");

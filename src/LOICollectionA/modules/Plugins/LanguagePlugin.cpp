@@ -167,9 +167,6 @@ namespace LOICollection::Plugins {
     }
 
     bool LanguagePlugin::load() {
-        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
-            return true;
-
         this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
 

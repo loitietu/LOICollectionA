@@ -537,9 +537,6 @@ namespace LOICollection::Plugins {
     bool MarketPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Market.ModuleEnabled)
             return false;
-
-        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
-            return true;
         
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
 

@@ -240,9 +240,6 @@ namespace LOICollection::Plugins {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Monitor.ModuleEnabled)
             return false;
 
-        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
-            return true;
-
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Monitor;
 
         return true;

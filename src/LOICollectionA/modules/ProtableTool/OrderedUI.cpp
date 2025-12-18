@@ -123,9 +123,6 @@ namespace LOICollection::ProtableTool {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.OrderedUI)
             return false;
 
-        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
-            return true;
-
         this->mImpl->ModuleEnabled = true;
 
         return true;

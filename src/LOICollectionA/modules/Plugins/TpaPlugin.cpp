@@ -435,9 +435,6 @@ namespace LOICollection::Plugins {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Tpa.ModuleEnabled)
             return false;
 
-        if (this->mImpl->mRegistered.load(std::memory_order_acquire))
-            return true;
-
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
 
         this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "tpa.db").string());
