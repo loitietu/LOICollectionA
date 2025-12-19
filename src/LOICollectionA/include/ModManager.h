@@ -11,13 +11,13 @@ namespace LOICollection::modules {
     class ModRegistry;
     class ModManager {
     public:
-        static ModManager& getInstance();
-
         ModManager(const ModManager&) = delete;
         ModManager& operator=(const ModManager&) = delete;
 
         ModManager(ModManager&&) = delete;
         ModManager& operator=(ModManager&&) = delete;
+
+        LOICOLLECTION_A_NDAPI static ModManager& getInstance();
 
         LOICOLLECTION_A_API   void registry(std::unique_ptr<ModRegistry> registry);
         LOICOLLECTION_A_API   void unregistry(const std::string& name);
