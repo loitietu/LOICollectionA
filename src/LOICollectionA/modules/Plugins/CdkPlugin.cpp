@@ -120,7 +120,7 @@ namespace LOICollection::Plugins {
             }
 
             this->mParent.create(mObjectCdk,
-                SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0), (bool)std::get<uint64>(dt->at("Toggle"))
+                SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0), static_cast<bool>(std::get<uint64>(dt->at("Toggle")))
             );
         
             this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "cdk.log1"), pl)), mObjectCdk);
@@ -215,7 +215,7 @@ namespace LOICollection::Plugins {
                 mItemData["specialvalue"] = SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
             }
 
-            int mIndex = (int) this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/item").size();
+            int mIndex = static_cast<int>(this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/item").size());
 
             this->mParent.getDatabase()->set_ptr("/" + id + "/item/" + std::to_string(mIndex), mItemData);
             this->mParent.getDatabase()->save();
@@ -404,7 +404,7 @@ namespace LOICollection::Plugins {
         for (auto& value : data.value<nlohmann::ordered_json>("item", {})) {
             if (value.value("type", "") == "nbt") {
                 ItemStack itemStack = ItemStack::fromTag(CompoundTag::fromSnbt(value.value("id", ""))->mTags);
-                InventoryUtils::giveItem(player, itemStack, (int)itemStack.mCount);
+                InventoryUtils::giveItem(player, itemStack, static_cast<int>(itemStack.mCount));
             } else {
                 Bedrock::Safety::RedactableString mRedactableString;
                 mRedactableString.mUnredactedString = value.value("name", "");
@@ -419,7 +419,7 @@ namespace LOICollection::Plugins {
         player.refreshInventory();
         player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
 
-        data.value("personal", false) ? (void)this->getDatabase()->remove(id) : data.at("player").push_back(mUuid);
+        data.value("personal", false) ? static_cast<void>(this->getDatabase()->remove(id)) : data.at("player").push_back(mUuid);
 
         this->getDatabase()->set(id, data);
         this->getDatabase()->save();

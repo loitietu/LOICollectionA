@@ -143,7 +143,7 @@ namespace LOICollection::Plugins {
             nlohmann::ordered_json mData = {
                 { "title", mObjectTitle },
                 { "info", nlohmann::ordered_json::object() },
-                { "permission", (int) std::get<double>(dt->at("Slider")) }
+                { "permission", static_cast<int>(std::get<double>(dt->at("Slider"))) }
             };
 
             switch (type) {
@@ -295,7 +295,7 @@ namespace LOICollection::Plugins {
                     break;
             }
 
-            this->mParent.getDatabase()->set_ptr("/" + id + "/permission", (int) std::get<double>(dt->at("Slider")));
+            this->mParent.getDatabase()->set_ptr("/" + id + "/permission", static_cast<int>(std::get<double>(dt->at("Slider"))));
             this->mParent.getDatabase()->save();
 
             this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "menu.log5"), pl)), id);
@@ -360,7 +360,7 @@ namespace LOICollection::Plugins {
                         { "scores", nlohmann::ordered_json::object() },
                         { "run", mObjectRun },
                         { "type", std::get<std::string>(dt->at("dropdown1")) },
-                        { "permission", (int) std::get<double>(dt->at("Slider")) }
+                        { "permission", static_cast<int>(std::get<double>(dt->at("Slider"))) }
                     });
 
                     if (!mObjectObjective.empty() && ScoreboardUtils::hasScoreboard(mObjectObjective))
@@ -385,7 +385,7 @@ namespace LOICollection::Plugins {
                         { "scores", nlohmann::ordered_json::object() },
                         { "run", mObjectRun },
                         { "type", std::get<std::string>(dt->at("dropdown1")) },
-                        { "permission", (int) std::get<double>(dt->at("Slider")) }
+                        { "permission", static_cast<int>(std::get<double>(dt->at("Slider"))) }
                     });
 
                     if (!mObjectObjective.empty() && ScoreboardUtils::hasScoreboard(mObjectObjective))
@@ -418,7 +418,7 @@ namespace LOICollection::Plugins {
                 return;
 
             auto mContent = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/customize");
-            for (int i = ((int) mContent.size() - 1); i >= 0; i--) {
+            for (int i = static_cast<int>(mContent.size() - 1); i >= 0; i--) {
                 if (mContent.at(i).value("id", "") == packageid)
                     mContent.erase(i);
             }
@@ -455,7 +455,7 @@ namespace LOICollection::Plugins {
         std::string mObjectLine = tr(mObjectLanguage, "menu.gui.button3.command.line");
 
         auto content = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/run");
-        for (int i = 0; i < (int) content.size(); i++) {
+        for (int i = 0; i < static_cast<int>(content.size()); i++) {
             std::string mLine = fmt::format(fmt::runtime(mObjectLine), i + 1);
             form.appendInput("Content" + std::to_string(i), mLine, "", content.at(i));
         }
@@ -473,7 +473,7 @@ namespace LOICollection::Plugins {
                     content.erase(content.end() - 1);
                     break;
                 default:
-                    for (int i = 0; i < (int) content.size(); i++)
+                    for (int i = 0; i < static_cast<int>(content.size()); i++)
                         content.at(i) = std::get<std::string>(dt->at("Content" + std::to_string(i)));
             }
 
@@ -670,7 +670,7 @@ namespace LOICollection::Plugins {
                         mCustom[item.key()] = result;
                 }
                 if (item.value().is_boolean()) mCustom[item.key()] = std::get<uint64>(dt->at(item.key())) ? "true" : "false";
-                if (item.value().is_number_integer()) mCustom[item.key()] = std::to_string((int) std::get<double>(dt->at(item.key())));
+                if (item.value().is_number_integer()) mCustom[item.key()] = std::to_string(static_cast<int>(std::get<double>(dt->at(item.key()))));
             }
 
             for (const auto& c_it : data.value("run", nlohmann::ordered_json())) {
@@ -740,7 +740,7 @@ namespace LOICollection::Plugins {
             
             if (data.empty()) return;
             if (data.contains("permission")) {
-                if ((int) player.getCommandPermissionLevel() < data.value("permission", 0))
+                if (static_cast<int>(player.getCommandPermissionLevel()) < data.value("permission", 0))
                     return this->mParent.executeCommand(player, data.value("info", nlohmann::ordered_json{}).value("permission", ""));
             }
             
@@ -785,7 +785,7 @@ namespace LOICollection::Plugins {
             Player& player = *static_cast<Player*>(entity);
 
             this->mGui->open(player, param.Object.empty() ? 
-                this->mImpl->options.EntranceKey : (std::string)param.Object
+                this->mImpl->options.EntranceKey : std::string(param.Object)
             );
             
             output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -894,7 +894,7 @@ namespace LOICollection::Plugins {
             "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, player.getDimensionId()
         );
         Command* command = ll::service::getMinecraft()->mCommands->compileCommand(
-            HashedString(cmd), origin, (CurrentCmdVersion)CommandVersion::CurrentVersion(),
+            HashedString(cmd), origin, static_cast<CurrentCmdVersion>(CommandVersion::CurrentVersion()),
             [this](std::string const& message) -> void {
                 this->getLogger()->error("Command error: {}", message);
             }
@@ -910,7 +910,7 @@ namespace LOICollection::Plugins {
             return;
 
         if (action.contains("permission")) {
-            if ((int) player.getCommandPermissionLevel() < action["permission"])
+            if (static_cast<int>(player.getCommandPermissionLevel()) < action["permission"])
                 return executeCommand(player, original.value("info", nlohmann::ordered_json{}).value("permission", ""));
         }
 

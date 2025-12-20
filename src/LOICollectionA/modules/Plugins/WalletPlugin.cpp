@@ -134,7 +134,7 @@ namespace LOICollection::Plugins {
 
             ScoreboardUtils::reduceScore(pl, mScoreboard, mMoney);
 
-            this->mParent.transfer(target, (int)(mMoney * (1 - this->mParent.mImpl->options.ExchangeRate)));
+            this->mParent.transfer(target, static_cast<int>(mMoney * (1 - this->mParent.mImpl->options.ExchangeRate)));
 
             this->mParent.getLogger()->info(fmt::runtime(tr({}, "wallet.log")), pl.getRealName(), mTargetName, mMoney);
         });
@@ -264,13 +264,13 @@ namespace LOICollection::Plugins {
 
             std::string mScoreboard = this->mImpl->options.TargetScoreboard;
 
-            int mMoney = param.Score * (int) results.size();
+            int mMoney = param.Score * static_cast<int>(results.size());
             if (ScoreboardUtils::getScore(player, mScoreboard) < mMoney || param.Score < 0)
                 return output.error(tr({}, "commands.wallet.error.score"));
 
             ScoreboardUtils::reduceScore(player, mScoreboard, mMoney);
 
-            int mTargetMoney = (int)(param.Score * (1 - this->mImpl->options.ExchangeRate));
+            int mTargetMoney = static_cast<int>(param.Score * (1 - this->mImpl->options.ExchangeRate));
             for (Player*& target : results)
                 ScoreboardUtils::addScore(*target, mScoreboard, mTargetMoney);
 

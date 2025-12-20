@@ -391,7 +391,7 @@ namespace LOICollection::Plugins {
             return mPos != std::string::npos ? mKey.substr(0, mPos) : "";
         });
 
-        if (limit > 0 && (int) mResult.size() > limit)
+        if (limit > 0 && static_cast<int>(mResult.size()) > limit)
             mResult.resize(limit);
 
         return mResult;

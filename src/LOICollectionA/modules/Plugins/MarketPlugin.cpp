@@ -113,7 +113,7 @@ namespace LOICollection::Plugins {
             ScoreboardUtils::reduceScore(pl, mScoreboard, mScore);
 
             ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at(id + ".DATA"))->mTags);
-            InventoryUtils::giveItem(pl, mItemStack, (int)mItemStack.mCount);
+            InventoryUtils::giveItem(pl, mItemStack, static_cast<int>(mItemStack.mCount));
 
             pl.refreshInventory();
 
@@ -165,7 +165,7 @@ namespace LOICollection::Plugins {
             pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips2")), mData.at(id + ".NAME")));
             
             ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at(id + ".DATA"))->mTags);
-            InventoryUtils::giveItem(pl, mItemStack, (int)mItemStack.mCount);
+            InventoryUtils::giveItem(pl, mItemStack, static_cast<int>(mItemStack.mCount));
 
             pl.refreshInventory();
 
@@ -297,7 +297,7 @@ namespace LOICollection::Plugins {
         ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
         form.appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist.add"), "textures/ui/editIcon", "path", [this, mObjectLanguage](Player& pl) -> void {
             int mBlacklistCount = this->mParent.mImpl->options.BlacklistUpload;
-            if (((int) this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
+            if (static_cast<int>(this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
                 pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips5")), mBlacklistCount));
                 return this->sell(pl);
             }
@@ -324,7 +324,7 @@ namespace LOICollection::Plugins {
         });
         form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent"), "textures/ui/creative_icon", "path", [this, mObjectLanguage](Player& pl) -> void {
             int mItemCount = this->mParent.mImpl->options.MaximumUpload;
-            if (((int) this->mParent.getItems(pl).size()) >= mItemCount) {
+            if (static_cast<int>(this->mParent.getItems(pl).size()) >= mItemCount) {
                 pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips4")), mItemCount));
                 return;
             }

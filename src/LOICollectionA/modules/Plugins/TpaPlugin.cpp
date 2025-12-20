@@ -162,7 +162,7 @@ namespace LOICollection::Plugins {
         ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), tr(mObjectLanguage, "tpa.gui.setting.label"));
         form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.add"), "textures/ui/editIcon", "path", [this, mObjectLanguage](Player& pl) -> void {
             int mBlacklistCount = this->mParent.mImpl->options.BlacklistUpload;
-            if (((int) this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
+            if (static_cast<int>(this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
                 pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "tpa.tips2")), mBlacklistCount));
                 return this->setting(pl);
             }
@@ -292,7 +292,7 @@ namespace LOICollection::Plugins {
             std::string mScoreboard = this->mImpl->options.TargetScoreboard;
 
             int mRequestRequired = this->mImpl->options.RequestRequired;
-            int mMoney = mRequestRequired * (int) std::distance(mResults.begin(), mResults.end());
+            int mMoney = mRequestRequired * static_cast<int>(std::distance(mResults.begin(), mResults.end()));
             if (mRequestRequired && ScoreboardUtils::getScore(player, mScoreboard) < mMoney) {
                 output.error(fmt::runtime(tr({}, "commands.tpa.error.invite")), mMoney);
                 return;

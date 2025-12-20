@@ -360,7 +360,7 @@ namespace LOICollection::Plugins {
                 }
             };
 
-            int mIndex = (int) this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/classiflcation").size();
+            int mIndex = static_cast<int>(this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/classiflcation").size());
 
             this->mParent.getDatabase()->set_ptr("/" + id + "/classiflcation/" + std::to_string(mIndex), data);
             this->mParent.getDatabase()->save();
@@ -399,7 +399,7 @@ namespace LOICollection::Plugins {
                 return;
 
             auto mContent = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/classiflcation");
-            for (int i = ((int) mContent.size() - 1); i >= 0; i--) {
+            for (int i = static_cast<int>(mContent.size() - 1); i >= 0; i--) {
                 if (mContent.at(i).value("title", "") == packageid)
                     mContent.erase(i);
             }
@@ -496,10 +496,10 @@ namespace LOICollection::Plugins {
             form.appendButton(LOICollectionAPI::APIUtils::getInstance().translateString(item.value("title", ""), player), item.value("image", ""), "path", [this, item, i, id, type](Player& pl) -> void {
                 switch (ll::hash_utils::doHash(item.value("type", ""))) {
                     case ll::hash_utils::doHash("commodity"):
-                        this->commodity(pl, (int) i, id, type);
+                        this->commodity(pl, static_cast<int>(i), id, type);
                         break;
                     case ll::hash_utils::doHash("title"):
-                        this->title(pl, (int) i, id, type);
+                        this->title(pl, static_cast<int>(i), id, type);
                         break;
                     case ll::hash_utils::doHash("from"):
                         this->open(pl, item.value("id", ""));
@@ -692,7 +692,7 @@ namespace LOICollection::Plugins {
             "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, player.getDimensionId()
         );
         Command* command = ll::service::getMinecraft()->mCommands->compileCommand(
-            HashedString(cmd), origin, (CurrentCmdVersion)CommandVersion::CurrentVersion(),
+            HashedString(cmd), origin, static_cast<CurrentCmdVersion>(CommandVersion::CurrentVersion()),
             [this](std::string const& message) -> void {
                 this->getLogger()->error("Command error: {}", message);
             }

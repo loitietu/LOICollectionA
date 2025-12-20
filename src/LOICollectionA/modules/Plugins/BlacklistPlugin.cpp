@@ -280,7 +280,7 @@ namespace LOICollection::Plugins {
             if (event.getPacket().getId() != MinecraftPacketIds::Login)
                 return;
 
-            auto& packet = static_cast<LoginPacket&>(const_cast<Packet&>(event.getPacket()));
+            auto packet = static_cast<LoginPacket const&>(event.getPacket());
 
             std::string mUuid = packet.mConnectionRequest->mAuthenticationInfo->AuthenticatedUuid->asString();
             std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find_last_of(':'));
@@ -407,7 +407,7 @@ namespace LOICollection::Plugins {
             return mPos != std::string::npos ? mKey.substr(0, mPos) : "";
         });
 
-        if (limit > 0 && (int) mResult.size() > limit)
+        if (limit > 0 && static_cast<int>(mResult.size()) > limit)
             mResult.resize(limit);
 
         return mResult;

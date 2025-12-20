@@ -41,7 +41,7 @@ namespace LOICollection::LOICollectionAPI {
 
         std::vector<const Entry*> mEntries;
         for (const auto& entry : this->mImpl->mProcessors) {
-            if (content.find(entry.config.delimiters) != std::string::npos && content.find(entry.config.delimitere)!= std::string::npos)
+            if (content.find(entry.config.delimiters) != std::string::npos && content.find(entry.config.delimitere) != std::string::npos)
                 mEntries.push_back(&entry);
         }
 

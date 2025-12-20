@@ -16,7 +16,7 @@ namespace InventoryUtils {
             const ItemStack& mItemObject = inventory->getItem(i);
             
             if ((mItemObject || !mItemObject.isNull()) && mItemObject.getTypeName() == mTypeName) {
-                int mCount = std::min((int)mItemObject.mCount, mNumber);
+                int mCount = std::min(static_cast<int>(mItemObject.mCount), mNumber);
 
                 inventory->removeItem(i, mCount);
 
@@ -28,7 +28,7 @@ namespace InventoryUtils {
     void giveItem(Player& player, ItemStack& item, int mNumber) {
         std::vector<ItemStack> mItemStacks{};
         for (int count; mNumber > 0; mNumber -= count)
-            mItemStacks.emplace_back(item).mCount = (uchar)(count = std::min(mNumber, 64));
+            mItemStacks.emplace_back(item).mCount = static_cast<uchar>(count = std::min(mNumber, 64));
 
         Util::LootTableUtils::givePlayer(player, mItemStacks, true);
     }
@@ -42,7 +42,7 @@ namespace InventoryUtils {
             const ItemStack& mItemObject = mItemInventory->getItem(i);
             
             if ((mItemObject || !mItemObject.isNull()) && mTypeName == mItemObject.getTypeName())
-                mNumber -= (int)mItemObject.mCount;
+                mNumber -= static_cast<int>(mItemObject.mCount);
         }
 
         return mNumber <= 0;

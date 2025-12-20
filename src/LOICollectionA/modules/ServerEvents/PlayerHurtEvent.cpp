@@ -54,7 +54,7 @@ namespace LOICollection::ServerEvents {
         if (!mSource)
             return origin(source, damage, knock, ignite);
 
-        PlayerHurtEvent event(*(Player*)this, *mSource, (int)damage, knock, ignite);
+        PlayerHurtEvent event(*reinterpret_cast<Player*>(this), *mSource, static_cast<int>(damage), knock, ignite);
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled()) 
             return false;
@@ -82,7 +82,7 @@ namespace LOICollection::ServerEvents {
         if (!mSource)
             return origin(source, damage, knock, ignite);
 
-        PlayerHurtEvent event(*(Player*)this, *mSource, (int)damage, knock, ignite);
+        PlayerHurtEvent event(*reinterpret_cast<Player*>(this), *mSource, static_cast<int>(damage), knock, ignite);
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled()) 
             return;
@@ -108,7 +108,7 @@ namespace LOICollection::ServerEvents {
         if (!mSource)
             return origin(source, damage);
 
-        PlayerHurtEvent event(*(Player*)this, *mSource, (int)damage);
+        PlayerHurtEvent event(*reinterpret_cast<Player*>(this), *mSource, static_cast<int>(damage));
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled()) 
             return 0.0f;

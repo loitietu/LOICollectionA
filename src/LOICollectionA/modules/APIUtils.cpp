@@ -130,25 +130,25 @@ namespace LOICollection::LOICollectionAPI {
             return player.getPosition().toString();
         });
         this->registerVariable("player.pos.x", [](Player& player) -> std::string {
-            return std::to_string((int)player.getPosition().x);
+            return std::to_string(static_cast<int>(player.getPosition().x));
         });
         this->registerVariable("player.pos.y", [](Player& player) -> std::string {
-            return std::to_string((int)player.getPosition().y);
+            return std::to_string(static_cast<int>(player.getPosition().y));
         });
         this->registerVariable("player.pos.z", [](Player& player) -> std::string {
-            return std::to_string((int)player.getPosition().z);
+            return std::to_string(static_cast<int>(player.getPosition().z));
         });
         this->registerVariable("player.pos.respawn", [](Player& player) -> std::string {
             return player.hasRespawnPosition() ? player.getExpectedSpawnPosition().toString() : "None";
         });
         this->registerVariable("player.pos.respawn.x", [](Player& player) -> std::string {
-            return player.hasRespawnPosition() ? std::to_string((int)player.getExpectedSpawnPosition().x) : "None";
+            return player.hasRespawnPosition() ? std::to_string(static_cast<int>(player.getExpectedSpawnPosition().x)) : "None";
         });
         this->registerVariable("player.pos.respawn.y", [](Player& player) -> std::string {
-            return player.hasRespawnPosition() ? std::to_string((int)player.getExpectedSpawnPosition().y) : "None";
+            return player.hasRespawnPosition() ? std::to_string(static_cast<int>(player.getExpectedSpawnPosition().y)) : "None";
         });
         this->registerVariable("player.pos.respawn.z", [](Player& player) -> std::string {
-            return player.hasRespawnPosition() ? std::to_string((int)player.getExpectedSpawnPosition().z) : "None";
+            return player.hasRespawnPosition() ? std::to_string(static_cast<int>(player.getExpectedSpawnPosition().z)) : "None";
         });
         this->registerVariable("player.pos.block", [](Player& player) -> std::string {
             return player.getEyePos().toString();
@@ -175,19 +175,19 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string(ActorAttribute::getHealth(player.getEntityContext()));
         });
         this->registerVariable("player.max.health", [](Player& player) -> std::string {
-            return std::to_string((int)player.getMaxHealth());
+            return std::to_string(static_cast<int>(player.getMaxHealth()));
         });
         this->registerVariable("player.hunger", [](Player& player) -> std::string {
-            return std::to_string((int)player.getAttribute(Player::HUNGER()).mCurrentValue);
+            return std::to_string(static_cast<int>(player.getAttribute(Player::HUNGER()).mCurrentValue));
         });
         this->registerVariable("player.max.hunger", [](Player& player) -> std::string {
-            return std::to_string((int)player.getAttribute(Player::HUNGER()).mCurrentMaxValue);
+            return std::to_string(static_cast<int>(player.getAttribute(Player::HUNGER()).mCurrentMaxValue));
         });
         this->registerVariable("player.saturation", [](Player& player) -> std::string {
-            return std::to_string((int)player.getAttribute(Player::SATURATION()).mCurrentValue);
+            return std::to_string(static_cast<int>(player.getAttribute(Player::SATURATION()).mCurrentValue));
         });
         this->registerVariable("player.max.saturation", [](Player& player) -> std::string {
-            return std::to_string((int)player.getAttribute(Player::SATURATION()).mCurrentMaxValue);
+            return std::to_string(static_cast<int>(player.getAttribute(Player::SATURATION()).mCurrentMaxValue));
         });
         this->registerVariable("player.speed", [](Player& player) -> std::string {
             return std::to_string(player.getSpeed());
@@ -205,10 +205,10 @@ namespace LOICollection::LOICollectionAPI {
             return player.getIPAndPort();
         });
         this->registerVariable("player.exp.xp", [](Player& player) -> std::string {
-            return std::to_string((int)player.getAttribute(Player::EXPERIENCE()).mCurrentValue);
+            return std::to_string(static_cast<int>(player.getAttribute(Player::EXPERIENCE()).mCurrentValue));
         });
         this->registerVariable("player.exp.level", [](Player& player) -> std::string {
-            return std::to_string((int)player.getAttribute(Player::LEVEL()).mCurrentValue);
+            return std::to_string(static_cast<int>(player.getAttribute(Player::LEVEL()).mCurrentValue));
         });
         this->registerVariable("player.exp.level.next", [](Player& player) -> std::string {
             return std::to_string(player.getXpNeededForNextLevel());
@@ -232,11 +232,11 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string(player.getNetworkStatus()->mCurrentPacketLoss);
         });
         this->registerVariable("server.tps", [](Player&) -> std::string {
-            double mMspt = ((double) ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count() / 1e6);
-            return std::to_string(mMspt <= 50.0 ? 20.0 : (double)(1000.0 / mMspt));
+            auto mMspt = static_cast<double>(ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count()) / 1e6;
+            return std::to_string(mMspt <= 50.0 ? 20.0 : static_cast<double>(1000.0 / mMspt));
         });
         this->registerVariable("server.mspt", [](Player&) -> std::string { 
-            return std::to_string((double) ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count() / 1e6);
+            return std::to_string(static_cast<double>(ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count()) / 1e6);
         });
         this->registerVariable("server.time", [](Player&) -> std::string {
             return SystemUtils::getNowTime();
@@ -258,9 +258,9 @@ namespace LOICollection::LOICollectionAPI {
         });
         this->registerVariable("entity", [](Player&, std::string name) -> std::string {
             std::vector<Actor*> mRuntimeActorList = ll::service::getLevel()->getRuntimeActorList();
-            int count = (int)std::count_if(mRuntimeActorList.begin(), mRuntimeActorList.end(), [&name](Actor* actor) -> bool {
+            int count = static_cast<int>(std::count_if(mRuntimeActorList.begin(), mRuntimeActorList.end(), [&name](Actor* actor) -> bool {
                 return actor->getTypeName() == name;
-            });
+            }));
             
             return std::to_string(count);
         });

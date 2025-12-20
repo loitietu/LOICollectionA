@@ -38,7 +38,7 @@ namespace LOICollection::ServerEvents {
         EventResult,
         ::PlayerOpenContainerEvent const& playerOpenContainerEvent
     ) {
-        Actor* actor = static_cast<WeakEntityRef*>((void*)&playerOpenContainerEvent)->tryUnwrap<Actor>();
+        Actor* actor = static_cast<WeakEntityRef*>(const_cast<void*>(static_cast<void const*>(&playerOpenContainerEvent)))->tryUnwrap<Actor>();
 
         if (!actor || !actor->isPlayer())
             return origin(playerOpenContainerEvent);

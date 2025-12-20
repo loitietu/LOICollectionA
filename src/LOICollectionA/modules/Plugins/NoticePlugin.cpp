@@ -124,7 +124,7 @@ namespace LOICollection::Plugins {
         std::string mObjectLine = tr(mObjectLanguage, "notice.gui.edit.line");
 
         auto content = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/content");
-        for (int i = 0; i < (int) content.size(); i++) {
+        for (int i = 0; i < static_cast<int>(content.size()); i++) {
             std::string mLine = fmt::format(fmt::runtime(mObjectLine), i + 1);
             form.appendInput("Content" + std::to_string(i), mLine, "", content.at(i));
         }
@@ -135,7 +135,7 @@ namespace LOICollection::Plugins {
             if (!dt) return this->edit(pl);
 
             this->mParent.getDatabase()->set_ptr("/" + id + "/title", std::get<std::string>(dt->at("Input")));
-            this->mParent.getDatabase()->set_ptr("/" + id + "/poiontout", (bool) std::get<uint64>(dt->at("Toggle")));
+            this->mParent.getDatabase()->set_ptr("/" + id + "/poiontout", static_cast<bool>(std::get<uint64>(dt->at("Toggle"))));
 
             auto content = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/content");
             switch (ll::hash_utils::doHash(std::get<std::string>(dt->at("StepSlider")))) {
@@ -146,7 +146,7 @@ namespace LOICollection::Plugins {
                     content.erase(content.end() - 1);
                     break;
                 default:
-                    for (int i = 0; i < (int) content.size(); i++)
+                    for (int i = 0; i < static_cast<int>(content.size()); i++)
                         content.at(i) = std::get<std::string>(dt->at("Content" + std::to_string(i)));
             }
 
@@ -180,7 +180,7 @@ namespace LOICollection::Plugins {
             }
 
             this->mParent.create(mObjectId, mObjectTitle, 
-                SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 0), (bool) std::get<uint64>(dt->at("Toggle1"))
+                SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 0), static_cast<bool>(std::get<uint64>(dt->at("Toggle1")))
             );
 
             this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "notice.log2"), pl)), mObjectId);

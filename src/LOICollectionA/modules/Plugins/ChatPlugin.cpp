@@ -230,8 +230,8 @@ namespace LOICollection::Plugins {
         
         ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
         form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.add"), [this, mObjectLanguage](Player& pl) -> void {
-            int mBlacklistCount = (int) this->mParent.getBlacklist(pl).size();
-            if (((int) this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
+            int mBlacklistCount = static_cast<int>(this->mParent.getBlacklist(pl).size());
+            if (static_cast<int>(this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
                 pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "chat.gui.setBlacklist.tips1")), mBlacklistCount));
                 return this->setting(pl);
             }

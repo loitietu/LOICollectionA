@@ -250,9 +250,9 @@ namespace LOICollection::Plugins {
             Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
             std::vector<std::string> mResult = this->getEvents({ 
-                { "Position.x", std::to_string((int) mPosition.x) },
-                { "Position.y", std::to_string((int) mPosition.y) },
-                { "Position.z", std::to_string((int) mPosition.z) }
+                { "Position.x", std::to_string(static_cast<int>(mPosition.x)) },
+                { "Position.y", std::to_string(static_cast<int>(mPosition.y)) },
+                { "Position.z", std::to_string(static_cast<int>(mPosition.z)) }
             }, {}, param.Limit);
             
             if (mResult.empty())
@@ -274,9 +274,9 @@ namespace LOICollection::Plugins {
             Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
             std::vector<std::string> mPositions = this->getEvents({ 
-                { "Position.x", std::to_string((int) mPosition.x) },
-                { "Position.y", std::to_string((int) mPosition.y) },
-                { "Position.z", std::to_string((int) mPosition.z) }
+                { "Position.x", std::to_string(static_cast<int>(mPosition.x)) },
+                { "Position.y", std::to_string(static_cast<int>(mPosition.y)) },
+                { "Position.z", std::to_string(static_cast<int>(mPosition.z)) }
             }, {}, param.Limit);
             std::vector<std::string> mDimensions = this->getEvents({{ "Position.dimension", std::to_string(param.Dimension) }}, {}, param.Limit);
             std::vector<std::string> mResult = SystemUtils::getIntersection({ mPositions, mDimensions });
@@ -317,7 +317,8 @@ namespace LOICollection::Plugins {
             Vec3 mPositionMax(std::max(mPositionOrigin.x, mPositionTarget.x), std::max(mPositionOrigin.y, mPositionTarget.y), std::max(mPositionOrigin.z, mPositionTarget.z));
 
             std::vector<std::string> mResult = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPositionMin, mPositionMax](int x, int y, int z) -> bool {
-                return x >= (double) mPositionMin.x && x <= (double) mPositionMax.x && y >= (double) mPositionMin.y && y <= (double) mPositionMax.y && z >= (double) mPositionMin.z && z <= (double) mPositionMax.z;
+                return x >= static_cast<double>(mPositionMin.x) && x <= static_cast<double>(mPositionMax.x) && y >= static_cast<double>(mPositionMin.y) && 
+                    y <= static_cast<double>(mPositionMax.y) && z >= static_cast<double>(mPositionMin.z) && z <= static_cast<double>(mPositionMax.z);
             }, param.Limit);
 
             if (mResult.empty())
@@ -357,7 +358,8 @@ namespace LOICollection::Plugins {
             Vec3 mPositionMax(std::max(mPositionOrigin.x, mPositionTarget.x), std::max(mPositionOrigin.y, mPositionTarget.y), std::max(mPositionOrigin.z, mPositionTarget.z));
 
             std::vector<std::string> mAreas = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPositionMin, mPositionMax](int x, int y, int z) -> bool {
-                return x >= (double) mPositionMin.x && x <= (double) mPositionMax.x && y >= (double) mPositionMin.y && y <= (double) mPositionMax.y && z >= (double) mPositionMin.z && z <= (double) mPositionMax.z;
+                return x >= static_cast<double>(mPositionMin.x) && x <= static_cast<double>(mPositionMax.x) && y >= static_cast<double>(mPositionMin.y) && 
+                    y <= static_cast<double>(mPositionMax.y) && z >= static_cast<double>(mPositionMin.z) && z <= static_cast<double>(mPositionMax.z);
             });
             std::vector<std::string> mTimes = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
                 std::string mTime = SystemUtils::toTimeCalculate(value, time, "0");
@@ -772,7 +774,7 @@ namespace LOICollection::Plugins {
             return mPos != std::string::npos ? mKey.substr(0, mPos) : "";
         });
 
-        if (limit > 0 && (int) mResult.size() > limit)
+        if (limit > 0 && static_cast<int>(mResult.size()) > limit)
             mResult.resize(limit);
 
         return mResult;
@@ -796,7 +798,7 @@ namespace LOICollection::Plugins {
                 return (!filter && it->second == mCondition.second) || (filter && filter(it->second));
             });
 
-            if ((size_t) std::distance(mView.begin(), mView.end()) == conditions.size()) {
+            if (static_cast<size_t>(std::distance(mView.begin(), mView.end())) == conditions.size()) {
                 size_t id = std::hash<std::thread::id>()(std::this_thread::get_id());
 
                 mResultLocal[id].emplace_back(mId);
