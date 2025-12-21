@@ -65,8 +65,10 @@ namespace LOICollection::Plugins {
 
         std::unordered_map<std::string, ll::event::ListenerPtr> mListeners;
 
+        ll::coro::InterruptableSleep NameTaskSleep;
         ll::coro::InterruptableSleep BelowNameTaskSleep;
 
+        std::atomic<bool> NameTaskRunning{ true };
         std::atomic<bool> BelowNameTaskRunning{ true };
     };
 
@@ -79,16 +81,37 @@ namespace LOICollection::Plugins {
     }
 
     void MonitorPlugin::listenEvent() {
+        this->mImpl->NameTaskRunning.store(true, std::memory_order_release);
+        this->mImpl->BelowNameTaskRunning.store(true, std::memory_order_release);
+
         if (this->mImpl->options.BelowName.ModuleEnabled) {
-            ll::coro::keepThis([this, option = this->mImpl->options.BelowName]() -> ll::coro::CoroTask<> {
+            std::shared_ptr<std::string> mName = std::make_shared<std::string>();
+
+            ll::coro::keepThis([this, option = this->mImpl->options, mName]() -> ll::coro::CoroTask<> {
+                size_t index = 0;
+                size_t maxIndex = this->mImpl->options.BelowName.Pages.size() - 1;
+
+                while (this->mImpl->NameTaskRunning.load(std::memory_order_acquire)) {
+                    co_await this->mImpl->NameTaskSleep.sleepFor(ll::chrono::ticks(option.BelowName.RefreshDisplayInterval));
+
+                    std::string result;
+                    for (const std::string& page : option.BelowName.Pages[index]) 
+                        result.append((result.empty() ? "" : "\n") + page);
+
+                    *mName = result;
+                    index = index < maxIndex ? index + 1 : 0;
+                }
+            }).launch(ll::thread::ServerThreadExecutor::getDefault());
+
+            ll::coro::keepThis([this, option = this->mImpl->options.BelowName, mName]() -> ll::coro::CoroTask<> {
                 while (this->mImpl->BelowNameTaskRunning.load(std::memory_order_acquire)) {
                     co_await this->mImpl->BelowNameTaskSleep.sleepFor(ll::chrono::ticks(option.RefreshInterval));
 
-                    ll::service::getLevel()->forEachPlayer([mName = option.FormatText](Player& mTarget) -> bool {
+                    ll::service::getLevel()->forEachPlayer([mName](Player& mTarget) -> bool {
                         if (mTarget.isSimulatedPlayer())
                             return true;
 
-                        std::string mNameTag = LOICollectionAPI::APIUtils::getInstance().translateString(mName, mTarget);
+                        std::string mNameTag = LOICollectionAPI::APIUtils::getInstance().translateString(*mName, mTarget);
 
                         SetActorDataPacket packet(mTarget.getRuntimeID(), mTarget.mEntityData, 
                             nullptr, mTarget.mLevel->getCurrentTick().tickID, false
@@ -231,8 +254,10 @@ namespace LOICollection::Plugins {
 
         this->mImpl->mListeners.clear();
 
+        this->mImpl->NameTaskRunning.store(false, std::memory_order_release);
         this->mImpl->BelowNameTaskRunning.store(false, std::memory_order_release);
 
+        this->mImpl->NameTaskSleep.interrupt();
         this->mImpl->BelowNameTaskSleep.interrupt();
     }
 
