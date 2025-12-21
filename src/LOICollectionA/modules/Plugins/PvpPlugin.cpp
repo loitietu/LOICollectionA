@@ -53,7 +53,7 @@ namespace LOICollection::Plugins {
 
         std::atomic<bool> mRegistered{ false };
 
-        bool ModuleEnabled = false;
+        C_Config::C_Plugins::C_Pvp options;
 
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
@@ -139,6 +139,13 @@ namespace LOICollection::Plugins {
         this->mImpl->PlayerHurtEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerHurtEvent>([this](LOICollection::ServerEvents::PlayerHurtEvent& event) mutable -> void {
             if (!event.getSource().isPlayer() || event.getSource().isSimulatedPlayer() || event.self().isSimulatedPlayer())
                 return;
+
+            switch (event.getReason()) {
+                case LOICollection::ServerEvents::PlayerHurtReason::Hurt: if (!this->mImpl->options.ExtraListener.onActorHurt) return;
+                case LOICollection::ServerEvents::PlayerHurtReason::Effect: if (!this->mImpl->options.ExtraListener.SplashPotion) return;
+                case LOICollection::ServerEvents::PlayerHurtReason::Projectile: if (!this->mImpl->options.ExtraListener.ProjectileHit) return;
+            }
+
             auto& source = static_cast<Player&>(event.getSource());
 
             bool isPvp = this->isEnable(event.self()) && this->isEnable(source);
@@ -199,23 +206,23 @@ namespace LOICollection::Plugins {
     }
 
     bool PvpPlugin::load() {
-        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Pvp)
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Pvp.ModuleEnabled)
             return false;
 
         this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        this->mImpl->ModuleEnabled = true;
+        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Pvp;
 
         return true;
     }
 
     bool PvpPlugin::unload() {
-        if (!this->mImpl->ModuleEnabled)
+        if (!this->mImpl->options.ModuleEnabled)
             return false;
 
         this->mImpl->db.reset();
         this->mImpl->logger.reset();
-        this->mImpl->ModuleEnabled = false;
+        this->mImpl->options = {};
 
         if (this->mImpl->mRegistered.load(std::memory_order_acquire))
             this->unlistenEvent();
@@ -224,7 +231,7 @@ namespace LOICollection::Plugins {
     }
 
     bool PvpPlugin::registry() {
-        if (!this->mImpl->ModuleEnabled)
+        if (!this->mImpl->options.ModuleEnabled)
             return false;
         
         this->registeryCommand();
@@ -236,7 +243,7 @@ namespace LOICollection::Plugins {
     }
 
     bool PvpPlugin::unregistry() {
-        if (!this->mImpl->ModuleEnabled)
+        if (!this->mImpl->options.ModuleEnabled)
             return false;
 
         this->unlistenEvent();

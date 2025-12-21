@@ -953,7 +953,6 @@ namespace LOICollection::Plugins {
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.BehaviorEvent;
 
-
         return true;
     }
 

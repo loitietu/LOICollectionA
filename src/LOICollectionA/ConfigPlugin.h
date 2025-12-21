@@ -47,7 +47,14 @@ struct C_Config {
                 std::vector<std::string> CommandLists{};
             } DisableCommand;
         } Monitor;
-        bool Pvp = false;
+        struct C_Pvp {
+            bool ModuleEnabled = false;
+            struct C_ExtraListener {
+                bool onActorHurt = true;
+                bool SplashPotion = true;
+                bool ProjectileHit = true;
+            } ExtraListener;
+        } Pvp;
         struct C_Wallet {
             bool ModuleEnabled = false;
             std::string TargetScoreboard = "money";
