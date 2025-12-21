@@ -12,7 +12,7 @@
 
 ```json
 {
-    "version": 22756659, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
+    "version": 29166553, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
         "Blacklist": false, // 是否启用黑名单
@@ -35,7 +35,12 @@
             "BelowName": {
                 "ModuleEnabled": true, // 是否启用玩家名称显示
                 "RefreshInterval": 20, // 刷新间隔，单位为 tick（20 tick = 1 秒）
-                "FormatText": "{player}" // 玩家名称显示格式，支持 LOICollectionA API 变量
+                "RefreshDisplayInterval": 100, // 刷新显示间隔，单位为 tick
+                "Pages": [
+                    [
+                        "{player}" // 每行显示内容
+                    ]
+                ] // 玩家名称显示格式，支持 LOICollectionA API 变量
             },
             "ServerToast": {
                 "ModuleEnabled": true, // 是否启用服务器提示
@@ -55,7 +60,14 @@
                 "CommandLists": [] // 被禁用的指令列表
             }
         },
-        "Pvp": false, // 是否启用 PVP
+        "Pvp": {
+            "ModuleEnabled": true, // 是否启用 PVP
+            "ExtraListener": {
+                "onActorHurt": true, // 是否启用玩家伤害侦听器
+                "SplashPotion": true, // 是否启用药水效果侦听器
+                "ProjectileHit": true // 是否启用射击侦听器
+            }
+        },
         "Wallet": { // 钱包配置
             "ModuleEnabled": false, // 是否启用钱包
             "TargetScoreboard": "money", // 钱包指定使用 Score 对象
@@ -165,7 +177,7 @@
 ```
 
 > [!NOTE]
-> 以上内容取自 LOICollectionA 1.8.1 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以上内容取自 LOICollectionA 1.9.2 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 
 ## 模块数据文件
 
