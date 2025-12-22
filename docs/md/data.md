@@ -58,6 +58,13 @@
                 "ModuleEnabled": true, // 是否启用指令禁用检测
                 "FormatText": "该指令已被禁用", // 指令禁用提示
                 "CommandLists": [] // 被禁用的指令列表
+            },
+            "DynamicMotd": {
+                "ModuleEnabled": true, // 是否启用动态服务器 MOTD
+                "RefreshInterval": 200, // 刷新间隔，单位为 tick（20 tick = 1 秒）
+                "Pages": [
+                    "在线玩家: {server.player.online}/{server.player.max}" // 每行显示内容，支持 LOICollectionA API 变量
+                ]
             }
         },
         "Pvp": {

@@ -47,6 +47,11 @@ struct C_Config {
                 std::string FormatText = "该指令已被禁用";
                 std::vector<std::string> CommandLists{};
             } DisableCommand;
+            struct C_DynamicMotd {
+                bool ModuleEnabled = true;
+                int RefreshInterval = 200;
+                std::vector<std::string> Pages{ "在线玩家: {server.player.online}/{server.player.max}" };
+            } DynamicMotd;
         } Monitor;
         struct C_Pvp {
             bool ModuleEnabled = false;

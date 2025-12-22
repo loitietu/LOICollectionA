@@ -50,10 +50,15 @@ public:
     std::string process(const std::string& content, const Context& context) override {
         auto [name, parameter] = parser(content);
 
-        if (parameter.empty())
-            return APIUtils::getInstance().getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(context.params.at(0)));
+        if (parameter.empty()) {
+            return context.params.size() > 0 ? 
+                APIUtils::getInstance().getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(context.params.at(0))) :
+                APIUtils::getInstance().getValueForVariable(name);
+        }
 
-        return APIUtils::getInstance().getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(context.params.at(0)), parameter);
+        return context.params.size() > 0 ?
+            APIUtils::getInstance().getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(context.params.at(0)), parameter) :
+            APIUtils::getInstance().getValueForVariable(name, parameter);
     }
 
     std::pair<std::string, std::string> parser(const std::string& content) {
@@ -77,7 +82,9 @@ public:
 
 namespace LOICollection::LOICollectionAPI {
     struct APIUtils::Impl {
+        std::unordered_map<std::string, std::function<std::string()>> mVariableCommonMap;
         std::unordered_map<std::string, std::function<std::string(Player&)>> mVariableMap;
+        std::unordered_map<std::string, std::function<std::string(std::string)>> mVariableCommonMapParameter;
         std::unordered_map<std::string, std::function<std::string(Player&, std::string)>> mVariableMapParameter;
     };
 
@@ -91,13 +98,13 @@ namespace LOICollection::LOICollectionAPI {
             APIEngineConfig{ "grammar", "@", "@", "", 1 }
         );
 
-        this->registerVariable("version.mc", [](Player&) -> std::string {
+        this->registerVariable("version.mc", []() -> std::string {
             return ll::getGameVersion().to_string();
         });
-        this->registerVariable("version.ll", [](Player&) -> std::string {
+        this->registerVariable("version.ll", []() -> std::string {
             return ll::getLoaderVersion().to_string();
         });
-        this->registerVariable("version.protocol", [](Player&) -> std::string {
+        this->registerVariable("version.protocol", []() -> std::string {
             return std::to_string(ll::getNetworkProtocolVersion()); 
         });
         this->registerVariable("player", [](Player& player) -> std::string {
@@ -231,23 +238,23 @@ namespace LOICollection::LOICollectionAPI {
         this->registerVariable("player.packet.avg", [](Player& player) -> std::string {
             return std::to_string(player.getNetworkStatus()->mCurrentPacketLoss);
         });
-        this->registerVariable("server.tps", [](Player&) -> std::string {
+        this->registerVariable("server.tps", []() -> std::string {
             auto mMspt = static_cast<double>(ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count()) / 1e6;
             return std::to_string(mMspt <= 50.0 ? 20.0 : static_cast<double>(1000.0 / mMspt));
         });
-        this->registerVariable("server.mspt", [](Player&) -> std::string { 
+        this->registerVariable("server.mspt", []() -> std::string { 
             return std::to_string(static_cast<double>(ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count()) / 1e6);
         });
-        this->registerVariable("server.time", [](Player&) -> std::string {
+        this->registerVariable("server.time", []() -> std::string {
             return SystemUtils::getNowTime();
         });
-        this->registerVariable("server.player.max", [](Player&) -> std::string {
+        this->registerVariable("server.player.max", []() -> std::string {
             return std::to_string(ll::service::getServerNetworkHandler()->mMaxNumPlayers);
         });
-        this->registerVariable("server.player.online", [](Player&) -> std::string {
+        this->registerVariable("server.player.online", []() -> std::string {
             return std::to_string(ll::service::getLevel()->getActivePlayerCount());
         });
-        this->registerVariable("server.entity", [](Player&) -> std::string {
+        this->registerVariable("server.entity", []() -> std::string {
             return std::to_string(ll::service::getLevel()->getRuntimeActorList().size());
         });
         this->registerVariable("score", [](Player& player, const std::string& name) -> std::string {
@@ -256,7 +263,7 @@ namespace LOICollection::LOICollectionAPI {
         this->registerVariable("tr", [](Player& player, const std::string& name) -> std::string {
             return I18nUtils::getInstance()->get(Plugins::LanguagePlugin::getInstance().getLanguage(player), name);
         });
-        this->registerVariable("entity", [](Player&, std::string name) -> std::string {
+        this->registerVariable("entity", [](std::string name) -> std::string {
             std::vector<Actor*> mRuntimeActorList = ll::service::getLevel()->getRuntimeActorList();
             int count = static_cast<int>(std::count_if(mRuntimeActorList.begin(), mRuntimeActorList.end(), [&name](Actor* actor) -> bool {
                 return actor->getTypeName() == name;
@@ -272,24 +279,46 @@ namespace LOICollection::LOICollectionAPI {
         return instance;
     }
 
+    void APIUtils::registerVariable(const std::string& name, std::function<std::string()> callback) {
+        this->mImpl->mVariableCommonMap.emplace(name, std::move(callback));
+    }
+
     void APIUtils::registerVariable(const std::string& name, std::function<std::string(Player&)> callback) {
         this->mImpl->mVariableMap.emplace(name, std::move(callback));
+    }
+
+    void APIUtils::registerVariable(const std::string& name, std::function<std::string(std::string)> callback) {
+        this->mImpl->mVariableCommonMapParameter.emplace(name, std::move(callback));
     }
 
     void APIUtils::registerVariable(const std::string& name, std::function<std::string(Player&, std::string)> callback) {
         this->mImpl->mVariableMapParameter.emplace(name, std::move(callback));
     }
 
+    std::string APIUtils::getValueForVariable(const std::string& name) try {
+        auto it = this->mImpl->mVariableCommonMap.find(name);
+        return it != this->mImpl->mVariableCommonMap.end() ? it->second() : "None";
+    } catch (...) {
+        return "None";
+    }
+
     std::string APIUtils::getValueForVariable(const std::string& name, Player& player) try {
         auto it = this->mImpl->mVariableMap.find(name);
-        return it != this->mImpl->mVariableMap.end() ? it->second(player) : "None";
+        return it != this->mImpl->mVariableMap.end() ? it->second(player) : this->getValueForVariable(name);
+    } catch (...) {
+        return "None";
+    }
+
+    std::string APIUtils::getValueForVariable(const std::string& name, const std::string& parameter) try {
+        auto it = this->mImpl->mVariableCommonMapParameter.find(name);
+        return it != this->mImpl->mVariableCommonMapParameter.end() ? it->second(parameter) : "None";
     } catch (...) {
         return "None";
     }
 
     std::string APIUtils::getValueForVariable(const std::string& name, Player& player, const std::string& parameter) try {
         auto it = this->mImpl->mVariableMapParameter.find(name);
-        return it != this->mImpl->mVariableMapParameter.end() ? it->second(player, parameter) : "None";
+        return it != this->mImpl->mVariableMapParameter.end() ? it->second(player, parameter) : this->getValueForVariable(name, parameter);
     } catch (...) {
         return "None";
     }
@@ -307,11 +336,19 @@ namespace LOICollection::LOICollectionAPI {
         return APIEngine::getInstance().get("variable", str, { std::ref(player) });
     }
 
+    std::string APIUtils::getVariableString(const std::string& str) {
+        return APIEngine::getInstance().get("variable", str);
+    }
+
     std::string APIUtils::getGrammarString(const std::string& str) {
         return APIEngine::getInstance().get("grammar", str);
     }
 
     std::string APIUtils::translateString(const std::string& str, Player& player) {
         return APIEngine::getInstance().process(str, { std::ref(player) });
+    }
+
+    std::string APIUtils::translateString(const std::string& str) {
+        return APIEngine::getInstance().process(str);
     }
 }

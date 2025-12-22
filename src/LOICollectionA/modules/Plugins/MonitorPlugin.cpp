@@ -11,6 +11,7 @@
 
 #include <ll/api/chrono/GameChrono.h>
 #include <ll/api/service/Bedrock.h>
+#include <ll/api/service/ServerInfo.h>
 
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
@@ -67,9 +68,11 @@ namespace LOICollection::Plugins {
 
         ll::coro::InterruptableSleep NameTaskSleep;
         ll::coro::InterruptableSleep BelowNameTaskSleep;
+        ll::coro::InterruptableSleep DynamicMotdTaskSleep;
 
         std::atomic<bool> NameTaskRunning{ true };
         std::atomic<bool> BelowNameTaskRunning{ true };
+        std::atomic<bool> DynamicMotdTaskRunning{ true };
     };
 
     MonitorPlugin::MonitorPlugin() : mImpl(std::make_unique<Impl>()) {};
@@ -83,6 +86,7 @@ namespace LOICollection::Plugins {
     void MonitorPlugin::listenEvent() {
         this->mImpl->NameTaskRunning.store(true, std::memory_order_release);
         this->mImpl->BelowNameTaskRunning.store(true, std::memory_order_release);
+        this->mImpl->DynamicMotdTaskRunning.store(true, std::memory_order_release);
 
         if (this->mImpl->options.BelowName.ModuleEnabled) {
             std::shared_ptr<std::string> mName = std::make_shared<std::string>();
@@ -122,6 +126,21 @@ namespace LOICollection::Plugins {
 
                         return true;
                     });
+                }
+            }).launch(ll::thread::ServerThreadExecutor::getDefault());
+        }
+
+        if (this->mImpl->options.DynamicMotd.ModuleEnabled) {
+            ll::coro::keepThis([this, option = this->mImpl->options.DynamicMotd]() -> ll::coro::CoroTask<> {
+                size_t index = 0;
+                size_t maxIndex = this->mImpl->options.DynamicMotd.Pages.size() - 1;
+
+                while (this->mImpl->DynamicMotdTaskRunning.load(std::memory_order_acquire)) {
+                    co_await this->mImpl->DynamicMotdTaskSleep.sleepFor(ll::chrono::ticks(option.RefreshInterval));
+
+                    ll::setServerMotd(LOICollectionAPI::APIUtils::getInstance().translateString(option.Pages[index]));
+
+                    index = index < maxIndex ? index + 1 : 0;
                 }
             }).launch(ll::thread::ServerThreadExecutor::getDefault());
         }
@@ -256,9 +275,11 @@ namespace LOICollection::Plugins {
 
         this->mImpl->NameTaskRunning.store(false, std::memory_order_release);
         this->mImpl->BelowNameTaskRunning.store(false, std::memory_order_release);
+        this->mImpl->DynamicMotdTaskRunning.store(false, std::memory_order_release);
 
         this->mImpl->NameTaskSleep.interrupt();
         this->mImpl->BelowNameTaskSleep.interrupt();
+        this->mImpl->DynamicMotdTaskSleep.interrupt();
     }
 
     bool MonitorPlugin::load() {
