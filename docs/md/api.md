@@ -1,7 +1,7 @@
 # LOICollectionAPI
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.7.1 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
+> 以下内容取自 LOICollectionA 1.9.2 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
 
 ## 默认变量
 
@@ -17,6 +17,13 @@
 | {player.title.time} | 获取玩家剩余拥有称号时间 |
 | {player.mute} | 玩家是否被禁言 |
 | {player.pvp} | 玩家是否开启PVP |
+| {player.statistcs.onlinetime} | 玩家在线时长 |
+| {player.statistcs.kills"} | 玩家击杀生物数量 |
+| {player.statistcs.deaths} | 玩家死亡次数 |
+| {player.statistcs.place} | 玩家放置方块数量 |
+| {player.statistcs.destroy} | 玩家破坏方块数量 |
+| {player.statistcs.respawn} | 玩家重生次数 |
+| {player.statistcs.join} | 玩家加入服务器次数 |
 | {player.gamemode} | 玩家当前游戏模式 |
 | {player.pos} | 玩家所在坐标 |
 | {player.pos.x} | 玩家所在X坐标 |
