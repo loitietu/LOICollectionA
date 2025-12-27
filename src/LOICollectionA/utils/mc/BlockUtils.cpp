@@ -59,18 +59,6 @@ namespace BlockUtils {
         return mBlockEntity ? std::optional(mBlockEntity) : std::nullopt;
     }
 
-    void setCorrect(BlockPos& pos, int face) {
-        switch (face) {
-            case 0: --pos.y; break;
-            case 1: ++pos.y; break;
-            case 2: --pos.z; break;
-            case 3: ++pos.z; break;
-            case 4: --pos.x; break;
-            case 5: ++pos.x; break;
-            default: break;
-        }
-    }
-
     void setBlock(const BlockPos& pos, int dimension, const CompoundTag& nbt) {
         if (!isValidRange(pos, dimension))
             return;

@@ -98,6 +98,9 @@ namespace LOICollection::Plugins {
                 while (this->mImpl->NameTaskRunning.load(std::memory_order_acquire)) {
                     co_await this->mImpl->NameTaskSleep.sleepFor(ll::chrono::ticks(option.BelowName.RefreshDisplayInterval));
 
+                    if (!this->mImpl->NameTaskRunning.load(std::memory_order_acquire))
+                        break;
+
                     std::string result;
                     for (const std::string& page : option.BelowName.Pages[index]) 
                         result.append((result.empty() ? "" : "\n") + page);
@@ -110,6 +113,9 @@ namespace LOICollection::Plugins {
             ll::coro::keepThis([this, option = this->mImpl->options.BelowName, mName]() -> ll::coro::CoroTask<> {
                 while (this->mImpl->BelowNameTaskRunning.load(std::memory_order_acquire)) {
                     co_await this->mImpl->BelowNameTaskSleep.sleepFor(ll::chrono::ticks(option.RefreshInterval));
+
+                    if (!this->mImpl->BelowNameTaskRunning.load(std::memory_order_acquire))
+                        break;
 
                     ll::service::getLevel()->forEachPlayer([mName](Player& mTarget) -> bool {
                         if (mTarget.isSimulatedPlayer())
@@ -137,6 +143,9 @@ namespace LOICollection::Plugins {
 
                 while (this->mImpl->DynamicMotdTaskRunning.load(std::memory_order_acquire)) {
                     co_await this->mImpl->DynamicMotdTaskSleep.sleepFor(ll::chrono::ticks(option.RefreshInterval));
+
+                    if (!this->mImpl->DynamicMotdTaskRunning.load(std::memory_order_acquire))
+                        break;
 
                     ll::setServerMotd(LOICollectionAPI::APIUtils::getInstance().translateString(option.Pages[index]));
 

@@ -322,7 +322,7 @@ namespace LOICollection::Plugins {
 
         this->getDatabase()->set(connection, "Mute", mTimestamp + ".NAME", player.getRealName());
         this->getDatabase()->set(connection, "Mute", mTimestamp + ".CAUSE", mCause);
-        this->getDatabase()->set(connection, "Mute", mTimestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "0") : "0");
+        this->getDatabase()->set(connection, "Mute", mTimestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "0") : "0");
         this->getDatabase()->set(connection, "Mute", mTimestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         this->getDatabase()->set(connection, "Mute", mTimestamp + ".DATA", player.getUuid().asString());
 

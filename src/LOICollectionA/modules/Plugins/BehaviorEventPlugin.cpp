@@ -1,4 +1,3 @@
-#include <mutex>
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -22,6 +21,7 @@
 #include <ll/api/coro/CoroTask.h>
 #include <ll/api/coro/InterruptableSleep.h>
 #include <ll/api/thread/ThreadPoolExecutor.h>
+#include <ll/api/base/Containers.h>
 
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
@@ -44,6 +44,7 @@
 #include <ll/api/event/player/PlayerUseItemEvent.h>
 
 #include <mc/deps/core/math/Vec3.h>
+#include <mc/deps/core/string/HashedString.h>
 #include <mc/deps/shared_types/legacy/actor/ActorDamageCause.h>
 
 #include <mc/nbt/Tag.h>
@@ -105,9 +106,8 @@ namespace LOICollection::Plugins {
     };
 
     struct BehaviorEventPlugin::Impl {
-        std::mutex mMutex;
+        ll::ConcurrentQueue<Event> mEvents;
 
-        std::vector<Event> mEvents;
         std::atomic<bool> mRegistered{ false };
 
         C_Config::C_Plugins::C_BehaviorEvent options;
@@ -116,6 +116,8 @@ namespace LOICollection::Plugins {
         std::shared_ptr<ll::io::Logger> logger;
 
         std::unordered_map<std::string, ll::event::ListenerPtr> mListeners;
+
+        ll::thread::ThreadPoolExecutor mExecutor{ "BehavorEventPlugin", std::max(static_cast<size_t>(std::thread::hardware_concurrency()) - 2, static_cast<size_t>(2)) };
 
         ll::coro::InterruptableSleep WirteDatabaseTaskSleep;
         ll::coro::InterruptableSleep CleanDatabaseTaskSleep;
@@ -172,13 +174,14 @@ namespace LOICollection::Plugins {
             }
 
             if (config(BehaviorEventConfig::RecordDatabase)) {
-                std::lock_guard lock(this->mImpl->mMutex);
-
                 Event mEvent = this->getBasicEvent(name, type, mPosition, mDimension);
 
                 process(event, mEvent);
 
-                this->mImpl->mEvents.push_back(mEvent);
+                if (!this->mImpl->mEvents.try_enqueue(mEvent)) {
+                    this->getLogger()->error(fmt::runtime(tr({}, "console.log.error.containter")), "BehaviorEventPlugin");
+                    return;
+                }
             }
 
             if (config(BehaviorEventConfig::OutputConsole))
@@ -222,7 +225,7 @@ namespace LOICollection::Plugins {
         command.overload<operation>().text("query").text("event").text("time").required("Time").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
             std::vector<std::string> mResult = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
-                std::string mTime = SystemUtils::toTimeCalculate(value, time, "0");
+                std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
                 return !SystemUtils::isPastOrPresent(mTime);
             }, param.Limit);
             
@@ -235,7 +238,7 @@ namespace LOICollection::Plugins {
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
             std::vector<std::string> mNames = this->getEvents({{ "EventName", param.EventName }}, {}, param.Limit);
             std::vector<std::string> mTimes = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
-                std::string mTime = SystemUtils::toTimeCalculate(value, time, "0");
+                std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
                 return !SystemUtils::isPastOrPresent(mTime);
             }, param.Limit);
             std::vector<std::string> mResult = SystemUtils::getIntersection({ mNames, mTimes });
@@ -334,7 +337,7 @@ namespace LOICollection::Plugins {
                 return Vec3(x, y, z).distanceToSqr(mPosition) <= radius;
             });
             std::vector<std::string> mTimes = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
-                std::string mTime = SystemUtils::toTimeCalculate(value, time, "0");
+                std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
                 return !SystemUtils::isPastOrPresent(mTime);
             });
             std::vector<std::string> mTypes = this->getEvents({{ "EventType", "Operable" }});
@@ -362,7 +365,7 @@ namespace LOICollection::Plugins {
                     y <= static_cast<double>(mPositionMax.y) && z >= static_cast<double>(mPositionMin.z) && z <= static_cast<double>(mPositionMax.z);
             });
             std::vector<std::string> mTimes = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
-                std::string mTime = SystemUtils::toTimeCalculate(value, time, "0");
+                std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
                 return !SystemUtils::isPastOrPresent(mTime);
             });
             std::vector<std::string> mTypes = this->getEvents({{ "EventType", "Operable" }});
@@ -390,25 +393,27 @@ namespace LOICollection::Plugins {
                 if (!this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire))
                     break;
 
-                std::lock_guard lock(this->mImpl->mMutex);
+                Event mEvent{};
 
-                std::ranges::sort(this->mImpl->mEvents, {}, [](const Event& mEvent) {
+                std::vector<Event> mEvents;
+                while (this->mImpl->mEvents.try_dequeue(mEvent))
+                    mEvents.emplace_back(mEvent);
+
+                std::ranges::sort(mEvents.begin(), mEvents.end(), {}, [](const Event& mEvent) {
                     return std::tie(mEvent.eventName, mEvent.eventTime, mEvent.eventType, mEvent.posX, mEvent.posY, mEvent.posZ, mEvent.dimension);
                 });
-                auto [first, last] = std::ranges::unique(this->mImpl->mEvents, {}, [](const Event& mEvent) {
+                auto [first, last] = std::ranges::unique(mEvents.begin(), mEvents.end(), {}, [](const Event& mEvent) {
                     return std::tie(mEvent.eventName, mEvent.eventTime, mEvent.eventType, mEvent.posX, mEvent.posY, mEvent.posZ, mEvent.dimension);
                 });
-                this->mImpl->mEvents.erase(first, last);
+                mEvents.erase(first, last);
 
-                std::for_each(this->mImpl->mEvents.begin(), this->mImpl->mEvents.end(), [this](const Event& mEvent) mutable -> void {
+                std::for_each(mEvents.begin(), mEvents.end(), [this](const Event& mEvent) mutable -> void {
                     std::string mTismestamp = SystemUtils::getCurrentTimestamp();
 
                     this->write(mTismestamp, mEvent);
                 });
-
-                this->mImpl->mEvents.clear();
             }
-        }).launch(ll::thread::ThreadPoolExecutor::getDefault());
+        }).launch(this->mImpl->mExecutor);
 
         ll::coro::keepThis([this]() -> ll::coro::CoroTask<> {
             while (this->mImpl->CleanDatabaseTaskRunning.load(std::memory_order_acquire)) {
@@ -419,7 +424,7 @@ namespace LOICollection::Plugins {
 
                 this->clean(this->mImpl->options.OrganizeDatabaseInterval);
             }
-        }).launch(ll::thread::ThreadPoolExecutor::getDefault());
+        }).launch(this->mImpl->mExecutor);
 
         this->registeryEvent<ll::event::PlayerConnectEvent>("PlayerConnect", "Normal", "behaviorevent.event.playerconnect", [this](BehaviorEventConfig config) -> bool {
             switch (config) {
@@ -567,7 +572,7 @@ namespace LOICollection::Plugins {
                 sevent.pos().x, sevent.pos().y, sevent.pos().z, mBlockType.empty() ? "Unknown" : mBlockType);
         });
 
-        this->registeryEvent<ll::event::PlayerPlacingBlockEvent>("PlayerPlaceBlock", "Operable", "behaviorevent.event.playerplaceblock", [this](BehaviorEventConfig config) -> bool {
+        this->registeryEvent<ll::event::PlayerPlacedBlockEvent>("PlayerPlaceBlock", "Operable", "behaviorevent.event.playerplaceblock", [this](BehaviorEventConfig config) -> bool {
             switch (config) {
                 case BehaviorEventConfig::ModuleEnabled: return this->mImpl->options.Events.onPlayerPlaceBlock.ModuleEnabled;
                 case BehaviorEventConfig::RecordDatabase: return this->mImpl->options.Events.onPlayerPlaceBlock.RecordDatabase;
@@ -576,25 +581,16 @@ namespace LOICollection::Plugins {
 
             return false;
         }, [](ll::event::Event& event, Event& mEvent) -> void {
-            auto& sevent = static_cast<ll::event::PlayerPlacingBlockEvent&>(event);
+            auto& sevent = static_cast<ll::event::PlayerPlacedBlockEvent&>(event);
 
-            BlockPos mPosition = sevent.pos();
-            BlockUtils::setCorrect(mPosition, sevent.face());
+            HashedString mHashedId("minecraft:air");
 
-            if (auto mBlock = BlockUtils::getBlock(mPosition, sevent.self().getDimensionId()); mBlock.has_value())
-                mEvent.extendedFields.emplace_back("EventOperable", mBlock.value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
-            if (auto mBlockEntity = BlockUtils::getBlockEntity(mPosition, sevent.self().getDimensionId()); mBlockEntity.has_value()) {
-                CompoundTag mTag;
-                mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
-
-                mEvent.extendedFields.emplace_back("EventBlockEntity", mTag.toSnbt(SnbtFormat::Minimize, 0));
-            }
+            mEvent.extendedFields.emplace_back("EventOperable", Block::tryGetFromRegistry(mHashedId).value().mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
             mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
-            auto& sevent = static_cast<ll::event::PlayerPlacingBlockEvent&>(event);
+            auto& sevent = static_cast<ll::event::PlayerPlacedBlockEvent&>(event);
 
             BlockPos mPosition = sevent.pos();
-            BlockUtils::setCorrect(mPosition, sevent.face());
             
             return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
                 mPosition.x, mPosition.y, mPosition.z, sevent.self().getCarriedItem().getTypeName());
@@ -932,7 +928,7 @@ namespace LOICollection::Plugins {
         std::for_each(mKeys.begin(), mKeys.end(), [this, connection = transaction.connection(), hours](const std::string& mId) mutable {
             std::string mEventTime = this->getDatabase()->get(connection, "Events", mId + ".EventTime");
             
-            std::string mTime = SystemUtils::toTimeCalculate(mEventTime, hours, "0");
+            std::string mTime = SystemUtils::toTimeCalculate(mEventTime, hours * 3600, "0");
             if (SystemUtils::isPastOrPresent(mTime))
                 this->getDatabase()->delByPrefix(connection, "Events", mId + ".");
         });

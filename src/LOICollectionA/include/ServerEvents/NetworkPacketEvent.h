@@ -12,23 +12,32 @@ class ServerPlayer;
 class NetworkIdentifier;
 
 namespace LOICollection::ServerEvents {
+    enum class NetworkPacketType {
+        send,
+        receive
+    };
+
     class NetworkPacketEvent final : public ll::event::Cancellable<ll::event::Event> {
     protected:
         const NetworkIdentifier& mNetworkIdentifier;
         const Packet& mPacket;
         
         SubClientId mSubClientId;
+
+        NetworkPacketType mType;
     
     public:
         constexpr explicit NetworkPacketEvent(
             const NetworkIdentifier& networkIdentifier,
             const Packet& packet,
-            SubClientId subClientId
-        ) : mNetworkIdentifier(networkIdentifier), mPacket(packet), mSubClientId(subClientId) {}
+            SubClientId subClientId,
+            NetworkPacketType type
+        ) : mNetworkIdentifier(networkIdentifier), mPacket(packet), mSubClientId(subClientId), mType(type) {}
 
         LOICOLLECTION_A_NDAPI const NetworkIdentifier& getNetworkIdentifier() const;
         LOICOLLECTION_A_NDAPI const Packet& getPacket() const;
         LOICOLLECTION_A_NDAPI SubClientId getSubClientId() const;
+        LOICOLLECTION_A_NDAPI NetworkPacketType getType() const;
     };
 
     class NetworkBroadcastPacketEvent final : public ll::event::Cancellable<ll::event::Event> {

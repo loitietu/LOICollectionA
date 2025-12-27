@@ -40,6 +40,10 @@ namespace LOICollection::ServerEvents {
         return mSubClientId;
     }
 
+    NetworkPacketType NetworkPacketEvent::getType() const {
+        return mType;
+    }
+
     LL_TYPE_INSTANCE_HOOK(
         NetworkPacketEventHook1,
         HookPriority::Normal,
@@ -50,7 +54,7 @@ namespace LOICollection::ServerEvents {
         Packet const& packet,
         SubClientId subClientId
     ) {
-        NetworkPacketEvent event(identifier, packet, subClientId);
+        NetworkPacketEvent event(identifier, packet, subClientId, NetworkPacketType::send);
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled())
             return;
@@ -68,7 +72,7 @@ namespace LOICollection::ServerEvents {
         Packet const& packet,
         uint size
     ) {
-        NetworkPacketEvent event(source, packet, packet.mSenderSubId);
+        NetworkPacketEvent event(source, packet, packet.mSenderSubId, NetworkPacketType::receive);
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled())
             return;

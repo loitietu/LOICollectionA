@@ -13,7 +13,6 @@ namespace BlockUtils {
     std::optional<Block*> getBlock(const BlockPos& pos, int dimension);
     std::optional<BlockActor*> getBlockEntity(const BlockPos& pos, int dimension);
 
-    void setCorrect(BlockPos& pos, int face);
     void setBlock(const BlockPos& pos, int dimension, const CompoundTag& nbt);
     void setBlockEntity(const BlockPos& pos, int dimension, const CompoundTag& nbt);
 }

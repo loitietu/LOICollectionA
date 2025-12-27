@@ -332,7 +332,7 @@ namespace LOICollection::Plugins {
 
         this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".NAME", player.getRealName());
         this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".CAUSE", mCause);
-        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
+        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "None") : "None");
         this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
         this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".DATA_UUID", player.getUuid().asString());
         this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".DATA_IP", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':')));

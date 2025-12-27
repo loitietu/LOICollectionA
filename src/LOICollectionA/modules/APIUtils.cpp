@@ -31,9 +31,10 @@
 #include "LOICollectionA/frontend/Evaluator.h"
 
 #include "LOICollectionA/include/Plugins/PvpPlugin.h"
-#include "LOICollectionA/include/Plugins/MutePlugin.h"
 #include "LOICollectionA/include/Plugins/ChatPlugin.h"
+#include "LOICollectionA/include/Plugins/MutePlugin.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
+#include "LOICollectionA/include/Plugins/StatisticsPlugin.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/mc/ScoreboardUtils.h"
@@ -129,6 +130,29 @@ namespace LOICollection::LOICollectionAPI {
         });
         this->registerVariable("player.language.name", [](Player& player) -> std::string {
             return I18nUtils::getInstance()->get(Plugins::LanguagePlugin::getInstance().getLanguage(player), "name");
+        });
+        this->registerVariable("player.statistcs.onlinetime", [](Player& player) -> std::string {
+            return SystemUtils::toFormatSecond(
+                std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::onlinetime)), "None"
+            );
+        });
+        this->registerVariable("player.statistcs.kills", [](Player& player) -> std::string {
+            return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::kills));
+        });
+        this->registerVariable("player.statistcs.deaths", [](Player& player) -> std::string {
+            return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::deaths));
+        });
+        this->registerVariable("player.statistcs.place", [](Player& player) -> std::string {
+            return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::place));
+        });
+        this->registerVariable("player.statistcs.destroy", [](Player& player) -> std::string {
+            return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::destroy));
+        });
+        this->registerVariable("player.statistcs.respawn", [](Player& player) -> std::string {
+            return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::respawn));
+        });
+        this->registerVariable("player.statistcs.join", [](Player& player) -> std::string {
+            return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::join));
         });
         this->registerVariable("player.gamemode", [](Player& player) -> std::string {
             return std::string(magic_enum::enum_name(player.getPlayerGameType()));

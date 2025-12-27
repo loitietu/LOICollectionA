@@ -7,8 +7,10 @@ namespace SystemUtils {
     std::string getSystemLocaleCode(const std::string& defaultValue = "");
     std::string getCurrentTimestamp();
     std::string getNowTime(const std::string& format = "%Y-%m-%d %H:%M:%S");
+    std::string getTimeSpan(const std::string& str, const std::string& target, const std::string& defaultValue = "");
     std::string toFormatTime(const std::string& str, const std::string& defaultValue = "");
-    std::string toTimeCalculate(const std::string& str, int hours, const std::string& defaultValue = "");
+    std::string toFormatSecond(const std::string& str, const std::string& defaultValue = "");
+    std::string toTimeCalculate(const std::string& str, int seconds, const std::string& defaultValue = "");
 
     std::vector<std::string> getIntersection(const std::vector<std::vector<std::string>>& elements);
 

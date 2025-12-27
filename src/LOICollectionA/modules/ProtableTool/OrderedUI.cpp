@@ -30,8 +30,8 @@
 
 namespace LOICollection::ProtableTool {
     struct OrderedUI::Impl {
-        std::unordered_map<uint64, uint> mFormResponse;
-        std::unordered_map<uint64, std::unordered_map<uint, std::string>> mFormLists;
+        std::unordered_map<uint64_t, uint> mFormResponse;
+        std::unordered_map<uint64_t, std::unordered_map<uint, std::string>> mFormLists;
 
         std::atomic<bool> mRegistered{ false };
 
@@ -58,7 +58,7 @@ namespace LOICollection::ProtableTool {
 
             auto& packet = static_cast<ModalFormRequestPacket&>(const_cast<Packet&>(event.getPacket()));
 
-            uint64 mIdentifierHash = event.getNetworkIdentifier().getHash();
+            uint64_t mIdentifierHash = event.getNetworkIdentifier().getHash();
             if (!packet.mFormId || packet.mFormJSON.empty())
                 return;
             if (this->mImpl->mFormResponse.contains(mIdentifierHash)) {
@@ -77,7 +77,7 @@ namespace LOICollection::ProtableTool {
 
             auto& packet = static_cast<ModalFormResponsePacket&>(const_cast<Packet&>(event.getPacket()));
 
-            uint64 mIdentifierHash = event.getNetworkIdentifier().getHash();
+            uint64_t mIdentifierHash = event.getNetworkIdentifier().getHash();
             if (!this->mImpl->mFormResponse.contains(mIdentifierHash))
                 return;
             if (packet.mFormId != this->mImpl->mFormResponse[mIdentifierHash]) {
@@ -104,7 +104,7 @@ namespace LOICollection::ProtableTool {
             if (event.self().isSimulatedPlayer())
                 return;
 
-            uint64 mIdentifierHash = event.self().getNetworkIdentifier().getHash();
+            uint64_t mIdentifierHash = event.self().getNetworkIdentifier().getHash();
             if (this->mImpl->mFormResponse.contains(mIdentifierHash))
                 this->mImpl->mFormResponse.erase(mIdentifierHash);
             if (this->mImpl->mFormLists.contains(mIdentifierHash))

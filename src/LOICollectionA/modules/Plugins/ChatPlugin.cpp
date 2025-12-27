@@ -415,7 +415,7 @@ namespace LOICollection::Plugins {
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
         
-        this->getDatabase()->set("Titles", mObject + "." + text, time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "None") : "None");
+        this->getDatabase()->set("Titles", mObject + "." + text, time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "None") : "None");
         
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "chat.log2"), player)), text);
     }

@@ -158,6 +158,19 @@ struct C_Config {
                 } onBlockExplode;
             } Events;
         } BehaviorEvent;
+        struct C_Statistics {
+            bool ModuleEnabled = false;
+            int RefreshIntervalInMinutes = 5;
+            struct C_DatabaseInfo {
+                bool OnlineTime = true;
+                bool Kill = true;
+                bool Death = true;
+                bool Place = true;
+                bool Destroy = true;
+                bool Respawn = true;
+                bool Join = true;
+            } DatabaseInfo;
+        } Statistics;
     } Plugins;
     struct C_ProtableTool {
         struct C_BasicHook {

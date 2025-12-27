@@ -353,7 +353,7 @@ namespace LOICollection::Plugins {
             { "scores", nlohmann::ordered_json::object() },
             { "item", nlohmann::ordered_json::array() },
             { "title", nlohmann::ordered_json::object() },
-            { "time", SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time, "0") }
+            { "time", SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "0") }
         };
 
         this->getDatabase()->set(id, data);
