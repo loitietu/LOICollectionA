@@ -50,6 +50,7 @@
     "commands.behaviorevent.success.query": "当前查询行为事件列表如下(只显示前 {0} 条): {1}",
     "commands.behaviorevent.success.query.info": "目标行为事件信息:",
     "commands.behaviorevent.success.back": "区域行为事件已回溯",
+    "commands.statistics.description": "§e§lLOICollection -> §b玩家数据统计",
     "generic.tips.noinput": "没有输入内容, 无法执行后续操作",
     "language.log": "玩家 {player}({player.uuid}) 将语言更改为 {player.language}",
     "language.gui.title": "§e§lLOICollection -> §a语言设置",
@@ -389,5 +390,9 @@
     "behaviorevent.event.playerrespawn": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置进行重生",
     "behaviorevent.event.playeruseitem": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置使用 {5} 物品",
     "behaviorevent.event.playeropencontainer": "玩家 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置打开容器",
-    "behaviorevent.event.blockexplode": "方块 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置被爆炸破坏"
+    "behaviorevent.event.blockexplode": "方块 {0} 在维度ID为 {1} 的 ({2}, {3}, {4}) 位置被爆炸破坏",
+    "statistics.gui.title": "§e§lLOICollection -> §b玩家数据统计",
+    "statistics.gui.label": "§a统计排行榜如下",
+    "statistics.gui.specific.label": "§a目前正在查看 §r{0} §a排行榜 §b(只显示前 §r{1} §b名玩家)",
+    "statistics.gui.specific.line": "{0}. {1} -> {2}"
 }

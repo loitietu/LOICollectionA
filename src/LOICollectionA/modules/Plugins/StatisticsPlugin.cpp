@@ -1,14 +1,21 @@
 #include <atomic>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <filesystem>
 #include <unordered_map>
 
 #include <fmt/format.h>
+#include <magic_enum/magic_enum.hpp>
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
+#include <ll/api/form/CustomForm.h>
+#include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
+#include <ll/api/command/Command.h>
+#include <ll/api/command/CommandHandle.h>
+#include <ll/api/command/CommandRegistrar.h>
 #include <ll/api/base/Containers.h>
 
 #include <ll/api/coro/CoroTask.h>
@@ -24,11 +31,20 @@
 #include <ll/api/event/player/PlayerDisconnectEvent.h>
 #include <ll/api/event/player/PlayerDestroyBlockEvent.h>
 
+#include <mc/server/commands/CommandOrigin.h>
+#include <mc/server/commands/CommandOutput.h>
+#include <mc/server/commands/CommandSelector.h>
+#include <mc/server/commands/CommandPermissionLevel.h>
+#include <mc/server/commands/CommandOutputMessageType.h>
+
 #include <mc/world/level/Level.h>
 #include <mc/world/actor/player/Player.h>
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
+#include "LOICollectionA/include/Plugins/LanguagePlugin.h"
+
+#include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/SQLiteStorage.h"
@@ -57,7 +73,13 @@ template <
     class Mutex = std::shared_mutex>
 using ConcurrentDenseMap = phmap::parallel_flat_hash_map<Key, Value, Hash, Eq, Alloc, N, Mutex>;
 
+using I18nUtilsTools::tr;
+
 namespace LOICollection::Plugins {
+    struct StatisticsPlugin::operation {
+        StatisticType Type;
+    };
+
     struct StatisticsPlugin::Impl {
         std::unordered_map<std::string, std::string> mOnilneTime;
 
@@ -68,6 +90,7 @@ namespace LOICollection::Plugins {
         C_Config::C_Plugins::C_Statistics options;
 
         std::unique_ptr<SQLiteStorage> db;
+        std::shared_ptr<SQLiteStorage> db2;
         std::shared_ptr<ll::io::Logger> logger;
 
         std::unordered_map<std::string, ll::event::ListenerPtr> mListeners;
@@ -79,7 +102,7 @@ namespace LOICollection::Plugins {
         std::atomic<bool> WriteDatabaseTaskRunning{ true };
     };
 
-    StatisticsPlugin::StatisticsPlugin() : mImpl(std::make_unique<Impl>()) {}
+    StatisticsPlugin::StatisticsPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {}
     StatisticsPlugin::~StatisticsPlugin() = default;
 
     StatisticsPlugin& StatisticsPlugin::getInstance() {
@@ -93,6 +116,65 @@ namespace LOICollection::Plugins {
 
     ll::io::Logger* StatisticsPlugin::getLogger() {
         return this->mImpl->logger.get();
+    }
+
+    void StatisticsPlugin::gui::open(Player& player, StatisticType type) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        std::string mObjectLabel = tr(mObjectLanguage, "statistics.gui.specific.label");
+
+        ll::form::CustomForm form(tr(mObjectLanguage, "statistics.gui.title"));
+        form.appendLabel(fmt::format(fmt::runtime(mObjectLabel), this->mParent.getStatisticName(type), this->mParent.mImpl->options.RankingPlayerCount));
+        
+        size_t index = 1;
+        for (const std::string& uuid : this->mParent.getRankingList(type, this->mParent.mImpl->options.RankingPlayerCount)) {
+            form.appendLabel(fmt::format(
+                fmt::runtime(tr(mObjectLanguage, "statistics.gui.specific.line")), 
+                index++,
+                this->mParent.getPlayerInfo(uuid),
+                this->mParent.getStatistic(uuid, type)
+            ));
+        }
+
+        form.sendTo(player);
+    }
+
+    void StatisticsPlugin::gui::open(Player& player) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        ll::form::SimpleForm form(tr(mObjectLanguage, "statistics.gui.title"), tr(mObjectLanguage, "statistics.gui.label"));
+        for (auto type : magic_enum::enum_entries<StatisticType>()) {
+            form.appendButton(this->mParent.getStatisticName(type.first), [this, type = type.first](Player& pl) -> void  {
+                this->open(pl, type);
+            });
+        }
+        form.sendTo(player);
+    }
+
+    void StatisticsPlugin::registeryCommand() {
+        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
+            .getOrCreateCommand("statistics", tr({}, "commands.statistics.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
+        command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            Actor* entity = origin.getEntity();
+            if (entity == nullptr || !entity->isPlayer())
+                return output.error(tr({}, "commands.generic.target"));
+            Player& player = *static_cast<Player*>(entity);
+
+            this->mGui->open(player);
+
+            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+        });
+        command.overload<operation>().text("gui").required("Type").execute(
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
+            Actor* entity = origin.getEntity();
+            if (entity == nullptr || !entity->isPlayer())
+                return output.error(tr({}, "commands.generic.target"));
+            Player& player = *static_cast<Player*>(entity);
+
+            this->mGui->open(player, param.Type);
+
+            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+        });
     }
 
     void StatisticsPlugin::listenEvent() {
@@ -129,9 +211,9 @@ namespace LOICollection::Plugins {
         }));
 
         this->mImpl->mListeners.emplace("PlayerDisconnect", eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerDisconnectEvent& event) mutable -> void {
+            std::string mUuid = event.self().getUuid().asString();
+            
             if (option.OnlineTime) {
-                std::string mUuid = event.self().getUuid().asString();
-
                 int mOnlineTime = SystemUtils::toInt(
                     SystemUtils::getTimeSpan(SystemUtils::getNowTime(), this->mImpl->mOnilneTime.at(mUuid), "0")
                 );
@@ -201,26 +283,70 @@ namespace LOICollection::Plugins {
         return "";
     }
 
+    std::string StatisticsPlugin::getPlayerInfo(const std::string& uuid) {
+        if (!this->isValid())
+            return "";
+
+        std::string mUuid = uuid;
+        std::replace(mUuid.begin(), mUuid.end(), '-', '_');
+
+        return this->mImpl->db2->get("OBJECT$" + mUuid, "name", "Unknown");
+    }
+
+    std::vector<std::string> StatisticsPlugin::getRankingList(StatisticType type, int limit) {
+        if (!this->isValid())
+            return {};
+
+        std::string mTable = this->getStatisticName(type);
+
+        if (mTable.empty())
+            return {};
+
+        std::unordered_map<std::string, std::string> mData = this->mImpl->db2->getByPrefix(mTable, "");
+
+        auto mSorted = mData
+            | std::views::transform([](const auto& pair) { return std::make_pair(pair.first, SystemUtils::toInt(pair.second)); })
+            | std::ranges::to<std::vector<std::pair<std::string, int>>>();
+
+        std::ranges::sort(mSorted, [](const auto& a, const auto& b) {
+            return a.second < b.second;
+        });
+        
+        auto mResult =  mSorted
+            | std::views::keys
+            | std::ranges::to<std::vector<std::string>>();
+
+        if (limit > 0 && limit < static_cast<int>(mResult.size()))
+            mResult.resize(limit);
+
+        return mResult;
+    }
+
+    int StatisticsPlugin::getStatistic(const std::string& uuid, StatisticType type) {
+        if (!this->isValid())
+            return 0;
+
+        std::string mTable = this->getStatisticName(type);
+        if (mTable.empty())
+            return 0;
+
+        if (this->mImpl->mCache.contains(uuid))
+            return this->mImpl->mCache[uuid][mTable];
+
+        int result = SystemUtils::toInt(
+            this->getDatabase()->get(mTable, uuid, "0")
+        );
+
+        this->mImpl->mCache[uuid][mTable] = result;
+
+        return result;
+    }
+
     int StatisticsPlugin::getStatistic(Player& player, StatisticType type) {
         if (!this->isValid())
             return 0;
 
-        std::string mUuid = player.getUuid().asString();
-        std::string mTable = this->getStatisticName(type);
-
-        if (mTable.empty())
-            return 0;
-
-        if (this->mImpl->mCache.contains(mUuid))
-            return this->mImpl->mCache[mUuid][mTable];
-
-        int result = SystemUtils::toInt(
-            this->getDatabase()->get(mTable, mUuid, "0")
-        );
-
-        this->mImpl->mCache[mUuid][mTable] = result;
-
-        return result;
+        return this->getStatistic(player.getUuid().asString(), type);
     }
 
     void StatisticsPlugin::addStatistic(Player& player, StatisticType type, int value) {
@@ -249,6 +375,7 @@ namespace LOICollection::Plugins {
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
 
         this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "statistics.db").string());
+        this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Statistics;
 
@@ -281,6 +408,7 @@ namespace LOICollection::Plugins {
         this->getDatabase()->create("Respawn");
         this->getDatabase()->create("Joins");
 
+        this->registeryCommand();
         this->listenEvent();
 
         this->mImpl->mRegistered.store(true, std::memory_order_release);

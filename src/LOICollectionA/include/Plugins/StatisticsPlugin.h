@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -31,7 +32,11 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
 
         LOICOLLECTION_A_NDAPI std::string getStatisticName(StatisticType type);
+        LOICOLLECTION_A_NDAPI std::string getPlayerInfo(const std::string& uuid);
 
+        LOICOLLECTION_A_NDAPI std::vector<std::string> getRankingList(StatisticType type, int limit = -1);
+
+        LOICOLLECTION_A_NDAPI int getStatistic(const std::string& uuid, StatisticType type);
         LOICOLLECTION_A_NDAPI int getStatistic(Player& player, StatisticType type);
 
         LOICOLLECTION_A_API   void addStatistic(Player& player, StatisticType type, int value);
@@ -44,14 +49,33 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_API bool registry();
         LOICOLLECTION_A_API bool unregistry();
 
+    public:
+        class gui;
+        friend class gui;
+
     private:
         StatisticsPlugin();
         ~StatisticsPlugin();
         
+        void registeryCommand();
         void listenEvent();
         void unlistenEvent();
 
+        struct operation;
+
         struct Impl;
         std::unique_ptr<Impl> mImpl;
+        std::unique_ptr<gui> mGui;
+    };
+
+    class StatisticsPlugin::gui {
+    private:
+        StatisticsPlugin& mParent;
+
+    public:
+        gui(StatisticsPlugin& plugin) : mParent(plugin) {}
+
+        LOICOLLECTION_A_API void open(Player& player, StatisticType type);
+        LOICOLLECTION_A_API void open(Player& player);
     };
 }

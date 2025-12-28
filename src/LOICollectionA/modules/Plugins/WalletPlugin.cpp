@@ -16,7 +16,6 @@
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/service/Bedrock.h>
-#include <ll/api/service/PlayerInfo.h>
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
@@ -108,9 +107,8 @@ namespace LOICollection::Plugins {
     void WalletPlugin::gui::content(Player& player, const std::string& target, TransferType type) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        mce::UUID mTargetUuid = mce::UUID::fromString(target);
         std::string mTargetName = type == TransferType::online ? 
-            ll::service::getLevel()->getPlayer(mTargetUuid)->getRealName() : ll::service::PlayerInfo::getInstance().fromUuid(mTargetUuid)->name;
+            ll::service::getLevel()->getPlayer(mce::UUID::fromString(target))->getRealName() : this->mParent.getPlayerInfo(target);
 
         std::string mLabel = tr(mObjectLanguage, "wallet.gui.label") + "\n" + tr(mObjectLanguage, "wallet.gui.transfer.label2");
 
@@ -157,9 +155,9 @@ namespace LOICollection::Plugins {
                 });
                 break;
             case TransferType::offline:
-                for (const ll::service::PlayerInfo::PlayerInfoEntry& mTarget : ll::service::PlayerInfo::getInstance().entries()) {
-                    form.appendButton(mTarget.name, [this, mTarget](Player& pl) -> void {
-                        this->content(pl, mTarget.uuid.asString(), TransferType::offline);
+                for (auto& mTarget : this->mParent.getPlayerInfo()) {
+                    form.appendButton(mTarget.second, [this, uuid = mTarget.first](Player& pl) -> void {
+                        this->content(pl, uuid, TransferType::offline);
                     });
                 }
                 break;
@@ -361,6 +359,37 @@ namespace LOICollection::Plugins {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
         eventBus.removeListener(this->mImpl->PlayerChatEventListener);
+    }
+
+    std::string WalletPlugin::getPlayerInfo(const std::string& uuid) {
+        if (!this->isValid())
+            return "";
+
+        std::string mUuid = uuid;
+        std::replace(mUuid.begin(), mUuid.end(), '-', '_');
+
+        return this->mImpl->db->get("OBJECT$" + mUuid, "name", "Unknown");
+    }
+
+    std::vector<std::pair<std::string, std::string>> WalletPlugin::getPlayerInfo() {
+        if (!this->isValid())
+            return {};
+
+        std::vector<std::pair<std::string, std::string>> mResult;
+
+        SQLiteStorageTransaction transaction(*this->mImpl->db);
+
+        auto connection = transaction.connection();
+        for (const std::string& mObject : this->mImpl->db->list(connection)) {
+            std::string mUuid = mObject.substr(mObject.find('$') + 1);
+            std::replace(mUuid.begin(), mUuid.end(), '_', '-');
+
+            mResult.emplace_back(mUuid, this->mImpl->db->get(connection, mObject, "name", "Unknown"));
+        }
+
+        transaction.commit();
+
+        return mResult;
     }
 
     void WalletPlugin::transfer(const std::string& target, int score) {

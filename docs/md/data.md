@@ -174,6 +174,7 @@
         "Statistics": {
             "ModuleEnabled": true, // 是否启用统计
             "RefreshIntervalInMinutes": 1, // 统计刷新间隔（单位为分钟）
+            "RankingPlayerCount": 100, // 排行榜显示数量
             "DatabaseInfo": { // 统计数据库信息（每次退出后记录）
                 "OnlineTime": true, // 是否启用在线时间统计
                 "Kill": true, // 是否启用击杀生物统计

@@ -33,6 +33,7 @@ LOICollectionA 是源于插件 LOICollection 所演化而来的内容，其在�
 - [x] Notice
 - [x] Market
 - [x] BehaviorEvent
+- [x] Statistics
 
 ## 安装插件
 

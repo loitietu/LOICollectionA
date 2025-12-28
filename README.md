@@ -33,6 +33,7 @@ Future developments will provide more API interfaces to empower plugin developer
 - [x] Notice
 - [x] Market
 - [x] BehaviorEvent
+- [x] Statistics
 
 ## Installation
 

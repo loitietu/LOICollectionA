@@ -161,6 +161,7 @@ struct C_Config {
         struct C_Statistics {
             bool ModuleEnabled = false;
             int RefreshIntervalInMinutes = 5;
+            int RankingPlayerCount = 100;
             struct C_DatabaseInfo {
                 bool OnlineTime = true;
                 bool Kill = true;

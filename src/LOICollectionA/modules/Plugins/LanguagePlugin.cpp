@@ -118,6 +118,9 @@ namespace LOICollection::Plugins {
 
             if (!this->mImpl->db->has("OBJECT$" + mObject, "language"))
                 this->mImpl->db->set("OBJECT$" + mObject, "language", langcode);
+
+            if (!this->mImpl->db->has("OBJECT$" + mObject, "name"))
+                this->mImpl->db->set("OBJECT$" + mObject, "name", event.self().getRealName());
         });
     }
 

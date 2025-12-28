@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -22,6 +23,10 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI static WalletPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
+
+        LOICOLLECTION_A_NDAPI std::string getPlayerInfo(const std::string& uuid);
+
+        LOICOLLECTION_A_NDAPI std::vector<std::pair<std::string, std::string>> getPlayerInfo();
 
         LOICOLLECTION_A_API   void transfer(const std::string& target, int score);
         LOICOLLECTION_A_API   void redenvelope(Player& player, const std::string& key, int score, int count);
