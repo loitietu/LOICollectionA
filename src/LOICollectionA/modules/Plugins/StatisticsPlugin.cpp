@@ -300,7 +300,6 @@ namespace LOICollection::Plugins {
             return {};
 
         std::string mTable = this->getStatisticName(type);
-
         if (mTable.empty())
             return {};
 
@@ -309,11 +308,8 @@ namespace LOICollection::Plugins {
         std::ranges::sort(mSorted, [](const auto& a, const auto& b) {
             return a.second < b.second;
         });
-        
-        auto mResult =  mSorted
-            | std::views::keys | std::ranges::to<std::vector<std::string>>();
 
-        return mResult;
+        return mSorted | std::views::keys | std::ranges::to<std::vector<std::string>>();
     }
 
     std::vector<std::pair<std::string, int>> StatisticsPlugin::getStatistics(StatisticType type, int limit) {
@@ -321,19 +317,19 @@ namespace LOICollection::Plugins {
             return {};
 
         std::string mTable = this->getStatisticName(type);
+        if (mTable.empty())
+            return {};
 
         std::unordered_map<std::string, std::string> mData = this->getDatabase()->getByPrefix(mTable, "");
 
         auto mSorted = mData
+            | std::views::take(limit > 0 ? limit : static_cast<int>(mData.size()))
             | std::views::transform([this](const auto& pair) { 
                 if (this->mImpl->mCache.contains(pair.first))
                     return std::make_pair(pair.first, this->mImpl->mCache[pair.first][pair.first]);
                 
                 return std::make_pair(pair.first, SystemUtils::toInt(pair.second));
             }) | std::ranges::to<std::vector<std::pair<std::string, int>>>();
-
-        if (limit > 0 && limit < static_cast<int>(mSorted.size()))
-            mSorted.resize(limit);
 
         return mSorted;
     }

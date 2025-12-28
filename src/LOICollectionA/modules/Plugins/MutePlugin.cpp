@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <ranges>
 #include <algorithm>
 #include <execution>
 #include <filesystem>
@@ -385,16 +386,14 @@ namespace LOICollection::Plugins {
         
         std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Mute", "%.NAME");
 
-        std::vector<std::string> mResult(mKeys.size());
-        std::transform(mKeys.begin(), mKeys.end(), mResult.begin(), [](const std::string& mKey) -> std::string {
-            size_t mPos = mKey.find('.');
-            return mPos != std::string::npos ? mKey.substr(0, mPos) : "";
-        });
+        auto mView = mKeys
+            | std::views::take(limit > 0 ? limit : static_cast<int>(mKeys.size()))
+            | std::views::transform([](const std::string& mKey) -> std::string {
+                size_t mPos = mKey.find('.');
+                return mPos != std::string::npos ? mKey.substr(0, mPos) : "";
+            });
 
-        if (limit > 0 && static_cast<int>(mResult.size()) > limit)
-            mResult.resize(limit);
-
-        return mResult;
+        return mView | std::ranges::to<std::vector<std::string>>();
     }
 
     bool MutePlugin::isMute(Player& player) {
