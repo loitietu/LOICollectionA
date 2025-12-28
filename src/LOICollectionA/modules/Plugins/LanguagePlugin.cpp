@@ -15,7 +15,7 @@
 #include <ll/api/command/CommandRegistrar.h>
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
-#include <ll/api/event/player/PlayerJoinEvent.h>
+#include <ll/api/event/player/PlayerConnectEvent.h>
 
 #include <mc/certificates/WebToken.h>
 #include <mc/network/ConnectionRequest.h>
@@ -49,7 +49,7 @@ namespace LOICollection::Plugins {
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
         
-        ll::event::ListenerPtr PlayerJoinEventListener;
+        ll::event::ListenerPtr PlayerConnectEventListener;
 
         Impl() : Cache(100, 100) {}
     }; 
@@ -102,7 +102,7 @@ namespace LOICollection::Plugins {
 
     void LanguagePlugin::listenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        this->mImpl->PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([this](ll::event::PlayerJoinEvent& event) mutable -> void {
+        this->mImpl->PlayerConnectEventListener = eventBus.emplaceListener<ll::event::PlayerConnectEvent>([this](ll::event::PlayerConnectEvent& event) mutable -> void {
             if (event.self().isSimulatedPlayer())
                 return;
 
@@ -121,12 +121,12 @@ namespace LOICollection::Plugins {
 
             if (!this->mImpl->db->has("OBJECT$" + mObject, "name"))
                 this->mImpl->db->set("OBJECT$" + mObject, "name", event.self().getRealName());
-        });
+        }, ll::event::EventPriority::High);
     }
 
     void LanguagePlugin::unlistenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
+        eventBus.removeListener(this->mImpl->PlayerConnectEventListener);
     }
 
     std::string LanguagePlugin::getLanguageCode(Player& player) {

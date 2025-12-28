@@ -35,6 +35,7 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI std::string getPlayerInfo(const std::string& uuid);
 
         LOICOLLECTION_A_NDAPI std::vector<std::string> getRankingList(StatisticType type, int limit = -1);
+        LOICOLLECTION_A_NDAPI std::vector<std::pair<std::string, int>> getStatistics(StatisticType type, int limit = -1);
 
         LOICOLLECTION_A_NDAPI int getStatistic(const std::string& uuid, StatisticType type);
         LOICOLLECTION_A_NDAPI int getStatistic(Player& player, StatisticType type);

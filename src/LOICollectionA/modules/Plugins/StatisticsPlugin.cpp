@@ -136,7 +136,9 @@ namespace LOICollection::Plugins {
             ));
         }
 
-        form.sendTo(player);
+        form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            if (!dt) return this->open(pl);
+        });
     }
 
     void StatisticsPlugin::gui::open(Player& player) {
@@ -302,24 +304,38 @@ namespace LOICollection::Plugins {
         if (mTable.empty())
             return {};
 
-        std::unordered_map<std::string, std::string> mData = this->mImpl->db2->getByPrefix(mTable, "");
-
-        auto mSorted = mData
-            | std::views::transform([](const auto& pair) { return std::make_pair(pair.first, SystemUtils::toInt(pair.second)); })
-            | std::ranges::to<std::vector<std::pair<std::string, int>>>();
+        std::vector<std::pair<std::string, int>> mSorted = this->getStatistics(type, limit);
 
         std::ranges::sort(mSorted, [](const auto& a, const auto& b) {
             return a.second < b.second;
         });
         
         auto mResult =  mSorted
-            | std::views::keys
-            | std::ranges::to<std::vector<std::string>>();
-
-        if (limit > 0 && limit < static_cast<int>(mResult.size()))
-            mResult.resize(limit);
+            | std::views::keys | std::ranges::to<std::vector<std::string>>();
 
         return mResult;
+    }
+
+    std::vector<std::pair<std::string, int>> StatisticsPlugin::getStatistics(StatisticType type, int limit) {
+        if (!this->isValid())
+            return {};
+
+        std::string mTable = this->getStatisticName(type);
+
+        std::unordered_map<std::string, std::string> mData = this->getDatabase()->getByPrefix(mTable, "");
+
+        auto mSorted = mData
+            | std::views::transform([this](const auto& pair) { 
+                if (this->mImpl->mCache.contains(pair.first))
+                    return std::make_pair(pair.first, this->mImpl->mCache[pair.first][pair.first]);
+                
+                return std::make_pair(pair.first, SystemUtils::toInt(pair.second));
+            }) | std::ranges::to<std::vector<std::pair<std::string, int>>>();
+
+        if (limit > 0 && limit < static_cast<int>(mSorted.size()))
+            mSorted.resize(limit);
+
+        return mSorted;
     }
 
     int StatisticsPlugin::getStatistic(const std::string& uuid, StatisticType type) {
