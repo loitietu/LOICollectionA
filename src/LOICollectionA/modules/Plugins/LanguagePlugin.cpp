@@ -69,14 +69,13 @@ namespace LOICollection::Plugins {
     void LanguagePlugin::gui::open(Player& player) {
         std::string mObjectLanguage = this->mParent.getLanguage(player);
 
-        auto keys = std::views::keys(I18nUtils::getInstance()->data);
-
-        std::vector<std::string> langs(keys.begin(), keys.end());
+        std::vector<std::string> keys = std::views::keys(I18nUtils::getInstance()->data)
+            | std::ranges::to<std::vector<std::string>>();
         
         ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
         form.appendLabel(fmt::format(fmt::runtime(tr(mObjectLanguage, "language.gui.lang")), tr(mObjectLanguage, "name")));
-        form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), langs);
+        form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys);
         form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) mutable -> void {
             if (!dt) return;
 

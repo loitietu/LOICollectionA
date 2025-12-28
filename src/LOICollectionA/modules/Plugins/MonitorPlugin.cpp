@@ -207,11 +207,12 @@ namespace LOICollection::Plugins {
             if (!option.ModuleEnabled || event.commandContext().mOrigin == nullptr || mCommand.empty())
                 return;
 
-            auto mCommandArgs = mCommand | std::views::split(' ');
-            auto mCommandName = *mCommandArgs.begin();
+            auto mCommandArgs = mCommand
+                | std::views::split(' ')
+                | std::ranges::to<std::vector<std::string>>();
 
             std::vector<std::string> mObjectCommands = option.CommandLists;
-            if (std::find(mObjectCommands.begin(), mObjectCommands.end(), std::string(mCommandName.begin(), mCommandName.end())) != mObjectCommands.end()) {
+            if (std::find(mObjectCommands.begin(), mObjectCommands.end(), mCommandArgs.front()) != mObjectCommands.end()) {
                 event.cancel();
 
                 Actor* entity = event.commandContext().mOrigin->getEntity();

@@ -794,7 +794,7 @@ namespace LOICollection::Plugins {
                 return (!filter && it->second == mCondition.second) || (filter && filter(it->second));
             });
 
-            if (static_cast<size_t>(std::distance(mView.begin(), mView.end())) == conditions.size()) {
+            if (static_cast<size_t>(std::ranges::distance(mView)) == conditions.size()) {
                 size_t id = std::hash<std::thread::id>()(std::this_thread::get_id());
 
                 mResultLocal[id].emplace_back(mId);
@@ -861,9 +861,7 @@ namespace LOICollection::Plugins {
         });
         transaction.commit();
 
-        auto keys = std::views::keys(mEvents);
-
-        return { keys.begin(), keys.end() };
+        return std::views::keys(mEvents) | std::ranges::to<std::vector<std::string>>();
     }
 
     void BehaviorEventPlugin::write(const std::string& id, const Event& event) {

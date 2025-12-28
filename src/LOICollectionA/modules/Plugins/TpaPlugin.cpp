@@ -292,7 +292,7 @@ namespace LOICollection::Plugins {
             std::string mScoreboard = this->mImpl->options.TargetScoreboard;
 
             int mRequestRequired = this->mImpl->options.RequestRequired;
-            int mMoney = mRequestRequired * static_cast<int>(std::distance(mResults.begin(), mResults.end()));
+            int mMoney = mRequestRequired * static_cast<int>(std::ranges::distance(mResults));
             if (mRequestRequired && ScoreboardUtils::getScore(player, mScoreboard) < mMoney) {
                 output.error(fmt::runtime(tr({}, "commands.tpa.error.invite")), mMoney);
                 return;

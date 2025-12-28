@@ -42,6 +42,7 @@ target("LOICollectionA")
     add_defines(
         "NOMINMAX",
         "UNICODE",
+        "_HAS_CXX23=1",
         "LOICOLLECTION_A_EXPORTS"
     )
     add_files(
