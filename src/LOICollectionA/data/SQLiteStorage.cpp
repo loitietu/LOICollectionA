@@ -78,13 +78,46 @@ SQLiteStorage::SQLiteStorage(const std::string& path, size_t size) {
 SQLiteStorage::~SQLiteStorage() = default;
 
 SQLite::Statement& SQLiteStorage::getCachedStatement(ConnectionContext& context, const std::string& sql) {
+    static thread_local std::unordered_map<std::string, std::weak_ptr<SQLite::Statement>> threadCache;
+
+    auto it = threadCache.find(sql);
+    if (it != threadCache.end()) {
+        if (std::shared_ptr<SQLite::Statement> cachedStmt = it->second.lock(); cachedStmt)
+            return *cachedStmt;
+        
+        threadCache.erase(it);
+    }
+
+    std::shared_ptr<SQLite::Statement> cachedStmt;
+    {
+        std::shared_lock lock(context.cacheMutex);
+
+        auto globalIt = context.globalStmtCache.find(sql);
+        if (globalIt != context.globalStmtCache.end())
+            cachedStmt = globalIt->second;
+    }
+
+    if (cachedStmt) {
+        threadCache[sql] = cachedStmt;
+
+        return *cachedStmt;
+    }
+
     std::unique_lock lock(context.cacheMutex);
     
-    if (auto it = context.stmtCache.find(sql); it != context.stmtCache.end()) 
-        return *it->second;
+    auto globalIt = context.globalStmtCache.find(sql);
+    if (globalIt != context.globalStmtCache.end()) {
+        threadCache[sql] = globalIt->second;
+
+        return *globalIt->second;
+    }
+
+    std::shared_ptr<SQLite::Statement> stmt = std::make_shared<SQLite::Statement>(*context.database, sql);
     
-    auto stmt = std::make_unique<SQLite::Statement>(*context.database, sql);
-    return *context.stmtCache.emplace(sql, std::move(stmt)).first->second;
+    context.globalStmtCache.emplace(sql, stmt);
+    threadCache[sql] = stmt;
+    
+    return *stmt;
 }
 
 void SQLiteStorage::exec(std::shared_ptr<ConnectionContext> context, std::string_view sql) {
@@ -98,9 +131,9 @@ void SQLiteStorage::create(std::shared_ptr<ConnectionContext> context, std::stri
 void SQLiteStorage::remove(std::shared_ptr<ConnectionContext> context, std::string_view table) {
     context->database->exec("DROP TABLE IF EXISTS " + std::string(table) + ";");
 
-    std::unique_lock cachelock(context->cacheMutex);
+    std::unique_lock lock(context->cacheMutex);
 
-    context->stmtCache.clear();
+    context->globalStmtCache.clear();
 }
 
 void SQLiteStorage::set(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view value) {
