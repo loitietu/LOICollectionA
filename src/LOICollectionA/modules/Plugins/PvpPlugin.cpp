@@ -53,7 +53,7 @@ namespace LOICollection::Plugins {
 
         std::atomic<bool> mRegistered{ false };
 
-        C_Config::C_Plugins::C_Pvp options;
+        Config::C_Pvp options;
 
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
@@ -206,12 +206,12 @@ namespace LOICollection::Plugins {
     }
 
     bool PvpPlugin::load() {
-        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Pvp.ModuleEnabled)
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Pvp.ModuleEnabled)
             return false;
 
         this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Pvp;
+        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Pvp;
 
         return true;
     }

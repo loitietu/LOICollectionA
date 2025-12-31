@@ -432,7 +432,7 @@ namespace LOICollection::Plugins {
     }
 
     bool CdkPlugin::load() {
-        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Cdk)
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Cdk)
             return false;
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("ConfigPath")->data());

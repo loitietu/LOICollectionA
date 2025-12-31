@@ -62,7 +62,7 @@ namespace LOICollection::Plugins {
     struct MonitorPlugin::Impl {
         std::atomic<bool> mRegistered{ false };
 
-        C_Config::C_Plugins::C_Monitor options;
+        Config::C_Monitor options;
 
         std::unordered_map<std::string, ll::event::ListenerPtr> mListeners;
 
@@ -293,10 +293,10 @@ namespace LOICollection::Plugins {
     }
 
     bool MonitorPlugin::load() {
-        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Monitor.ModuleEnabled)
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Monitor.ModuleEnabled)
             return false;
 
-        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Monitor;
+        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Monitor;
 
         return true;
     }

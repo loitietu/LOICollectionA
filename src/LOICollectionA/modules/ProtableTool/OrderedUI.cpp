@@ -120,7 +120,7 @@ namespace LOICollection::ProtableTool {
     }
 
     bool OrderedUI::load() {
-        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.OrderedUI)
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ProtableTool.OrderedUI)
             return false;
 
         this->mImpl->ModuleEnabled = true;

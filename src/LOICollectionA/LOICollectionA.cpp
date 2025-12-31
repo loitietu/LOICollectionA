@@ -20,6 +20,8 @@
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"
 
+#include "LOICollectionA/ConfigPlugin.h"
+
 #include "LOICollectionA/LOICollectionA.h"
 
 namespace LOICollection {
@@ -61,8 +63,8 @@ namespace LOICollection {
             }
         }
         
-        ServiceProvider::getInstance().registerInstance<ReadOnlyWrapper<C_Config>>(
-            std::make_shared<ReadOnlyWrapper<C_Config>>(this->config), "Config"
+        ServiceProvider::getInstance().registerInstance<ReadOnlyWrapper<Config::C_Config>>(
+            std::make_shared<ReadOnlyWrapper<Config::C_Config>>(this->config), "Config"
         );
 
         logger.info("Initialization of configurations completed.");

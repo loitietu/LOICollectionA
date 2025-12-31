@@ -23,6 +23,6 @@ namespace LOICollection {
     private:
         ll::mod::NativeMod& mSelf;
 
-        C_Config config;
+        Config::C_Config config;
     };
 }

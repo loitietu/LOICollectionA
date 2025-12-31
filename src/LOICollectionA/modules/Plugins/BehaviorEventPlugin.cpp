@@ -110,7 +110,7 @@ namespace LOICollection::Plugins {
 
         std::atomic<bool> mRegistered{ false };
 
-        C_Config::C_Plugins::C_BehaviorEvent options;
+        Config::C_BehaviorEvent options;
 
         std::unique_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
@@ -936,14 +936,14 @@ namespace LOICollection::Plugins {
     }
 
     bool BehaviorEventPlugin::load() {
-        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.BehaviorEvent.ModuleEnabled)
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.BehaviorEvent.ModuleEnabled)
             return false;
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
 
         this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "behaviorevent.db").string());
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.BehaviorEvent;
+        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.BehaviorEvent;
 
         return true;
     }

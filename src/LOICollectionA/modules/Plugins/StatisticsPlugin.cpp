@@ -87,7 +87,7 @@ namespace LOICollection::Plugins {
 
         std::atomic<bool> mRegistered{ false };
 
-        C_Config::C_Plugins::C_Statistics options;
+        Config::C_Statistics options;
 
         std::unique_ptr<SQLiteStorage> db;
         std::shared_ptr<SQLiteStorage> db2;
@@ -127,12 +127,12 @@ namespace LOICollection::Plugins {
         form.appendLabel(fmt::format(fmt::runtime(mObjectLabel), this->mParent.getStatisticName(type), this->mParent.mImpl->options.RankingPlayerCount));
         
         size_t index = 1;
-        for (const std::string& uuid : this->mParent.getRankingList(type, this->mParent.mImpl->options.RankingPlayerCount)) {
+        for (auto& pair : this->mParent.getRankingList(type, this->mParent.mImpl->options.RankingPlayerCount)) {
             form.appendLabel(fmt::format(
                 fmt::runtime(tr(mObjectLanguage, "statistics.gui.specific.line")), 
                 index++,
-                this->mParent.getPlayerInfo(uuid),
-                this->mParent.getStatistic(uuid, type)
+                this->mParent.getPlayerInfo(pair.first),
+                pair.second
             ));
         }
 
@@ -295,7 +295,7 @@ namespace LOICollection::Plugins {
         return this->mImpl->db2->get("OBJECT$" + mUuid, "name", "Unknown");
     }
 
-    std::vector<std::string> StatisticsPlugin::getRankingList(StatisticType type, int limit) {
+    std::vector<std::pair<std::string, int>> StatisticsPlugin::getRankingList(StatisticType type, int limit) {
         if (!this->isValid())
             return {};
 
@@ -304,12 +304,11 @@ namespace LOICollection::Plugins {
             return {};
 
         std::vector<std::pair<std::string, int>> mSorted = this->getStatistics(type, limit);
-
         std::ranges::sort(mSorted, [](const auto& a, const auto& b) {
-            return a.second < b.second;
+            return a.second > b.second;
         });
 
-        return mSorted | std::views::keys | std::ranges::to<std::vector<std::string>>();
+        return mSorted;
     }
 
     std::vector<std::pair<std::string, int>> StatisticsPlugin::getStatistics(StatisticType type, int limit) {
@@ -320,15 +319,12 @@ namespace LOICollection::Plugins {
         if (mTable.empty())
             return {};
 
-        std::unordered_map<std::string, std::string> mData = this->getDatabase()->getByPrefix(mTable, "");
+        std::vector<std::string> mData = this->getDatabase()->listByPrefix(mTable, "");
 
         auto mSorted = mData
             | std::views::take(limit > 0 ? limit : static_cast<int>(mData.size()))
-            | std::views::transform([this](const auto& pair) { 
-                if (this->mImpl->mCache.contains(pair.first))
-                    return std::make_pair(pair.first, this->mImpl->mCache[pair.first][pair.first]);
-                
-                return std::make_pair(pair.first, SystemUtils::toInt(pair.second));
+            | std::views::transform([this, type](const auto& key) { 
+                return std::make_pair(key, this->getStatistic(key, type));
             }) | std::ranges::to<std::vector<std::pair<std::string, int>>>();
 
         return mSorted;
@@ -342,7 +338,7 @@ namespace LOICollection::Plugins {
         if (mTable.empty())
             return 0;
 
-        if (this->mImpl->mCache.contains(uuid))
+        if (this->mImpl->mCache.contains(uuid) && this->mImpl->mCache[uuid].contains(mTable))
             return this->mImpl->mCache[uuid][mTable];
 
         int result = SystemUtils::toInt(
@@ -381,7 +377,7 @@ namespace LOICollection::Plugins {
     }
 
     bool StatisticsPlugin::load() {
-        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Statistics.ModuleEnabled)
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Statistics.ModuleEnabled)
             return false;
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
@@ -389,7 +385,7 @@ namespace LOICollection::Plugins {
         this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "statistics.db").string());
         this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Statistics;
+        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Statistics;
 
         return true;
     }

@@ -71,7 +71,7 @@ namespace LOICollection::Plugins {
 
         std::atomic<bool> mRegistered{ false };
 
-        C_Config::C_Plugins::C_Tpa options;
+        Config::C_Tpa options;
 
         std::unique_ptr<SQLiteStorage> db;
         std::shared_ptr<SQLiteStorage> db2;
@@ -432,7 +432,7 @@ namespace LOICollection::Plugins {
     }
 
     bool TpaPlugin::load() {
-        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Tpa.ModuleEnabled)
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Tpa.ModuleEnabled)
             return false;
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
@@ -440,7 +440,7 @@ namespace LOICollection::Plugins {
         this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "tpa.db").string());
         this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Tpa;
+        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Tpa;
 
         return true;
     }

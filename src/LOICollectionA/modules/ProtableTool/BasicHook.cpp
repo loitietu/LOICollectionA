@@ -27,7 +27,7 @@ namespace LOICollection::ProtableTool {
     struct BasicHook::Impl {
         std::atomic<bool> mRegistered{ false };
 
-        C_Config::C_ProtableTool::C_BasicHook options;
+        Config::C_BasicHook options;
 
         ll::event::ListenerPtr NetworkPacketEventListener;
     };  
@@ -64,10 +64,10 @@ namespace LOICollection::ProtableTool {
     }
 
     bool BasicHook::load() {
-        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.BasicHook.ModuleEnabled)
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ProtableTool.BasicHook.ModuleEnabled)
             return false;
 
-        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().ProtableTool.BasicHook;
+        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ProtableTool.BasicHook;
 
         return true;
     }

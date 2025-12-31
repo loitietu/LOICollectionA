@@ -78,7 +78,7 @@ namespace LOICollection::Plugins {
 
         std::atomic<bool> mRegistered{ false };
 
-        C_Config::C_Plugins::C_Menu options;
+        Config::C_Menu options;
         
         std::unique_ptr<JsonStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
@@ -940,14 +940,14 @@ namespace LOICollection::Plugins {
     }
 
     bool MenuPlugin::load() {
-        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Menu.ModuleEnabled)
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Menu.ModuleEnabled)
             return false;
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("ConfigPath")->data());
 
         this->mImpl->db = std::make_unique<JsonStorage>(mDataPath / "menu.json");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<C_Config>>("Config")->get().Plugins.Menu;
+        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Menu;
 
         return true;
     }
