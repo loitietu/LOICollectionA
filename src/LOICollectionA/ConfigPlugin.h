@@ -19,12 +19,14 @@ namespace Config {
 
     struct C_Monitor {
         bool ModuleEnabled = false;
+
         struct C_BelowName {
             bool ModuleEnabled = true;
             int RefreshInterval = 20;
             int RefreshDisplayInterval = 100;
             std::vector<std::vector<std::string>> Pages{{ "{player}" }};
         } BelowName;
+
         struct C_ServerToast {
             bool ModuleEnabled = true;
             struct C_FormatText {
@@ -32,21 +34,32 @@ namespace Config {
                 std::string exit = "{player} 离开了服务器";
             } FormatText;
         } ServerToast;
+
         struct C_ChangeScore {
             bool ModuleEnabled = true;
             std::vector<std::string> ScoreboardLists{};
             std::string FormatText = "§e§l检测到Score §f{0}§e 发生变化 §b原值: §f{1} §a更改: §f{2} §e现值: §f{3}";
         } ChangeScore;
+
         struct C_DisableCommand {
             bool ModuleEnabled = true;
             std::string FormatText = "该指令已被禁用";
             std::vector<std::string> CommandLists{};
         } DisableCommand;
+        
         struct C_DynamicMotd {
             bool ModuleEnabled = true;
             int RefreshInterval = 200;
             std::vector<std::string> Pages{ "在线玩家: {server.player.online}/{server.player.max}" };
         } DynamicMotd;
+
+        struct C_Sidebar {
+            bool ModuleEnabled = true;
+            int RefreshInterval = 20;
+        
+            std::vector<std::string> Titles{ "Title" };
+            std::vector<std::vector<std::string>> Pages{ { "Content" } };
+        } Sidebar;
     };
 
     struct C_Pvp {
@@ -84,6 +97,7 @@ namespace Config {
         int OrganizeDatabaseInterval = 144;
         int CleanDatabaseInterval = 1;
         int RefreshIntervalInMinutes = 5;
+
         struct C_Events {
             struct C_onPlayerConnect {
                 bool ModuleEnabled = true;
@@ -162,6 +176,7 @@ namespace Config {
         bool ModuleEnabled = false;
         int RefreshIntervalInMinutes = 5;
         int RankingPlayerCount = 100;
+
         struct C_DatabaseInfo {
             bool OnlineTime = true;
             bool Kill = true;
@@ -192,7 +207,6 @@ namespace Config {
 
         C_Market Market;
         C_BehaviorEvent BehaviorEvent;
-        
         C_Statistics Statistics;
     };
 

@@ -20,6 +20,7 @@
 #include <ll/api/event/command/ExecuteCommandEvent.h>
 
 #include <mc/world/scores/Objective.h>
+#include <mc/world/scores/IdentityDefinition.h>
 
 #include <mc/world/actor/Actor.h>
 #include <mc/world/level/Level.h>
@@ -31,8 +32,12 @@
 #include <mc/network/NetworkIdentifier.h>
 #include <mc/network/MinecraftPacketIds.h>
 #include <mc/network/packet/TextPacket.h>
+#include <mc/network/packet/SetScorePacket.h>
+#include <mc/network/packet/ScorePacketInfo.h>
 #include <mc/network/packet/SetActorDataPacket.h>
+#include <mc/network/packet/RemoveObjectivePacket.h>
 #include <mc/network/packet/AvailableCommandsPacket.h>
+#include <mc/network/packet/SetDisplayObjectivePacket.h>
 
 #include <mc/server/ServerPlayer.h>
 #include <mc/server/commands/CommandOrigin.h>
@@ -56,6 +61,12 @@
 
 #include "LOICollectionA/include/Plugins/MonitorPlugin.h"
 
+SetDisplayObjectivePacket::SetDisplayObjectivePacket() : mSerializationMode() {};
+SetDisplayObjectivePacketPayload::SetDisplayObjectivePacketPayload() : mSortOrder()  {};
+RemoveObjectivePacket::RemoveObjectivePacket() : mSerializationMode() {};
+RemoveObjectivePacketPayload::RemoveObjectivePacketPayload() = default;
+SetScorePacket::SetScorePacket() : mType() {};
+
 std::vector<std::string> mInterceptTextObjectPacket;
 
 namespace LOICollection::Plugins {
@@ -69,10 +80,12 @@ namespace LOICollection::Plugins {
         ll::coro::InterruptableSleep NameTaskSleep;
         ll::coro::InterruptableSleep BelowNameTaskSleep;
         ll::coro::InterruptableSleep DynamicMotdTaskSleep;
+        ll::coro::InterruptableSleep SiebarTaskSleep;
 
         std::atomic<bool> NameTaskRunning{ true };
         std::atomic<bool> BelowNameTaskRunning{ true };
         std::atomic<bool> DynamicMotdTaskRunning{ true };
+        std::atomic<bool> SiebarTaskRunning{ true };
     };
 
     MonitorPlugin::MonitorPlugin() : mImpl(std::make_unique<Impl>()) {};
@@ -87,22 +100,23 @@ namespace LOICollection::Plugins {
         this->mImpl->NameTaskRunning.store(true, std::memory_order_release);
         this->mImpl->BelowNameTaskRunning.store(true, std::memory_order_release);
         this->mImpl->DynamicMotdTaskRunning.store(true, std::memory_order_release);
+        this->mImpl->SiebarTaskRunning.store(true, std::memory_order_release);
 
         if (this->mImpl->options.BelowName.ModuleEnabled) {
             std::shared_ptr<std::string> mName = std::make_shared<std::string>();
 
-            ll::coro::keepThis([this, option = this->mImpl->options, mName]() -> ll::coro::CoroTask<> {
+            ll::coro::keepThis([this, option = this->mImpl->options.BelowName, mName]() -> ll::coro::CoroTask<> {
                 size_t index = 0;
-                size_t maxIndex = this->mImpl->options.BelowName.Pages.size() - 1;
+                size_t maxIndex = option.Pages.size() - 1;
 
                 while (this->mImpl->NameTaskRunning.load(std::memory_order_acquire)) {
-                    co_await this->mImpl->NameTaskSleep.sleepFor(ll::chrono::ticks(option.BelowName.RefreshDisplayInterval));
+                    co_await this->mImpl->NameTaskSleep.sleepFor(ll::chrono::ticks(option.RefreshDisplayInterval));
 
                     if (!this->mImpl->NameTaskRunning.load(std::memory_order_acquire))
                         break;
 
                     std::string result;
-                    for (const std::string& page : option.BelowName.Pages[index]) 
+                    for (const std::string& page : option.Pages[index]) 
                         result.append((result.empty() ? "" : "\n") + page);
 
                     *mName = result;
@@ -139,7 +153,7 @@ namespace LOICollection::Plugins {
         if (this->mImpl->options.DynamicMotd.ModuleEnabled) {
             ll::coro::keepThis([this, option = this->mImpl->options.DynamicMotd]() -> ll::coro::CoroTask<> {
                 size_t index = 0;
-                size_t maxIndex = this->mImpl->options.DynamicMotd.Pages.size() - 1;
+                size_t maxIndex = option.Pages.size() - 1;
 
                 while (this->mImpl->DynamicMotdTaskRunning.load(std::memory_order_acquire)) {
                     co_await this->mImpl->DynamicMotdTaskSleep.sleepFor(ll::chrono::ticks(option.RefreshInterval));
@@ -150,6 +164,46 @@ namespace LOICollection::Plugins {
                     ll::setServerMotd(LOICollectionAPI::APIUtils::getInstance().translateString(option.Pages[index]));
 
                     index = index < maxIndex ? index + 1 : 0;
+                }
+            }).launch(ll::thread::ServerThreadExecutor::getDefault());
+        }
+
+        if (this->mImpl->options.Sidebar.ModuleEnabled) {
+            ll::coro::keepThis([this, option = this->mImpl->options.Sidebar]() -> ll::coro::CoroTask<> {
+                size_t mTitleIndex = 0;
+                size_t mPageIndex = 0;
+                size_t mTitleMaxIndex = option.Titles.size() - 1;
+                size_t mPageMaxIndex = option.Pages.size() - 1;
+
+                while (this->mImpl->SiebarTaskRunning.load(std::memory_order_acquire)) {
+                    co_await this->mImpl->SiebarTaskSleep.sleepFor(ll::chrono::ticks(option.RefreshInterval));
+
+                    if (!this->mImpl->SiebarTaskRunning.load(std::memory_order_acquire))
+                        break;
+
+                    ll::service::getLevel()->forEachPlayer([this, option, mTitleIndex, mPageIndex](Player& mTarget) -> bool {
+                        if (mTarget.isSimulatedPlayer())
+                            return true;
+
+                        std::vector<std::pair<std::string, int>> data;
+
+                        size_t index = option.Pages[mPageIndex].size();
+                        for (const std::string& page : option.Pages[mPageIndex]) {
+                            data.emplace_back(LOICollectionAPI::APIUtils::getInstance().translateString(page, mTarget), static_cast<int>(index));
+                            --index;
+                        }
+
+                        std::string mTitle = LOICollectionAPI::APIUtils::getInstance().translateString(option.Titles[mTitleIndex], mTarget);
+
+                        this->removeSidebar(mTarget, "LOICollectionA");
+                        this->addSidebar(mTarget, "LOICollectionA", mTitle, SidebarType::Descending);
+                        this->setSidebar(mTarget, "LOICollectionA", data);
+
+                        return true;
+                    });
+
+                    mTitleIndex = mTitleIndex < mTitleMaxIndex ? mTitleIndex + 1 : 0;
+                    mPageIndex = mPageIndex < mPageMaxIndex ? mPageIndex + 1 : 0;
                 }
             }).launch(ll::thread::ServerThreadExecutor::getDefault());
         }
@@ -286,10 +340,63 @@ namespace LOICollection::Plugins {
         this->mImpl->NameTaskRunning.store(false, std::memory_order_release);
         this->mImpl->BelowNameTaskRunning.store(false, std::memory_order_release);
         this->mImpl->DynamicMotdTaskRunning.store(false, std::memory_order_release);
+        this->mImpl->SiebarTaskRunning.store(false, std::memory_order_release);
 
         this->mImpl->NameTaskSleep.interrupt();
         this->mImpl->BelowNameTaskSleep.interrupt();
         this->mImpl->DynamicMotdTaskSleep.interrupt();
+        this->mImpl->SiebarTaskSleep.interrupt();
+    }
+
+    void MonitorPlugin::addSidebar(Player& player, const std::string& id, const std::string& name, SidebarType type) {
+        if (!this->isValid())
+            return;
+
+        SetDisplayObjectivePacket packet;
+        packet.mDisplaySlotName = "sidebar";
+        packet.mObjectiveName = id;
+        packet.mObjectiveDisplayName = name;
+        packet.mCriteriaName = "dummy";
+        packet.mSortOrder = type == SidebarType::Ascending ? ObjectiveSortOrder::Ascending : ObjectiveSortOrder::Descending;
+        
+        packet.sendTo(player);
+    }
+
+    void MonitorPlugin::setSidebar(Player& player, const std::string& id, std::vector<std::pair<std::string, int>> data) {
+        if (!this->isValid())
+            return;
+
+        std::vector<ScorePacketInfo> infos;
+        for (auto& item : data) {
+            ScorePacketInfo info;
+            info.mScoreboardId->mRawID = item.second;
+            info.mObjectiveName = id;
+            info.mIdentityType = IdentityDefinition::Type::FakePlayer;
+            info.mScoreValue = item.second;
+            info.mFakePlayerName = item.first;
+
+            infos.emplace_back(info);
+        }
+
+        SetScorePacket packet;
+        packet.mType = ScorePacketType::Change;
+        packet.mScoreInfo = infos;
+
+        packet.sendTo(player);
+    }
+    
+    void MonitorPlugin::removeSidebar(Player& player, const std::string& id) {
+        if (!this->isValid())
+            return;
+
+        RemoveObjectivePacket packet;
+        packet.mObjectiveName = id;
+
+        packet.sendTo(player);
+    }
+
+    bool MonitorPlugin::isValid() {
+        return this->mImpl->options.ModuleEnabled;
     }
 
     bool MonitorPlugin::load() {
