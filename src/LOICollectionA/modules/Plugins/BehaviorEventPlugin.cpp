@@ -417,12 +417,14 @@ namespace LOICollection::Plugins {
 
         ll::coro::keepThis([this]() -> ll::coro::CoroTask<> {
             while (this->mImpl->CleanDatabaseTaskRunning.load(std::memory_order_acquire)) {
-                co_await this->mImpl->CleanDatabaseTaskSleep.sleepFor(std::chrono::minutes(this->mImpl->options.CleanDatabaseInterval));
+                co_await this->mImpl->CleanDatabaseTaskSleep.sleepFor(std::chrono::hours(this->mImpl->options.CleanDatabaseInterval));
 
                 if (!this->mImpl->CleanDatabaseTaskRunning.load(std::memory_order_acquire))
                     break;
 
-                this->clean(this->mImpl->options.OrganizeDatabaseInterval);
+                std::vector<std::string> mEvents = this->getEvents();
+                if (static_cast<int>(mEvents.size()) >= this->mImpl->options.CleanThresholdEvent)
+                    this->clean(this->mImpl->options.OrganizeDatabaseInterval);
             }
         }).launch(this->mImpl->mExecutor);
 

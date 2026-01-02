@@ -32,7 +32,7 @@ namespace BlockUtils {
         return true;
     }
 
-    std::optional<Block*> getBlock(const BlockPos& pos, int dimension) {
+    std::optional<const Block*> getBlock(const BlockPos& pos, int dimension) {
         if (!isValidRange(pos, dimension))
             return std::nullopt;
 
@@ -45,8 +45,8 @@ namespace BlockUtils {
         ChunkLocalHeight mLocalHeight{ static_cast<short>(pos.y - mDimension->mHeightRange->mMin) };
         ChunkBlockPos mChunkBlockPos(static_cast<uchar>(pos.x & 0xf), mLocalHeight, static_cast<uchar>(pos.z & 0xf));
                 
-        auto mBlock = const_cast<Block*>(&mLevelChunk->getBlock(mChunkBlockPos));
-        return mBlock ? std::optional<Block*>{ mBlock } : std::nullopt;
+        auto mBlock = &mLevelChunk->getBlock(mChunkBlockPos);
+        return mBlock ? std::optional<const Block*>{ mBlock } : std::nullopt;
     }
 
     std::optional<BlockActor*> getBlockEntity(const BlockPos& pos, int dimension) {
