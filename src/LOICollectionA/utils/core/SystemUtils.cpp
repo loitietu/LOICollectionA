@@ -30,7 +30,7 @@ namespace SystemUtils {
     }
 
     std::string getCurrentTimestamp() {
-        auto mTimeNow = std::chrono::high_resolution_clock::now();
+        auto mTimeNow = std::chrono::system_clock::now();
         return std::to_string(std::chrono::duration_cast<std::chrono::nanoseconds>(mTimeNow.time_since_epoch()).count());
     }
 
