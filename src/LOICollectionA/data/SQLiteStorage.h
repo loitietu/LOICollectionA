@@ -6,7 +6,6 @@
 #include <vector>
 #include <string>
 #include <string_view>
-#include <shared_mutex>
 #include <unordered_map>
 
 #include "LOICollectionA/base/Macro.h"
@@ -25,10 +24,7 @@ protected:
     std::unique_ptr<SQLiteConnectionPool> readConnectionPool;
 
     struct ConnectionContext {
-        mutable std::shared_mutex cacheMutex;
-
         std::unique_ptr<SQLite::Database> database;
-        std::unordered_map<std::string, std::shared_ptr<SQLite::Statement>> globalStmtCache;
         
         ConnectionContext(const std::string& path, bool readOnly = false);
     };
