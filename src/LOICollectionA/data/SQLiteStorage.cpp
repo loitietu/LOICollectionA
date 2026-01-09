@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <string_view>
+#include <shared_mutex>
 #include <unordered_map>
 
 #include <SQLiteCpp/SQLiteCpp.h>
@@ -10,7 +11,14 @@
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
-static thread_local std::unordered_map<std::string, std::shared_ptr<SQLite::Statement>> threadCache;
+struct SQLiteStorage::ConnectionContext  {
+    std::unique_ptr<SQLite::Database> database;
+
+    std::shared_mutex cacheMutex;
+    std::unordered_map<std::string, std::shared_ptr<SQLite::Statement>> stmtCache;
+    
+    ConnectionContext(const std::string& path, bool readOnly = false);
+};
 
 SQLiteStorage::ConnectionContext::ConnectionContext(const std::string& path, bool readOnly) {
     this->database = std::make_unique<SQLite::Database>(path, 
@@ -80,9 +88,19 @@ SQLiteStorage::SQLiteStorage(const std::string& path, size_t size) {
 SQLiteStorage::~SQLiteStorage() = default;
 
 SQLite::Statement& SQLiteStorage::getCachedStatement(ConnectionContext& context, const std::string& sql) {
-    auto& stmt = threadCache[sql];
-    if (!stmt)
-        stmt = std::make_shared<SQLite::Statement>(*context.database, sql);
+    {
+        std::shared_lock lock(context.cacheMutex);
+        if (auto it = context.stmtCache.find(sql); it != context.stmtCache.end())
+            return *it->second;
+    }
+    
+    std::unique_lock lock(context.cacheMutex);
+    
+    if (auto it = context.stmtCache.find(sql); it != context.stmtCache.end())
+        return *it->second;
+    
+    auto stmt = std::make_shared<SQLite::Statement>(*context.database, sql);
+    context.stmtCache.emplace(sql, stmt);
 
     return *stmt;
 }
@@ -98,7 +116,9 @@ void SQLiteStorage::create(std::shared_ptr<ConnectionContext> context, std::stri
 void SQLiteStorage::remove(std::shared_ptr<ConnectionContext> context, std::string_view table) {
     context->database->exec("DROP TABLE IF EXISTS " + std::string(table) + ";");
 
-    threadCache.clear();
+    std::unique_lock lock(context->cacheMutex);
+
+    context->stmtCache.clear();
 }
 
 void SQLiteStorage::set(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view value) {
@@ -259,7 +279,7 @@ std::vector<std::string> SQLiteStorage::list(std::shared_ptr<ConnectionContext> 
 
 std::vector<std::string> SQLiteStorage::list(std::shared_ptr<ConnectionContext> context) {
     auto& stmt = getCachedStatement(*context,
-        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;"
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 
@@ -426,8 +446,8 @@ std::vector<std::string> SQLiteStorage::listByPrefix(std::string_view table, std
     return this->listByPrefix(conn, table, prefix);
 }
 
-SQLiteStorageTransaction::SQLiteStorageTransaction(SQLiteStorage& storage) : mStorage(storage) {
-    this->mConnection = mStorage.writeConnectionPool->getConnection();
+SQLiteStorageTransaction::SQLiteStorageTransaction(SQLiteStorage& storage, bool readOnly) : mStorage(storage) {
+    this->mConnection = readOnly ? mStorage.readConnectionPool->getConnection() : mStorage.writeConnectionPool->getConnection();
     this->mTransaction = std::make_unique<SQLite::Transaction>(*mConnection->database);
 }
 

@@ -23,11 +23,7 @@ protected:
     std::unique_ptr<SQLiteConnectionPool> writeConnectionPool;
     std::unique_ptr<SQLiteConnectionPool> readConnectionPool;
 
-    struct ConnectionContext {
-        std::unique_ptr<SQLite::Database> database;
-        
-        ConnectionContext(const std::string& path, bool readOnly = false);
-    };
+    struct ConnectionContext;
     
     SQLite::Statement& getCachedStatement(ConnectionContext& context, const std::string& sql);
 
@@ -103,7 +99,7 @@ private:
 
 class SQLiteStorageTransaction final {
 public:
-    LOICOLLECTION_A_API explicit SQLiteStorageTransaction(SQLiteStorage& storage);
+    LOICOLLECTION_A_API explicit SQLiteStorageTransaction(SQLiteStorage& storage, bool readOnly = false);
     LOICOLLECTION_A_API ~SQLiteStorageTransaction();
 
     LOICOLLECTION_A_API   bool commit();
