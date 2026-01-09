@@ -48,7 +48,7 @@ namespace LOICollection::frontend {
         return this->mImpl->mFunctions[namespaces][function](args);
     }
 
-    bool FunctionCall::isInterger(const std::string& str) const {
+    bool FunctionCall::isInteger(const std::string& str) const {
         if (str.empty())
             return false;
 
@@ -82,6 +82,6 @@ namespace LOICollection::frontend {
         if (str.empty())
             return false;
 
-        return !isInterger(str) && !isFloat(str);
+        return !isInteger(str) && !isFloat(str);
     }
 }

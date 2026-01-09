@@ -35,6 +35,7 @@
 #include <mc/network/MinecraftPacketIds.h>
 #include <mc/network/ServerNetworkHandler.h>
 #include <mc/network/packet/LoginPacket.h>
+#include <mc/network/packet/DisconnectPacket.h>
 #include <mc/network/connection/DisconnectFailReason.h>
 
 #include <mc/server/ServerPlayer.h>
@@ -90,7 +91,7 @@ namespace LOICollection::Plugins {
 
         std::atomic<bool> mRegistered{ false };
 
-        bool ModuleEnabled = false;
+        Config::C_Blacklist options;
         
         std::unique_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
@@ -306,10 +307,10 @@ namespace LOICollection::Plugins {
 
             std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(mUuid), "blacklist.tips");
             ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
-                event.getNetworkIdentifier(), event.getSubClientId(), Connection::DisconnectFailReason::Kicked,
-                fmt::format(fmt::runtime(mObjectTips), 
-                    mData.at(mId + ".CAUSE"),
-                    SystemUtils::toFormatTime(mData.at(mId + ".TIME"), "None")
+                event.getNetworkIdentifier(), event.getSubClientId(), Connection::DisconnectFailReason::Unknown,
+                fmt::format(fmt::runtime(mObjectTips),
+                    SystemUtils::toFormatTime(mData.at(mId + ".TIME"), "None"),
+                    mData.at(mId + ".CAUSE")
                 ),
                 std::nullopt, false
             );
@@ -343,9 +344,10 @@ namespace LOICollection::Plugins {
 
         std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(player), "blacklist.tips");
         ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
-            player.getNetworkIdentifier(), player.getClientSubId(), Connection::DisconnectFailReason::Kicked,
-            fmt::format(fmt::runtime(mObjectTips), mCause,
-                SystemUtils::toFormatTime(this->getDatabase()->get("Blacklist", mTismestamp + ".TIME"), "None")
+            player.getNetworkIdentifier(), player.getClientSubId(), Connection::DisconnectFailReason::Unknown,
+            fmt::format(fmt::runtime(mObjectTips),
+                SystemUtils::toFormatTime(this->getDatabase()->get("Blacklist", mTismestamp + ".TIME"), "None"),
+                mCause
             ),
             std::nullopt, false
         );
@@ -435,25 +437,25 @@ namespace LOICollection::Plugins {
     }
 
     bool BlacklistPlugin::load() {
-        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Blacklist)
+        if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Blacklist.ModuleEnabled)
             return false;
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
 
         this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "blacklist.db").string());
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
-        this->mImpl->ModuleEnabled = true;
+        this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Blacklist;
 
         return true;
     }
 
     bool BlacklistPlugin::unload() {
-        if (!this->mImpl->ModuleEnabled)
+        if (!this->mImpl->options.ModuleEnabled)
             return false;
 
         this->mImpl->db.reset();
         this->mImpl->logger.reset();
-        this->mImpl->ModuleEnabled = false;
+        this->mImpl->options = {};
 
         if (this->mImpl->mRegistered.load(std::memory_order_acquire))
             this->unlistenEvent();
@@ -462,7 +464,7 @@ namespace LOICollection::Plugins {
     }
 
     bool BlacklistPlugin::registry() {
-        if (!this->mImpl->ModuleEnabled)
+        if (!this->mImpl->options.ModuleEnabled)
             return false;
 
         this->getDatabase()->create("Blacklist");
@@ -476,7 +478,7 @@ namespace LOICollection::Plugins {
     }
 
     bool BlacklistPlugin::unregistry() {
-        if (!this->mImpl->ModuleEnabled)
+        if (!this->mImpl->options.ModuleEnabled)
             return false;
 
         this->unlistenEvent();
@@ -489,4 +491,4 @@ namespace LOICollection::Plugins {
     }
 }
 
-REGISTRY_HELPER("BlacklistPlugin", LOICollection::Plugins::BlacklistPlugin, LOICollection::Plugins::BlacklistPlugin::getInstance())
+REGISTRY_HELPER("BlacklistPlugin", LOICollection::Plugins::BlacklistPlugin, LOICollection::Plugins::BlacklistPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

@@ -3,11 +3,18 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <unordered_map>
 
 #include "LOICollectionA/base/Macro.h"
 
 namespace LOICollection::modules {
+    enum class ModulePriority : int {
+        Higest = 0,
+        High = 1,
+        Normal = 2,
+        Low = 3,
+        Lowest = 4
+    };
+
     class ModRegistry;
     class ModManager {
     public:
@@ -19,7 +26,7 @@ namespace LOICollection::modules {
 
         LOICOLLECTION_A_NDAPI static ModManager& getInstance();
 
-        LOICOLLECTION_A_API   void registry(std::unique_ptr<ModRegistry> registry);
+        LOICOLLECTION_A_API   void registry(std::unique_ptr<ModRegistry> registry, ModulePriority priority = ModulePriority::Normal);
         LOICOLLECTION_A_API   void unregistry(const std::string& name);
 
         LOICOLLECTION_A_NDAPI ModRegistry* getRegistry(const std::string& name) const;
@@ -27,9 +34,10 @@ namespace LOICollection::modules {
         LOICOLLECTION_A_NDAPI std::vector<std::string> mods() const;
 
     private:
-        ModManager() = default;
-        ~ModManager() = default;
+        ModManager();
+        ~ModManager();
 
-        std::unordered_map<std::string, std::unique_ptr<ModRegistry>> mRegistries;
+        struct Impl;
+        std::unique_ptr<Impl> mImpl;
     };
 }

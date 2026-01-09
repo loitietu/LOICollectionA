@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace MathButilin {
+namespace MathBuiltin {
     void registerFunctions(const std::string& namespaces);
 
     std::string abs(std::vector<std::string>& args);

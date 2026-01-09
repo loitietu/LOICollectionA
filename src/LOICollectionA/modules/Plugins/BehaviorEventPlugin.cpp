@@ -845,7 +845,7 @@ namespace LOICollection::Plugins {
 
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mEvents;
 
-        SQLiteStorageTransaction transaction(*this->getDatabase());
+        SQLiteStorageTransaction transaction(*this->getDatabase(), true);
         std::for_each(ids.begin(), ids.end(), [this, connection = transaction.connection(), &mEvents](const std::string& mId) -> void {
             std::unordered_map<std::string, std::string> data = this->getDatabase()->getByPrefix(connection, "Events", mId + ".");
 
@@ -992,4 +992,4 @@ namespace LOICollection::Plugins {
     }
 }
 
-REGISTRY_HELPER("BehaviorEventPlugin", LOICollection::Plugins::BehaviorEventPlugin, LOICollection::Plugins::BehaviorEventPlugin::getInstance())
+REGISTRY_HELPER("BehaviorEventPlugin", LOICollection::Plugins::BehaviorEventPlugin, LOICollection::Plugins::BehaviorEventPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

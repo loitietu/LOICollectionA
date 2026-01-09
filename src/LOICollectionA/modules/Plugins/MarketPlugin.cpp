@@ -592,4 +592,4 @@ namespace LOICollection::Plugins {
     }
 }
 
-REGISTRY_HELPER("MarketPlugin", LOICollection::Plugins::MarketPlugin, LOICollection::Plugins::MarketPlugin::getInstance())
+REGISTRY_HELPER("MarketPlugin", LOICollection::Plugins::MarketPlugin, LOICollection::Plugins::MarketPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

@@ -488,4 +488,4 @@ namespace LOICollection::Plugins {
     }
 }
 
-REGISTRY_HELPER("TpaPlugin", LOICollection::Plugins::TpaPlugin, LOICollection::Plugins::TpaPlugin::getInstance())
+REGISTRY_HELPER("TpaPlugin", LOICollection::Plugins::TpaPlugin, LOICollection::Plugins::TpaPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

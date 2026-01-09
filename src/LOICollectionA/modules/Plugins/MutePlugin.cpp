@@ -464,4 +464,4 @@ namespace LOICollection::Plugins {
     }
 }
 
-REGISTRY_HELPER("MutePlugin", LOICollection::Plugins::MutePlugin, LOICollection::Plugins::MutePlugin::getInstance())
+REGISTRY_HELPER("MutePlugin", LOICollection::Plugins::MutePlugin, LOICollection::Plugins::MutePlugin::getInstance(), LOICollection::modules::ModulePriority::High)

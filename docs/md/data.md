@@ -12,7 +12,7 @@
 
 ```json
 {
-    "version": 29166553, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
+    "version": 44456286, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
         "Blacklist": false, // 是否启用黑名单
@@ -96,6 +96,7 @@
         "BehaviorEvent": { // 行为事件配置
             "ModuleEnabled": false, // 是否启用行为事件
             "OrganizeDatabaseInterval": 144, // 行为事件数据库清理阈值（单位为小时）
+            "CleanThresholdEvent": 10000, // 行为事件清理阈值
             "CleanDatabaseInterval": 1, // 数据库自动清理间隔（单位为小时）
             "RefreshIntervalInMinutes": 5, // 行为事件记录间隔（单位为分钟）
             "Events": { // 行为事件配置
@@ -198,7 +199,7 @@
 ```
 
 > [!NOTE]
-> 以上内容取自 LOICollectionA 1.9.2 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以上内容取自 LOICollectionA 1.10.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 
 ## 模块数据文件
 

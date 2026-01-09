@@ -4,6 +4,15 @@
 #include <vector>
 
 namespace Config {
+    struct C_Blacklist {
+        bool ModuleEnabled = false;
+
+        struct C_BroadcastMessage {
+            bool ModuleEnabled = true;
+            std::string FormatText = "tr(blacklist.broadcast)";
+        } BroadcastMessage;
+    };
+
     struct C_Menu {
         bool ModuleEnabled = false;
         std::string MenuItemId = "minecraft:clock";
@@ -190,7 +199,8 @@ namespace Config {
     };
 
     struct C_Plugins {
-        bool Blacklist = false;
+        C_Blacklist Blacklist;
+
         bool Mute = false;
         bool Cdk = false;
 

@@ -4,11 +4,11 @@
 
 #include "LOICollectionA/frontend/FunctionCall.h"
 
-#include "LOICollectionA/frontend/builtin/StringButilin.h"
+#include "LOICollectionA/frontend/builtin/StringBuiltin.h"
 
 using namespace LOICollection::frontend;
 
-namespace StringButilin {
+namespace StringBuiltin {
     void registerFunctions(const std::string& namespaces) {
         FunctionCall::getInstance().registerFunction(namespaces, "length", length, 1);
         FunctionCall::getInstance().registerFunction(namespaces, "upper", upper, 1);
@@ -81,4 +81,4 @@ namespace StringButilin {
     }
 }
 
-REGISTER_NAMESPACE("string", StringButilin::registerFunctions);
+REGISTER_NAMESPACE("string", StringBuiltin::registerFunctions);

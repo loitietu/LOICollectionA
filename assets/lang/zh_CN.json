@@ -59,6 +59,7 @@
     "language.gui.dropdown": "§e语言选择",
     "blacklist.log1": "已将玩家 {player}({player.uuid}) 添加进黑名单",
     "blacklist.log2": "已将 {0} 从黑名单中移除",
+    "blacklist.broadcast": "§4玩家 §r{player} §4已被管理员加入黑名单",
     "blacklist.tips": "§4您已被服务器加入黑名单\n§a请联系管理员解决问题\n§e解除时间: §r{0}\n§b原因: §r{1}",
     "blacklist.gui.title": "§e§lLOICollection -> §b服务器黑名单",
     "blacklist.gui.label": "§a功能如下:",

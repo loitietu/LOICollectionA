@@ -769,4 +769,4 @@ namespace LOICollection::Plugins {
     }
 }
 
-REGISTRY_HELPER("ShopPlugin", LOICollection::Plugins::ShopPlugin, LOICollection::Plugins::ShopPlugin::getInstance())
+REGISTRY_HELPER("ShopPlugin", LOICollection::Plugins::ShopPlugin, LOICollection::Plugins::ShopPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

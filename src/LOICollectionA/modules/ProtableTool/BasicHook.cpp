@@ -107,4 +107,4 @@ namespace LOICollection::ProtableTool {
     }
 }
 
-REGISTRY_HELPER("BasicHook", LOICollection::ProtableTool::BasicHook, LOICollection::ProtableTool::BasicHook::getInstance())
+REGISTRY_HELPER("BasicHook", LOICollection::ProtableTool::BasicHook, LOICollection::ProtableTool::BasicHook::getInstance(), LOICollection::modules::ModulePriority::Normal)

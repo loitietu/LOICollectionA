@@ -483,4 +483,4 @@ namespace LOICollection::Plugins {
     }
 }
 
-REGISTRY_HELPER("NoticePlugin", LOICollection::Plugins::NoticePlugin, LOICollection::Plugins::NoticePlugin::getInstance())
+REGISTRY_HELPER("NoticePlugin", LOICollection::Plugins::NoticePlugin, LOICollection::Plugins::NoticePlugin::getInstance(), LOICollection::modules::ModulePriority::High)

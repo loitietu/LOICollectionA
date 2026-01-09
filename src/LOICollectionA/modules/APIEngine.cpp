@@ -13,7 +13,7 @@ namespace LOICollection::LOICollectionAPI {
 
         std::unique_ptr<IContentProcessor> processor;
 
-        Entry(std::unique_ptr<IContentProcessor> processor, APIEngineConfig  config) :
+        Entry(std::unique_ptr<IContentProcessor> processor, APIEngineConfig config) :
             config(std::move(config)), processor(std::move(processor)) {}
     };
 
@@ -49,7 +49,7 @@ namespace LOICollection::LOICollectionAPI {
             return content;
 
         std::sort(mEntries.begin(), mEntries.end(), [](const Entry* a, const Entry* b) -> bool {
-            return a->config.priority > b->config.priority;
+            return a->config.priority > b->config.priority; 
         });
 
         std::string result = content;

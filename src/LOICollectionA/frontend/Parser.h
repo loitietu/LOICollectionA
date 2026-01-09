@@ -43,7 +43,6 @@ namespace LOICollection::frontend {
         TokenType peek();
 
         void eat(TokenType expected);
-        void flushBuffer(std::string& buffer, std::unique_ptr<TemplateNode>& tpl);
 
         std::string getTokenName(TokenType type);
     };

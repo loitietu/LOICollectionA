@@ -438,4 +438,4 @@ namespace LOICollection::Plugins {
     }
 }
 
-REGISTRY_HELPER("StatisticsPlugin", LOICollection::Plugins::StatisticsPlugin, LOICollection::Plugins::StatisticsPlugin::getInstance())
+REGISTRY_HELPER("StatisticsPlugin", LOICollection::Plugins::StatisticsPlugin, LOICollection::Plugins::StatisticsPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

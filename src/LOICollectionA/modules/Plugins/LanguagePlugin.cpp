@@ -17,9 +17,6 @@
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerConnectEvent.h>
 
-#include <mc/certificates/WebToken.h>
-#include <mc/network/ConnectionRequest.h>
-
 #include <mc/world/actor/player/Player.h>
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
@@ -134,9 +131,10 @@ namespace LOICollection::Plugins {
 
         if (player.isSimulatedPlayer())
             return defaultLocale;
+        
+        if (const std::string& langcode = player.getLocaleCode(); !langcode.empty())
+            return langcode;
 
-        if (auto request = player.getConnectionRequest(); request)
-            return request->mRawToken->mDataInfo.get("LanguageCode", defaultLocale).asString(defaultLocale);
         return defaultLocale;
     }
 
@@ -205,4 +203,4 @@ namespace LOICollection::Plugins {
     }
 }
 
-REGISTRY_HELPER("LanguagePlugin", LOICollection::Plugins::LanguagePlugin, LOICollection::Plugins::LanguagePlugin::getInstance())
+REGISTRY_HELPER("LanguagePlugin", LOICollection::Plugins::LanguagePlugin, LOICollection::Plugins::LanguagePlugin::getInstance(), LOICollection::modules::ModulePriority::Normal)

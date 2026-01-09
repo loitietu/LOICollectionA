@@ -5,11 +5,11 @@
 
 #include "LOICollectionA/frontend/FunctionCall.h"
 
-#include "LOICollectionA/frontend/builtin/MathButilin.h"
+#include "LOICollectionA/frontend/builtin/MathBuiltin.h"
 
 using namespace LOICollection::frontend;
 
-namespace MathButilin {
+namespace MathBuiltin {
     void registerFunctions(const std::string& namespaces) {
         FunctionCall::getInstance().registerFunction(namespaces, "abs", abs, 1);
         FunctionCall::getInstance().registerFunction(namespaces, "min", min, 2);
@@ -25,7 +25,7 @@ namespace MathButilin {
     std::string abs(std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
-        if (FunctionCall::getInstance().isInterger(arg))
+        if (FunctionCall::getInstance().isInteger(arg))
             return std::to_string(std::abs(std::stoi(arg)));
         
         return std::to_string(std::abs(std::stof(arg)));
@@ -35,7 +35,7 @@ namespace MathButilin {
         const std::string& arg1 = args[0];
         const std::string& arg2 = args[1];
 
-        if (FunctionCall::getInstance().isInterger(arg1) && FunctionCall::getInstance().isInterger(arg2))
+        if (FunctionCall::getInstance().isInteger(arg1) && FunctionCall::getInstance().isInteger(arg2))
             return std::to_string(std::min(std::stoi(arg1), std::stoi(arg2)));
         
         return std::to_string(std::min(std::stof(arg1), std::stof(arg2)));
@@ -45,7 +45,7 @@ namespace MathButilin {
         const std::string& arg1 = args[0];
         const std::string& arg2 = args[1];
 
-        if (FunctionCall::getInstance().isInterger(arg1) && FunctionCall::getInstance().isInterger(arg2))
+        if (FunctionCall::getInstance().isInteger(arg1) && FunctionCall::getInstance().isInteger(arg2))
             return std::to_string(std::max(std::stoi(arg1), std::stoi(arg2)));
         
         return std::to_string(std::max(std::stof(arg1), std::stof(arg2)));
@@ -54,7 +54,7 @@ namespace MathButilin {
     std::string sqrt(std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
-        if (FunctionCall::getInstance().isInterger(arg))
+        if (FunctionCall::getInstance().isInteger(arg))
             return std::to_string(std::sqrt(std::stoi(arg)));
         
         return std::to_string(std::sqrt(std::stof(arg)));
@@ -64,7 +64,7 @@ namespace MathButilin {
         const std::string& arg1 = args[0];
         const std::string& arg2 = args[1];
 
-        if (FunctionCall::getInstance().isInterger(arg1) && FunctionCall::getInstance().isInterger(arg2))
+        if (FunctionCall::getInstance().isInteger(arg1) && FunctionCall::getInstance().isInteger(arg2))
             return std::to_string(std::pow(std::stoi(arg1), std::stoi(arg2)));
         
         return std::to_string(std::pow(std::stof(arg1), std::stof(arg2)));
@@ -73,7 +73,7 @@ namespace MathButilin {
     std::string log(std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
-        if (FunctionCall::getInstance().isInterger(arg))
+        if (FunctionCall::getInstance().isInteger(arg))
             return std::to_string(std::log(std::stoi(arg)));
         
         return std::to_string(std::log(std::stof(arg)));
@@ -82,7 +82,7 @@ namespace MathButilin {
     std::string sin(std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
-        if (FunctionCall::getInstance().isInterger(arg))
+        if (FunctionCall::getInstance().isInteger(arg))
             return std::to_string(std::sin(std::stoi(arg)));
         
         return std::to_string(std::sin(std::stof(arg)));
@@ -91,7 +91,7 @@ namespace MathButilin {
     std::string cos(std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
-        if (FunctionCall::getInstance().isInterger(arg))
+        if (FunctionCall::getInstance().isInteger(arg))
             return std::to_string(std::cos(std::stoi(arg)));
         
         return std::to_string(std::cos(std::stof(arg)));
@@ -104,7 +104,7 @@ namespace MathButilin {
         const std::string& arg1 = args[0];
         const std::string& arg2 = args[1];
 
-        if (FunctionCall::getInstance().isInterger(arg1) && FunctionCall::getInstance().isInterger(arg2)) {
+        if (FunctionCall::getInstance().isInteger(arg1) && FunctionCall::getInstance().isInteger(arg2)) {
             std::uniform_int_distribution<> dis(std::stoi(arg1), std::stoi(arg2));
             return std::to_string(dis(gen));
         }
@@ -114,4 +114,4 @@ namespace MathButilin {
     }
 }
 
-REGISTER_NAMESPACE("math", MathButilin::registerFunctions)
+REGISTER_NAMESPACE("math", MathBuiltin::registerFunctions)

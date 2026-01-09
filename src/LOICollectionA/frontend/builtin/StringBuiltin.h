@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace StringButilin {
+namespace StringBuiltin {
     void registerFunctions(const std::string& namespaces);
 
     std::string length(std::vector<std::string>& args);

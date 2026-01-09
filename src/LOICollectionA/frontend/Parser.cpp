@@ -229,18 +229,23 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<ExprNode> Parser::parsePrimary() {
-        if (current_token.type == TokenType::TOKEN_LPAREN) {
-            eat(TokenType::TOKEN_LPAREN);
+        switch (current_token.type) {
+            case TokenType::TOKEN_LPAREN: {
+                eat(TokenType::TOKEN_LPAREN);
+                
+                auto expr = parseBaseExpression();
 
-            auto expr = parseBoolExpression();
+                eat(TokenType::TOKEN_RPAREN);
+                return expr;
+            }
+            case TokenType::TOKEN_IDENT: {
+                if (peek() == TokenType::TOKEN_NAMESPACE)
+                    return parseFunction();
 
-            eat(TokenType::TOKEN_RPAREN);
-            return expr;
-        }
-
-        if (current_token.type == TokenType::TOKEN_IDENT) {
-            if (peek() == TokenType::TOKEN_NAMESPACE)
-                return parseFunction();
+                break;
+            }
+            default:
+                break;
         }
 
         return parseValue();
@@ -286,18 +291,15 @@ namespace LOICollection::frontend {
     std::unique_ptr<ASTNode> Parser::parseResult(TokenType stopToken) {
         auto tpl = std::make_unique<TemplateNode>();
 
-        std::string buffer;
         while (current_token.type != stopToken && current_token.type != TokenType::TOKEN_EOF) {
-            if (current_token.type == TokenType::TOKEN_IF) {
-                flushBuffer(buffer, tpl);
-                
+            if (tpl->parts.size() >= 100)
+                throw std::runtime_error("Too many parts in template");
+
+            if (current_token.type == TokenType::TOKEN_IF)
                 tpl->addPart(parseIfStatement(stopToken));
-            } else {
-                buffer.append(current_token.value);
-                eat(current_token.type);
-            }
+            else
+                tpl->addPart(parseBaseExpression());
         }
-        flushBuffer(buffer, tpl);
         
         return tpl;
     }
@@ -313,17 +315,6 @@ namespace LOICollection::frontend {
         }
 
         current_token = lexer.getNextToken();
-    }
-
-    void Parser::flushBuffer(std::string& buffer, std::unique_ptr<TemplateNode>& tpl) {
-        if (buffer.empty())
-            return;
-
-        if (tpl->parts.size() >= 100)
-            throw std::runtime_error("Too many parts in template");
-
-        tpl->addPart(std::make_unique<ValueNode>(buffer));
-        buffer.clear();
     }
     
     std::string Parser::getTokenName(TokenType type) {

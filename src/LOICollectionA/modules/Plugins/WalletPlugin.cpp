@@ -377,7 +377,7 @@ namespace LOICollection::Plugins {
 
         std::vector<std::pair<std::string, std::string>> mResult;
 
-        SQLiteStorageTransaction transaction(*this->mImpl->db);
+        SQLiteStorageTransaction transaction(*this->mImpl->db, true);
 
         auto connection = transaction.connection();
         for (const std::string& mObject : this->mImpl->db->list(connection)) {
@@ -514,4 +514,4 @@ namespace LOICollection::Plugins {
     }
 }
 
-REGISTRY_HELPER("WalletPlugin", LOICollection::Plugins::WalletPlugin, LOICollection::Plugins::WalletPlugin::getInstance())
+REGISTRY_HELPER("WalletPlugin", LOICollection::Plugins::WalletPlugin, LOICollection::Plugins::WalletPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

@@ -21,7 +21,7 @@ namespace LOICollection::frontend {
         LOICOLLECTION_A_NDAPI std::string callFunction(const std::string& namespaces, const std::string& function, std::vector<std::string>& args);
 
     public:
-        LOICOLLECTION_A_NDAPI bool isInterger(const std::string& str) const;
+        LOICOLLECTION_A_NDAPI bool isInteger(const std::string& str) const;
         LOICOLLECTION_A_NDAPI bool isFloat(const std::string& str) const;
         LOICOLLECTION_A_NDAPI bool isString(const std::string& str) const;
 
