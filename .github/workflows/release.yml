@@ -221,8 +221,6 @@ jobs:
                     $NOTES += "### $_`n$($sortedCategories[$_] -join "`n")`n`n"
                 }
 
-                $NOTES += "---`n*Generated from [Conventional Commits](https://www.conventionalcommits.org/)*"
-
                 $EOF = (New-Guid).Guid
                 "release-notes<<$EOF" >> $env:GITHUB_OUTPUT 
                 $NOTES >> $env:GITHUB_OUTPUT
