@@ -1,3 +1,4 @@
+#include <format>
 #include <memory>
 #include <vector>
 #include <string>
@@ -49,10 +50,16 @@ SQLiteConnectionPool::SQLiteConnectionPool(const std::string& path, size_t size,
 
 SQLiteConnectionPool::~SQLiteConnectionPool() {
     std::unique_lock lock(this->mMutex);
-
-    while (!this->mAvailableConnections.empty()) 
-        this->mAvailableConnections.pop();
     
+    for (auto& conn : this->mConnections) {
+        std::unique_lock cacheLock(conn->cacheMutex);
+
+        conn->stmtCache.clear();
+    }
+    
+    std::queue<std::shared_ptr<SQLiteStorage::ConnectionContext>> empty;
+    std::swap(this->mAvailableConnections, empty);
+
     this->mConnections.clear();
 }
 
@@ -110,11 +117,11 @@ void SQLiteStorage::exec(std::shared_ptr<ConnectionContext> context, std::string
 }
 
 void SQLiteStorage::create(std::shared_ptr<ConnectionContext> context, std::string_view table) {
-    context->database->exec("CREATE TABLE IF NOT EXISTS " + std::string(table) + " (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;");
+    context->database->exec(std::format("CREATE TABLE IF NOT EXISTS {} (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;", table));
 }
 
 void SQLiteStorage::remove(std::shared_ptr<ConnectionContext> context, std::string_view table) {
-    context->database->exec("DROP TABLE IF EXISTS " + std::string(table) + ";");
+    context->database->exec(std::format("DROP TABLE IF EXISTS {};", table));
 
     std::unique_lock lock(context->cacheMutex);
 
@@ -123,7 +130,7 @@ void SQLiteStorage::remove(std::shared_ptr<ConnectionContext> context, std::stri
 
 void SQLiteStorage::set(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view value) {
     auto& stmt = getCachedStatement(*context,
-        "INSERT INTO " + std::string(table) + " (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value;"
+        std::format("INSERT INTO {} (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value;", table)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 
@@ -137,7 +144,7 @@ void SQLiteStorage::set(std::shared_ptr<ConnectionContext> context, std::string_
 
 void SQLiteStorage::del(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key) {
     auto& stmt = getCachedStatement(*context,
-        "DELETE FROM " + std::string(table) + " WHERE key = ?;"
+        std::format("DELETE FROM {} WHERE key = ?;", table)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 
@@ -150,7 +157,7 @@ void SQLiteStorage::del(std::shared_ptr<ConnectionContext> context, std::string_
 
 void SQLiteStorage::delByPrefix(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view prefix) {
     auto& stmt = getCachedStatement(*context,
-        "DELETE FROM " + std::string(table) + " WHERE key LIKE ? ESCAPE '\\';"
+        std::format("DELETE FROM {} WHERE key LIKE ? ESCAPE '\\';", table)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 
@@ -163,7 +170,7 @@ void SQLiteStorage::delByPrefix(std::shared_ptr<ConnectionContext> context, std:
 
 bool SQLiteStorage::has(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key) {
     auto& stmt = getCachedStatement(*context,
-        "SELECT 1 FROM " + std::string(table) + " WHERE key = ? LIMIT 1;"
+        std::format("SELECT EXISTS(SELECT 1 FROM {} WHERE key = ? LIMIT 1);", table)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 
@@ -189,7 +196,7 @@ bool SQLiteStorage::has(std::shared_ptr<ConnectionContext> context, std::string_
 
 bool SQLiteStorage::hasByPrefix(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view prefix, int size) {
     auto& stmt = getCachedStatement(*context,
-        "SELECT COUNT(*) FROM " + std::string(table) + " WHERE key LIKE ? ESCAPE '\\';"
+        std::format("SELECT COUNT(*) FROM {} WHERE key LIKE ? ESCAPE '\\';", table)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 
@@ -205,7 +212,7 @@ bool SQLiteStorage::hasByPrefix(std::shared_ptr<ConnectionContext> context, std:
 
 std::unordered_map<std::string, std::string> SQLiteStorage::get(std::shared_ptr<ConnectionContext> context, std::string_view table) {
     auto& stmt = getCachedStatement(*context,
-        "SELECT key, value FROM " + std::string(table) + ";"
+        std::format("SELECT key, value FROM {};", table)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 
@@ -225,7 +232,7 @@ std::unordered_map<std::string, std::string> SQLiteStorage::get(std::shared_ptr<
 
 std::unordered_map<std::string, std::string> SQLiteStorage::getByPrefix(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view prefix) {
     auto& stmt = getCachedStatement(*context,
-        "SELECT key, value FROM " + std::string(table) + " WHERE key LIKE ? ESCAPE '\\';"
+        std::format("SELECT key, value FROM {} WHERE key LIKE ? ESCAPE '\\';", table)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 
@@ -247,7 +254,7 @@ std::unordered_map<std::string, std::string> SQLiteStorage::getByPrefix(std::sha
 
 std::string SQLiteStorage::get(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view defaultValue) {
     auto& stmt = getCachedStatement(*context,
-        "SELECT value FROM " + std::string(table) + " WHERE key = ?;"
+        std::format("SELECT value FROM {} WHERE key = ?;", table)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 
@@ -263,7 +270,7 @@ std::string SQLiteStorage::get(std::shared_ptr<ConnectionContext> context, std::
 
 std::vector<std::string> SQLiteStorage::list(std::shared_ptr<ConnectionContext> context, std::string_view table) {
     auto& stmt = getCachedStatement(*context,
-        "SELECT key FROM " + std::string(table) + ";"
+        std::format("SELECT key FROM {};", table)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 
@@ -295,7 +302,7 @@ std::vector<std::string> SQLiteStorage::list(std::shared_ptr<ConnectionContext> 
 
 std::vector<std::string> SQLiteStorage::listByPrefix(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view prefix) {
     auto& stmt = getCachedStatement(*context,
-        "SELECT key FROM " + std::string(table) + " WHERE key LIKE ? ESCAPE '\\';"
+        std::format("SELECT key FROM {} WHERE key LIKE ? ESCAPE '\\';", table)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 

@@ -249,7 +249,7 @@ namespace LOICollection::Plugins {
                 return output.error(tr({}, "commands.blacklist.error.info"));
 
             output.success(tr({}, "commands.blacklist.success.info"));
-            std::for_each(mEvent.begin(), mEvent.end(), [&output, id = param.Object](const std::pair<std::string, std::string>& mPair) {
+            std::for_each(mEvent.begin(), mEvent.end(), [&output](const std::pair<std::string, std::string>& mPair) {
                 std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
 
                 output.success("{0}: {1}", mKey, mPair.second);
