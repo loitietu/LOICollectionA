@@ -352,7 +352,7 @@ namespace LOICollection::Plugins {
             std::nullopt, false
         );
 
-        this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "blacklist.log1"), player));
+        this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "blacklist.log1"), player));
 
         for (auto& fn : this->mImpl->mBlacklistAdds)
             fn(mTismestamp);

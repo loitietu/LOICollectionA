@@ -142,8 +142,8 @@ namespace LOICollection::Plugins {
 
             switch (event.getReason()) {
                 case LOICollection::ServerEvents::PlayerHurtReason::Hurt: if (!this->mImpl->options.ExtraListener.onActorHurt) return;
-                case LOICollection::ServerEvents::PlayerHurtReason::Effect: if (!this->mImpl->options.ExtraListener.SplashPotion) return;
-                case LOICollection::ServerEvents::PlayerHurtReason::Projectile: if (!this->mImpl->options.ExtraListener.ProjectileHit) return;
+                case LOICollection::ServerEvents::PlayerHurtReason::Effect: if (!this->mImpl->options.ExtraListener.onSplashPotion) return;
+                case LOICollection::ServerEvents::PlayerHurtReason::Projectile: if (!this->mImpl->options.ExtraListener.onProjectileHit) return;
             }
 
             auto& source = static_cast<Player&>(event.getSource());
@@ -177,11 +177,11 @@ namespace LOICollection::Plugins {
         this->mImpl->db->set("OBJECT$" + mObject, "Pvp_Enable", (value ? "true" : "false"));
 
         if (value) {
-            this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "pvp.log1"), player));
+            this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "pvp.log1"), player));
             return;
         }
         
-        this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "pvp.log2"), player));
+        this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "pvp.log2"), player));
     }
 
     bool PvpPlugin::isEnable(Player& player) {

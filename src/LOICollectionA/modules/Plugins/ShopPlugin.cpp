@@ -160,7 +160,7 @@ namespace LOICollection::Plugins {
 
             this->mParent.create(mObjectId, data);
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "shop.log1"), pl)), mObjectId);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "shop.log1"), pl)), mObjectId);
         });
     }
 
@@ -192,7 +192,7 @@ namespace LOICollection::Plugins {
 
             this->mParent.remove(id);
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "shop.log2"), pl)), id);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "shop.log2"), pl)), id);
         });
     }
 
@@ -256,7 +256,7 @@ namespace LOICollection::Plugins {
 
             this->mParent.getDatabase()->save();
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "shop.log4"), pl)), id);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "shop.log4"), pl)), id);
         });
     }
 
@@ -365,7 +365,7 @@ namespace LOICollection::Plugins {
             this->mParent.getDatabase()->set_ptr("/" + id + "/classiflcation/" + std::to_string(mIndex), data);
             this->mParent.getDatabase()->save();
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "shop.log5"), pl)), id);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "shop.log5"), pl)), id);
         });
     }
 
@@ -407,7 +407,7 @@ namespace LOICollection::Plugins {
             this->mParent.getDatabase()->set_ptr("/" + id + "/classiflcation", mContent);
             this->mParent.getDatabase()->save();
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "shop.log3"), pl)), id, packageid);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "shop.log3"), pl)), id, packageid);
         });
     }
 
@@ -489,11 +489,11 @@ namespace LOICollection::Plugins {
     void ShopPlugin::gui::menu(Player& player, const std::string& id, ShopType type) {
         auto data = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id);
 
-        ll::form::SimpleForm form(LOICollectionAPI::APIUtils::getInstance().translateString(data.value("title", ""), player), LOICollectionAPI::APIUtils::getInstance().translateString(data.value("content", ""), player));
+        ll::form::SimpleForm form(LOICollectionAPI::APIUtils::getInstance().translate(data.value("title", ""), player), LOICollectionAPI::APIUtils::getInstance().translate(data.value("content", ""), player));
         for (size_t i = 0; i < data.value("classiflcation", nlohmann::ordered_json()).size(); ++i) {
             nlohmann::ordered_json& item = data.value("classiflcation", nlohmann::ordered_json())[i];
 
-            form.appendButton(LOICollectionAPI::APIUtils::getInstance().translateString(item.value("title", ""), player), item.value("image", ""), "path", [this, item, i, id, type](Player& pl) -> void {
+            form.appendButton(LOICollectionAPI::APIUtils::getInstance().translate(item.value("title", ""), player), item.value("image", ""), "path", [this, item, i, id, type](Player& pl) -> void {
                 switch (ll::hash_utils::doHash(item.value("type", ""))) {
                     case ll::hash_utils::doHash("commodity"):
                         this->commodity(pl, static_cast<int>(i), id, type);
@@ -519,9 +519,9 @@ namespace LOICollection::Plugins {
         auto original = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id);
         auto data = original.at("classiflcation").at(index);
 
-        ll::form::CustomForm form(LOICollectionAPI::APIUtils::getInstance().translateString(data.value("title", ""), player));
-        form.appendLabel(LOICollectionAPI::APIUtils::getInstance().translateString(data.value("introduce", ""), player));
-        form.appendInput("Input", LOICollectionAPI::APIUtils::getInstance().translateString(data.value("number", ""), player), "", "1");
+        ll::form::CustomForm form(LOICollectionAPI::APIUtils::getInstance().translate(data.value("title", ""), player));
+        form.appendLabel(LOICollectionAPI::APIUtils::getInstance().translate(data.value("introduce", ""), player));
+        form.appendInput("Input", LOICollectionAPI::APIUtils::getInstance().translate(data.value("number", ""), player), "", "1");
         form.sendTo(player, [this, original, data, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
             if (!dt) return this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json{}).value("exit", ""));
 
@@ -556,10 +556,10 @@ namespace LOICollection::Plugins {
         auto data = original.at("classiflcation").at(index);
 
         ll::form::ModalForm form(
-            LOICollectionAPI::APIUtils::getInstance().translateString(data.value("title", ""), player),
-            LOICollectionAPI::APIUtils::getInstance().translateString(data.value("introduce", ""), player),
-            LOICollectionAPI::APIUtils::getInstance().translateString(data.value("confirmButton", "confirm"), player),
-            LOICollectionAPI::APIUtils::getInstance().translateString(data.value("cancelButton", "cancel"), player)
+            LOICollectionAPI::APIUtils::getInstance().translate(data.value("title", ""), player),
+            LOICollectionAPI::APIUtils::getInstance().translate(data.value("introduce", ""), player),
+            LOICollectionAPI::APIUtils::getInstance().translate(data.value("confirmButton", "confirm"), player),
+            LOICollectionAPI::APIUtils::getInstance().translate(data.value("cancelButton", "cancel"), player)
         );
         form.sendTo(player, [this, original, data, type](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
             if (result == ll::form::ModalFormSelectedButton::Upper) {

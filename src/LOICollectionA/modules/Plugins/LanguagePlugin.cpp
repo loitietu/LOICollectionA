@@ -78,7 +78,7 @@ namespace LOICollection::Plugins {
 
             this->mParent.set(pl, std::get<std::string>(dt->at("dropdown")));
             
-            this->mParent.getLogger()->info(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "language.log"), pl));
+            this->mParent.getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "language.log"), pl));
         });
     }
 

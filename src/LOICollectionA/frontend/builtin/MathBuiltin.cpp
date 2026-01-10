@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "LOICollectionA/frontend/FunctionCall.h"
+#include "LOICollectionA/frontend/Callback.h"
 
 #include "LOICollectionA/frontend/builtin/MathBuiltin.h"
 
@@ -22,7 +22,7 @@ namespace MathBuiltin {
         FunctionCall::getInstance().registerFunction(namespaces, "random", random, 2);
     }
 
-    std::string abs(std::vector<std::string>& args) {
+    std::string abs(const std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
         if (FunctionCall::getInstance().isInteger(arg))
@@ -31,7 +31,7 @@ namespace MathBuiltin {
         return std::to_string(std::abs(std::stof(arg)));
     }
 
-    std::string min(std::vector<std::string>& args) {
+    std::string min(const std::vector<std::string>& args) {
         const std::string& arg1 = args[0];
         const std::string& arg2 = args[1];
 
@@ -41,7 +41,7 @@ namespace MathBuiltin {
         return std::to_string(std::min(std::stof(arg1), std::stof(arg2)));
     }
 
-    std::string max(std::vector<std::string>& args) {
+    std::string max(const std::vector<std::string>& args) {
         const std::string& arg1 = args[0];
         const std::string& arg2 = args[1];
 
@@ -51,7 +51,7 @@ namespace MathBuiltin {
         return std::to_string(std::max(std::stof(arg1), std::stof(arg2)));
     }
 
-    std::string sqrt(std::vector<std::string>& args) {
+    std::string sqrt(const std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
         if (FunctionCall::getInstance().isInteger(arg))
@@ -60,7 +60,7 @@ namespace MathBuiltin {
         return std::to_string(std::sqrt(std::stof(arg)));
     }
 
-    std::string pow(std::vector<std::string>& args) {
+    std::string pow(const std::vector<std::string>& args) {
         const std::string& arg1 = args[0];
         const std::string& arg2 = args[1];
 
@@ -70,7 +70,7 @@ namespace MathBuiltin {
         return std::to_string(std::pow(std::stof(arg1), std::stof(arg2)));
     }
 
-    std::string log(std::vector<std::string>& args) {
+    std::string log(const std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
         if (FunctionCall::getInstance().isInteger(arg))
@@ -79,7 +79,7 @@ namespace MathBuiltin {
         return std::to_string(std::log(std::stof(arg)));
     }
 
-    std::string sin(std::vector<std::string>& args) {
+    std::string sin(const std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
         if (FunctionCall::getInstance().isInteger(arg))
@@ -88,7 +88,7 @@ namespace MathBuiltin {
         return std::to_string(std::sin(std::stof(arg)));
     }
 
-    std::string cos(std::vector<std::string>& args) {
+    std::string cos(const std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
         if (FunctionCall::getInstance().isInteger(arg))
@@ -97,7 +97,7 @@ namespace MathBuiltin {
         return std::to_string(std::cos(std::stof(arg)));
     }
 
-    std::string random(std::vector<std::string>& args) {
+    std::string random(const std::vector<std::string>& args) {
         static std::random_device rd;
         static std::mt19937 gen(rd());
 

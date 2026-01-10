@@ -10,29 +10,23 @@
 
 namespace LOICollection::frontend {
     Parser::Parser(Lexer& l) : lexer(l) {
-        current_token = lexer.getNextToken();
+        currentToken = lexer.getNextToken();
     }
 
     std::unique_ptr<ASTNode> Parser::parse() {
         std::unique_ptr<TemplateNode> tpl = std::make_unique<TemplateNode>();
 
-        while (current_token.type != TokenType::TOKEN_EOF) {
+        while (currentToken.type != TokenType::TOKEN_EOF) {
             if (tpl->parts.size() >= 100)
                 throw std::runtime_error("Too many parts in template");
 
-            switch (current_token.type) {
+            switch (currentToken.type) {
                 case TokenType::TOKEN_IF:
                     tpl->addPart(parseIfStatement());
                     break;
-                case TokenType::TOKEN_IDENT:
-                case TokenType::TOKEN_STRING:
-                case TokenType::TOKEN_INT:
-                case TokenType::TOKEN_FLOAT:
-                case TokenType::TOKEN_BOOL_LIT:
+                default:
                     tpl->addPart(parseBaseExpression());
                     break;
-                default:
-                    throw std::runtime_error("Invalid token in template: " + getTokenName(current_token.type));
             };
         }
 
@@ -64,12 +58,12 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<FunctionNode> Parser::parseFunction() {
-        std::string namespaces = current_token.value;
+        std::string namespaces = currentToken.value;
 
         eat(TokenType::TOKEN_IDENT);
         eat(TokenType::TOKEN_NAMESPACE);
 
-        std::string name = current_token.value;
+        std::string name = currentToken.value;
 
         eat(TokenType::TOKEN_IDENT);
         eat(TokenType::TOKEN_LPAREN);
@@ -85,14 +79,54 @@ namespace LOICollection::frontend {
         );
     }
 
+    std::unique_ptr<MacroNode> Parser::parseMacro() {
+        eat(TokenType::TOKEN_LBRACE);
+
+        std::string name = currentToken.value;
+
+        eat(TokenType::TOKEN_IDENT);
+
+        std::unique_ptr<ASTNode> args;
+        if (currentToken.type == TokenType::TOKEN_LPAREN) {
+            eat(TokenType::TOKEN_LPAREN);
+
+            args = parseArgs();
+
+            eat(TokenType::TOKEN_RPAREN);
+        }
+
+        eat(TokenType::TOKEN_RBRACE);
+
+        return std::make_unique<MacroNode>(
+            std::move(args),
+            std::move(name)
+        );
+    }
+
+    std::unique_ptr<ValueNode> Parser::parseTranspile(TokenType stopToken) {
+        eat(TokenType::TOKEN_TRANSPILE);
+
+        std::string buffer;
+        while (currentToken.type != stopToken && currentToken.type != TokenType::TOKEN_EOF) {
+            buffer += currentToken.value;
+            eat(currentToken.type);
+        }
+
+        buffer += currentToken.value;
+        
+        eat(stopToken);
+
+        return std::make_unique<ValueNode>(std::move(buffer));
+    }
+
     std::unique_ptr<TemplateNode> Parser::parseArgs(TokenType delimiterToken, TokenType stopToken) {
         auto tpl = std::make_unique<TemplateNode>();
 
-        while (current_token.type != stopToken) {
+        while (currentToken.type != stopToken) {
             if (tpl->parts.size() >= 100)
                 throw std::runtime_error("Too many args in function call");
 
-            if (current_token.type == delimiterToken) {
+            if (currentToken.type == delimiterToken) {
                 eat(delimiterToken);
                 continue;
             }
@@ -114,7 +148,7 @@ namespace LOICollection::frontend {
     std::unique_ptr<ExprNode> Parser::parseOrExpression() {
         auto left = parseAndExpression();
 
-        while (current_token.type == TokenType::TOKEN_BOOL_OP && current_token.value == "||") {
+        while (currentToken.type == TokenType::TOKEN_BOOL_OP && currentToken.value == "||") {
             eat(TokenType::TOKEN_BOOL_OP);
 
             auto right = parseAndExpression();
@@ -127,7 +161,7 @@ namespace LOICollection::frontend {
     std::unique_ptr<ExprNode> Parser::parseAndExpression() {
         auto left = parseComparison();
         
-        while (current_token.type == TokenType::TOKEN_BOOL_OP && current_token.value == "&&") {
+        while (currentToken.type == TokenType::TOKEN_BOOL_OP && currentToken.value == "&&") {
             eat(TokenType::TOKEN_BOOL_OP);
 
             auto right = parseComparison();
@@ -144,8 +178,8 @@ namespace LOICollection::frontend {
             "==", "!=", ">", "<", ">=", "<="
         };
         
-        if (current_token.type == TokenType::TOKEN_OP && comparisonOps.find(current_token.value) != comparisonOps.end()) {
-            std::string op = current_token.value;
+        if (currentToken.type == TokenType::TOKEN_OP && comparisonOps.find(currentToken.value) != comparisonOps.end()) {
+            std::string op = currentToken.value;
 
             eat(TokenType::TOKEN_OP);
 
@@ -159,10 +193,10 @@ namespace LOICollection::frontend {
     std::unique_ptr<ExprNode> Parser::parseAdditiveExpression() {
         auto left = parseMultiplicativeExpression();
         
-        while (current_token.type == TokenType::TOKEN_PLUS || current_token.type == TokenType::TOKEN_MINUS) {
-            std::string op = current_token.value;
+        while (currentToken.type == TokenType::TOKEN_PLUS || currentToken.type == TokenType::TOKEN_MINUS) {
+            std::string op = currentToken.value;
             
-            if (current_token.type == TokenType::TOKEN_PLUS)
+            if (currentToken.type == TokenType::TOKEN_PLUS)
                 eat(TokenType::TOKEN_PLUS);
             else
                 eat(TokenType::TOKEN_MINUS);
@@ -177,12 +211,12 @@ namespace LOICollection::frontend {
     std::unique_ptr<ExprNode> Parser::parseMultiplicativeExpression() {
         auto left = parsePowerExpression();
         
-        while (current_token.type == TokenType::TOKEN_MULTIPLY || current_token.type == TokenType::TOKEN_DIVIDE || current_token.type == TokenType::TOKEN_MOD) {
-            std::string op = current_token.value;
+        while (currentToken.type == TokenType::TOKEN_MULTIPLY || currentToken.type == TokenType::TOKEN_DIVIDE || currentToken.type == TokenType::TOKEN_MOD) {
+            std::string op = currentToken.value;
             
-            if (current_token.type == TokenType::TOKEN_MULTIPLY)
+            if (currentToken.type == TokenType::TOKEN_MULTIPLY)
                 eat(TokenType::TOKEN_MULTIPLY);
-            else if (current_token.type == TokenType::TOKEN_DIVIDE)
+            else if (currentToken.type == TokenType::TOKEN_DIVIDE)
                 eat(TokenType::TOKEN_DIVIDE);
             else
                 eat(TokenType::TOKEN_MOD);
@@ -197,8 +231,8 @@ namespace LOICollection::frontend {
     std::unique_ptr<ExprNode> Parser::parsePowerExpression() {
         auto left = parseUnaryExpression();
         
-        while (current_token.type == TokenType::TOKEN_POWER) {
-            std::string op = current_token.value;
+        while (currentToken.type == TokenType::TOKEN_POWER) {
+            std::string op = currentToken.value;
 
             eat(TokenType::TOKEN_POWER);
 
@@ -210,13 +244,13 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<ExprNode> Parser::parseUnaryExpression() {
-        if ((current_token.type == TokenType::TOKEN_OP && current_token.value == "!") ||
-            current_token.type == TokenType::TOKEN_PLUS || current_token.type == TokenType::TOKEN_MINUS) {
-            std::string op = current_token.value;
+        if ((currentToken.type == TokenType::TOKEN_OP && currentToken.value == "!") ||
+            currentToken.type == TokenType::TOKEN_PLUS || currentToken.type == TokenType::TOKEN_MINUS) {
+            std::string op = currentToken.value;
             
-            if (current_token.type == TokenType::TOKEN_OP && current_token.value == "!")
+            if (currentToken.type == TokenType::TOKEN_OP && currentToken.value == "!")
                 eat(TokenType::TOKEN_OP);
-            else if (current_token.type == TokenType::TOKEN_PLUS)
+            else if (currentToken.type == TokenType::TOKEN_PLUS)
                 eat(TokenType::TOKEN_PLUS);
             else
                 eat(TokenType::TOKEN_MINUS);
@@ -229,7 +263,7 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<ExprNode> Parser::parsePrimary() {
-        switch (current_token.type) {
+        switch (currentToken.type) {
             case TokenType::TOKEN_LPAREN: {
                 eat(TokenType::TOKEN_LPAREN);
                 
@@ -244,6 +278,10 @@ namespace LOICollection::frontend {
 
                 break;
             }
+            case TokenType::TOKEN_TRANSPILE:
+                return parseTranspile();
+            case TokenType::TOKEN_LBRACE:
+                return parseMacro();
             default:
                 break;
         }
@@ -252,53 +290,55 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<ValueNode> Parser::parseValue() {
-        switch (current_token.type) {
+        switch (currentToken.type) {
             case TokenType::TOKEN_INT: {
-                int value = std::stoi(current_token.value);
+                int value = std::stoi(currentToken.value);
 
                 eat(TokenType::TOKEN_INT);
                 return std::make_unique<ValueNode>(value);
             }
             case TokenType::TOKEN_FLOAT: {
-                float value = std::stof(current_token.value);
+                float value = std::stof(currentToken.value);
 
                 eat(TokenType::TOKEN_FLOAT);
                 return std::make_unique<ValueNode>(value);
             }
             case TokenType::TOKEN_STRING: {
-                std::string str = std::move(current_token.value);
+                std::string str = std::move(currentToken.value);
 
                 eat(TokenType::TOKEN_STRING);
                 return std::make_unique<ValueNode>(std::move(str));
             }
             case TokenType::TOKEN_IDENT: {
-                std::string text = std::move(current_token.value);
+                std::string text = std::move(currentToken.value);
 
                 eat(TokenType::TOKEN_IDENT);
                 return std::make_unique<ValueNode>(std::move(text));
             }
             case TokenType::TOKEN_BOOL_LIT: {
-                bool val = (current_token.value == "true");
+                bool val = (currentToken.value == "true");
                 
                 eat(TokenType::TOKEN_BOOL_LIT);
-                return std::make_unique<ValueNode>(val ? 1 : 0);
+                return std::make_unique<ValueNode>(val);
             }
             default:
-                throw std::runtime_error("Unexpected value type: " + current_token.value);
+                throw std::runtime_error("Unexpected value type: " + currentToken.value);
         }
     }
 
     std::unique_ptr<ASTNode> Parser::parseResult(TokenType stopToken) {
         auto tpl = std::make_unique<TemplateNode>();
 
-        while (current_token.type != stopToken && current_token.type != TokenType::TOKEN_EOF) {
+        while (currentToken.type != stopToken && currentToken.type != TokenType::TOKEN_EOF) {
             if (tpl->parts.size() >= 100)
                 throw std::runtime_error("Too many parts in template");
 
-            if (current_token.type == TokenType::TOKEN_IF)
+            if (currentToken.type == TokenType::TOKEN_IF) {
                 tpl->addPart(parseIfStatement(stopToken));
-            else
-                tpl->addPart(parseBaseExpression());
+                continue;
+            }
+
+            tpl->addPart(parseBaseExpression());
         }
         
         return tpl;
@@ -309,12 +349,12 @@ namespace LOICollection::frontend {
     }
 
     void Parser::eat(TokenType expected) {
-        if (current_token.type != expected) {
-            throw std::runtime_error("Syntax error at position " + std::to_string(current_token.pos)
-                + ": Expected " + getTokenName(expected) + ", got " + getTokenName(current_token.type));
+        if (currentToken.type != expected) {
+            throw std::runtime_error("Syntax error at position " + std::to_string(currentToken.pos)
+                + ": Expected " + getTokenName(expected) + ", got " + getTokenName(currentToken.type));
         }
 
-        current_token = lexer.getNextToken();
+        currentToken = lexer.getNextToken();
     }
     
     std::string Parser::getTokenName(TokenType type) {
@@ -324,13 +364,14 @@ namespace LOICollection::frontend {
             case TokenType::TOKEN_RPAREN: return ")";
             case TokenType::TOKEN_LBRCKET: return "[";
             case TokenType::TOKEN_RBRCKET: return "]";
+            case TokenType::TOKEN_LBRACE: return "{";
+            case TokenType::TOKEN_RBRACE: return "}";
             case TokenType::TOKEN_IDENT: return "IDENT";
             case TokenType::TOKEN_INT: return "NUMBER";
             case TokenType::TOKEN_FLOAT: return "FLOAT";
             case TokenType::TOKEN_STRING: return "STRING";
             case TokenType::TOKEN_OP: return "OP";
             case TokenType::TOKEN_BOOL_OP: return "BOOL_OP";
-            case TokenType::TOKEN_EOF: return "EOF";
             case TokenType::TOKEN_COLON: return ":";
             case TokenType::TOKEN_BOOL_LIT: return "BOOL_LIT";
             case TokenType::TOKEN_PLUS: return "+";
@@ -341,6 +382,8 @@ namespace LOICollection::frontend {
             case TokenType::TOKEN_POWER: return "^";
             case TokenType::TOKEN_NAMESPACE: return "NAMESPACE";
             case TokenType::TOKEN_COMMA: return ",";
+            case TokenType::TOKEN_TRANSPILE: return "TRANSPILE";
+            case TokenType::TOKEN_EOF: return "EOF";
             default: return "UNKNOWN";
         }
     }

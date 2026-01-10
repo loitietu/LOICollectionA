@@ -203,7 +203,7 @@ namespace LOICollection::Plugins {
     }
 
     void WalletPlugin::gui::wealth(Player& player) {
-        std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translateString(tr(LanguagePlugin::getInstance().getLanguage(player), "wallet.showOff"), player);
+        std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(tr(LanguagePlugin::getInstance().getLanguage(player), "wallet.showOff"), player);
 
         TextPacket::createSystemMessage(
             fmt::format(fmt::runtime(mMessage), ScoreboardUtils::getScore(player, this->mParent.mImpl->options.TargetScoreboard))
@@ -327,7 +327,7 @@ namespace LOICollection::Plugins {
 
                 ScoreboardUtils::addScore(event.self(), this->mImpl->options.TargetScoreboard, mTargetMoney);
 
-                std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translateString(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "wallet.tips.redenvelope.receive"), event.self());
+                std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "wallet.tips.redenvelope.receive"), event.self());
                 
                 TextPacket::createSystemMessage(fmt::format(fmt::runtime(mMessage), mObject.id, mTargetMoney, (mObject.people + 1), mObject.count)).sendToClients();
 
@@ -341,7 +341,7 @@ namespace LOICollection::Plugins {
                         return a.second < b.second;
                     });
 
-                    std::string mMessageOver = LOICollectionAPI::APIUtils::getInstance().translateString(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "wallet.tips.redenvelope.receive.over"), event.self());
+                    std::string mMessageOver = LOICollectionAPI::APIUtils::getInstance().translate(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "wallet.tips.redenvelope.receive.over"), event.self());
                     
                     TextPacket::createSystemMessage(fmt::format(fmt::runtime(mMessageOver), mObject.id, mObject.names.at(mKingIt->first), mKingIt->second)).sendToClients();
 
@@ -447,7 +447,7 @@ namespace LOICollection::Plugins {
             }), mObjects.end());
         }).launch(ll::thread::ServerThreadExecutor::getDefault());
 
-        std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translateString(tr(LanguagePlugin::getInstance().getLanguage(player), "wallet.tips.redenvelope.content"), player);
+        std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(tr(LanguagePlugin::getInstance().getLanguage(player), "wallet.tips.redenvelope.content"), player);
 
         TextPacket::createSystemMessage(fmt::format(fmt::runtime(mMessage), 
             mObjectId, score, count, this->mImpl->options.RedEnvelopeTimeout, key

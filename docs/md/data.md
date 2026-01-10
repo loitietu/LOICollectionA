@@ -45,8 +45,8 @@
             "ServerToast": {
                 "ModuleEnabled": true, // 是否启用服务器提示
                 "FormatText": {
-                    "join": "{player} 加入了服务器", // 玩家加入服务器提示，支持 LOICollectionA API 变量
-                    "exit": "{player} 退出了服务器" // 玩家退出服务器提示，支持 LOICollectionA API 变量
+                    "join": "{player}' 加入了服务器'", // 玩家加入服务器提示，支持 LOICollectionA API 变量
+                    "exit": "{player}' 退出了服务器'" // 玩家退出服务器提示，支持 LOICollectionA API 变量
                 }
             },
             "ChangeScore": {
@@ -63,7 +63,7 @@
                 "ModuleEnabled": true, // 是否启用动态服务器 MOTD
                 "RefreshInterval": 200, // 刷新间隔，单位为 tick（20 tick = 1 秒）
                 "Pages": [
-                    "在线玩家: {server.player.online}/{server.player.max}" // 每行显示内容，支持 LOICollectionA API 变量
+                    "'在线玩家: '{server.player.online}/{server.player.max}" // 每行显示内容，支持 LOICollectionA API 变量
                 ]
             }
         },
@@ -71,8 +71,8 @@
             "ModuleEnabled": true, // 是否启用 PVP
             "ExtraListener": {
                 "onActorHurt": true, // 是否启用玩家伤害侦听器
-                "SplashPotion": true, // 是否启用药水效果侦听器
-                "ProjectileHit": true // 是否启用射击侦听器
+                "onSplashPotion": true, // 是否启用药水效果侦听器
+                "onProjectileHit": true // 是否启用射击侦听器
             }
         },
         "Wallet": { // 钱包配置

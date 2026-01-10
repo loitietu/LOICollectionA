@@ -9,7 +9,7 @@ namespace LOICollection::frontend {
     struct ASTNode {
         enum class Type { 
             Value, Compare, Logical, If, Template, Expr,
-            Arithmetic, Unary, Function
+            Arithmetic, Unary, Function, Macro
         };
         [[nodiscard]] virtual Type getType() const = 0;
         
@@ -38,13 +38,14 @@ namespace LOICollection::frontend {
     };
     
     struct ValueNode : ExprNode {
-        using ValueType = std::variant<int, float, std::string>;
+        using ValueType = std::variant<int, float, std::string, bool>;
 
         ValueType value;
         
         explicit ValueNode(int v) : value(v) {}
         explicit ValueNode(float v) : value(v) {}
         explicit ValueNode(const std::string& v) : value(v) {}
+        explicit ValueNode(bool v) : value(v) {}
 
         [[nodiscard]] Type getType() const override {
             return Type::Value;
@@ -93,6 +94,19 @@ namespace LOICollection::frontend {
         
         [[nodiscard]] Type getType() const override {
             return Type::Function;
+        }
+    };
+
+    struct MacroNode : ExprNode {
+        std::unique_ptr<ASTNode> args;
+        std::string name;
+
+        MacroNode(auto&& a, std::string n)
+            : args(std::forward<decltype(a)>(a)),
+              name(std::move(n)) {}
+        
+        [[nodiscard]] Type getType() const override {
+            return Type::Macro;
         }
     };
 

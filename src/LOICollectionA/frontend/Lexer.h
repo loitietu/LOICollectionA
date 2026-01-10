@@ -7,11 +7,12 @@
 namespace LOICollection::frontend {
     enum class TokenType {
         TOKEN_IF, TOKEN_LPAREN, TOKEN_RPAREN, TOKEN_LBRCKET,
-        TOKEN_RBRCKET, TOKEN_IDENT, TOKEN_INT, TOKEN_FLOAT, 
-        TOKEN_STRING, TOKEN_OP, TOKEN_BOOL_OP, TOKEN_EOF,
-        TOKEN_COLON, TOKEN_BOOL_LIT, TOKEN_PLUS, TOKEN_MINUS,
-        TOKEN_MULTIPLY, TOKEN_DIVIDE, TOKEN_MOD, TOKEN_POWER, 
-        TOKEN_NAMESPACE, TOKEN_COMMA
+        TOKEN_RBRCKET, TOKEN_LBRACE, TOKEN_RBRACE, TOKEN_IDENT,
+        TOKEN_INT, TOKEN_FLOAT, TOKEN_STRING, TOKEN_OP,
+        TOKEN_BOOL_OP, TOKEN_COLON, TOKEN_BOOL_LIT, TOKEN_PLUS,
+        TOKEN_MINUS, TOKEN_MULTIPLY, TOKEN_DIVIDE, TOKEN_MOD,
+        TOKEN_POWER, TOKEN_NAMESPACE, TOKEN_COMMA, TOKEN_TRANSPILE,
+        TOKEN_EOF
     };
     
     struct Token {
@@ -23,7 +24,7 @@ namespace LOICollection::frontend {
     class Lexer {
         std::string input;
         size_t position;
-        char current_char;
+        char currentChar;
 
     public:
         LOICOLLECTION_A_API   Lexer(std::string str);

@@ -39,8 +39,8 @@ namespace Config {
         struct C_ServerToast {
             bool ModuleEnabled = true;
             struct C_FormatText {
-                std::string join = "{player} 加入了服务器";
-                std::string exit = "{player} 离开了服务器";
+                std::string join = "{player}' 加入了服务器'";
+                std::string exit = "{player}' 离开了服务器'";
             } FormatText;
         } ServerToast;
 
@@ -59,7 +59,7 @@ namespace Config {
         struct C_DynamicMotd {
             bool ModuleEnabled = true;
             int RefreshInterval = 200;
-            std::vector<std::string> Pages{ "在线玩家: {server.player.online}/{server.player.max}" };
+            std::vector<std::string> Pages{ "'在线玩家: '{server.player.online}/{server.player.max}" };
         } DynamicMotd;
 
         struct C_Sidebar {
@@ -75,8 +75,8 @@ namespace Config {
         bool ModuleEnabled = false;
         struct C_ExtraListener {
             bool onActorHurt = true;
-            bool SplashPotion = true;
-            bool ProjectileHit = true;
+            bool onSplashPotion = true;
+            bool onProjectileHit = true;
         } ExtraListener;
     };
 

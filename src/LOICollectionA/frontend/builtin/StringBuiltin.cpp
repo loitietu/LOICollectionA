@@ -2,7 +2,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "LOICollectionA/frontend/FunctionCall.h"
+#include "LOICollectionA/frontend/Callback.h"
 
 #include "LOICollectionA/frontend/builtin/StringBuiltin.h"
 
@@ -18,13 +18,13 @@ namespace StringBuiltin {
         FunctionCall::getInstance().registerFunction(namespaces, "replace", replace, 3);
     }
 
-    std::string length(std::vector<std::string>& args) {
+    std::string length(const std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
         return std::to_string(arg.length());
     }
 
-    std::string upper(std::vector<std::string>& args) {
+    std::string upper(const std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
         std::string result = arg;
@@ -33,7 +33,7 @@ namespace StringBuiltin {
         return result;
     }
 
-    std::string lower(std::vector<std::string>& args) {
+    std::string lower(const std::vector<std::string>& args) {
         const std::string& arg = args[0];
 
         std::string result = arg;
@@ -42,7 +42,7 @@ namespace StringBuiltin {
         return result;
     }
 
-    std::string substr(std::vector<std::string>& args) {
+    std::string substr(const std::vector<std::string>& args) {
         const std::string& arg = args[0];
         const int start = std::stoi(args[1]);
         const int length = std::stoi(args[2]);
@@ -50,10 +50,8 @@ namespace StringBuiltin {
         return arg.substr(start, length);
     }
 
-    std::string trim(std::vector<std::string>& args) {
-        const std::string& arg = args[0];
-
-        std::string result = arg;
+    std::string trim(const std::vector<std::string>& args) {
+        std::string result = args[0];
         
         size_t start = result.find_first_not_of(" \t\n\r");
         if (start == std::string::npos)
@@ -63,7 +61,7 @@ namespace StringBuiltin {
         return result.substr(start, end - start + 1);
     }
 
-    std::string replace(std::vector<std::string>& args) {
+    std::string replace(const std::vector<std::string>& args) {
         const std::string& arg = args[0];
         const std::string& oldStr = args[1];
         const std::string& newStr = args[2];

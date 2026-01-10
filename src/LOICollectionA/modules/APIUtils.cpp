@@ -28,6 +28,7 @@
 
 #include "LOICollectionA/frontend/Lexer.h"
 #include "LOICollectionA/frontend/Parser.h"
+#include "LOICollectionA/frontend/Callback.h"
 #include "LOICollectionA/frontend/Evaluator.h"
 
 #include "LOICollectionA/include/Plugins/PvpPlugin.h"
@@ -40,256 +41,214 @@
 #include "LOICollectionA/utils/mc/ScoreboardUtils.h"
 #include "LOICollectionA/utils/core/SystemUtils.h"
 
-#include "LOICollectionA/include/APIEngine.h"
-
 #include "LOICollectionA/include/APIUtils.h"
-
-using namespace LOICollection::LOICollectionAPI;
-
-class VariableProcessor : public IContentProcessor {
-public:
-    std::string process(const std::string& content, const Context& context) override {
-        auto [name, parameter] = parser(content);
-
-        if (parameter.empty()) {
-            return context.params.size() > 0 ? 
-                APIUtils::getInstance().getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(context.params.at(0))) :
-                APIUtils::getInstance().getValueForVariable(name);
-        }
-
-        return context.params.size() > 0 ?
-            APIUtils::getInstance().getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(context.params.at(0)), parameter) :
-            APIUtils::getInstance().getValueForVariable(name, parameter);
-    }
-
-    std::pair<std::string, std::string> parser(const std::string& content) {
-        size_t pos = content.find('(');
-        if (pos != std::string::npos && content.back() == ')')
-            return {
-                content.substr(0, pos),
-                content.substr(pos + 1, content.size() - pos - 2)
-            };
-        
-        return { content, "" };
-    }
-};
-
-class GrammarProcessor : public IContentProcessor {
-public:
-    std::string process(const std::string& content, const Context&) override {
-        return APIUtils::getInstance().tryGetGrammarResult(content);
-    }
-};
 
 namespace LOICollection::LOICollectionAPI {
     struct APIUtils::Impl {
         std::unordered_map<std::string, std::function<std::string()>> mVariableCommonMap;
         std::unordered_map<std::string, std::function<std::string(Player&)>> mVariableMap;
-        std::unordered_map<std::string, std::function<std::string(std::string)>> mVariableCommonMapParameter;
-        std::unordered_map<std::string, std::function<std::string(Player&, std::string)>> mVariableMapParameter;
+        std::unordered_map<std::string, std::function<std::string(const std::vector<std::string>&)>> mVariableCommonMapParameter;
+        std::unordered_map<std::string, std::function<std::string(Player&, const std::vector<std::string>&)>> mVariableMapParameter;
     };
 
     APIUtils::APIUtils() : mImpl(std::make_unique<Impl>()) {
-        APIEngine::getInstance().registery(
-            std::make_unique<VariableProcessor>(),
-            APIEngineConfig{ "variable", "{", "}", "$", 2 }
-        );
-        APIEngine::getInstance().registery(
-            std::make_unique<GrammarProcessor>(),
-            APIEngineConfig{ "grammar", "@", "@", "", 1 }
-        );
-
-        this->registerVariable("version.mc", []() -> std::string {
+        this->registerVariable("version_mc", []() -> std::string {
             return ll::getGameVersion().to_string();
         });
-        this->registerVariable("version.ll", []() -> std::string {
+        this->registerVariable("version_ll", []() -> std::string {
             return ll::getLoaderVersion().to_string();
         });
-        this->registerVariable("version.protocol", []() -> std::string {
+        this->registerVariable("version_protocol", []() -> std::string {
             return std::to_string(ll::getNetworkProtocolVersion()); 
         });
         this->registerVariable("player", [](Player& player) -> std::string {
             return std::string{player.mName};
         });
-        this->registerVariable("player.title", [](Player& player) -> std::string {
+        this->registerVariable("player_title", [](Player& player) -> std::string {
             return Plugins::ChatPlugin::getInstance().getTitle(player);
         });
-        this->registerVariable("player.title.time", [](Player& player) -> std::string {
+        this->registerVariable("player_title_time", [](Player& player) -> std::string {
             return SystemUtils::toFormatTime(
                 Plugins::ChatPlugin::getInstance().getTitleTime(player, Plugins::ChatPlugin::getInstance().getTitle(player)), "None"
             );
         });
-        this->registerVariable("player.pvp", [](Player& player) -> std::string {
+        this->registerVariable("player_pvp", [](Player& player) -> std::string {
             return Plugins::PvpPlugin::getInstance().isEnable(player) ? "true" : "false";
         });
-        this->registerVariable("player.mute", [](Player& player) -> std::string {
+        this->registerVariable("player_mute", [](Player& player) -> std::string {
             return Plugins::MutePlugin::getInstance().isMute(player) ? "true" : "false";
         });
-        this->registerVariable("player.language", [](Player& player) -> std::string { 
+        this->registerVariable("player_language", [](Player& player) -> std::string { 
             return Plugins::LanguagePlugin::getInstance().getLanguage(player);
         });
-        this->registerVariable("player.language.name", [](Player& player) -> std::string {
+        this->registerVariable("player_language_name", [](Player& player) -> std::string {
             return I18nUtils::getInstance()->get(Plugins::LanguagePlugin::getInstance().getLanguage(player), "name");
         });
-        this->registerVariable("player.statistcs.onlinetime", [](Player& player) -> std::string {
+        this->registerVariable("player_statistcs_onlinetime", [](Player& player) -> std::string {
             return SystemUtils::toFormatSecond(
                 std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::onlinetime)), "None"
             );
         });
-        this->registerVariable("player.statistcs.kills", [](Player& player) -> std::string {
+        this->registerVariable("player_statistcs_kills", [](Player& player) -> std::string {
             return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::kills));
         });
-        this->registerVariable("player.statistcs.deaths", [](Player& player) -> std::string {
+        this->registerVariable("player_statistcs_deaths", [](Player& player) -> std::string {
             return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::deaths));
         });
-        this->registerVariable("player.statistcs.place", [](Player& player) -> std::string {
+        this->registerVariable("player_statistcs_place", [](Player& player) -> std::string {
             return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::place));
         });
-        this->registerVariable("player.statistcs.destroy", [](Player& player) -> std::string {
+        this->registerVariable("player_statistcs_destroy", [](Player& player) -> std::string {
             return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::destroy));
         });
-        this->registerVariable("player.statistcs.respawn", [](Player& player) -> std::string {
+        this->registerVariable("player_statistcs_respawn", [](Player& player) -> std::string {
             return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::respawn));
         });
-        this->registerVariable("player.statistcs.join", [](Player& player) -> std::string {
+        this->registerVariable("player_statistcs_join", [](Player& player) -> std::string {
             return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::join));
         });
-        this->registerVariable("player.gamemode", [](Player& player) -> std::string {
+        this->registerVariable("player_gamemode", [](Player& player) -> std::string {
             return std::string(magic_enum::enum_name(player.getPlayerGameType()));
         });
-        this->registerVariable("player.pos", [](Player& player) -> std::string {
+        this->registerVariable("player_pos", [](Player& player) -> std::string {
             return player.getPosition().toString();
         });
-        this->registerVariable("player.pos.x", [](Player& player) -> std::string {
+        this->registerVariable("player_pos_x", [](Player& player) -> std::string {
             return std::to_string(static_cast<int>(player.getPosition().x));
         });
-        this->registerVariable("player.pos.y", [](Player& player) -> std::string {
+        this->registerVariable("player_pos_y", [](Player& player) -> std::string {
             return std::to_string(static_cast<int>(player.getPosition().y));
         });
-        this->registerVariable("player.pos.z", [](Player& player) -> std::string {
+        this->registerVariable("player_pos_z", [](Player& player) -> std::string {
             return std::to_string(static_cast<int>(player.getPosition().z));
         });
-        this->registerVariable("player.pos.respawn", [](Player& player) -> std::string {
+        this->registerVariable("player_pos_respawn", [](Player& player) -> std::string {
             return player.hasRespawnPosition() ? player.getExpectedSpawnPosition().toString() : "None";
         });
-        this->registerVariable("player.pos.respawn.x", [](Player& player) -> std::string {
+        this->registerVariable("player_pos_respawn_x", [](Player& player) -> std::string {
             return player.hasRespawnPosition() ? std::to_string(static_cast<int>(player.getExpectedSpawnPosition().x)) : "None";
         });
-        this->registerVariable("player.pos.respawn.y", [](Player& player) -> std::string {
+        this->registerVariable("player_pos_respawn_y", [](Player& player) -> std::string {
             return player.hasRespawnPosition() ? std::to_string(static_cast<int>(player.getExpectedSpawnPosition().y)) : "None";
         });
-        this->registerVariable("player.pos.respawn.z", [](Player& player) -> std::string {
+        this->registerVariable("player_pos_respawn_z", [](Player& player) -> std::string {
             return player.hasRespawnPosition() ? std::to_string(static_cast<int>(player.getExpectedSpawnPosition().z)) : "None";
         });
-        this->registerVariable("player.pos.block", [](Player& player) -> std::string {
+        this->registerVariable("player_pos_block", [](Player& player) -> std::string {
             return player.getEyePos().toString();
         });
-        this->registerVariable("player.pos.lastdeath", [](Player& player) -> std::string {
+        this->registerVariable("player_pos_lastdeath", [](Player& player) -> std::string {
             return player.getLastDeathPos() ? player.getLastDeathPos()->toString() : "None";
         });
-        this->registerVariable("player.realname", [](Player& player) -> std::string {
+        this->registerVariable("player_realname", [](Player& player) -> std::string {
             return player.getRealName();
         });
-        this->registerVariable("player.xuid", [](Player& player) -> std::string {
+        this->registerVariable("player_xuid", [](Player& player) -> std::string {
             return player.getXuid();
         });
-        this->registerVariable("player.uuid", [](Player& player) -> std::string {
+        this->registerVariable("player_uuid", [](Player& player) -> std::string {
             return player.getUuid().asString();
         });
-        this->registerVariable("player.is.op", [](Player& player) -> std::string {
+        this->registerVariable("player_is_op", [](Player& player) -> std::string {
             return player.isOperator() ? "true" : "false";
         });
-        this->registerVariable("player.can.fly", [](Player& player) -> std::string {
+        this->registerVariable("player_can_fly", [](Player& player) -> std::string {
             return player.canFly() ? "true" : "false";
         });
-        this->registerVariable("player.health", [](Player& player) -> std::string {
+        this->registerVariable("player_health", [](Player& player) -> std::string {
             return std::to_string(ActorAttribute::getHealth(player.getEntityContext()));
         });
-        this->registerVariable("player.max.health", [](Player& player) -> std::string {
+        this->registerVariable("player_max_health", [](Player& player) -> std::string {
             return std::to_string(static_cast<int>(player.getMaxHealth()));
         });
-        this->registerVariable("player.hunger", [](Player& player) -> std::string {
+        this->registerVariable("player_hunger", [](Player& player) -> std::string {
             return std::to_string(static_cast<int>(player.getAttribute(Player::HUNGER()).mCurrentValue));
         });
-        this->registerVariable("player.max.hunger", [](Player& player) -> std::string {
+        this->registerVariable("player_max_hunger", [](Player& player) -> std::string {
             return std::to_string(static_cast<int>(player.getAttribute(Player::HUNGER()).mCurrentMaxValue));
         });
-        this->registerVariable("player.saturation", [](Player& player) -> std::string {
+        this->registerVariable("player_saturation", [](Player& player) -> std::string {
             return std::to_string(static_cast<int>(player.getAttribute(Player::SATURATION()).mCurrentValue));
         });
-        this->registerVariable("player.max.saturation", [](Player& player) -> std::string {
+        this->registerVariable("player_max_saturation", [](Player& player) -> std::string {
             return std::to_string(static_cast<int>(player.getAttribute(Player::SATURATION()).mCurrentMaxValue));
         });
-        this->registerVariable("player.speed", [](Player& player) -> std::string {
+        this->registerVariable("player_speed", [](Player& player) -> std::string {
             return std::to_string(player.getSpeed());
         });
-        this->registerVariable("player.direction", [](Player& player) -> std::string {
+        this->registerVariable("player_direction", [](Player& player) -> std::string {
             return player.mBuiltInComponents->mActorRotationComponent->mRotationDegree->toString();
         });
-        this->registerVariable("player.dimension", [](Player& player) -> std::string {
+        this->registerVariable("player_dimension", [](Player& player) -> std::string {
             return std::to_string(player.getDimensionId());
         });
-        this->registerVariable("player.os", [](Player& player) -> std::string {
+        this->registerVariable("player_os", [](Player& player) -> std::string {
             return magic_enum::enum_name(player.mBuildPlatform).data();
         });
-        this->registerVariable("player.ip", [](Player& player) -> std::string {
+        this->registerVariable("player_ip", [](Player& player) -> std::string {
             return player.getIPAndPort();
         });
-        this->registerVariable("player.exp.xp", [](Player& player) -> std::string {
+        this->registerVariable("player_exp_xp", [](Player& player) -> std::string {
             return std::to_string(static_cast<int>(player.getAttribute(Player::EXPERIENCE()).mCurrentValue));
         });
-        this->registerVariable("player.exp.level", [](Player& player) -> std::string {
+        this->registerVariable("player_exp_level", [](Player& player) -> std::string {
             return std::to_string(static_cast<int>(player.getAttribute(Player::LEVEL()).mCurrentValue));
         });
-        this->registerVariable("player.exp.level.next", [](Player& player) -> std::string {
+        this->registerVariable("player_exp_level_next", [](Player& player) -> std::string {
             return std::to_string(player.getXpNeededForNextLevel());
         });
-        this->registerVariable("player.handitem", [](Player& player) -> std::string {
+        this->registerVariable("player_handitem", [](Player& player) -> std::string {
             return player.getCarriedItem().getName();
         });
-        this->registerVariable("player.offhand", [](Player& player) -> std::string {
+        this->registerVariable("player_offhand", [](Player& player) -> std::string {
             return player.getOffhandSlot().getName();
         });
-        this->registerVariable("player.ms", [](Player& player) -> std::string {
+        this->registerVariable("player_ms", [](Player& player) -> std::string {
             return std::to_string(player.getNetworkStatus()->mAveragePing);
         });
-        this->registerVariable("player.ms.avg", [](Player& player) -> std::string {
+        this->registerVariable("player_ms_avg", [](Player& player) -> std::string {
             return std::to_string(player.getNetworkStatus()->mCurrentPing);
         });
-        this->registerVariable("player.packet", [](Player& player) -> std::string {
+        this->registerVariable("player_packet", [](Player& player) -> std::string {
             return std::to_string(player.getNetworkStatus()->mAveragePacketLoss);
         });
-        this->registerVariable("player.packet.avg", [](Player& player) -> std::string {
+        this->registerVariable("player_packet_avg", [](Player& player) -> std::string {
             return std::to_string(player.getNetworkStatus()->mCurrentPacketLoss);
         });
-        this->registerVariable("server.tps", []() -> std::string {
+        this->registerVariable("server_tps", []() -> std::string {
             auto mMspt = static_cast<double>(ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count()) / 1e6;
             return std::to_string(mMspt <= 50.0 ? 20.0 : static_cast<double>(1000.0 / mMspt));
         });
-        this->registerVariable("server.mspt", []() -> std::string { 
+        this->registerVariable("server_mspt", []() -> std::string { 
             return std::to_string(static_cast<double>(ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count()) / 1e6);
         });
-        this->registerVariable("server.time", []() -> std::string {
+        this->registerVariable("server_time", []() -> std::string {
             return SystemUtils::getNowTime();
         });
-        this->registerVariable("server.player.max", []() -> std::string {
+        this->registerVariable("server_player_max", []() -> std::string {
             return std::to_string(ll::service::getServerNetworkHandler()->mMaxNumPlayers);
         });
-        this->registerVariable("server.player.online", []() -> std::string {
+        this->registerVariable("server_player_online", []() -> std::string {
             return std::to_string(ll::service::getLevel()->getActivePlayerCount());
         });
-        this->registerVariable("server.entity", []() -> std::string {
+        this->registerVariable("server_entity", []() -> std::string {
             return std::to_string(ll::service::getLevel()->getRuntimeActorList().size());
         });
-        this->registerVariable("score", [](Player& player, const std::string& name) -> std::string {
+        this->registerVariable("score", [](Player& player, const std::vector<std::string>& args) -> std::string {
+            std::string name = args.empty() ? "None" : args[0];
+
             return std::to_string(ScoreboardUtils::getScore(player, name));
         });
-        this->registerVariable("tr", [](Player& player, const std::string& name) -> std::string {
+        this->registerVariable("tr", [](Player& player, const std::vector<std::string>& args) -> std::string {
+            std::string name = args.empty() ? "None" : args[0];
+
             return I18nUtils::getInstance()->get(Plugins::LanguagePlugin::getInstance().getLanguage(player), name);
         });
-        this->registerVariable("entity", [](std::string name) -> std::string {
+        this->registerVariable("entity", [](const std::vector<std::string>& args) -> std::string {
+            std::string name = args.empty() ? "None" : args[0];
+
             std::vector<Actor*> mRuntimeActorList = ll::service::getLevel()->getRuntimeActorList();
-            int count = static_cast<int>(std::count_if(mRuntimeActorList.begin(), mRuntimeActorList.end(), [&name](Actor* actor) -> bool {
+            int count = static_cast<int>(std::count_if(mRuntimeActorList.begin(), mRuntimeActorList.end(), [name](Actor* actor) -> bool {
                 return actor->getTypeName() == name;
             }));
             
@@ -305,18 +264,34 @@ namespace LOICollection::LOICollectionAPI {
 
     void APIUtils::registerVariable(const std::string& name, std::function<std::string()> callback) {
         this->mImpl->mVariableCommonMap.emplace(name, std::move(callback));
+
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeArgs&) -> std::string {
+            return this->getValueForVariable(name);
+        });
     }
 
     void APIUtils::registerVariable(const std::string& name, std::function<std::string(Player&)> callback) {
         this->mImpl->mVariableMap.emplace(name, std::move(callback));
+
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeArgs&, const frontend::CallbackTypePlaces& placeholders) -> std::string {
+            return this->getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0)));
+        });
     }
 
-    void APIUtils::registerVariable(const std::string& name, std::function<std::string(std::string)> callback) {
+    void APIUtils::registerVariable(const std::string& name, std::function<std::string(const std::vector<std::string>&)> callback) {
         this->mImpl->mVariableCommonMapParameter.emplace(name, std::move(callback));
+
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeArgs& args) -> std::string {
+            return this->getValueForVariable(name, args);
+        });
     }
 
-    void APIUtils::registerVariable(const std::string& name, std::function<std::string(Player&, std::string)> callback) {
+    void APIUtils::registerVariable(const std::string& name, std::function<std::string(Player&, const std::vector<std::string>&)> callback) {
         this->mImpl->mVariableMapParameter.emplace(name, std::move(callback));
+
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeArgs& args, const frontend::CallbackTypePlaces& placeholders) -> std::string {
+            return this->getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0)), args);
+        });
     }
 
     std::string APIUtils::getValueForVariable(const std::string& name) try {
@@ -333,46 +308,31 @@ namespace LOICollection::LOICollectionAPI {
         return "None";
     }
 
-    std::string APIUtils::getValueForVariable(const std::string& name, const std::string& parameter) try {
+    std::string APIUtils::getValueForVariable(const std::string& name, const std::vector<std::string>& parameter) try {
         auto it = this->mImpl->mVariableCommonMapParameter.find(name);
         return it != this->mImpl->mVariableCommonMapParameter.end() ? it->second(parameter) : "None";
     } catch (...) {
         return "None";
     }
 
-    std::string APIUtils::getValueForVariable(const std::string& name, Player& player, const std::string& parameter) try {
+    std::string APIUtils::getValueForVariable(const std::string& name, Player& player, const std::vector<std::string>& parameter) try {
         auto it = this->mImpl->mVariableMapParameter.find(name);
         return it != this->mImpl->mVariableMapParameter.end() ? it->second(player, parameter) : this->getValueForVariable(name, parameter);
     } catch (...) {
         return "None";
     }
 
-    std::string APIUtils::tryGetGrammarResult(const std::string& str) try {
+    std::string APIUtils::translate(const std::string& str, Player& player) {
+        frontend::Lexer mLexer(str);
+        frontend::Parser mParser(mLexer);
+        frontend::Evaluator mEvaluator;
+        return mEvaluator.evaluate(*mParser.parse(), { std::ref(player) });
+    }
+
+    std::string APIUtils::translate(const std::string& str) {
         frontend::Lexer mLexer(str);
         frontend::Parser mParser(mLexer);
         frontend::Evaluator mEvaluator;
         return mEvaluator.evaluate(*mParser.parse());
-    } catch (...) {
-        return "None";
-    }
-
-    std::string APIUtils::getVariableString(const std::string& str, Player& player) {
-        return APIEngine::getInstance().get("variable", str, { std::ref(player) });
-    }
-
-    std::string APIUtils::getVariableString(const std::string& str) {
-        return APIEngine::getInstance().get("variable", str);
-    }
-
-    std::string APIUtils::getGrammarString(const std::string& str) {
-        return APIEngine::getInstance().get("grammar", str);
-    }
-
-    std::string APIUtils::translateString(const std::string& str, Player& player) {
-        return APIEngine::getInstance().process(str, { std::ref(player) });
-    }
-
-    std::string APIUtils::translateString(const std::string& str) {
-        return APIEngine::getInstance().process(str);
     }
 }

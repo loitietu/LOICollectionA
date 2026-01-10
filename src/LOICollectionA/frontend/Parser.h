@@ -11,7 +11,7 @@
 namespace LOICollection::frontend {
     class Parser {
         Lexer& lexer;
-        Token current_token;
+        Token currentToken;
 
     public:
         LOICOLLECTION_A_API   Parser(Lexer& l);
@@ -20,7 +20,9 @@ namespace LOICollection::frontend {
     private:
         std::unique_ptr<IfNode> parseIfStatement(TokenType falsePartToken = TokenType::TOKEN_RBRCKET);
         std::unique_ptr<FunctionNode> parseFunction();
+        std::unique_ptr<MacroNode> parseMacro();
 
+        std::unique_ptr<ValueNode> parseTranspile(TokenType stopToken = TokenType::TOKEN_RBRACE);
         std::unique_ptr<TemplateNode> parseArgs(TokenType delimiterToken = TokenType::TOKEN_COMMA, TokenType stopToken = TokenType::TOKEN_RPAREN);
 
         std::unique_ptr<ExprNode> parseBaseExpression();

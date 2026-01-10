@@ -130,7 +130,7 @@ namespace LOICollection::Plugins {
 
             this->mParent.delItem(id);
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "market.log2"), pl)), mData.at(id + ".NAME"));
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), pl)), mData.at(id + ".NAME"));
         });
         if (player.getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors) {
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [this, id, mObjectLanguage, mData](Player& pl) -> void {
@@ -138,7 +138,7 @@ namespace LOICollection::Plugins {
                 
                 this->mParent.delItem(id);
 
-                this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "market.log3"), pl)), mData.at(id + ".NAME"));
+                this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log3"), pl)), mData.at(id + ".NAME"));
             });
         }
         form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
@@ -171,7 +171,7 @@ namespace LOICollection::Plugins {
 
             this->mParent.delItem(id);
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "market.log3"), pl)), mData.at(id + ".NAME"));
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log3"), pl)), mData.at(id + ".NAME"));
         });
         form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
             if (id == -1) this->sellItemContent(pl);
@@ -420,7 +420,7 @@ namespace LOICollection::Plugins {
         this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
         this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "market.log4"), player)), mTargetObject);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log4"), player)), mTargetObject);
     }
 
     void MarketPlugin::delBlacklist(Player& player, const std::string& target) {
@@ -432,7 +432,7 @@ namespace LOICollection::Plugins {
 
         this->getDatabase()->delByPrefix("Blacklist", target + ".");
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "market.log5"), player)), target);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log5"), player)), target);
     }
 
     void MarketPlugin::addItem(Player& player, ItemStack& item, const std::string& name, const std::string& icon, const std::string& intr, int score) {
@@ -454,7 +454,7 @@ namespace LOICollection::Plugins {
         
         transaction.commit();
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "market.log2"), player)), name);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), player)), name);
     }
 
     void MarketPlugin::delItem(const std::string& id) {

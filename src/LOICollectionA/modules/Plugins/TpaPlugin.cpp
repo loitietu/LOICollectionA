@@ -198,7 +198,7 @@ namespace LOICollection::Plugins {
 
         std::string mLabelId = (type == TpaType::tpa) ? "tpa.there" : "tpa.here";
 
-        ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"), LOICollectionAPI::APIUtils::getInstance().translateString(tr(mObjectLanguage, mLabelId), player),
+        ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"), LOICollectionAPI::APIUtils::getInstance().translate(tr(mObjectLanguage, mLabelId), player),
             tr(mObjectLanguage, "tpa.yes"), tr(mObjectLanguage, "tpa.no")
         );
         form.sendTo(target, [this, type, &player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
@@ -361,7 +361,7 @@ namespace LOICollection::Plugins {
         this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
         this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "tpa.log2"), player)), mTargetObject);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "tpa.log2"), player)), mTargetObject);
 
         if (this->mImpl->BlacklistCache.contains(mObject))
             this->mImpl->BlacklistCache.update(mObject, [mTargetObject](std::vector<std::string>& mList) -> void {
@@ -379,7 +379,7 @@ namespace LOICollection::Plugins {
         if (this->getDatabase()->hasByPrefix("Blacklist", mObject + "." + target, 2))
             this->getDatabase()->delByPrefix("Blacklist", mObject + "." + target);
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "tpa.log3"), player)), target);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "tpa.log3"), player)), target);
 
         this->mImpl->BlacklistCache.update(mObject, [target](std::vector<std::string>& mList) -> void {
             mList.erase(std::remove(mList.begin(), mList.end(), target), mList.end());

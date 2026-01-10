@@ -123,7 +123,7 @@ namespace LOICollection::Plugins {
                 SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0), static_cast<bool>(std::get<uint64>(dt->at("Toggle")))
             );
         
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "cdk.log1"), pl)), mObjectCdk);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "cdk.log1"), pl)), mObjectCdk);
         });
     }
 
@@ -140,7 +140,7 @@ namespace LOICollection::Plugins {
 
             this->mParent.remove(id);
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "cdk.log2"), pl)), id);
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "cdk.log2"), pl)), id);
         });
     }
 
@@ -424,7 +424,7 @@ namespace LOICollection::Plugins {
         this->getDatabase()->set(id, data);
         this->getDatabase()->save();
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().getVariableString(tr({}, "cdk.log3"), player)), id);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "cdk.log3"), player)), id);
     }
 
     bool CdkPlugin::isValid() {

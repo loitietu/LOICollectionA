@@ -135,7 +135,7 @@ namespace LOICollection::Plugins {
                         if (mTarget.isSimulatedPlayer())
                             return true;
 
-                        std::string mNameTag = LOICollectionAPI::APIUtils::getInstance().translateString(*mName, mTarget);
+                        std::string mNameTag = LOICollectionAPI::APIUtils::getInstance().translate(*mName, mTarget);
 
                         SetActorDataPacket packet(mTarget.getRuntimeID(), mTarget.mEntityData, 
                             nullptr, mTarget.mLevel->getCurrentTick().tickID, false
@@ -161,7 +161,7 @@ namespace LOICollection::Plugins {
                     if (!this->mImpl->DynamicMotdTaskRunning.load(std::memory_order_acquire))
                         break;
 
-                    ll::setServerMotd(LOICollectionAPI::APIUtils::getInstance().translateString(option.Pages[index]));
+                    ll::setServerMotd(LOICollectionAPI::APIUtils::getInstance().translate(option.Pages[index]));
 
                     index = index < maxIndex ? index + 1 : 0;
                 }
@@ -189,11 +189,11 @@ namespace LOICollection::Plugins {
 
                         size_t index = option.Pages[mPageIndex].size();
                         for (const std::string& page : option.Pages[mPageIndex]) {
-                            data.emplace_back(LOICollectionAPI::APIUtils::getInstance().translateString(page, mTarget), static_cast<int>(index));
+                            data.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(page, mTarget), static_cast<int>(index));
                             --index;
                         }
 
-                        std::string mTitle = LOICollectionAPI::APIUtils::getInstance().translateString(option.Titles[mTitleIndex], mTarget);
+                        std::string mTitle = LOICollectionAPI::APIUtils::getInstance().translate(option.Titles[mTitleIndex], mTarget);
 
                         this->removeSidebar(mTarget, "LOICollectionA");
                         this->addSidebar(mTarget, "LOICollectionA", mTitle, SidebarType::Descending);
@@ -214,7 +214,7 @@ namespace LOICollection::Plugins {
                 return;
 
             TextPacket::createSystemMessage(
-                LOICollectionAPI::APIUtils::getInstance().translateString(option.FormatText.join, event.self())
+                LOICollectionAPI::APIUtils::getInstance().translate(option.FormatText.join, event.self())
             ).sendToClients();
 
             mInterceptTextObjectPacket.push_back(event.self().getUuid().asString());
@@ -225,7 +225,7 @@ namespace LOICollection::Plugins {
                 return;
 
             TextPacket::createSystemMessage(
-                LOICollectionAPI::APIUtils::getInstance().translateString(option.FormatText.exit, event.self())
+                LOICollectionAPI::APIUtils::getInstance().translate(option.FormatText.exit, event.self())
             ).sendToClients();
 
             mInterceptTextObjectPacket.erase(std::remove(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), event.self().getUuid().asString()), mInterceptTextObjectPacket.end());
@@ -251,7 +251,7 @@ namespace LOICollection::Plugins {
                     mOriScore
                 );
                 
-                event.self().sendMessage(LOICollectionAPI::APIUtils::getInstance().translateString(mMessage, event.self()));
+                event.self().sendMessage(LOICollectionAPI::APIUtils::getInstance().translate(mMessage, event.self()));
             }
         }));
 
@@ -274,7 +274,7 @@ namespace LOICollection::Plugins {
                     return;
                 auto player = static_cast<Player*>(entity);
 
-                player->sendMessage(LOICollectionAPI::APIUtils::getInstance().translateString(option.FormatText, *player));
+                player->sendMessage(LOICollectionAPI::APIUtils::getInstance().translate(option.FormatText, *player));
             }
         }));
 
