@@ -47,11 +47,15 @@ target("LOICollectionA")
     )
     set_configdir("$(builddir)/config")
     add_configfiles("src/LOICollectionA/resources/Version.h.in")
-    add_files(
-        "src/LOICollectionA/**.cpp",
-        "src/LOICollectionA/**.rc"
-    )
+
+    if is_plat("windows") then
+        add_files("src/LOICollectionA/**.rc")
+    end
+
+    add_files("src/LOICollectionA/**.cpp")
     add_includedirs("src", "$(builddir)/config")
+    set_pcxxheader("src/LOICollectionA/include/Global.h")
+
     add_headerfiles("src/(LOICollectionA/**.h)")
     remove_headerfiles(
         "src/LOICollectionA/frontend/(builtin/**.h)",
@@ -59,12 +63,14 @@ target("LOICollectionA")
         "src/LOICollectionA/(resources/**.h)",
         "src/LOICollectionA/*.h"
     )
+
     add_packages(
         "levilamina",
         "preloader",
         "nlohmann_json",
         "sqlitecpp"
     )
+
     set_exceptions("none")
     set_kind("shared")
     set_languages("cxx20")
