@@ -21,6 +21,14 @@ namespace LOICollection::Plugins {
 
     class TpaPlugin {
     public:
+        ~TpaPlugin();
+
+        TpaPlugin(TpaPlugin const&) = delete;
+        TpaPlugin(TpaPlugin&&) = delete;
+        TpaPlugin& operator=(TpaPlugin const&) = delete;
+        TpaPlugin& operator=(TpaPlugin&&) = delete;
+
+    public:
         LOICOLLECTION_A_NDAPI static TpaPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
@@ -46,7 +54,6 @@ namespace LOICollection::Plugins {
 
     private:
         TpaPlugin();
-        ~TpaPlugin();
 
         void registeryCommand();
         void listenEvent();

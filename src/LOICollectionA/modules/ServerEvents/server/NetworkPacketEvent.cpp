@@ -21,7 +21,7 @@
 
 #include <mc/common/SubClientId.h>
 
-#include "LOICollectionA/include/ServerEvents/NetworkPacketEvent.h"
+#include "LOICollectionA/include/ServerEvents/server/NetworkPacketEvent.h"
 
 namespace LOICollection::ServerEvents {
     const NetworkIdentifier& NetworkPacketEvent::getNetworkIdentifier() const {

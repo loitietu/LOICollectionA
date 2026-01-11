@@ -73,8 +73,8 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
-#include "LOICollectionA/include/ServerEvents/BlockExplodedEvent.h"
-#include "LOICollectionA/include/ServerEvents/PlayerContainerEvent.h"
+#include "LOICollectionA/include/ServerEvents/world/BlockExplodedEvent.h"
+#include "LOICollectionA/include/ServerEvents/player/PlayerContainerEvent.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/mc/BlockUtils.h"

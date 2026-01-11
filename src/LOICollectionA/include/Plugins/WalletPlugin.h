@@ -20,6 +20,14 @@ namespace LOICollection::Plugins {
 
     class WalletPlugin {
     public:
+        ~WalletPlugin();
+
+        WalletPlugin(WalletPlugin const&) = delete;
+        WalletPlugin(WalletPlugin&&) = delete;
+        WalletPlugin& operator=(WalletPlugin const&) = delete;
+        WalletPlugin& operator=(WalletPlugin&&) = delete;    
+
+    public:
         LOICOLLECTION_A_NDAPI static WalletPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
@@ -45,7 +53,6 @@ namespace LOICollection::Plugins {
 
     private:
         WalletPlugin();
-        ~WalletPlugin();
 
         void registeryCommand();
         void listenEvent();

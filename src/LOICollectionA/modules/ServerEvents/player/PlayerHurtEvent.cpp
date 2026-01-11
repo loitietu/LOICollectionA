@@ -16,7 +16,7 @@
 
 #include <mc/legacy/ActorUniqueID.h>
 
-#include "LOICollectionA/include/ServerEvents/PlayerHurtEvent.h"
+#include "LOICollectionA/include/ServerEvents/player/PlayerHurtEvent.h"
 
 namespace LOICollection::ServerEvents {
     Actor& PlayerHurtEvent::getSource() const {

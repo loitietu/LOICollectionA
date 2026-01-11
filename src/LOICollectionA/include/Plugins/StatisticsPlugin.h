@@ -26,6 +26,14 @@ namespace LOICollection::Plugins {
 
     class StatisticsPlugin {
     public:
+        ~StatisticsPlugin();
+
+        StatisticsPlugin(StatisticsPlugin const&) = delete;
+        StatisticsPlugin(StatisticsPlugin&&) = delete;
+        StatisticsPlugin& operator=(StatisticsPlugin const&) = delete;
+        StatisticsPlugin& operator=(StatisticsPlugin&&) = delete;
+
+    public:
         LOICOLLECTION_A_NDAPI static StatisticsPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
@@ -56,7 +64,6 @@ namespace LOICollection::Plugins {
 
     private:
         StatisticsPlugin();
-        ~StatisticsPlugin();
         
         void registeryCommand();
         void listenEvent();

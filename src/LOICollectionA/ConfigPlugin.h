@@ -6,11 +6,7 @@
 namespace Config {
     struct C_Blacklist {
         bool ModuleEnabled = false;
-
-        struct C_BroadcastMessage {
-            bool ModuleEnabled = true;
-            std::string FormatText = "tr(blacklist.broadcast)";
-        } BroadcastMessage;
+        bool BroadcastMessage = true;
     };
 
     struct C_Menu {

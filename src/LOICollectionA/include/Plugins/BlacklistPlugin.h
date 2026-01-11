@@ -3,7 +3,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <functional>
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -17,6 +16,14 @@ namespace ll::io {
 namespace LOICollection::Plugins {
     class BlacklistPlugin {
     public:
+        ~BlacklistPlugin();
+
+        BlacklistPlugin(BlacklistPlugin const&) = delete;
+        BlacklistPlugin(BlacklistPlugin&&) = delete;
+        BlacklistPlugin& operator=(BlacklistPlugin const&) = delete;
+        BlacklistPlugin& operator=(BlacklistPlugin&&) = delete;
+
+    public:
         LOICOLLECTION_A_NDAPI static BlacklistPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
@@ -24,9 +31,6 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_API   void addBlacklist(Player& player, const std::string& cause, int time);
         LOICOLLECTION_A_API   void delBlacklist(const std::string& id);
-
-        LOICOLLECTION_A_API   void onBlacklistAdd(std::function<void(const std::string&)> fn);
-        LOICOLLECTION_A_API   void onBlacklistDel(std::function<void(const std::string&)> fn);
 
         LOICOLLECTION_A_NDAPI std::string getBlacklist(Player& player);
 
@@ -49,7 +53,6 @@ namespace LOICollection::Plugins {
         
     private:
         BlacklistPlugin();
-        ~BlacklistPlugin();
 
         void registeryCommand();
         void listenEvent();

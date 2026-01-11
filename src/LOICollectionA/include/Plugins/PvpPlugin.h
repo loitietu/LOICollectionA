@@ -13,6 +13,14 @@ namespace ll::io {
 namespace LOICollection::Plugins {
     class PvpPlugin {
     public:
+        ~PvpPlugin();
+
+        PvpPlugin(PvpPlugin const&) = delete;
+        PvpPlugin(PvpPlugin&&) = delete;
+        PvpPlugin& operator=(PvpPlugin const&) = delete;
+        PvpPlugin& operator=(PvpPlugin&&) = delete;
+
+    public:
         LOICOLLECTION_A_NDAPI static PvpPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
@@ -34,7 +42,6 @@ namespace LOICollection::Plugins {
 
     private:
         PvpPlugin();
-        ~PvpPlugin();
 
         void registeryCommand();
         void listenEvent();

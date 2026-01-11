@@ -14,7 +14,7 @@
 
 #include <mc/scripting/modules/minecraft/events/ScriptBlockGlobalEventListener.h>
 
-#include "LOICollectionA/include/ServerEvents/BlockExplodedEvent.h"
+#include "LOICollectionA/include/ServerEvents/world/BlockExplodedEvent.h"
 
 namespace LOICollection::ServerEvents {
     const BlockPos& BlockExplodedEvent::getPosition() const {

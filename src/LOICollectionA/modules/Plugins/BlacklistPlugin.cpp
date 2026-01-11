@@ -1,4 +1,3 @@
-#include <mutex>
 #include <atomic>
 #include <memory>
 #include <vector>
@@ -7,7 +6,6 @@
 #include <algorithm>
 #include <execution>
 #include <filesystem>
-#include <functional>
 #include <unordered_map>
 
 #include <fmt/core.h>
@@ -52,7 +50,8 @@
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
-#include "LOICollectionA/include/ServerEvents/NetworkPacketEvent.h"
+#include "LOICollectionA/include/ServerEvents/modules/BlacklistEvent.h"
+#include "LOICollectionA/include/ServerEvents/server/NetworkPacketEvent.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/core/SystemUtils.h"
@@ -84,11 +83,6 @@ namespace LOICollection::Plugins {
     };
 
     struct BlacklistPlugin::Impl {
-        std::mutex mFnMutex;
-
-        std::vector<std::function<void(const std::string&)>> mBlacklistAdds;
-        std::vector<std::function<void(const std::string&)>> mBlacklistDels;
-
         std::atomic<bool> mRegistered{ false };
 
         Config::C_Blacklist options;
@@ -97,6 +91,8 @@ namespace LOICollection::Plugins {
         std::shared_ptr<ll::io::Logger> logger;
 
         ll::event::ListenerPtr NetworkPacketEventListener;
+        ll::event::ListenerPtr BlacklistAddEventListener;
+        ll::event::ListenerPtr BlacklistRemoveEventListener;
     };
 
     BlacklistPlugin::BlacklistPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
@@ -206,12 +202,12 @@ namespace LOICollection::Plugins {
     void BlacklistPlugin::registeryCommand() {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(BlacklistObjectName, getBlacklists());
 
-        this->onBlacklistAdd([](const std::string& id) -> void {
-            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(BlacklistObjectName, { id });
-        });
-        this->onBlacklistDel([](const std::string& id) -> void {
-            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(BlacklistObjectName, { id });
-        });
+        // this->onBlacklistAdd([](const std::string& id) -> void {
+        //     ll::command::CommandRegistrar::getInstance().addSoftEnumValues(BlacklistObjectName, { id });
+        // });
+        // this->onBlacklistDel([](const std::string& id) -> void {
+        //     ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(BlacklistObjectName, { id });
+        // });
 
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("blacklist", tr({}, "commands.blacklist.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
@@ -315,11 +311,26 @@ namespace LOICollection::Plugins {
                 std::nullopt, false
             );
         });
+
+        this->mImpl->BlacklistAddEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::BlacklistAddEvent>([this](LOICollection::ServerEvents::BlacklistAddEvent& event) -> void {
+            std::string mId = this->getBlacklist(event.self());
+
+            if (mId.empty())
+                return;
+
+            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(BlacklistObjectName, { mId });
+        });
+
+        this->mImpl->BlacklistRemoveEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::BlacklistRemoveEvent>([](LOICollection::ServerEvents::BlacklistRemoveEvent& event) -> void {
+            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(BlacklistObjectName, { event.getTarget() });
+        });
     }
 
     void BlacklistPlugin::unlistenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->NetworkPacketEventListener);
+        eventBus.removeListener(this->mImpl->BlacklistAddEventListener);
+        eventBus.removeListener(this->mImpl->BlacklistRemoveEventListener);
     }
 
     void BlacklistPlugin::addBlacklist(Player& player, const std::string& cause, int time) {
@@ -353,9 +364,6 @@ namespace LOICollection::Plugins {
         );
 
         this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "blacklist.log1"), player));
-
-        for (auto& fn : this->mImpl->mBlacklistAdds)
-            fn(mTismestamp);
     }
 
     void BlacklistPlugin::delBlacklist(const std::string& id) {
@@ -365,21 +373,6 @@ namespace LOICollection::Plugins {
         this->getDatabase()->delByPrefix("Blacklist", id + ".");
 
         this->getLogger()->info(fmt::runtime(tr({}, "blacklist.log2")), id);
-
-        for (auto& fn : this->mImpl->mBlacklistDels)
-            fn(id);
-    }
-
-    void BlacklistPlugin::onBlacklistAdd(std::function<void(const std::string&)> fn) {
-        std::lock_guard lock(this->mImpl->mFnMutex);
-
-        this->mImpl->mBlacklistAdds.push_back(fn);
-    }
-
-    void BlacklistPlugin::onBlacklistDel(std::function<void(const std::string&)> fn) {
-        std::lock_guard lock(this->mImpl->mFnMutex);
-
-        this->mImpl->mBlacklistDels.push_back(fn);
     }
 
     std::string BlacklistPlugin::getBlacklist(Player& player) {

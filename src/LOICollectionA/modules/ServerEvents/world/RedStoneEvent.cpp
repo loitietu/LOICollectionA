@@ -16,7 +16,7 @@
 #include <mc/world/level/block/actor/PistonBlockActor.h>
 #include <mc/world/level/dimension/Dimension.h>
 
-#include "LOICollectionA/include/ServerEvents/RedStoneEvent.h"
+#include "LOICollectionA/include/ServerEvents/world/RedStoneEvent.h"
 
 namespace LOICollection::ServerEvents {
     const BlockPos& RedStoneEvent::getPosition() const {

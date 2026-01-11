@@ -32,6 +32,13 @@ namespace LOICollection::Plugins {
     public:
         struct Event;
 
+        ~BehaviorEventPlugin();
+
+        BehaviorEventPlugin(BehaviorEventPlugin const&) = delete;
+        BehaviorEventPlugin(BehaviorEventPlugin&&) = delete;
+        BehaviorEventPlugin& operator=(BehaviorEventPlugin const&) = delete;
+        BehaviorEventPlugin& operator=(BehaviorEventPlugin&&) = delete;
+
     public:
         LOICOLLECTION_A_NDAPI static BehaviorEventPlugin& getInstance();
 
@@ -59,7 +66,6 @@ namespace LOICollection::Plugins {
 
     private:
         BehaviorEventPlugin();
-        ~BehaviorEventPlugin();
 
         template <typename T>
         void registeryEvent(

@@ -49,8 +49,8 @@
 
 #include "LOICollectionA/include/APIUtils.h"
 
-#include "LOICollectionA/include/ServerEvents/NetworkPacketEvent.h"
-#include "LOICollectionA/include/ServerEvents/PlayerScoreChangedEvent.h"
+#include "LOICollectionA/include/ServerEvents/server/NetworkPacketEvent.h"
+#include "LOICollectionA/include/ServerEvents/player/PlayerScoreChangedEvent.h"
 
 #include "LOICollectionA/utils/mc/ScoreboardUtils.h"
 

@@ -17,6 +17,14 @@ namespace ll::io {
 namespace LOICollection::Plugins {
     class MarketPlugin {
     public:
+        ~MarketPlugin();
+
+        MarketPlugin(MarketPlugin const&) = delete;
+        MarketPlugin(MarketPlugin&&) = delete;
+        MarketPlugin& operator=(MarketPlugin const&) = delete;
+        MarketPlugin& operator=(MarketPlugin&&) = delete;
+
+    public:
         LOICOLLECTION_A_NDAPI static MarketPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
@@ -46,7 +54,6 @@ namespace LOICollection::Plugins {
 
     private:
         MarketPlugin();
-        ~MarketPlugin();
 
         void registeryCommand();
         void listenEvent();

@@ -1,10 +1,8 @@
-#include <mutex>
 #include <atomic>
 #include <memory>
 #include <vector>
 #include <string>
 #include <filesystem>
-#include <functional>
 
 #include <fmt/core.h>
 #include <nlohmann/json.hpp>
@@ -45,6 +43,8 @@
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
+#include "LOICollectionA/include/ServerEvents/modules/MenuEvent.h"
+
 #include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/mc/InventoryUtils.h"
 #include "LOICollectionA/utils/mc/ScoreboardUtils.h"
@@ -71,11 +71,6 @@ namespace LOICollection::Plugins {
     };
 
     struct MenuPlugin::Impl {
-        std::mutex mFnMutex;
-
-        std::vector<std::function<void(const std::string&)>> onMenuCreates;
-        std::vector<std::function<void(const std::string&)>> onMenuRemoves;
-
         std::atomic<bool> mRegistered{ false };
 
         Config::C_Menu options;
@@ -85,6 +80,8 @@ namespace LOICollection::Plugins {
         
         ll::event::ListenerPtr PlayerJoinEventListener;
         ll::event::ListenerPtr PlayerUseItemEventListener;
+        ll::event::ListenerPtr MenuCreateEventListener;
+        ll::event::ListenerPtr MenuDeleteEventListener;
     };
 
     MenuPlugin::MenuPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
@@ -768,12 +765,12 @@ namespace LOICollection::Plugins {
     void MenuPlugin::registeryCommand() {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(MenuObjectName, this->getDatabase()->keys());
 
-        this->onMenuCreate([](const std::string& id) {
-            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MenuObjectName, { id });
-        });
-        this->onMenuRemove([](const std::string& id) {
-            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(MenuObjectName, { id });
-        });
+        // this->onMenuCreate([](const std::string& id) {
+        //     ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MenuObjectName, { id });
+        // });
+        // this->onMenuRemove([](const std::string& id) {
+        //     ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(MenuObjectName, { id });
+        // });
 
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("menu", tr({}, "commands.menu.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
@@ -831,6 +828,7 @@ namespace LOICollection::Plugins {
             if (event.item().getTypeName() == this->mImpl->options.MenuItemId)
                 this->mGui->open(event.self(), "main");
         });
+
         this->mImpl->PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([this](ll::event::PlayerJoinEvent& event) -> void {
             if (event.self().isSimulatedPlayer())
                 return;
@@ -841,12 +839,22 @@ namespace LOICollection::Plugins {
             InventoryUtils::giveItem(event.self(), itemStack, 1);
             event.self().refreshInventory();
         });
+
+        this->mImpl->MenuCreateEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::MenuCreateEvent>([](LOICollection::ServerEvents::MenuCreateEvent& event) -> void {
+            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MenuObjectName, { event.getTarget() });
+        });
+
+        this->mImpl->MenuDeleteEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::MenuDeleteEvent>([](LOICollection::ServerEvents::MenuDeleteEvent& event) -> void {
+            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(MenuObjectName, { event.getTarget() });
+        });
     }
 
     void MenuPlugin::unlistenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->PlayerUseItemEventListener);
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
+        eventBus.removeListener(this->mImpl->MenuCreateEventListener);
+        eventBus.removeListener(this->mImpl->MenuDeleteEventListener);
     }
 
     void MenuPlugin::create(const std::string& id, const nlohmann::ordered_json& data) {
@@ -856,9 +864,6 @@ namespace LOICollection::Plugins {
         if (!this->getDatabase()->has(id))
             this->getDatabase()->set(id, data);
         this->getDatabase()->save();
-
-        for (auto& fn : this->mImpl->onMenuCreates)
-            fn(id);
     }
 
     void MenuPlugin::remove(const std::string& id) {
@@ -867,21 +872,6 @@ namespace LOICollection::Plugins {
 
         this->getDatabase()->remove(id);
         this->getDatabase()->save();
-
-        for (auto& fn : this->mImpl->onMenuRemoves)
-            fn(id);
-    }
-
-    void MenuPlugin::onMenuCreate(std::function<void(const std::string&)> fn) {
-        std::lock_guard lock(this->mImpl->mFnMutex);
-
-        this->mImpl->onMenuCreates.push_back(fn);
-    }
-
-    void MenuPlugin::onMenuRemove(std::function<void(const std::string&)> fn) {
-        std::lock_guard lock(this->mImpl->mFnMutex);
-
-        this->mImpl->onMenuRemoves.push_back(fn);
     }
 
     void MenuPlugin::executeCommand(Player& player, std::string cmd) {

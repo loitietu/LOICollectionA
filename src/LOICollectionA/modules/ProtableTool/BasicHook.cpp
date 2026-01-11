@@ -14,7 +14,7 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
-#include "LOICollectionA/include/ServerEvents/NetworkPacketEvent.h"
+#include "LOICollectionA/include/ServerEvents/server/NetworkPacketEvent.h"
 
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"

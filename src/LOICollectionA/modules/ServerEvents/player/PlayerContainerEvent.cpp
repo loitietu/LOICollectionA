@@ -19,7 +19,7 @@
 
 #include <mc/server/module/VanillaServerGameplayEventListener.h>
 
-#include "LOICollectionA/include/ServerEvents/PlayerContainerEvent.h"
+#include "LOICollectionA/include/ServerEvents/player/PlayerContainerEvent.h"
 
 namespace LOICollection::ServerEvents {
     BlockPos& PlayerOpenContainerEvent::getPosition() const {

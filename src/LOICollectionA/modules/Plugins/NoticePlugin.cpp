@@ -1,10 +1,8 @@
-#include <mutex>
 #include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
 #include <filesystem>
-#include <functional>
 
 #include <fmt/core.h>
 #include <nlohmann/json.hpp>
@@ -34,6 +32,8 @@
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
+#include "LOICollectionA/include/ServerEvents/modules/NoticeEvent.h"
+
 #include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/core/SystemUtils.h"
 
@@ -62,11 +62,6 @@ namespace LOICollection::Plugins {
     struct NoticePlugin::Impl {
         LRUKCache<std::string, bool> CloseCache;
 
-        std::mutex mFnMutex;
-
-        std::vector<std::function<void(const std::string&)>> onNoticeCreates;
-        std::vector<std::function<void(const std::string&)>> onNoticeRemoves;
-
         std::atomic<bool> mRegistered{ false };
 
         bool ModuleEnabled = false;
@@ -76,6 +71,8 @@ namespace LOICollection::Plugins {
         std::shared_ptr<ll::io::Logger> logger;
         
         ll::event::ListenerPtr PlayerJoinEventListener;
+        ll::event::ListenerPtr NoticeCreateEventListener;
+        ll::event::ListenerPtr NoticeDeleteEventListener;
 
         Impl() : CloseCache(100, 100) {}
     };
@@ -297,13 +294,6 @@ namespace LOICollection::Plugins {
     void NoticePlugin::registeryCommand() {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(NoticeObjectName, this->getDatabase()->keys());
 
-        this->onNoticeCreate([](const std::string& id) {
-            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(NoticeObjectName, { id });
-        });
-        this->onNoticeRemove([](const std::string& id) {
-            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(NoticeObjectName, { id });
-        });
-
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("notice", tr({}, "commands.notice.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").optional("Object").execute(
@@ -359,11 +349,21 @@ namespace LOICollection::Plugins {
 
             this->mGui->notice(event.self());
         });
+
+        this->mImpl->NoticeCreateEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NoticeCreateEvent>([](LOICollection::ServerEvents::NoticeCreateEvent& event) mutable -> void {
+            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(NoticeObjectName, { event.getTarget() });
+        });
+
+        this->mImpl->NoticeDeleteEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NoticeDeleteEvent>([this](LOICollection::ServerEvents::NoticeDeleteEvent& event) mutable -> void {
+            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(NoticeObjectName, { event.getTarget() });
+        });
     }
 
     void NoticePlugin::unlistenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
+        eventBus.removeListener(this->mImpl->NoticeCreateEventListener);
+        eventBus.removeListener(this->mImpl->NoticeDeleteEventListener);
     }
 
     void NoticePlugin::create(const std::string& id, const std::string& title, int priority, bool poiontout) {
@@ -379,9 +379,6 @@ namespace LOICollection::Plugins {
 
         this->getDatabase()->set(id, data);
         this->getDatabase()->save();
-
-        for (auto& fn : this->mImpl->onNoticeCreates)
-            fn(id);
     }
 
     void NoticePlugin::remove(const std::string& id) {
@@ -390,21 +387,6 @@ namespace LOICollection::Plugins {
 
         this->getDatabase()->remove(id);
         this->getDatabase()->save();
-
-        for (auto& fn : this->mImpl->onNoticeRemoves)
-            fn(id);
-    }
-
-    void NoticePlugin::onNoticeCreate(std::function<void(const std::string&)> fn) {
-        std::lock_guard lock(this->mImpl->mFnMutex);
-
-        this->mImpl->onNoticeCreates.push_back(fn);
-    }
-
-    void NoticePlugin::onNoticeRemove(std::function<void(const std::string&)> fn) {
-        std::lock_guard lock(this->mImpl->mFnMutex);
-
-        this->mImpl->onNoticeRemoves.push_back(fn);
     }
 
     bool NoticePlugin::isClose(Player& player) {

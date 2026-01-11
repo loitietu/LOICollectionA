@@ -3,7 +3,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <functional>
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -17,6 +16,14 @@ namespace ll::io {
 namespace LOICollection::Plugins {
     class MutePlugin {
     public:
+        ~MutePlugin();
+
+        MutePlugin(MutePlugin const&) = delete;
+        MutePlugin(MutePlugin&&) = delete;
+        MutePlugin& operator=(MutePlugin const&) = delete;
+        MutePlugin& operator=(MutePlugin&&) = delete;    
+
+    public:
         LOICOLLECTION_A_NDAPI static MutePlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
@@ -25,9 +32,6 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_API   void addMute(Player& player, const std::string& cause, int time);
         LOICOLLECTION_A_API   void delMute(Player& player);
         LOICOLLECTION_A_API   void delMute(const std::string& id);
-
-        LOICOLLECTION_A_API   void onMuteAdd(std::function<void(const std::string&)> fn);
-        LOICOLLECTION_A_API   void onMuteDel(std::function<void(const std::string&)> fn);
 
         LOICOLLECTION_A_NDAPI std::string getMute(Player& player);
         
@@ -48,7 +52,6 @@ namespace LOICollection::Plugins {
 
     private:
         MutePlugin();
-        ~MutePlugin();
 
         void registeryCommand();
         void listenEvent();

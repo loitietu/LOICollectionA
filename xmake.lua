@@ -45,14 +45,18 @@ target("LOICollectionA")
         "_HAS_CXX23=1",
         "LOICOLLECTION_A_EXPORTS"
     )
+    set_configdir("$(builddir)/config")
+    add_configfiles("src/LOICollectionA/resources/Version.h.in")
     add_files(
-        "src/LOICollectionA/**.cpp"
+        "src/LOICollectionA/**.cpp",
+        "src/LOICollectionA/**.rc"
     )
-    add_includedirs("src")
+    add_includedirs("src", "$(builddir)/config")
     add_headerfiles("src/(LOICollectionA/**.h)")
     remove_headerfiles(
         "src/LOICollectionA/frontend/(builtin/**.h)",
         "src/LOICollectionA/(utils/**.h)",
+        "src/LOICollectionA/(resources/**.h)",
         "src/LOICollectionA/*.h"
     )
     add_packages(
@@ -71,6 +75,20 @@ target("LOICollectionA")
     elseif is_mode("release") then
         add_defines("NDEBUG")
     end
+
+    on_load(function (target)
+        import("core.base.json")
+
+        local data = json.loadfile("tooth.json")
+        local major, minor, patch = target:version():match("(%d+)%.(%d+)%.(%d+)")
+
+        target:set("configvar", "VERSION_MAJOR", major)
+        target:set("configvar", "VERSION_MINOR", minor)
+        target:set("configvar", "VERSION_PATCH", patch)
+        target:set("configvar", "VERSION_BUILD", os.time())
+        target:set("configvar", "COMPANY_NAME", data["tooth"])
+        target:set("configvar", "FILE_DESCRIPTION", data["info"]["description"])
+    end)
 
     after_build(function (target)
         local plugin_packer = import("scripts.after_build")

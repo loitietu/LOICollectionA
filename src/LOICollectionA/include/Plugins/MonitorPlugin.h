@@ -16,6 +16,14 @@ namespace LOICollection::Plugins {
 
     class MonitorPlugin {
     public:
+        ~MonitorPlugin();
+
+        MonitorPlugin(MonitorPlugin const&) = delete;
+        MonitorPlugin(MonitorPlugin&&) = delete;
+        MonitorPlugin& operator=(MonitorPlugin const&) = delete;
+        MonitorPlugin& operator=(MonitorPlugin&&) = delete;    
+
+    public:
         LOICOLLECTION_A_NDAPI static MonitorPlugin& getInstance();
 
         LOICOLLECTION_A_API   void addSidebar(Player& player, const std::string& id, const std::string& name, SidebarType type);
@@ -32,7 +40,6 @@ namespace LOICollection::Plugins {
 
     private:
         MonitorPlugin();
-        ~MonitorPlugin();
 
         void listenEvent();
         void unlistenEvent();

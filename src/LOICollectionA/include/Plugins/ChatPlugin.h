@@ -16,6 +16,14 @@ namespace ll::io {
 namespace LOICollection::Plugins {
     class ChatPlugin {
     public:
+        ~ChatPlugin();
+
+        ChatPlugin(ChatPlugin const&) = delete;
+        ChatPlugin(ChatPlugin&&) = delete;
+        ChatPlugin& operator=(ChatPlugin const&) = delete;
+        ChatPlugin& operator=(ChatPlugin&&) = delete;
+
+    public:
         LOICOLLECTION_A_NDAPI static ChatPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
@@ -48,7 +56,6 @@ namespace LOICollection::Plugins {
 
     private:
         ChatPlugin();
-        ~ChatPlugin();
 
         void registeryCommand();
         void listenEvent();

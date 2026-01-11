@@ -7,6 +7,14 @@
 namespace LOICollection::ProtableTool {
     class OrderedUI {
     public:
+        ~OrderedUI();
+
+        OrderedUI(OrderedUI const&) = delete;
+        OrderedUI(OrderedUI&&) = delete;
+        OrderedUI& operator=(OrderedUI const&) = delete;
+        OrderedUI& operator=(OrderedUI&&) = delete;
+
+    public:
         LOICOLLECTION_A_NDAPI static OrderedUI& getInstance();
 
     public:
@@ -17,7 +25,6 @@ namespace LOICollection::ProtableTool {
 
     private:
         OrderedUI();
-        ~OrderedUI();
 
         void listenEvent();
         void unlistenEvent();

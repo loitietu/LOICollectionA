@@ -28,7 +28,7 @@
 
 #include <mc/legacy/ActorUniqueID.h>
 
-#include "LOICollectionA/include/ServerEvents/PlayerScoreChangedEvent.h"
+#include "LOICollectionA/include/ServerEvents/player/PlayerScoreChangedEvent.h"
 
 std::map<int64, std::map<std::string, int>> mScores;
 

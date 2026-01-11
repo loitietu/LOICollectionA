@@ -11,6 +11,14 @@ namespace ll::io {
 namespace LOICollection::ProtableTool{
     class RedStone {
     public:
+        ~RedStone();
+
+        RedStone(RedStone const&) = delete;
+        RedStone(RedStone&&) = delete;
+        RedStone& operator=(RedStone const&) = delete;
+        RedStone& operator=(RedStone&&) = delete;
+    
+    public:
         LOICOLLECTION_A_NDAPI static RedStone& getInstance();
 
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
@@ -23,7 +31,6 @@ namespace LOICollection::ProtableTool{
 
     private:
         RedStone();
-        ~RedStone();
 
         void listenEvent();
         void unlistenEvent();

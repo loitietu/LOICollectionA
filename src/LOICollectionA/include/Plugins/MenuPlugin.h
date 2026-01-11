@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <string>
-#include <functional>
 
 #include <nlohmann/json_fwd.hpp>
 
@@ -24,6 +23,14 @@ namespace LOICollection::Plugins {
 
     class MenuPlugin {
     public:
+        ~MenuPlugin();
+
+        MenuPlugin(MenuPlugin const&) = delete;
+        MenuPlugin(MenuPlugin&&) = delete;
+        MenuPlugin& operator=(MenuPlugin const&) = delete;
+        MenuPlugin& operator=(MenuPlugin&&) = delete;
+
+    public:
         LOICOLLECTION_A_NDAPI static MenuPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI JsonStorage* getDatabase();
@@ -31,9 +38,6 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_API   void create(const std::string& id, const nlohmann::ordered_json& data);
         LOICOLLECTION_A_API   void remove(const std::string& id);
-
-        LOICOLLECTION_A_API   void onMenuCreate(std::function<void(const std::string&)> fn);
-        LOICOLLECTION_A_API   void onMenuRemove(std::function<void(const std::string&)> fn);
 
         LOICOLLECTION_A_API   void executeCommand(Player& player, std::string cmd);
         LOICOLLECTION_A_API   void handleAction(Player& player, const nlohmann::ordered_json& action, const nlohmann::ordered_json& original);
@@ -52,7 +56,6 @@ namespace LOICollection::Plugins {
 
     private:
         MenuPlugin();
-        ~MenuPlugin();
 
         void registeryCommand();
         void listenEvent();

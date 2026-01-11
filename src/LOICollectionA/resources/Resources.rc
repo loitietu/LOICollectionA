@@ -1,0 +1,34 @@
+#include <winres.h>
+
+#include "Version.h"
+
+#pragma code_page(65001)
+
+VS_VERSION_INFO VERSIONINFO
+    FILEVERSION VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH
+    PRODUCTVERSION VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH
+    FILEFLAGSMASK 0x3fL
+    FILEFLAGS FILE_VERSION_FLAG
+    FILEOS 0x40004L
+    FILETYPE 0x2L
+    FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "CompanyName", COMPANY_NAME
+            VALUE "FileDescription", FILE_DESCRIPTION
+            VALUE "FileVersion", VERSION_STRING
+            VALUE "InternalName", "LOICollectionA.dll"
+            VALUE "LegalCopyright", "Copyright (C) 2026 github.com/loitietu"
+            VALUE "OriginalFilename", "LOICollectionA.dll"
+            VALUE "ProductName", "LOICollectionA"
+            VALUE "ProductVersion", VERSION_STRING
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x804, 1200
+    END
+END

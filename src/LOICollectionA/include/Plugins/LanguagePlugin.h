@@ -15,6 +15,14 @@ namespace ll::io {
 namespace LOICollection::Plugins {
     class LanguagePlugin {
     public:
+        ~LanguagePlugin();
+
+        LanguagePlugin(LanguagePlugin const&) = delete;
+        LanguagePlugin(LanguagePlugin&&) = delete;
+        LanguagePlugin& operator=(LanguagePlugin const&) = delete;
+        LanguagePlugin& operator=(LanguagePlugin&&) = delete;
+
+    public:
         LOICOLLECTION_A_NDAPI static LanguagePlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
@@ -37,7 +45,6 @@ namespace LOICollection::Plugins {
 
     private:
         LanguagePlugin();
-        ~LanguagePlugin();
 
         void registeryCommand();
         void listenEvent();

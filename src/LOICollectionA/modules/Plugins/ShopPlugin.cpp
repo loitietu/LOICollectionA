@@ -1,9 +1,7 @@
-#include <mutex>
 #include <atomic>
 #include <memory>
 #include <string>
 #include <filesystem>
-#include <functional>
 
 #include <fmt/core.h>
 #include <nlohmann/json.hpp>
@@ -18,6 +16,8 @@
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
 #include <ll/api/command/EnumName.h>
+#include <ll/api/event/EventBus.h>
+#include <ll/api/event/ListenerBase.h>
 #include <ll/api/utils/HashUtils.h>
 
 #include <mc/nbt/Tag.h>
@@ -42,6 +42,8 @@
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 #include "LOICollectionA/include/Plugins/ChatPlugin.h"
+
+#include "LOICollectionA/include/ServerEvents/modules/ShopEvent.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/mc/InventoryUtils.h"
@@ -69,17 +71,15 @@ namespace LOICollection::Plugins {
     };
 
     struct ShopPlugin::Impl {
-        std::mutex mFnMutex;
-
-        std::vector<std::function<void(const std::string&)>> onShopCreates;
-        std::vector<std::function<void(const std::string&)>> onShopRemoves;
-
         std::atomic<bool> mRegistered{ false };
 
         bool ModuleEnabled = false;
 
         std::unique_ptr<JsonStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
+
+        ll::event::ListenerPtr ShopCreateEventListener;
+        ll::event::ListenerPtr ShopDeleteEventListener;
     };
 
     ShopPlugin::ShopPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
@@ -612,13 +612,6 @@ namespace LOICollection::Plugins {
     void ShopPlugin::registeryCommand() {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(ShopObjectName, this->getDatabase()->keys());
 
-        this->onShopCreate([](const std::string& id) -> void {
-            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(ShopObjectName, { id });
-        });
-        this->onShopRemove([](const std::string& id) -> void {
-            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(ShopObjectName, { id });
-        });
-
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("shop", tr({}, "commands.shop.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").required("Object").execute(
@@ -647,6 +640,23 @@ namespace LOICollection::Plugins {
         });
     }
 
+    void ShopPlugin::listenEvent() {
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+        this->mImpl->ShopCreateEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::ShopCreateEvent>([](LOICollection::ServerEvents::ShopCreateEvent& event) -> void {
+            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(ShopObjectName, { event.getTarget() });
+        });
+
+        this->mImpl->ShopDeleteEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::ShopDeleteEvent>([](LOICollection::ServerEvents::ShopDeleteEvent& event) -> void {
+            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(ShopObjectName, { event.getTarget() });
+        });
+    }
+
+    void ShopPlugin::unlistenEvent() {
+        ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
+        eventBus.removeListener(this->mImpl->ShopCreateEventListener);
+        eventBus.removeListener(this->mImpl->ShopDeleteEventListener);
+    }
+
     void ShopPlugin::create(const std::string& id, const nlohmann::ordered_json& data) {
         if (!this->isValid())
             return;
@@ -654,9 +664,6 @@ namespace LOICollection::Plugins {
         if (!this->getDatabase()->has(id))
             this->getDatabase()->set(id, data);
         this->getDatabase()->save();
-
-        for (auto& fn : this->mImpl->onShopCreates)
-            fn(id);
     }
 
     void ShopPlugin::remove(const std::string& id) {
@@ -665,23 +672,8 @@ namespace LOICollection::Plugins {
 
         this->getDatabase()->remove(id);
         this->getDatabase()->save();
-
-        for (auto& fn : this->mImpl->onShopRemoves)
-            fn(id);
     }
-
-    void ShopPlugin::onShopCreate(std::function<void(const std::string&)> fn) {
-        std::lock_guard lock(this->mImpl->mFnMutex);
-
-        this->mImpl->onShopCreates.push_back(fn);
-    }
-
-    void ShopPlugin::onShopRemove(std::function<void(const std::string&)> fn) {
-        std::lock_guard lock(this->mImpl->mFnMutex);
-
-        this->mImpl->onShopRemoves.push_back(fn);
-    }
-
+    
     void ShopPlugin::executeCommand(Player& player, std::string cmd) {
         if (!this->isValid())
             return;

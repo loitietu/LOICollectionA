@@ -15,6 +15,14 @@ namespace ll::io {
 namespace LOICollection::Plugins {
     class CdkPlugin {
     public:
+        ~CdkPlugin();
+
+        CdkPlugin(CdkPlugin const&) = delete;
+        CdkPlugin(CdkPlugin&&) = delete;
+        CdkPlugin& operator=(CdkPlugin const&) = delete;
+        CdkPlugin& operator=(CdkPlugin&&) = delete;
+
+    public:
         LOICOLLECTION_A_NDAPI static CdkPlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI JsonStorage* getDatabase();
@@ -39,7 +47,6 @@ namespace LOICollection::Plugins {
 
     private:
         CdkPlugin();
-        ~CdkPlugin();
 
         void registeryCommand();
 

@@ -23,7 +23,7 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
-#include "LOICollectionA/include/ServerEvents/RedStoneEvent.h"
+#include "LOICollectionA/include/ServerEvents/world/RedStoneEvent.h"
 
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"

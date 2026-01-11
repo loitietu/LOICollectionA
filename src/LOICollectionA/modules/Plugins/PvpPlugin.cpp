@@ -28,7 +28,7 @@
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
-#include "LOICollectionA/include/ServerEvents/PlayerHurtEvent.h"
+#include "LOICollectionA/include/ServerEvents/player/PlayerHurtEvent.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
 

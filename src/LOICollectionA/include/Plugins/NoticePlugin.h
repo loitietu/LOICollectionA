@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <string>
-#include <functional>
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -16,6 +15,14 @@ namespace ll::io {
 namespace LOICollection::Plugins {
     class NoticePlugin {
     public:
+        ~NoticePlugin();
+
+        NoticePlugin(NoticePlugin const&) = delete;
+        NoticePlugin(NoticePlugin&&) = delete;
+        NoticePlugin& operator=(NoticePlugin const&) = delete;
+        NoticePlugin& operator=(NoticePlugin&&) = delete;
+
+    public:
         LOICOLLECTION_A_NDAPI static NoticePlugin& getInstance();
 
         LOICOLLECTION_A_NDAPI JsonStorage* getDatabase();
@@ -23,9 +30,6 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_API   void create(const std::string& id, const std::string& title, int priority, bool poiontout);
         LOICOLLECTION_A_API   void remove(const std::string& id);
-
-        LOICOLLECTION_A_API   void onNoticeCreate(std::function<void(const std::string&)> fn);
-        LOICOLLECTION_A_API   void onNoticeRemove(std::function<void(const std::string&)> fn);
 
         LOICOLLECTION_A_NDAPI bool isClose(Player& player);
         LOICOLLECTION_A_NDAPI bool isValid();
@@ -42,7 +46,6 @@ namespace LOICollection::Plugins {
 
     private:
         NoticePlugin();
-        ~NoticePlugin();
 
         void registeryCommand();
         void listenEvent();
