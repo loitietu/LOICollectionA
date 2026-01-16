@@ -117,7 +117,7 @@ namespace LOICollection::Plugins {
 
                     std::string result;
                     for (const std::string& page : option.Pages[index]) 
-                        result.append((result.empty() ? "" : "\n") + page);
+                        result.append((result.empty() ? "" : "'\n'") + page);
 
                     *mName = result;
                     index = index < maxIndex ? index + 1 : 0;
@@ -136,7 +136,7 @@ namespace LOICollection::Plugins {
                             return true;
 
                         std::string mNameTag = LOICollectionAPI::APIUtils::getInstance().translate(*mName, mTarget);
-
+                        
                         SetActorDataPacket packet(mTarget.getRuntimeID(), mTarget.mEntityData, 
                             nullptr, mTarget.mLevel->getCurrentTick().tickID, false
                         );

@@ -170,7 +170,7 @@ void SQLiteStorage::delByPrefix(std::shared_ptr<ConnectionContext> context, std:
 
 bool SQLiteStorage::has(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key) {
     auto& stmt = getCachedStatement(*context,
-        std::format("SELECT EXISTS(SELECT 1 FROM {} WHERE key = ? LIMIT 1);", table)
+        std::format("SELECT 1 FROM {} WHERE key = ? LIMIT 1;", table)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 

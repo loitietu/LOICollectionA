@@ -192,7 +192,7 @@ namespace LOICollection::Plugins {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         if (this->mImpl->PvpCache.contains(mObject)) 
-            return this->mImpl->PvpCache.get(mObject).value();
+            return *this->mImpl->PvpCache.get(mObject).value();
 
         bool result = this->mImpl->db->get("OBJECT$" + mObject, "Pvp_Enable") == "true";
 

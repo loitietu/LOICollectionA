@@ -354,7 +354,7 @@ namespace LOICollection::Plugins {
             ll::command::CommandRegistrar::getInstance().addSoftEnumValues(NoticeObjectName, { event.getTarget() });
         });
 
-        this->mImpl->NoticeDeleteEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NoticeDeleteEvent>([this](LOICollection::ServerEvents::NoticeDeleteEvent& event) mutable -> void {
+        this->mImpl->NoticeDeleteEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NoticeDeleteEvent>([](LOICollection::ServerEvents::NoticeDeleteEvent& event) mutable -> void {
             ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(NoticeObjectName, { event.getTarget() });
         });
     }
@@ -397,7 +397,7 @@ namespace LOICollection::Plugins {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         if (this->mImpl->CloseCache.contains(mObject))
-            return this->mImpl->CloseCache.get(mObject).value();
+            return *this->mImpl->CloseCache.get(mObject).value();
 
         bool result = this->mImpl->db2->get("OBJECT$" + mObject, "Notice_Toggle1") == "true";
 

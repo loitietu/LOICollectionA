@@ -41,14 +41,20 @@
 #include "LOICollectionA/utils/mc/ScoreboardUtils.h"
 #include "LOICollectionA/utils/core/SystemUtils.h"
 
+#include "LOICollectionA/base/Cache.h"
+
 #include "LOICollectionA/include/APIUtils.h"
 
 namespace LOICollection::LOICollectionAPI {
     struct APIUtils::Impl {
+        LRUKCache<std::string, frontend::ASTNode> mAstCache;
+
         std::unordered_map<std::string, std::function<std::string()>> mVariableCommonMap;
         std::unordered_map<std::string, std::function<std::string(Player&)>> mVariableMap;
         std::unordered_map<std::string, std::function<std::string(const std::vector<std::string>&)>> mVariableCommonMapParameter;
         std::unordered_map<std::string, std::function<std::string(Player&, const std::vector<std::string>&)>> mVariableMapParameter;
+
+        Impl() : mAstCache(100, 200, 5) {}
     };
 
     APIUtils::APIUtils() : mImpl(std::make_unique<Impl>()) {
@@ -323,16 +329,50 @@ namespace LOICollection::LOICollectionAPI {
     }
 
     std::string APIUtils::translate(const std::string& str, Player& player) {
+        frontend::Evaluator mEvaluator;
+
+        if (this->mImpl->mAstCache.contains(str)) {
+            auto mCached = this->mImpl->mAstCache.get(str);
+
+            if (mCached.has_value())
+                return mEvaluator.evaluate(*mCached.value(), { std::ref(player) });
+        }
+
         frontend::Lexer mLexer(str);
         frontend::Parser mParser(mLexer);
-        frontend::Evaluator mEvaluator;
-        return mEvaluator.evaluate(*mParser.parse(), { std::ref(player) });
+
+        std::unique_ptr<frontend::ASTNode> mAst = mParser.parse();
+
+        std::string result = mEvaluator.evaluate(*mAst, { std::ref(player) });
+
+        std::shared_ptr<frontend::TemplateNode> mTemplate = std::make_shared<frontend::TemplateNode>();
+        mTemplate->parts = std::move(static_cast<frontend::TemplateNode*>(mAst.release())->parts);
+
+        this->mImpl->mAstCache.put(str, mTemplate);
+        return result;
     }
 
     std::string APIUtils::translate(const std::string& str) {
+        frontend::Evaluator mEvaluator;
+
+        if (this->mImpl->mAstCache.contains(str)) {
+            auto mCached = this->mImpl->mAstCache.get(str);
+
+            if (mCached.has_value())
+                return mEvaluator.evaluate(*mCached.value());
+        }
+
         frontend::Lexer mLexer(str);
         frontend::Parser mParser(mLexer);
-        frontend::Evaluator mEvaluator;
-        return mEvaluator.evaluate(*mParser.parse());
+
+        std::unique_ptr<frontend::ASTNode> mAst = mParser.parse();
+
+        std::string result = mEvaluator.evaluate(*mAst);
+
+        std::shared_ptr<frontend::TemplateNode> mTemplate = std::make_shared<frontend::TemplateNode>();
+        mTemplate->parts = std::move(static_cast<frontend::TemplateNode*>(mAst.release())->parts);
+
+        this->mImpl->mAstCache.put(str, mTemplate);
+        return result;
     }
 }

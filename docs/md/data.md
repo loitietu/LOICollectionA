@@ -63,7 +63,19 @@
                 "ModuleEnabled": true, // 是否启用动态服务器 MOTD
                 "RefreshInterval": 200, // 刷新间隔，单位为 tick（20 tick = 1 秒）
                 "Pages": [
-                    "'在线玩家: '{server.player.online}/{server.player.max}" // 每行显示内容，支持 LOICollectionA API 变量
+                    "'在线玩家: '{server.player.online}'/'{server.player.max}" // 每行显示内容，支持 LOICollectionA API 变量
+                ]
+            },
+            "Sidebar": {
+                "ModuleEnabled": true, // 是否启用侧边栏
+                "RefreshInterval": 20, // 刷新间隔，单位为 tick（20 tick = 1 秒）
+                "Titles": [ // 侧边栏标题，每一行是对应一页的标题
+                    "'Title'" // 标题，支持 LOICollectionA API 变量
+                ],
+                "Pages": [
+                    [
+                        "'Content'" // 每行显示内容，支持 LOICollectionA API 变量
+                    ] // 每页内容
                 ]
             }
         },
@@ -211,7 +223,7 @@
 ### menu.json
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.9.0 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。  
+> 以下内容取自 LOICollectionA 1.10.0 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。  
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `menu.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#menu) 进行编辑
@@ -219,8 +231,8 @@
 ```json
 {
     "main": { // 表单 ID（同时 main 也为表单入口，不可不存在）
-        "title": "Menu Example", // 表单标题
-        "content": "This is a menu example", // 表单内容
+        "title": "'Menu Example'", // 表单标题
+        "content": "'This is a menu example'", // 表单内容
         "info": { // 部分功能提供（可选）
             "exit": "execute as ${player} run say Exit Menu", // 玩家退出表单时执行命令（其中 ${player} 代表玩家名称）
             "permission": "execute as ${player} run say You do not have permission to use this button", // 使用部分按钮时，玩家没有权限时所执行命令
@@ -229,12 +241,12 @@
         "type": "Simple", // 表单类型 （Simple 类似于按钮列表）
         "customize": [ // 按钮列表
             {
-                "title": "Header", // 控件标题
+                "title": "'Header'", // 控件标题
                 "id": "Header", // 控件 ID（不可重复）
                 "type": "header" // 控件类型（header 为标题）
             },
             {
-                "title": "Label", // 控件标题
+                "title": "'Label'", // 控件标题
                 "id": "Label", // 控件 ID（不可重复）
                 "type": "label" // 控件类型（label 为标签）
             },
@@ -243,7 +255,7 @@
                 "type": "divider" // 控件类型（divider 为分割线）
             },
             {
-                "title": "Button 1", // 按钮标题
+                "title": "'Button 1'", // 按钮标题
                 "image": "",  // 按钮图标（可选，只支持 path 类型）
                 "id": "Button1", // 按钮 ID（不可重复）
                 "scores": { // 按钮所需的 Score（可选）
@@ -257,7 +269,7 @@
                 "permission": 0 // 按钮所需的权限等级（0 为无需权限）
             },
             {
-                "title": "From 1",
+                "title": "'From 1'",
                 "image": "",
                 "id": "Form1",
                 "scores": {},
@@ -266,7 +278,7 @@
                 "permission": 0
             },
             {
-                "title": "From 2",
+                "title": "'From 2'",
                 "image": "",
                 "id": "Form2",
                 "scores": {},
@@ -275,7 +287,7 @@
                 "permission": 0
             },
             {
-                "title": "OP Button 1",
+                "title": "'OP Button 1'",
                 "image": "",
                 "id": "Button2",
                 "run": [ 
@@ -285,7 +297,7 @@
                 "permission": 2 // 按钮所需的权限等级（2 为 OP 权限）
             },
             {
-                "title": "OP From 1",
+                "title": "'OP From 1'",
                 "image": "",
                 "id": "Button3",
                 "run": "Menu1",
@@ -296,15 +308,15 @@
         "permission": 0 // 表单所需的权限等级
     },
     "Menu1": {
-        "title": "Menu 1",
-        "content": "This is a menu 1",
+        "title": "'Menu 1'",
+        "content": "'This is a menu 1'",
         "info": {
             "permission": "execute as ${player} run say You do not have permission to use this button",
             "score": "execute as ${player} run say You do not have enough score to use this button"
         },
         "type": "Modal", // 表单类型 （Modal 类似于对话框）
         "confirmButton": { // 确认按钮
-            "title": "Confirm",
+            "title": "'Confirm'",
             "scores": {},
             "run": [ 
                 "execute as ${player} run say Confirm"
@@ -313,7 +325,7 @@
             "permission": 0
         },
         "cancelButton": { // 取消按钮
-            "title": "Cancel",
+            "title": "'Cancel'",
             "scores": {},
             "run": [ 
                 "execute as ${player} run say Cancel" 
@@ -324,19 +336,19 @@
         "permission": 0
     },
     "Menu2": {
-        "title": "Menu2",
+        "title": "'Menu2'",
         "info": {
             "exit": "execute as ${player} run say Exit Menu"
         },
         "type": "Custom", // 表单类型 （Custom 类似于自定义表单）
         "customize": [ // 自定义表单组件列表
             {
-                "title": "Test is a Header", // 组件标题
+                "title": "'Test is a Header'", // 组件标题
                 "id": "Header", // 组件 ID（不可重复）
                 "type": "header" // 组件类型（header 为标题）
             },
             {
-                "title": "This is a Menu 2", // 组件标题
+                "title": "'This is a Menu 2'", // 组件标题
                 "id": "Label", // 组件 ID（不可重复）
                 "type": "Label" // 组件类型（Label 为标签）
             },
@@ -345,7 +357,7 @@
                 "type": "divider" // 组件类型（divider 为分割线）
             },
             {
-                "title": "This is a Input",
+                "title": "'This is a Input'",
                 "id": "Input",
                 "placeholder": "This is a content", // 输入框占位符
                 "defaultValue": "default", // 输入框默认值
@@ -353,20 +365,20 @@
                 "type": "Input" // 组件类型（Input 为输入框）
             },
             {
-                "title": "Dropdown",
+                "title": "'Dropdown'",
                 "id": "Dropdown",
                 "options": [ "default" ], // 下拉框选项（必须存在 1 个元素，否则不予解析）
                 "defaultValue": 0, // 下拉框默认值索引（从 0 开始）
                 "type": "Dropdown" // 组件类型（Dropdown 为下拉框）
             },
             {
-                "title": "This is a Toggle",
+                "title": "'This is a Toggle'",
                 "id": "Toggle",
                 "defaultValue": false, // 切换框默认值（true 为开，false 为关）
                 "type": "Toggle" // 组件类型（Toggle 为切换框）
             },
             {
-                "title": "this is a Slider",
+                "title": "'This is a Slider'",
                 "id": "Slider",
                 "min": 0, // 滑块最小值
                 "max": 100, // 滑块最大值
@@ -375,7 +387,7 @@
                 "type": "Slider" // 组件类型（Slider 为滑块）
             },
             {
-                "title": "This is a StepSlider",
+                "title": "'This is a StepSlider'",
                 "id": "StepSlider",
                 "options": [ "default1", "default2" ], // 步骤滑块选项（必须存在 2 个元素，否则不予解析）
                 "defaultValue": 0, // 步骤滑块默认值索引（从 0 开始）
@@ -398,7 +410,7 @@
 ### shop.json
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.7.2 的 `shop.json` 结构，对于后续版本的 `shop.json` 结构可能会有所不同。
+> 以下内容取自 LOICollectionA 1.10.0 的 `shop.json` 结构，对于后续版本的 `shop.json` 结构可能会有所不同。
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `shop.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#shop) 进行编辑
@@ -406,18 +418,18 @@
 ```json
 {
     "MainBuy": { // 商店 ID（不可重复）
-        "title": "Buy Shop Example", // 商店标题
-        "content": "This is a shop example", // 商店内容
+        "title": "'Buy Shop Example'", // 商店标题
+        "content": "'This is a shop example'", // 商店内容
         "info": { // 部分功能提供（可选）
             "exit": "execute as ${player} run say Exit Shop", // 玩家退出商店时执行命令（其中 ${player} 代表玩家名称）
             "score": "execute as ${player} run say You do not have enough score to buy this item" // 购买部分商品时，玩家没有足够 Score 时所执行命令
         },
         "classiflcation": [ // 分类列表
             {
-                "title": "Apple", // 组件标题
+                "title": "'Apple'", // 组件标题
                 "image": "textures/items/apple", // 组件图标（可选，只支持 path 类型）
-                "introduce": "A red apple\nscores: 100", // 组件介绍
-                "number": "Buy number", // 购买组件时输入框标题
+                "introduce": "'A red apple\nscores: 100'", // 组件介绍
+                "number": "'Buy number'", // 购买组件时输入框标题
                 "id": "minecraft:apple", // 物品 ID
                 "scores": { // 组件所需的 Score
                     "money": 100 // 组件所需的 Score 分数
@@ -425,10 +437,10 @@
                 "type": "commodity" // 组件类型（commodity 为物品组件）
             },
             {
-                "title": "Nbt Apple",
+                "title": "'Nbt Apple'",
                 "image": "textures/items/apple",
-                "introduce": "A red apple\nscores: 100",
-                "number": "Buy number",
+                "introduce": "'A red apple\nscores: 100'",
+                "number": "'Buy number'",
                 "nbt": "{Count:2b,Damage:0s,Name:'minecraft:apple',WasPickedUp:0b}", // 对于使用自定义物品，可用 nbt 代替 id 配置
                 "scores": {
                     "money": 100
@@ -436,7 +448,7 @@
                 "type": "commodity"
             },
             {
-                "title": "Buy Title Shop",
+                "title": "'Buy Title Shop'",
                 "image": "",
                 "id": "titleBuy", // 使用该组件时，所打开的表单 ID
                 "type": "from" // 组件类型（from 为表单）
@@ -445,19 +457,19 @@
         "type": "buy" // 商店类型（buy 为购买商店）
     },
     "titleBuy": {
-        "title": "Buy Title Shop",
-        "content": "This is a title shop",
+        "title": "'Buy Title Shop'",
+        "content": "'This is a title shop'",
         "info": {
             "exit": "execute as ${player} run say Exit Title Shop",
             "score": "execute as ${player} run say You do not have enough score to buy this item"
         },
         "classiflcation": [
             {
-                "title": "Test Title",
+                "title": "'Test Title'",
                 "image": "",
-                "introduce": "This is a test title\nscores: 100",
-                "confirmButton": "Confirm", // 确认按钮标题
-                "cancelButton": "Cancel", // 取消按钮标题
+                "introduce": "'This is a test title\nscores: 100'",
+                "confirmButton": "'Confirm'", // 确认按钮标题
+                "cancelButton": "'Cancel'", // 取消按钮标题
                 "id": "Test Title", // 称号 ID
                 "time": 24, // 称号持续时间（单位：小时）
                 "scores": {
@@ -469,8 +481,8 @@
         "type": "buy"
     },
     "MainSell": {
-        "title": "Sell Shop Example",
-        "content": "This is a shop example",
+        "title": "'Sell Shop Example'",
+        "content": "'This is a shop example'",
         "info": {
             "exit": "execute as ${player} run say Exit Shop",
             "title": "execute as ${player} run say You do not have enough title to sell", // 使用部分组件时，玩家没有指定称号时所执行命令
@@ -478,10 +490,10 @@
         },
         "classiflcation": [
             {
-                "title": "Apple",
+                "title": "'Apple'",
                 "image": "textures/items/apple",
-                "introduce": "A red apple\nscores: 100",
-                "number": "Sell number",
+                "introduce": "'A red apple\nscores: 100'",
+                "number": "'Sell number'",
                 "id": "minecraft:apple",
                 "scores": {
                     "money": 100
@@ -489,7 +501,7 @@
                 "type": "commodity"
             },
             {
-                "title": "Sell Title Shop",
+                "title": "'Sell Title Shop'",
                 "image": "",
                 "id": "titleSell",
                 "type": "from"
@@ -498,8 +510,8 @@
         "type": "sell" // 商店类型（sell 为出售商店）
     },
     "titleSell": {
-        "title": "Sell Title Shop",
-        "content": "This is a title shop",
+        "title": "'Sell Title Shop'",
+        "content": "'This is a title shop'",
         "info": {
             "exit": "execute as ${player} run say Exit Title Shop",
             "title": "execute as ${player} run say You do not have enough title to sell",
@@ -507,11 +519,11 @@
         },
         "classiflcation": [
             {
-                "title": "Test Title",
+                "title": "'Test Title'",
                 "image": "",
-                "introduce": "This is a test title\nscores: 100",
-                "confirmButton": "Confirm",
-                "cancelButton": "Cancel",
+                "introduce": "'This is a test title\nscores: 100'",
+                "confirmButton": "'Confirm'",
+                "cancelButton": "'Cancel'",
                 "id": "Test Title",
                 "scores": {
                     "money": 100
@@ -527,7 +539,7 @@
 ### notice.json
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.6.2 的 `notice.json` 结构，对于后续版本的 `notice.json` 结构可能会有所不同。
+> 以下内容取自 LOICollectionA 1.10.0 的 `notice.json` 结构，对于后续版本的 `notice.json` 结构可能会有所不同。
 
 ?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `notice.json` 文件。  
 对于内部编辑器，您可以通过以下 [命令](./md/command.md#notice) 进行编辑
@@ -535,11 +547,11 @@
 ```json
 {
     "main": { // 公告ID（不可重复）
-        "title": "Test Notice 123", // 公告标题
+        "title": "'Test Notice 123'", // 公告标题
         "content": [ // 公告内容（支持多行）
-            "This is a test text 1", // 第 1 行内容
-            "This is a test text 2", // 第 2 行内容
-            "This is a test text 3" // 第 3 行内容
+            "'This is a test text 1'", // 第 1 行内容
+            "'This is a test text 2'", // 第 2 行内容
+            "'This is a test text 3'" // 第 3 行内容
         ],
         "priority": 0, // 公告优先级
         "poiontout": true // 公告是否在玩家上线时弹出显示

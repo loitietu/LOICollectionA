@@ -11,10 +11,11 @@ template<typename Key, typename Value>
 class LRUKCache {
 private:
     struct CacheEntry {
-        Value mValue;
+        std::shared_ptr<Value> mValue;
+        
         size_t mAccessCount;
         
-        explicit CacheEntry(Value val) : mValue(std::move(val)), mAccessCount(0) {}
+        explicit CacheEntry(std::shared_ptr<Value> val) : mValue(std::move(val)), mAccessCount(0) {}
     };
 
     using EntryPtr = std::shared_ptr<CacheEntry>;
@@ -42,7 +43,7 @@ public:
         mHistoryMap.reserve(historyCapacity);
     }
 
-    std::optional<Value> get(const Key& key) {
+    std::optional<std::shared_ptr<Value>> get(const Key& key) {
         std::unique_lock lock(mMutex);
         
         auto mCacheIt = mCacheMap.find(key);
@@ -57,7 +58,7 @@ public:
         
         auto mHistoryIt = mHistoryMap.find(key);
         if (mHistoryIt != mHistoryMap.end()) {
-            auto& entry = mHistoryIt->second.first;
+            auto entry = mHistoryIt->second.first;
             entry->mAccessCount++;
             
             if (entry->mAccessCount >= mK) {
@@ -77,12 +78,12 @@ public:
         return std::nullopt;
     }
 
-    void put(const Key& key, Value value) {
+    void put(const Key& key, std::shared_ptr<Value> value) {
         std::unique_lock lock(mMutex);
         
         auto mCacheIt = mCacheMap.find(key);
         if (mCacheIt != mCacheMap.end()) {
-            mCacheIt->second.first->mValue = std::move(value);
+            mCacheIt->second.first->mValue =std::move(value);
             mCaches.erase(mCacheIt->second.second);
             mCaches.push_front(key);
 
@@ -93,7 +94,7 @@ public:
         
         auto mHistoryIt = mHistoryMap.find(key);
         if (mHistoryIt != mHistoryMap.end()) {
-            auto& entry = mHistoryIt->second.first;
+            auto entry = mHistoryIt->second.first;
             entry->mValue = std::move(value);
             entry->mAccessCount++;
             
@@ -123,7 +124,12 @@ public:
         mHistorys.push_front(key);
         mHistoryMap[key] = {entry, mHistorys.begin()};
     }
-    bool update(const Key& key, std::function<void(Value&)> modifier) {
+
+    void put(const Key& key, Value value) {
+        put(key, std::make_shared<Value>(std::move(value)));
+    }
+    
+    bool update(const Key& key, std::function<void(std::shared_ptr<Value>)> modifier) {
         std::unique_lock lock(mMutex);
 
         auto mCacheIt = mCacheMap.find(key);
@@ -140,7 +146,7 @@ public:
 
         auto mHistoryIt = mHistoryMap.find(key);
         if (mHistoryIt != mHistoryMap.end()) {
-            auto& entry = mHistoryIt->second.first;
+            auto entry = mHistoryIt->second.first;
             entry->mAccessCount++;
 
             modifier(entry->mValue);
@@ -164,8 +170,8 @@ public:
 
     bool contains(const Key& key) const {
         std::shared_lock lock(mMutex);
-        return mCacheMap.find(key) != mCacheMap.end() || 
-               mHistoryMap.find(key) != mHistoryMap.end();
+        
+        return mCacheMap.find(key) != mCacheMap.end();
     }
 
     bool erase(const Key& key) {

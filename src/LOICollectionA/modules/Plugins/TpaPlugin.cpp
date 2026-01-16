@@ -364,8 +364,8 @@ namespace LOICollection::Plugins {
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "tpa.log2"), player)), mTargetObject);
 
         if (this->mImpl->BlacklistCache.contains(mObject))
-            this->mImpl->BlacklistCache.update(mObject, [mTargetObject](std::vector<std::string>& mList) -> void {
-                mList.push_back(mTargetObject);
+            this->mImpl->BlacklistCache.update(mObject, [mTargetObject](std::shared_ptr<std::vector<std::string>> mList) -> void {
+                mList->push_back(mTargetObject);
             });
     }
 
@@ -381,8 +381,8 @@ namespace LOICollection::Plugins {
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "tpa.log3"), player)), target);
 
-        this->mImpl->BlacklistCache.update(mObject, [target](std::vector<std::string>& mList) -> void {
-            mList.erase(std::remove(mList.begin(), mList.end(), target), mList.end());
+        this->mImpl->BlacklistCache.update(mObject, [target](std::shared_ptr<std::vector<std::string>> mList) -> void {
+            mList->erase(std::remove(mList->begin(), mList->end(), target), mList->end());
         });
     }
 
@@ -394,7 +394,7 @@ namespace LOICollection::Plugins {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         if (this->mImpl->BlacklistCache.contains(mObject))
-            return this->mImpl->BlacklistCache.get(mObject).value();
+            return *this->mImpl->BlacklistCache.get(mObject).value();
         
         std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Blacklist", mObject + ".%\\_NAME");
 
@@ -418,7 +418,7 @@ namespace LOICollection::Plugins {
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         if (this->mImpl->InviteCache.contains(mObject))
-            return this->mImpl->InviteCache.get(mObject).value();
+            return *this->mImpl->InviteCache.get(mObject).value();
         
         bool result = this->mImpl->db2->get("OBJECT$" + mObject, "Tpa_Toggle1") == "true";
 

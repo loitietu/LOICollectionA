@@ -25,7 +25,7 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/entity/MobDieEvent.h>
-#include <ll/api/event/player/PlayerJoinEvent.h>
+#include <ll/api/event/player/PlayerConnectEvent.h>
 #include <ll/api/event/player/PlayerRespawnEvent.h>
 #include <ll/api/event/player/PlayerPlaceBlockEvent.h>
 #include <ll/api/event/player/PlayerDisconnectEvent.h>
@@ -204,7 +204,7 @@ namespace LOICollection::Plugins {
         }).launch(this->mImpl->mExecutor);
 
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        this->mImpl->mListeners.emplace("PlayerJoin", eventBus.emplaceListener<ll::event::PlayerJoinEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerJoinEvent& event) mutable -> void {
+        this->mImpl->mListeners.emplace("PlayerConnect", eventBus.emplaceListener<ll::event::PlayerConnectEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerConnectEvent& event) mutable -> void {
             if (option.OnlineTime)
                 this->mImpl->mOnilneTime.emplace(event.self().getUuid().asString(), SystemUtils::getNowTime());
             
@@ -232,7 +232,7 @@ namespace LOICollection::Plugins {
                     event.source().isChildEntitySource() ? event.source().getEntityUniqueID() : event.source().getDamagingEntityUniqueID(), false
                 );
 
-                if (mSource && mSource->isPlayer())
+                if (mSource && mSource->isPlayer() && event.self().isPlayer())
                     this->addStatistic(*static_cast<Player*>(mSource), StatisticType::kills, 1);
             }
 

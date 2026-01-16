@@ -202,13 +202,6 @@ namespace LOICollection::Plugins {
     void BlacklistPlugin::registeryCommand() {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(BlacklistObjectName, getBlacklists());
 
-        // this->onBlacklistAdd([](const std::string& id) -> void {
-        //     ll::command::CommandRegistrar::getInstance().addSoftEnumValues(BlacklistObjectName, { id });
-        // });
-        // this->onBlacklistDel([](const std::string& id) -> void {
-        //     ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(BlacklistObjectName, { id });
-        // });
-
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("blacklist", tr({}, "commands.blacklist.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("add").required("Target").optional("Cause").optional("Time").execute(

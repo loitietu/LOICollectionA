@@ -55,15 +55,15 @@ namespace Config {
         struct C_DynamicMotd {
             bool ModuleEnabled = true;
             int RefreshInterval = 200;
-            std::vector<std::string> Pages{ "'在线玩家: '{server.player.online}/{server.player.max}" };
+            std::vector<std::string> Pages{ "'在线玩家: '{server.player.online}'/'{server.player.max}" };
         } DynamicMotd;
 
         struct C_Sidebar {
             bool ModuleEnabled = true;
             int RefreshInterval = 20;
         
-            std::vector<std::string> Titles{ "Title" };
-            std::vector<std::vector<std::string>> Pages{ { "Content" } };
+            std::vector<std::string> Titles{ "'Title'" };
+            std::vector<std::vector<std::string>> Pages{ { "'Content'" } };
         } Sidebar;
     };
 

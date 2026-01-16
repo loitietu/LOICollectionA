@@ -142,7 +142,7 @@ namespace LOICollection::Plugins {
         std::string defaultLocale = I18nUtils::getInstance()->defaultLocale;
 
         if (this->mImpl->Cache.contains(mObject))
-            return this->mImpl->Cache.get(mObject).value();
+            return *this->mImpl->Cache.get(mObject).value();
         
         std::string langcode = this->mImpl->db->get("OBJECT$" + mObject, "language", defaultLocale);
         
