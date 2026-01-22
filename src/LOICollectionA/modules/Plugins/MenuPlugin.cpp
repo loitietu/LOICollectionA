@@ -40,6 +40,8 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
+#include "LOICollectionA/include/Form/PaginatedForm.h"
+
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
@@ -209,6 +211,13 @@ namespace LOICollection::Plugins {
 
     void MenuPlugin::gui::editRemoveInfo(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "menu.gui.error"));
+
+            this->edit(player);
+            return;
+        }
         
         ll::form::ModalForm form(tr(mObjectLanguage, "menu.gui.title"), 
             fmt::format(fmt::runtime(tr(mObjectLanguage, "menu.gui.button2.content")), id),
@@ -216,7 +225,7 @@ namespace LOICollection::Plugins {
         );
         form.sendTo(player, [this, id](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) mutable -> void {
             if (result != ll::form::ModalFormSelectedButton::Upper)
-                return;
+                return this->edit(pl);
 
             this->mParent.remove(id);
 
@@ -227,15 +236,23 @@ namespace LOICollection::Plugins {
     void MenuPlugin::gui::editRemove(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), tr(mObjectLanguage, "menu.gui.label"));
-        for (std::string& key : this->mParent.getDatabase()->keys()) {
-            form.appendButton(key, [this, key](Player& pl) -> void {
-                this->editRemoveInfo(pl, key);
-            });
-        }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->edit(pl);
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "menu.gui.title"),
+            tr(mObjectLanguage, "menu.gui.label"),
+            this->mParent.getDatabase()->keys()
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            this->editRemoveInfo(pl, response);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->edit(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void MenuPlugin::gui::editAwardSetting(Player& player, const std::string& id, MenuType type) {
@@ -405,6 +422,13 @@ namespace LOICollection::Plugins {
 
     void MenuPlugin::gui::editAwardRemoveInfo(Player& player, const std::string& id, const std::string& packageid) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "menu.gui.error"));
+
+            this->edit(player);
+            return;
+        }
         
         ll::form::ModalForm form(tr(mObjectLanguage, "menu.gui.title"), 
             fmt::format(fmt::runtime(tr(mObjectLanguage, "menu.gui.button3.remove.content")), packageid),
@@ -412,7 +436,7 @@ namespace LOICollection::Plugins {
         );
         form.sendTo(player, [this, id, packageid](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) mutable -> void {
             if (result != ll::form::ModalFormSelectedButton::Upper) 
-                return;
+                return this->edit(pl);
 
             auto mContent = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/customize");
             for (int i = static_cast<int>(mContent.size() - 1); i >= 0; i--) {
@@ -430,17 +454,27 @@ namespace LOICollection::Plugins {
     void MenuPlugin::gui::editAwardRemove(Player& player, const std::string& id, MenuType type) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         
-        ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), tr(mObjectLanguage, "menu.gui.label"));
-        for (nlohmann::ordered_json& item : this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/customize")) {
-            std::string mName = item.value("id", "");
+        std::vector<std::string> mNames;
+        for (nlohmann::ordered_json& item : this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/customize"))
+            mNames.push_back(item.value("id", ""));
 
-            form.appendButton(mName, [this, mName, id](Player& pl) -> void {
-                this->editAwardRemoveInfo(pl, id, mName);
-            });
-        }
-        form.sendTo(player, [this, ids = id, type](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) return this->editAwardContent(pl, ids, type);
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "menu.gui.title"),
+            tr(mObjectLanguage, "menu.gui.label"),
+            mNames
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, id](Player& pl, const std::string& response) -> void {
+            this->editAwardRemoveInfo(pl, id, response);
         });
+        form->setCloseCallback([this, id, type](Player& pl) -> void {
+            this->editAwardContent(pl, id, type);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void MenuPlugin::gui::editAwardCommand(Player& player, const std::string& id) {
@@ -486,6 +520,13 @@ namespace LOICollection::Plugins {
     void MenuPlugin::gui::editAwardContent(Player& player, const std::string& id, MenuType type) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "menu.gui.error"));
+
+            this->edit(player);
+            return;
+        }
+
         ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), 
             fmt::format(fmt::runtime(tr(mObjectLanguage, "menu.gui.button3.label")), id)
         );
@@ -524,27 +565,35 @@ namespace LOICollection::Plugins {
     void MenuPlugin::gui::editAward(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         
-        ll::form::SimpleForm form(tr(mObjectLanguage, "menu.gui.title"), tr(mObjectLanguage, "menu.gui.label"));
-        for (std::string& key : this->mParent.getDatabase()->keys()) {
-            form.appendButton(key, [this, key](Player& pl) -> void {
-                auto mObjectType = this->mParent.getDatabase()->get_ptr<std::string>("/" + key + "/type", "Custom");
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "menu.gui.title"),
+            tr(mObjectLanguage, "menu.gui.label"),
+            this->mParent.getDatabase()->keys()
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            auto mObjectType = this->mParent.getDatabase()->get_ptr<std::string>("/" + response + "/type", "Custom");
 
-                switch (ll::hash_utils::doHash(mObjectType)) {
-                    case ll::hash_utils::doHash("Simple"):
-                        this->editAwardContent(pl, key, MenuType::Simple);
-                        break;
-                    case ll::hash_utils::doHash("Modal"):
-                        this->editAwardContent(pl, key, MenuType::Modal);
-                        break;
-                    case ll::hash_utils::doHash("Custom"):
-                        this->editAwardContent(pl, key, MenuType::Custom);
-                        break;
-                };
-            });
-        }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->edit(pl);
+            switch (ll::hash_utils::doHash(mObjectType)) {
+                case ll::hash_utils::doHash("Simple"):
+                    this->editAwardContent(pl, response, MenuType::Simple);
+                    break;
+                case ll::hash_utils::doHash("Modal"):
+                    this->editAwardContent(pl, response, MenuType::Modal);
+                    break;
+                case ll::hash_utils::doHash("Custom"):
+                    this->editAwardContent(pl, response, MenuType::Custom);
+                    break;
+            };
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->edit(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void MenuPlugin::gui::edit(Player& player) {
@@ -765,13 +814,6 @@ namespace LOICollection::Plugins {
     void MenuPlugin::registeryCommand() {
         ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(MenuObjectName, this->getDatabase()->keys());
 
-        // this->onMenuCreate([](const std::string& id) {
-        //     ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MenuObjectName, { id });
-        // });
-        // this->onMenuRemove([](const std::string& id) {
-        //     ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(MenuObjectName, { id });
-        // });
-
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("menu", tr({}, "commands.menu.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").optional("Object").execute(
@@ -923,6 +965,13 @@ namespace LOICollection::Plugins {
         }
 
         this->mGui->open(player, action.value("run", ""));
+    }
+
+    bool MenuPlugin::has(const std::string& id) {
+        if (!this->isValid())
+            return false;
+
+        return this->getDatabase()->has(id);
     }
 
     bool MenuPlugin::isValid() {

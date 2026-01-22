@@ -47,6 +47,8 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
+#include "LOICollectionA/include/Form/PaginatedForm.h"
+
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
@@ -114,6 +116,13 @@ namespace LOICollection::Plugins {
     void BlacklistPlugin::gui::info(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        if (!this->mParent.hasBlacklist(id)) {
+            player.sendMessage(tr(mObjectLanguage, "blacklist.gui.error"));
+            
+            this->remove(player);
+            return;
+        }
+
         std::string mObjectLabel = tr(mObjectLanguage, "blacklist.gui.info.label");
         ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), 
             fmt::format(fmt::runtime(mObjectLabel), id, 
@@ -175,15 +184,23 @@ namespace LOICollection::Plugins {
     void BlacklistPlugin::gui::remove(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), tr(mObjectLanguage, "blacklist.gui.remove.label"));
-        for (std::string& mItem : this->mParent.getBlacklists()) {
-            form.appendButton(mItem, [this, mItem](Player& pl) {
-                this->info(pl, mItem);
-            });
-        }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->open(pl);
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "blacklist.gui.remove.title"),
+            tr(mObjectLanguage, "blacklist.gui.remove.label"),
+            this->mParent.getBlacklists()
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            this->info(pl, response);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->open(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void BlacklistPlugin::gui::open(Player& player) {
@@ -223,7 +240,7 @@ namespace LOICollection::Plugins {
         });
         command.overload<operation>().text("remove").required("Object").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            if (!this->getDatabase()->hasByPrefix("Blacklist", param.Object + ".", 7))
+            if (!this->hasBlacklist(param.Object))
                 return output.error(fmt::runtime(tr({}, "commands.blacklist.error.remove")), param.Object);
             
             this->delBlacklist(param.Object);
@@ -400,13 +417,20 @@ namespace LOICollection::Plugins {
         return mView | std::ranges::to<std::vector<std::string>>();
     }
 
-    bool BlacklistPlugin::isBlacklist(const std::string& mId, const std::string& uuid, const std::string& ip, const std::string& clientId) {
+    bool BlacklistPlugin::hasBlacklist(const std::string& id) {
         if (!this->isValid())
             return false;
 
-        std::unordered_map<std::string, std::string> mData = this->getDatabase()->getByPrefix("Blacklist", mId + ".");
+        return this->getDatabase()->hasByPrefix("Blacklist", id + ".", 7);
+    }
 
-        return mData.at(mId + ".DATA_UUID") == uuid || mData.at(mId + ".DATA_IP") == ip || mData.at(mId + ".DATA_CLIENTID") == clientId;
+    bool BlacklistPlugin::isBlacklist(const std::string& id, const std::string& uuid, const std::string& ip, const std::string& clientId) {
+        if (!this->isValid())
+            return false;
+
+        std::unordered_map<std::string, std::string> mData = this->getDatabase()->getByPrefix("Blacklist", id + ".");
+
+        return mData.at(id + ".DATA_UUID") == uuid || mData.at(id + ".DATA_IP") == ip || mData.at(id + ".DATA_CLIENTID") == clientId;
     }
 
     bool BlacklistPlugin::isBlacklist(Player& player) {

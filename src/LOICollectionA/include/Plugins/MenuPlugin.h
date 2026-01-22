@@ -42,6 +42,7 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_API   void executeCommand(Player& player, std::string cmd);
         LOICOLLECTION_A_API   void handleAction(Player& player, const nlohmann::ordered_json& action, const nlohmann::ordered_json& original);
 
+        LOICOLLECTION_A_NDAPI bool has(const std::string& id);
         LOICOLLECTION_A_NDAPI bool isValid();
 
     public:

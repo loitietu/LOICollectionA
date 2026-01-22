@@ -35,6 +35,8 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
+#include "LOICollectionA/include/Form/PaginatedForm.h"
+
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
@@ -119,15 +121,21 @@ namespace LOICollection::Plugins {
     void TpaPlugin::gui::blacklistSet(Player& player, const std::string& target) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        if (!this->mParent.hasBlacklist(player, target)) {
+            player.sendMessage(tr(mObjectLanguage, "tpa.gui.error"));
+
+            this->setting(player);
+            return;
+        }
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         std::string mObjectLabel = tr(mObjectLanguage, "tpa.gui.setting.blacklist.set.label");
-
         ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), 
             fmt::format(fmt::runtime(mObjectLabel), target,
-                this->mParent.getDatabase()->get("Mute", mObject + "." + target + "_NAME", "None"),
-                SystemUtils::toFormatTime(this->mParent.getDatabase()->get("Mute", mObject + "." + target + "_TIME", "None"), "None")
+                this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_NAME", "None"),
+                SystemUtils::toFormatTime(this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None")
             )
         );
         form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.set.remove"), [this, target](Player& pl) -> void {
@@ -140,44 +148,78 @@ namespace LOICollection::Plugins {
 
     void TpaPlugin::gui::blacklistAdd(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-        
-        ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), tr(mObjectLanguage, "tpa.gui.setting.blacklist.add.label"));
-        ll::service::getLevel()->forEachPlayer([this, &form, &player](Player& mTarget) -> bool {
+
+        std::vector<std::string> mPlayers;
+        std::vector<std::string> mPlayerUuids;
+
+        ll::service::getLevel()->forEachPlayer([&player, &mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
             if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
                 return true;
 
-            form.appendButton(mTarget.getRealName(), [this, &mTarget](Player& pl) -> void  {
-                this->mParent.addBlacklist(pl, mTarget);
-            });
+            mPlayers.push_back(mTarget.getRealName());
+            mPlayerUuids.push_back(mTarget.getUuid().asString());
             return true;
         });
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->blacklist(pl);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "tpa.gui.setting.title"),
+            tr(mObjectLanguage, "tpa.gui.setting.blacklist.add.label"),
+            mPlayers
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, mObjectLanguage, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
+            Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
+            if (!mPlayer) {
+                pl.sendMessage(tr(mObjectLanguage, "tpa.gui.error"));
+
+                this->setting(pl);
+                return;
+            }
+
+            this->mParent.addBlacklist(pl, *mPlayer);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->setting(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void TpaPlugin::gui::blacklist(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), tr(mObjectLanguage, "tpa.gui.setting.label"));
-        form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.add"), "textures/ui/editIcon", "path", [this, mObjectLanguage](Player& pl) -> void {
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "tpa.gui.setting.title"),
+            tr(mObjectLanguage, "tpa.gui.setting.label"),
+            this->mParent.getBlacklist(player)
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            this->blacklistSet(pl, response);
+        });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->setting(pl);
+        });
+        form->appendDivider();
+        form->appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.add"), "textures/ui/editIcon", [this, mObjectLanguage](Player& pl) -> void {
             int mBlacklistCount = this->mParent.mImpl->options.BlacklistUpload;
             if (static_cast<int>(this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
                 pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "tpa.tips2")), mBlacklistCount));
-                return this->setting(pl);
+
+                this->setting(pl);
+                return;
             }
 
             this->blacklistAdd(pl);
         });
-        form.appendDivider();
-        for (std::string& mTarget : this->mParent.getBlacklist(player)) {
-            form.appendButton(mTarget, [this, mTarget](Player& pl) -> void {
-                this->blacklistSet(pl, mTarget);
-            });
-        }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) return this->setting(pl);
-        });
+
+        form->sendPage(player, 1);
     }
 
     void TpaPlugin::gui::setting(Player& player) {
@@ -251,20 +293,40 @@ namespace LOICollection::Plugins {
     void TpaPlugin::gui::open(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        std::string mObject = player.getUuid().asString();
+        std::vector<std::string> mPlayers;
+        std::vector<std::string> mPlayerUuids;
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.title"), tr(mObjectLanguage, "tpa.gui.label2"));
-        ll::service::getLevel()->forEachPlayer([this, &form, mObject](Player& mTarget) -> bool {
+        ll::service::getLevel()->forEachPlayer([this, &player, &mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
             std::vector<std::string> mList = this->mParent.getBlacklist(mTarget);
-            if (mTarget.isSimulatedPlayer() || std::find(mList.begin(), mList.end(), mObject) != mList.end() || this->mParent.isInvite(mTarget))
+            if (mTarget.isSimulatedPlayer() || std::find(mList.begin(), mList.end(), player.getUuid().asString()) != mList.end() || this->mParent.isInvite(mTarget))
                 return true;
 
-            form.appendButton(mTarget.getRealName(), [this, &mTarget](Player& pl) -> void  {
-                this->content(pl, mTarget);
-            });
+            mPlayers.push_back(mTarget.getRealName());
+            mPlayerUuids.push_back(mTarget.getUuid().asString());
             return true;
         });
-        form.sendTo(player);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "tpa.gui.title"),
+            tr(mObjectLanguage, "tpa.gui.label2"),
+            mPlayers
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, mObjectLanguage, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
+            Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
+            if (!mPlayer) {
+                pl.sendMessage(tr(mObjectLanguage, "tpa.gui.error"));
+
+                return;
+            }
+
+            this->content(pl, *mPlayer);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void TpaPlugin::registeryCommand() {
@@ -408,6 +470,18 @@ namespace LOICollection::Plugins {
         this->mImpl->BlacklistCache.put(mObject, mResult);
 
         return mResult;
+    }
+
+    bool TpaPlugin::hasBlacklist(Player& player, const std::string& uuid) {
+        if (!this->isValid())
+            return false;
+
+        std::string mTarget = uuid;
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        std::replace(mTarget.begin(), mTarget.end(), '-', '_');
+
+        return this->getDatabase()->hasByPrefix("Blacklist", mObject + "." + mTarget, 2);
     }
 
     bool TpaPlugin::isInvite(Player& player) {

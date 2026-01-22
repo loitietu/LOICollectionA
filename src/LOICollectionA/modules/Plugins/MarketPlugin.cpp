@@ -38,6 +38,8 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
+#include "LOICollectionA/include/Form/PaginatedForm.h"
+
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
@@ -88,11 +90,17 @@ namespace LOICollection::Plugins {
 
     void MarketPlugin::gui::buyItem(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.hasItem(id)) {
+            player.sendMessage(tr(mObjectLanguage, "market.gui.error"));
+
+            this->buy(player);
+            return;
+        }
         
         std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->getByPrefix("Item", id + ".");
 
         std::string mIntroduce = tr(mObjectLanguage, "market.gui.sell.introduce");
-
         ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), 
             fmt::format(fmt::runtime(mIntroduce), 
                 mData.at(id + ".INTRODUCE"),
@@ -149,10 +157,16 @@ namespace LOICollection::Plugins {
     void MarketPlugin::gui::itemContent(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        if (!this->mParent.hasItem(id)) {
+            player.sendMessage(tr(mObjectLanguage, "market.gui.error"));
+
+            this->sellItemContent(player);
+            return;
+        }
+
         std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->getByPrefix("Item", id + ".");
 
         std::string mIntroduce = tr(mObjectLanguage, "market.gui.sell.introduce");
-
         ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), 
             fmt::format(fmt::runtime(mIntroduce),
                 mData.at(id + ".INTRODUCE"),
@@ -196,12 +210,21 @@ namespace LOICollection::Plugins {
 
             if (mItemName.empty() || mItemIcon.empty() || mItemIntroduce.empty()) {
                 pl.sendMessage(tr(mObjectLanguage, "generic.tips.noinput"));
-                return this->sellItemInventory(pl);
+
+                this->sellItemInventory(pl);
+                return;
             }
 
             int mItemScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
 
             ItemStack mItemStack = pl.mInventory->mInventory->getItem(mSlot);
+
+            if (!mItemStack || mItemStack.isNull()) {
+                pl.sendMessage(tr(mObjectLanguage, "market.gui.error"));
+                
+                this->sellItemInventory(pl);
+                return;
+            }
 
             this->mParent.addItem(pl, mItemStack, mItemName, mItemIcon, mItemIntroduce, mItemScore);
 
@@ -215,7 +238,9 @@ namespace LOICollection::Plugins {
 
         std::vector<std::string> ProhibitedItems = this->mParent.mImpl->options.ProhibitedItems;
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.sell.sellItem.dropdown"));
+        std::vector<std::string> mItems;
+        std::vector<int> mItemSlots;
+
         for (int i = 0; i < player.mInventory->mInventory->getContainerSize(); i++) {
             ItemStack mItemStack = player.mInventory->mInventory->getItem(i);
             
@@ -226,39 +251,72 @@ namespace LOICollection::Plugins {
                 mItemStack.getName(), std::to_string(mItemStack.mCount)
             );
 
-            form.appendButton(mItemName, [this, mItemStack, i](Player& pl) -> void {
-                this->sellItem(pl, i);
-            });
+            mItems.push_back(mItemName);
+            mItemSlots.push_back(i);
         }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) return this->sell(pl);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "market.gui.title"),
+            tr(mObjectLanguage, "market.gui.sell.sellItem.dropdown"),
+            mItems
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, mObjectLanguage, mItemSlots = std::move(mItemSlots)](Player& pl, int index) -> void {
+            this->sellItem(pl, mItemSlots.at(index));
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->sell(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void MarketPlugin::gui::sellItemContent(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
+        std::vector<std::pair<std::string, std::string>> mItems;
         for (std::string& item : this->mParent.getItems(player)) {
             std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->getByPrefix("Item", item + ".");
 
-            form.appendButton(mData.at(item + ".NAME"), mData.at(item + ".ICON"), "path", [this, item](Player& pl) -> void {
-                this->itemContent(pl, item);
-            });
+            mItems.emplace_back(mData.at(item + ".NAME"), mData.at(item + ".ICON"));
         }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) return this->sell(pl);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "market.gui.title"),
+            tr(mObjectLanguage, "market.gui.label"),
+            mItems
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            this->itemContent(pl, response);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->sell(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void MarketPlugin::gui::blacklistSet(Player& player, const std::string& target) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        if (!this->mParent.hasBlacklist(player, target)) {
+            player.sendMessage(tr(mObjectLanguage, "market.gui.error"));
+
+            this->blacklist(player);
+            return;
+        }
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         std::string mObjectLabel = tr(mObjectLanguage, "market.gui.sell.blacklist.set.label");
-
         ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), 
             fmt::format(fmt::runtime(mObjectLabel), target,
                 this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_NAME", "None"),
@@ -276,43 +334,78 @@ namespace LOICollection::Plugins {
     void MarketPlugin::gui::blacklistAdd(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         
-        ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.sell.blacklist.add.label"));
-        ll::service::getLevel()->forEachPlayer([this, &form, &player](Player& mTarget) -> bool {
+        std::vector<std::string> mPlayers;
+        std::vector<std::string> mPlayerUuids;
+
+        ll::service::getLevel()->forEachPlayer([&player, &mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
             if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
                 return true;
 
-            form.appendButton(mTarget.getRealName(), [this, &mTarget](Player& pl) -> void  {
-                this->mParent.addBlacklist(pl, mTarget);
-            });
+            mPlayers.push_back(mTarget.getRealName());
+            mPlayerUuids.push_back(mTarget.getUuid().asString());
             return true;
         });
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->blacklist(pl);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "market.gui.title"),
+            tr(mObjectLanguage, "market.gui.sell.blacklist.add.label"),
+            mPlayers
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, mObjectLanguage, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
+            Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
+            if (!mPlayer) {
+                pl.sendMessage(tr(mObjectLanguage, "market.gui.error"));
+
+                this->blacklist(pl);
+                return;
+            }
+
+            this->mParent.addBlacklist(pl, *mPlayer);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->blacklist(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void MarketPlugin::gui::blacklist(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
-        form.appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist.add"), "textures/ui/editIcon", "path", [this, mObjectLanguage](Player& pl) -> void {
-            int mBlacklistCount = this->mParent.mImpl->options.BlacklistUpload;
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "market.gui.title"),
+            tr(mObjectLanguage, "market.gui.label"),
+            this->mParent.getBlacklist(player)
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            this->blacklistSet(pl, response);
+        });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->sell(pl);
+        });
+
+        form->appendDivider();
+        form->appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist.add"), "textures/ui/editIcon", [this, mObjectLanguage](Player& pl) -> void {
+            int mBlacklistCount = static_cast<int>(this->mParent.getBlacklist(pl).size());
             if (static_cast<int>(this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
                 pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips5")), mBlacklistCount));
-                return this->sell(pl);
+                
+                this->sell(pl);
+                return;
             }
-            
+
             this->blacklistAdd(pl);
         });
-        form.appendDivider();
-        for (std::string& mTarget : this->mParent.getBlacklist(player)) {
-            form.appendButton(mTarget, [this, mTarget](Player& pl) -> void {
-                this->blacklistSet(pl, mTarget);
-            });
-        }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) return this->sell(pl);
-        });
+
+        form->sendPage(player, 1);
     }
 
     void MarketPlugin::gui::sell(Player& player) {
@@ -326,6 +419,7 @@ namespace LOICollection::Plugins {
             int mItemCount = this->mParent.mImpl->options.MaximumUpload;
             if (static_cast<int>(this->mParent.getItems(pl).size()) >= mItemCount) {
                 pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips4")), mItemCount));
+
                 return;
             }
             
@@ -342,8 +436,8 @@ namespace LOICollection::Plugins {
 
         std::string mUuid = player.getUuid().asString();
         std::replace(mUuid.begin(), mUuid.end(), '-', '_');
-
-        ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
+        
+        std::vector<std::pair<std::string, std::string>> mItems;
         for (std::string& item : this->mParent.getItems()) {
             std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->getByPrefix("Item", item + ".");
 
@@ -351,11 +445,23 @@ namespace LOICollection::Plugins {
             if (std::find(mList.begin(), mList.end(), mUuid) != mList.end())
                 continue;
 
-            form.appendButton(mData.at(item + ".NAME"), mData.at(item + ".ICON"), "path", [this, item](Player& pl) -> void {
-                this->buyItem(pl, item);
-            });
+            mItems.emplace_back(mData.at(item + ".NAME"), mData.at(item + ".ICON"));
         }
-        form.sendTo(player);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "market.gui.title"),
+            tr(mObjectLanguage, "market.gui.label"),
+            mItems
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            this->buyItem(pl, response);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void MarketPlugin::registeryCommand() {
@@ -528,6 +634,25 @@ namespace LOICollection::Plugins {
             mResult.insert(mResult.end(), mLocal.second.begin(), mLocal.second.end());
 
         return mResult;
+    }
+
+    bool MarketPlugin::hasItem(const std::string& id) {
+        if (!this->isValid())
+            return false;
+
+        return this->getDatabase()->hasByPrefix("Item", id + ".", 7);
+    }
+
+    bool MarketPlugin::hasBlacklist(Player& player, const std::string& uuid) {
+        if (!this->isValid())
+            return false;
+
+        std::string mTarget = uuid;
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        std::replace(mTarget.begin(), mTarget.end(), '-', '_');
+
+        return this->getDatabase()->hasByPrefix("Blacklist", mObject + "." + mTarget, 2);
     }
 
     bool MarketPlugin::isValid() {

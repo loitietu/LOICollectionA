@@ -31,6 +31,8 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
+#include "LOICollectionA/include/Form/PaginatedForm.h"
+
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 #include "LOICollectionA/include/Plugins/ChatPlugin.h"
@@ -130,6 +132,13 @@ namespace LOICollection::Plugins {
     void CdkPlugin::gui::cdkRemoveInfo(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "cdk.gui.error"));
+
+            this->open(player);
+            return;
+        }
+
         ll::form::ModalForm form(tr(mObjectLanguage, "cdk.gui.title"), 
             fmt::format(fmt::runtime(tr(mObjectLanguage, "cdk.gui.remove.content")), id),
             tr(mObjectLanguage, "cdk.gui.remove.yes"), tr(mObjectLanguage, "cdk.gui.remove.no")
@@ -147,15 +156,23 @@ namespace LOICollection::Plugins {
     void CdkPlugin::gui::cdkRemove(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "cdk.gui.title"), tr(mObjectLanguage, "cdk.gui.remove.label"));
-        for (std::string& mItem : this->mParent.getDatabase()->keys()) {
-            form.appendButton(mItem, [this, mItem](Player& pl) {
-                this->cdkRemoveInfo(pl, mItem);
-            });
-        }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) return this->open(pl);
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "cdk.gui.title"),
+            tr(mObjectLanguage, "cdk.gui.remove.label"),
+            this->mParent.getDatabase()->keys()
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            this->cdkRemoveInfo(pl, response);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->open(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void CdkPlugin::gui::cdkAwardScore(Player& player, const std::string& id) {
@@ -249,8 +266,14 @@ namespace LOICollection::Plugins {
     void CdkPlugin::gui::cdkAwardInfo(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        std::string mObjectLabel = tr(mObjectLanguage, "cdk.gui.award.info.label");
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "cdk.gui.error"));
 
+            this->open(player);
+            return;
+        }
+
+        std::string mObjectLabel = tr(mObjectLanguage, "cdk.gui.award.info.label");
         ll::form::SimpleForm form(tr(mObjectLanguage, "cdk.gui.title"),
             fmt::format(fmt::runtime(mObjectLabel), id, 
                 this->mParent.getDatabase()->get_ptr<bool>("/" + id + "/personal", false) ? "true" : "false",
@@ -274,15 +297,23 @@ namespace LOICollection::Plugins {
     void CdkPlugin::gui::cdkAward(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "cdk.gui.title"), tr(mObjectLanguage, "cdk.gui.award.label"));
-        for (std::string& mItem : this->mParent.getDatabase()->keys()) {
-            form.appendButton(mItem, [this, mItem](Player& pl) {
-                this->cdkAwardInfo(pl, mItem);
-            });
-        }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->open(pl);
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "cdk.gui.title"),
+            tr(mObjectLanguage, "cdk.gui.award.label"),
+            this->mParent.getDatabase()->keys()
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            this->cdkAwardInfo(pl, response);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->open(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void CdkPlugin::gui::open(Player& player) {
@@ -425,6 +456,13 @@ namespace LOICollection::Plugins {
         this->getDatabase()->save();
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "cdk.log3"), player)), id);
+    }
+
+    bool CdkPlugin::has(const std::string& id) {
+        if (!this->isValid())
+            return false;
+
+        return this->getDatabase()->has(id);
     }
 
     bool CdkPlugin::isValid() {

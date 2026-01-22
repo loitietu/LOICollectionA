@@ -39,6 +39,8 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
+#include "LOICollectionA/include/Form/PaginatedForm.h"
+
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 #include "LOICollectionA/include/Plugins/ChatPlugin.h"
@@ -199,15 +201,23 @@ namespace LOICollection::Plugins {
     void ShopPlugin::gui::editRemove(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         
-        ll::form::SimpleForm form(tr(mObjectLanguage, "shop.gui.title"), tr(mObjectLanguage, "shop.gui.label"));
-        for (std::string& key : this->mParent.getDatabase()->keys()) {
-            form.appendButton(key, [this, key](Player& pl) -> void {
-                this->editRemoveInfo(pl, key);
-            });
-        }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->edit(pl);
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "shop.gui.title"),
+            tr(mObjectLanguage, "shop.gui.label"),
+            this->mParent.getDatabase()->keys()
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            this->editRemoveInfo(pl, response);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->edit(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void ShopPlugin::gui::editAwardSetting(Player& player, const std::string& id, ShopType type) {
@@ -389,6 +399,13 @@ namespace LOICollection::Plugins {
 
     void ShopPlugin::gui::editAwardRemoveInfo(Player& player, const std::string& id, const std::string& packageid) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "shop.gui.error"));
+
+            this->edit(player);
+            return;
+        }
         
         ll::form::ModalForm form(tr(mObjectLanguage, "menu.gui.title"), 
             fmt::format(fmt::runtime(tr(mObjectLanguage, "shop.gui.button3.remove.content")), packageid),
@@ -396,7 +413,7 @@ namespace LOICollection::Plugins {
         );
         form.sendTo(player, [this, id, packageid](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) mutable -> void {
             if (result != ll::form::ModalFormSelectedButton::Upper)
-                return;
+                return this->edit(pl);
 
             auto mContent = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/classiflcation");
             for (int i = static_cast<int>(mContent.size() - 1); i >= 0; i--) {
@@ -414,20 +431,38 @@ namespace LOICollection::Plugins {
     void ShopPlugin::gui::editAwardRemove(Player& player, const std::string& id, ShopType type) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "shop.gui.title"), tr(mObjectLanguage, "shop.gui.label"));
-        for (nlohmann::ordered_json& item : this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/classiflcation")) {
-            std::string mName = item.value("title", "");
-            form.appendButton(mName, [this, mName, id](Player& pl) -> void {
-                this->editAwardRemoveInfo(pl, id, mName);
-            });
-        }
-        form.sendTo(player, [this, ids = id, type](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) return this->editAwardContent(pl, ids, type);
+        std::vector<std::string> mNames;
+        for (nlohmann::ordered_json& item : this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/classiflcation"))
+            mNames.push_back(item.value("title", ""));
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "shop.gui.title"),
+            tr(mObjectLanguage, "shop.gui.label"),
+            mNames
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, id](Player& pl, const std::string& response) -> void {
+            this->editAwardRemoveInfo(pl, id, response);
         });
+        form->setCloseCallback([this, id, type](Player& pl) -> void {
+            this->editAwardContent(pl, id, type);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void ShopPlugin::gui::editAwardContent(Player& player, const std::string& id, ShopType type) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "shop.gui.error"));
+
+            this->edit(player);
+            return;
+        }
 
         ll::form::SimpleForm form(tr(mObjectLanguage, "shop.gui.title"), 
             fmt::format(fmt::runtime(tr(mObjectLanguage, "shop.gui.button3.label")), id)
@@ -450,24 +485,32 @@ namespace LOICollection::Plugins {
     void ShopPlugin::gui::editAward(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         
-        ll::form::SimpleForm form(tr(mObjectLanguage, "shop.gui.title"), tr(mObjectLanguage, "shop.gui.label"));
-        for (std::string& key : this->mParent.getDatabase()->keys()) {
-            form.appendButton(key, [this, key](Player& pl) -> void {
-                auto mObjectType = this->mParent.getDatabase()->get_ptr<std::string>("/" + key + "/type", "buy");
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "shop.gui.title"),
+            tr(mObjectLanguage, "shop.gui.label"),
+            this->mParent.getDatabase()->keys()
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            auto mObjectType = this->mParent.getDatabase()->get_ptr<std::string>("/" + response + "/type", "buy");
 
-                switch (ll::hash_utils::doHash(mObjectType)) {
-                    case ll::hash_utils::doHash("buy"):
-                        this->editAwardContent(pl, key, ShopType::buy);
-                        break;
-                    case ll::hash_utils::doHash("sell"):
-                        this->editAwardContent(pl, key, ShopType::sell);
-                        break;
-                }
-            });
-        }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->edit(pl);
+            switch (ll::hash_utils::doHash(mObjectType)) {
+                case ll::hash_utils::doHash("buy"):
+                    this->editAwardContent(pl, response, ShopType::buy);
+                    break;
+                case ll::hash_utils::doHash("sell"):
+                    this->editAwardContent(pl, response, ShopType::sell);
+                    break;
+            }
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->edit(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void ShopPlugin::gui::edit(Player& player) {
@@ -489,30 +532,55 @@ namespace LOICollection::Plugins {
     void ShopPlugin::gui::menu(Player& player, const std::string& id, ShopType type) {
         auto data = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id);
 
-        ll::form::SimpleForm form(LOICollectionAPI::APIUtils::getInstance().translate(data.value("title", ""), player), LOICollectionAPI::APIUtils::getInstance().translate(data.value("content", ""), player));
+        std::vector<std::pair<std::string, std::string>> mItems;
+        std::vector<std::string> mItemIds;
+        std::vector<std::string> mItemTypes;
+        std::vector<int> mItemIndexs;
+
         for (size_t i = 0; i < data.value("classiflcation", nlohmann::ordered_json()).size(); ++i) {
             nlohmann::ordered_json& item = data.value("classiflcation", nlohmann::ordered_json())[i];
 
-            form.appendButton(LOICollectionAPI::APIUtils::getInstance().translate(item.value("title", ""), player), item.value("image", ""), "path", [this, item, i, id, type](Player& pl) -> void {
-                switch (ll::hash_utils::doHash(item.value("type", ""))) {
-                    case ll::hash_utils::doHash("commodity"):
-                        this->commodity(pl, static_cast<int>(i), id, type);
-                        break;
-                    case ll::hash_utils::doHash("title"):
-                        this->title(pl, static_cast<int>(i), id, type);
-                        break;
-                    case ll::hash_utils::doHash("from"):
-                        this->open(pl, item.value("id", ""));
-                        break;
-                    default:
-                        this->mParent.getLogger()->error("Unknown UI type {}.", item.value("type", ""));
-                        break;
-                };
-            });
+            mItems.emplace_back(std::make_pair(LOICollectionAPI::APIUtils::getInstance().translate(item.value("title", ""), player), item.value("image", "")));
+            mItemIds.push_back(item.value("id", ""));
+            mItemTypes.push_back(item.value("type", ""));
+            mItemIndexs.push_back(static_cast<int>(i));
         }
-        form.sendTo(player, [this, data](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) return this->mParent.executeCommand(pl, data.value("info", nlohmann::ordered_json{}).value("exit", ""));
+
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            LOICollectionAPI::APIUtils::getInstance().translate(data.value("title", ""), player),
+            LOICollectionAPI::APIUtils::getInstance().translate(data.value("content", ""), player),
+            mItems
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, type, id, mItemIds = std::move(mItemIds), mItemTypes = std::move(mItemTypes), mItemIndexs = std::move(mItemIndexs)](Player& pl, int index) -> void {
+            int mIndex = mItemIndexs.at(index);
+            std::string mType = mItemTypes.at(index);
+
+            switch (ll::hash_utils::doHash(mType)) {
+                case ll::hash_utils::doHash("commodity"):
+                    this->commodity(pl, mIndex, id, type);
+                    break;
+                case ll::hash_utils::doHash("title"):
+                    this->title(pl, mIndex, id, type);
+                    break;
+                case ll::hash_utils::doHash("from"):
+                    this->open(pl, mItemIds.at(index));
+                    break;
+                default:
+                    this->mParent.getLogger()->error("Unknown UI type {}.", mType);
+                    break;
+            };
         });
+        form->setCloseCallback([this, data](Player& pl) -> void {
+            this->mParent.executeCommand(pl, data.value("info", nlohmann::ordered_json{}).value("exit", ""));
+        });
+
+        form->sendPage(player, 1);
     }
 
     void ShopPlugin::gui::commodity(Player& player, int index, const std::string& id, ShopType type) {
@@ -708,6 +776,13 @@ namespace LOICollection::Plugins {
             ScoreboardUtils::reduceScore(player, it.key(), (it.value().get<int>() * number));
         
         return true;
+    }
+
+    bool ShopPlugin::has(const std::string& id) {
+        if (!this->isValid())
+            return false;
+
+        return this->getDatabase()->has(id);
     }
 
     bool ShopPlugin::isValid() {

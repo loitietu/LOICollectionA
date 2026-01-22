@@ -42,6 +42,8 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
+#include "LOICollectionA/include/Form/PaginatedForm.h"
+
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
@@ -144,13 +146,28 @@ namespace LOICollection::Plugins {
     void StatisticsPlugin::gui::open(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "statistics.gui.title"), tr(mObjectLanguage, "statistics.gui.label"));
+        std::vector<std::string> mStatisticNames;
+        std::vector<StatisticType> mStatisticTypes;
+
         for (auto type : magic_enum::enum_entries<StatisticType>()) {
-            form.appendButton(this->mParent.getStatisticName(type.first), [this, type = type.first](Player& pl) -> void  {
-                this->open(pl, type);
-            });
+            mStatisticNames.push_back(this->mParent.getStatisticName(type.first));
+            mStatisticTypes.push_back(type.first);
         }
-        form.sendTo(player);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "statistics.gui.title"),
+            tr(mObjectLanguage, "statistics.gui.label"),
+            mStatisticNames
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, mStatisticTypes = std::move(mStatisticTypes)](Player& pl, int index) -> void {
+            this->open(pl, mStatisticTypes.at(index));
+        });
+
+        form->sendPage(player, 1);
     }
 
     void StatisticsPlugin::registeryCommand() {

@@ -36,6 +36,8 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
+#include "LOICollectionA/include/Form/PaginatedForm.h"
+
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 #include "LOICollectionA/include/Plugins/MutePlugin.h"
@@ -134,37 +136,85 @@ namespace LOICollection::Plugins {
     void ChatPlugin::gui::add(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         
-        ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.add.label"));
-        ll::service::getLevel()->forEachPlayer([this, &form](Player& mTarget) -> bool {
+        std::vector<std::string> mPlayers;
+        std::vector<std::string> mPlayerUuids;
+
+        ll::service::getLevel()->forEachPlayer([&mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
             if (mTarget.isSimulatedPlayer())
                 return true;
 
-            form.appendButton(mTarget.getRealName(), [this, &mTarget](Player& pl) -> void  {
-                this->contentAdd(pl, mTarget);
-            });
+            mPlayers.push_back(mTarget.getRealName());
+            mPlayerUuids.push_back(mTarget.getUuid().asString());
             return true;
         });
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->open(pl);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "chat.gui.title"),
+            tr(mObjectLanguage, "chat.gui.setBlacklist.add.label"),
+            mPlayers
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, mObjectLanguage, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
+            Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
+            if (!mPlayer) {
+                pl.sendMessage(tr(mObjectLanguage, "chat.gui.error"));
+
+                this->open(pl);
+                return;
+            }
+
+            this->contentAdd(pl, *mPlayer);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->open(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void ChatPlugin::gui::remove(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.manager.remove.label"));
-        ll::service::getLevel()->forEachPlayer([this, &form](Player& mTarget) -> bool {
+        std::vector<std::string> mPlayers;
+        std::vector<std::string> mPlayerUuids;
+
+        ll::service::getLevel()->forEachPlayer([&mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
             if (mTarget.isSimulatedPlayer())
                 return true;
 
-            form.appendButton(mTarget.getRealName(), [this, &mTarget](Player& pl) -> void  {
-                this->contentRemove(pl, mTarget);
-            });
+            mPlayers.push_back(mTarget.getRealName());
+            mPlayerUuids.push_back(mTarget.getUuid().asString());
             return true;
         });
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->open(pl);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "chat.gui.title"),
+            tr(mObjectLanguage, "chat.gui.manager.remove.label"),
+            mPlayers
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, mObjectLanguage, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
+            Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
+            if (!mPlayer) {
+                pl.sendMessage(tr(mObjectLanguage, "chat.gui.error"));
+
+                this->open(pl);
+                return;
+            }
+
+            this->contentRemove(pl, *mPlayer);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->open(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void ChatPlugin::gui::title(Player& player) {
@@ -188,11 +238,17 @@ namespace LOICollection::Plugins {
     void ChatPlugin::gui::blacklistSet(Player& player, const std::string& target) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        if (!this->mParent.hasBlacklist(player, target)) {
+            player.sendMessage(tr(mObjectLanguage, "chat.gui.error"));
+
+            this->blacklist(player);
+            return;
+        }
+
         std::string mObject = player.getUuid().asString();
         std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         std::string mObjectLabel = tr(mObjectLanguage, "chat.gui.setBlacklist.set.label");
-
         ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), 
             fmt::format(fmt::runtime(mObjectLabel), target,
                 this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_NAME", "None"),
@@ -210,43 +266,78 @@ namespace LOICollection::Plugins {
     void ChatPlugin::gui::blacklistAdd(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         
-        ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.setBlacklist.add.label"));
-        ll::service::getLevel()->forEachPlayer([this, &form, &player](Player& mTarget) -> bool {
+        std::vector<std::string> mPlayers;
+        std::vector<std::string> mPlayerUuids;
+
+        ll::service::getLevel()->forEachPlayer([&player, &mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
             if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
                 return true;
 
-            form.appendButton(mTarget.getRealName(), [this, &mTarget](Player& pl) -> void  {
-                this->mParent.addBlacklist(pl, mTarget);
-            });
+            mPlayers.push_back(mTarget.getRealName());
+            mPlayerUuids.push_back(mTarget.getUuid().asString());
             return true;
         });
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->blacklist(pl);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "chat.gui.title"),
+            tr(mObjectLanguage, "chat.gui.setBlacklist.add.label"),
+            mPlayers
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, mObjectLanguage, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
+            Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
+            if (!mPlayer) {
+                pl.sendMessage(tr(mObjectLanguage, "chat.gui.error"));
+
+                this->blacklist(pl);
+                return;
+            }
+
+            this->mParent.addBlacklist(pl, *mPlayer);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->blacklist(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void ChatPlugin::gui::blacklist(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         
-        ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), tr(mObjectLanguage, "chat.gui.label"));
-        form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.add"), [this, mObjectLanguage](Player& pl) -> void {
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "chat.gui.title"),
+            tr(mObjectLanguage, "chat.gui.label"),
+            this->mParent.getBlacklist(player)
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            this->blacklistSet(pl, response);
+        });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->setting(pl);
+        });
+
+        form->appendDivider();
+        form->appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.add"), "", [this, mObjectLanguage](Player& pl) -> void {
             int mBlacklistCount = static_cast<int>(this->mParent.getBlacklist(pl).size());
             if (static_cast<int>(this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
                 pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "chat.gui.setBlacklist.tips1")), mBlacklistCount));
-                return this->setting(pl);
+                
+                this->setting(pl);
+                return;
             }
 
             this->blacklistAdd(pl);
         });
-        form.appendDivider();
-        for (std::string& mTarget : this->mParent.getBlacklist(player)) {
-            form.appendButton(mTarget, [this, mTarget](Player& pl) -> void {
-                this->blacklistSet(pl, mTarget);
-            });
-        }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->setting(pl);
-        });
+
+        form->sendPage(player, 1);
     }
 
     void ChatPlugin::gui::setting(Player& player) {
@@ -542,6 +633,18 @@ namespace LOICollection::Plugins {
         this->mImpl->BlacklistCache.put(mObject, mResult);
 
         return mResult;
+    }
+
+    bool ChatPlugin::hasBlacklist(Player& player, const std::string& uuid) {
+        if (!this->isValid())
+            return false;
+
+        std::string mTarget = uuid;
+        std::string mObject = player.getUuid().asString();
+        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        std::replace(mTarget.begin(), mTarget.end(), '-', '_');
+
+        return this->getDatabase()->hasByPrefix("Blacklist", mObject + "." + mTarget, 2);
     }
 
     bool ChatPlugin::isTitle(Player& player, const std::string& text) {

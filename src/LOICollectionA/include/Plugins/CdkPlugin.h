@@ -30,9 +30,10 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_API   void create(const std::string& id, int time, bool personal);
         LOICOLLECTION_A_API   void remove(const std::string& id);
-        
+
         LOICOLLECTION_A_API   void convert(Player& player, const std::string& id);
 
+        LOICOLLECTION_A_NDAPI bool has(const std::string& id);
         LOICOLLECTION_A_NDAPI bool isValid();
 
     public:

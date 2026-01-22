@@ -29,6 +29,8 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
+#include "LOICollectionA/include/Form/PaginatedForm.h"
+
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
@@ -187,13 +189,20 @@ namespace LOICollection::Plugins {
     void NoticePlugin::gui::contentRemoveInfo(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "notice.gui.error"));
+            
+            this->edit(player);
+            return;
+        }
+
         ll::form::ModalForm form(tr(mObjectLanguage, "notice.gui.title"), 
             fmt::format(fmt::runtime(tr(mObjectLanguage, "notice.gui.remove.content")), id),
             tr(mObjectLanguage, "notice.gui.remove.yes"), tr(mObjectLanguage, "notice.gui.remove.no")
         );
         form.sendTo(player, [this, id](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) mutable -> void {
             if (result != ll::form::ModalFormSelectedButton::Upper) 
-                return;
+                return this->edit(pl);
 
             this->mParent.remove(id);
 
@@ -204,15 +213,23 @@ namespace LOICollection::Plugins {
     void NoticePlugin::gui::contentRemove(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "notice.gui.title"), tr(mObjectLanguage, "notice.gui.label"));
-        for (const std::string& key : this->mParent.getDatabase()->keys()) {
-            form.appendButton(key, [this, key](Player& pl) {
-                this->contentRemoveInfo(pl, key);
-            });
-        }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->edit(pl);
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "notice.gui.title"),
+            tr(mObjectLanguage, "notice.gui.label"),
+            this->mParent.getDatabase()->keys()
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this](Player& pl, const std::string& response) -> void {
+            this->contentRemoveInfo(pl, response);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->edit(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void NoticePlugin::gui::edit(Player& player) {
@@ -259,8 +276,11 @@ namespace LOICollection::Plugins {
     }
 
     void NoticePlugin::gui::notice(Player& player, const std::string& id) {
-        if (!this->mParent.getDatabase()->has(id)) {
-            this->mParent.getLogger()->error("NoticeUI {} reading failed.", id);
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "notice.gui.error"));
+            
             return;
         }
 
@@ -282,13 +302,29 @@ namespace LOICollection::Plugins {
         });
 
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-        ll::form::SimpleForm form(tr(mObjectLanguage, "notice.gui.title"), tr(mObjectLanguage, "notice.gui.label"));
+
+        std::vector<std::string> mNoticeNames;
+        std::vector<std::string> mNoticeIds;
+
         for (const auto& pair : mContent) {
-            form.appendButton(LOICollectionAPI::APIUtils::getInstance().translate(data.at(pair.first).value("title", ""), player), [this, id = pair.first](Player& pl) {
-                this->notice(pl, id);
-            });
+            mNoticeNames.push_back(LOICollectionAPI::APIUtils::getInstance().translate(data.at(pair.first).value("title", ""), player));
+            mNoticeIds.push_back(pair.first);
         }
-        form.sendTo(player);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "notice.gui.title"),
+            tr(mObjectLanguage, "notice.gui.label"),
+            mNoticeNames
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, mNoticeIds = std::move(mNoticeIds)](Player& pl, int index) -> void {
+            this->notice(pl, mNoticeIds.at(index));
+        });
+
+        form->sendPage(player, 1);
     }
 
     void NoticePlugin::registeryCommand() {
@@ -387,6 +423,13 @@ namespace LOICollection::Plugins {
 
         this->getDatabase()->remove(id);
         this->getDatabase()->save();
+    }
+
+    bool NoticePlugin::has(const std::string& id) {
+        if (!this->isValid())
+            return false;
+
+        return this->getDatabase()->has(id);
     }
 
     bool NoticePlugin::isClose(Player& player) {

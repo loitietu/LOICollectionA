@@ -40,6 +40,8 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI std::vector<std::string> getItems();
         LOICOLLECTION_A_NDAPI std::vector<std::string> getItems(Player& player);
 
+        LOICOLLECTION_A_NDAPI bool hasItem(const std::string& id);
+        LOICOLLECTION_A_NDAPI bool hasBlacklist(Player& player, const std::string& uuid);
         LOICOLLECTION_A_NDAPI bool isValid();
 
     public:

@@ -42,6 +42,8 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
+#include "LOICollectionA/include/Form/PaginatedForm.h"
+
 #include "LOICollectionA/include/APIUtils.h"
 #include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
@@ -141,30 +143,49 @@ namespace LOICollection::Plugins {
     void WalletPlugin::gui::transfer(Player& player, TransferType type) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), tr(mObjectLanguage, "wallet.gui.transfer.label1"));
+        std::vector<std::string> mPlayerNames;
+        std::vector<std::string> mPlayerUuids;
+
         switch (type) {
-            case TransferType::online:
-                ll::service::getLevel()->forEachPlayer([this, &form](Player& mTarget) -> bool {
+            case TransferType::online: {
+                ll::service::getLevel()->forEachPlayer([&mPlayerNames, &mPlayerUuids](Player& mTarget) -> bool {
                     if (mTarget.isSimulatedPlayer())
                         return true;
 
-                    form.appendButton(mTarget.getRealName(), [this, &mTarget](Player& pl) -> void  {
-                        this->content(pl, mTarget.getUuid().asString(), TransferType::online);
-                    });
+                    mPlayerNames.push_back(mTarget.getRealName());
+                    mPlayerUuids.push_back(mTarget.getUuid().asString());
                     return true;
                 });
+
                 break;
-            case TransferType::offline:
+            }
+            case TransferType::offline: {
                 for (auto& mTarget : this->mParent.getPlayerInfo()) {
-                    form.appendButton(mTarget.second, [this, uuid = mTarget.first](Player& pl) -> void {
-                        this->content(pl, uuid, TransferType::offline);
-                    });
+                    mPlayerNames.push_back(mTarget.second);
+                    mPlayerUuids.push_back(mTarget.first);
                 }
+
                 break;
+            }
         }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->open(pl);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "wallet.gui.title"),
+            tr(mObjectLanguage, "wallet.gui.transfer.label1"),
+            mPlayerNames
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, type, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
+            this->content(pl, mPlayerUuids.at(index), type);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->open(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void WalletPlugin::gui::redenvelope(Player& player) {
