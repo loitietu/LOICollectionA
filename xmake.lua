@@ -24,8 +24,13 @@ end
 
 set_version("1.10.0")
 
+includes("scripts/modpacker.lua")
+
 target("LOICollectionA")
-    add_rules("@levibuildscript/linkrule")
+    add_rules(
+        "@levibuildscript/linkrule",
+        "modpacker"
+    )
     add_cxflags(
         "/EHa",
         "/utf-8",
@@ -46,10 +51,10 @@ target("LOICollectionA")
         "LOICOLLECTION_A_EXPORTS"
     )
     set_configdir("$(builddir)/config")
-    add_configfiles("src/LOICollectionA/resources/Version.h.in")
+    add_configfiles("assets/resources/Version.h.in")
 
     if is_plat("windows") then
-        add_files("src/LOICollectionA/**.rc")
+        add_files("assets/resources/**.rc")
     end
 
     add_files("src/LOICollectionA/**.cpp")
@@ -60,7 +65,6 @@ target("LOICollectionA")
     remove_headerfiles(
         "src/LOICollectionA/frontend/(builtin/**.h)",
         "src/LOICollectionA/(utils/**.h)",
-        "src/LOICollectionA/(resources/**.h)",
         "src/LOICollectionA/*.h"
     )
 
@@ -94,17 +98,4 @@ target("LOICollectionA")
         target:set("configvar", "VERSION_BUILD", os.time())
         target:set("configvar", "COMPANY_NAME", data["tooth"])
         target:set("configvar", "FILE_DESCRIPTION", data["info"]["description"])
-    end)
-
-    after_build(function (target)
-        local plugin_packer = import("scripts.after_build")
-
-        local major, minor, patch = target:version():match("(%d+)%.(%d+)%.(%d+)")
-        local plugin_define = {
-            pluginName = target:name(),
-            pluginFile = path.filename(target:targetfile()),
-            pluginVersion = major .. "." .. minor .. "." .. patch,
-        }
-        
-        plugin_packer.pack_plugin(target, plugin_define)
     end)

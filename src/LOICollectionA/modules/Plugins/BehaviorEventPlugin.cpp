@@ -157,18 +157,28 @@ namespace LOICollection::Plugins {
             if (!config(BehaviorEventConfig::ModuleEnabled))
                 return;
             
-            Vec3 mPosition;
-            int mDimension;
+            Vec3 mPosition{};
+            int mDimension = 0;
 
-            if constexpr (requires (const T& t) {
+            if constexpr (requires(const T& t) {
                 { t.self() } -> std::convertible_to<Player&>;
             }) {
                 if (event.self().isSimulatedPlayer())
                     return;
 
-                mPosition = event.self().getPosition();
                 mDimension = event.self().getDimensionId();
-            } else {
+                
+                if constexpr (requires(const T& t) { { t.pos() }; }) {
+                    mPosition = event.pos();
+                } else {
+                    mPosition = event.self().getPosition();
+                }
+            } else if constexpr (requires(const T& t) { { t.pos() }; }) {
+                mPosition = event.pos();
+            } else if constexpr (requires(const T& t) {
+                { t.getPosition() };
+                { t.getDimensionId() };
+            }) {
                 mPosition = event.getPosition();
                 mDimension = event.getDimensionId();
             }
@@ -180,6 +190,7 @@ namespace LOICollection::Plugins {
 
                 if (!this->mImpl->mEvents.try_enqueue(mEvent)) {
                     this->getLogger()->error(fmt::runtime(tr({}, "console.log.error.containter")), "BehaviorEventPlugin");
+
                     return;
                 }
             }

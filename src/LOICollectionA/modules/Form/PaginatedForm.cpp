@@ -91,7 +91,10 @@ namespace LOICollection::Form {
     PaginatedForm::~PaginatedForm() = default;
 
     void PaginatedForm::refreshPage(Page& page) {
-        page.form = std::make_shared<ll::form::SimpleForm>(this->mImpl->mTitle, this->mImpl->mContent);
+        page.form = std::make_shared<ll::form::SimpleForm>(
+            this->mImpl->mTitle + " [" + std::to_string(page.page) + "/" + std::to_string(this->getNumPages()) + "]",
+            this->mImpl->mContent
+        );
 
         for (int i = 0; i < static_cast<int>(page.elements.size()); ++i) {
             auto element = page.elements.at(i);
