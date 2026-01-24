@@ -108,17 +108,21 @@ namespace LOICollection::Form {
             });
         }
 
-        page.form->appendDivider();
+        if (this->getNumPages() > 1)
+            page.form->appendDivider();
+        
         if (this->getCurrentPage() > 1) {
             page.form->appendButton(this->mImpl->mPreviousButton, [self = shared_from_this()](Player& pl) -> void {
                 self->sendPage(pl, self->getCurrentPage() - 1);
             });
         }
+
         if (this->getCurrentPage() < this->getNumPages()) {
             page.form->appendButton(this->mImpl->mNextButton, [self = shared_from_this()](Player& pl) -> void  {
                 self->sendPage(pl, self->getCurrentPage() + 1);
             });
         }
+        
         if (this->getNumPages() > 2) {
             page.form->appendButton(this->mImpl->mChooseButton, [self = shared_from_this()](Player& pl) -> void {
                 self->sendChoosedPage(pl);
