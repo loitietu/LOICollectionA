@@ -207,11 +207,11 @@ namespace LOICollection::Plugins {
                     break;
 
                 SQLiteStorageTransaction transaction(*this->getDatabase());
-
                 auto connection = transaction.connection();
+
                 for (const auto& it : this->mImpl->mCache) {
                     for (const auto& it2 : it.second)
-                        this->getDatabase()->set(connection, it2.first, it.first, std::to_string(it2.second));
+                        this->getDatabase()->set(connection, it2.first, it.first, "value", std::to_string(it2.second));
                 }
 
                 transaction.commit();
@@ -306,10 +306,7 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return "";
 
-        std::string mUuid = uuid;
-        std::replace(mUuid.begin(), mUuid.end(), '-', '_');
-
-        return this->mImpl->db2->get("OBJECT$" + mUuid, "name", "Unknown");
+        return this->getDatabase()->get("Language", uuid, "name", "Unknown");
     }
 
     std::vector<std::pair<std::string, int>> StatisticsPlugin::getRankingList(StatisticType type, int limit) {
@@ -336,7 +333,7 @@ namespace LOICollection::Plugins {
         if (mTable.empty())
             return {};
 
-        std::vector<std::string> mData = this->getDatabase()->listByPrefix(mTable, "");
+        std::vector<std::string> mData = this->getDatabase()->list(mTable);
 
         auto mSorted = mData
             | std::views::take(limit > 0 ? limit : static_cast<int>(mData.size()))
@@ -359,7 +356,7 @@ namespace LOICollection::Plugins {
             return this->mImpl->mCache[uuid][mTable];
 
         int result = SystemUtils::toInt(
-            this->getDatabase()->get(mTable, uuid, "0")
+            this->getDatabase()->get(mTable, uuid, "value", "0")
         );
 
         this->mImpl->mCache[uuid][mTable] = result;
@@ -425,13 +422,27 @@ namespace LOICollection::Plugins {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        this->getDatabase()->create("OnlineTime");
-        this->getDatabase()->create("Kill");
-        this->getDatabase()->create("Death");
-        this->getDatabase()->create("Place");
-        this->getDatabase()->create("Destroy");
-        this->getDatabase()->create("Respawn");
-        this->getDatabase()->create("Joins");
+        this->getDatabase()->create("OnlineTime", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("value");
+        });
+        this->getDatabase()->create("Kill", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("value");
+        });
+        this->getDatabase()->create("Death", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("value");
+        });
+        this->getDatabase()->create("Place", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("value");
+        });
+        this->getDatabase()->create("Destroy", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("value");
+        });
+        this->getDatabase()->create("Respawn", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("value");
+        });
+        this->getDatabase()->create("Joins", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("value");
+        });
 
         this->registeryCommand();
         this->listenEvent();

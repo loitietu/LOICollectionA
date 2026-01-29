@@ -104,10 +104,7 @@ namespace LOICollection::Plugins {
         form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) mutable -> void {
             if (!dt) return;
 
-            std::string mObject = pl.getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-            this->mParent.mImpl->db2->set("OBJECT$" + mObject, "Notice_Toggle1", 
+            this->mParent.mImpl->db2->set("Notice", pl.getUuid().asString(), "close", 
                 std::get<uint64>(dt->at("Toggle1")) ? "true" : "false"
             );
         });
@@ -375,10 +372,15 @@ namespace LOICollection::Plugins {
                 return;
 
             std::string mObject = event.self().getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-            if (!this->mImpl->db2->has("OBJECT$" + mObject, "Notice_Toggle1"))
-                this->mImpl->db2->set("OBJECT$" + mObject, "Notice_Toggle1", "false");
+            if (!this->mImpl->db2->has("Notice", mObject)) {
+                std::unordered_map<std::string, std::string> mData = {
+                    { "name", event.self().getRealName() },
+                    { "close", "false" }
+                };
+
+                this->mImpl->db2->set("Notice", mObject, mData);
+            }
             
             if (this->isClose(event.self()))
                 return;
@@ -437,12 +439,11 @@ namespace LOICollection::Plugins {
             return false;
 
         std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         if (this->mImpl->CloseCache.contains(mObject))
             return *this->mImpl->CloseCache.get(mObject).value();
 
-        bool result = this->mImpl->db2->get("OBJECT$" + mObject, "Notice_Toggle1") == "true";
+        bool result = this->mImpl->db2->get("Notice", mObject, "close", "false") == "true";
 
         this->mImpl->CloseCache.put(mObject, result);
 
@@ -485,6 +486,11 @@ namespace LOICollection::Plugins {
     bool NoticePlugin::registry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
+
+        this->mImpl->db2->create("Notice", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("close");
+        });
 
         this->registeryCommand();
         this->listenEvent();

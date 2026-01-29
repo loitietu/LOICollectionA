@@ -314,15 +314,20 @@ namespace LOICollection::Plugins {
                 return;
 
             std::string mObject = event.self().getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
             
-            if (!this->mImpl->db->has("OBJECT$" + mObject, "Wallet_Score"))
-                this->mImpl->db->set("OBJECT$" + mObject, "Wallet_Score", "0");
+            if (!this->mImpl->db->has("Wallet", mObject)) {
+                std::unordered_map<std::string, std::string> mData = {
+                    { "name", event.self().getRealName() },
+                    { "score", "0" }
+                };
 
-            if (int mScore = SystemUtils::toInt(this->mImpl->db->get("OBJECT$" + mObject, "Wallet_Score"), 0); mScore > 0) {
+                this->mImpl->db->set("Wallet", mObject, mData);
+            }
+
+            if (int mScore = SystemUtils::toInt(this->mImpl->db->get("Wallet", mObject, "score", "0"), 0); mScore > 0) {
                 ScoreboardUtils::addScore(event.self(), this->mImpl->options.TargetScoreboard, mScore);
 
-                this->mImpl->db->set("OBJECT$" + mObject, "Wallet_Score", "0");
+                this->mImpl->db->set("Wallet", mObject, "score", "0");
             }
         });
         this->mImpl->PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>([this](ll::event::PlayerChatEvent& event) mutable -> void {
@@ -386,10 +391,7 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return "";
 
-        std::string mUuid = uuid;
-        std::replace(mUuid.begin(), mUuid.end(), '-', '_');
-
-        return this->mImpl->db->get("OBJECT$" + mUuid, "name", "Unknown");
+        return this->mImpl->db->get("Wallet", uuid, "name", "Unknown");
     }
 
     std::vector<std::pair<std::string, std::string>> WalletPlugin::getPlayerInfo() {
@@ -399,14 +401,10 @@ namespace LOICollection::Plugins {
         std::vector<std::pair<std::string, std::string>> mResult;
 
         SQLiteStorageTransaction transaction(*this->mImpl->db, true);
-
         auto connection = transaction.connection();
-        for (const std::string& mObject : this->mImpl->db->list(connection)) {
-            std::string mUuid = mObject.substr(mObject.find('$') + 1);
-            std::replace(mUuid.begin(), mUuid.end(), '_', '-');
 
-            mResult.emplace_back(mUuid, this->mImpl->db->get(connection, mObject, "name", "Unknown"));
-        }
+        for (const std::string& mObject : this->mImpl->db->list(connection))
+            mResult.emplace_back(mObject, this->mImpl->db->get(connection, "Wallet", mObject, "name", "Unknown"));
 
         transaction.commit();
 
@@ -419,15 +417,12 @@ namespace LOICollection::Plugins {
 
         if (Player* mObject = ll::service::getLevel()->getPlayer(mce::UUID::fromString(target)); mObject) {
             ScoreboardUtils::addScore(*mObject, this->mImpl->options.TargetScoreboard, score);
+            
             return;
         }
-
-        std::string mObject = target;
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-        int mWalletScore = SystemUtils::toInt(this->mImpl->db->get("OBJECT$" + mObject, "Wallet_Score"), 0);
-
-        this->mImpl->db->set("OBJECT$" + mObject, "Wallet_Score", std::to_string(mWalletScore + score));
+        
+        int mWalletScore = SystemUtils::toInt(this->mImpl->db->get("Wallet", target, "score", "0"));
+        this->mImpl->db->set("Wallet", target, "score", std::to_string(mWalletScore + score));
     }
 
     void WalletPlugin::redenvelope(Player& player, const std::string& key, int score, int count) {
@@ -507,6 +502,11 @@ namespace LOICollection::Plugins {
     bool WalletPlugin::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
+
+        this->mImpl->db->create("Wallet", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("score");
+        });
         
         this->registeryCommand();
         this->listenEvent();

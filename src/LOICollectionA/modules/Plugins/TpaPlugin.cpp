@@ -109,10 +109,7 @@ namespace LOICollection::Plugins {
         form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
             if (!dt) return this->setting(pl);
 
-            std::string mObject = pl.getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
-            
-            this->mParent.mImpl->db2->set("OBJECT$" + mObject, "Tpa_Toggle1",
+            this->mParent.mImpl->db2->set("Tpa", pl.getUuid().asString(), "invite",
                 std::get<uint64>(dt->at("Toggle1")) ? "true" : "false"
             );
         });
@@ -128,14 +125,14 @@ namespace LOICollection::Plugins {
             return;
         }
 
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->get("Blacklist", target);
 
         std::string mObjectLabel = tr(mObjectLanguage, "tpa.gui.setting.blacklist.set.label");
         ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), 
-            fmt::format(fmt::runtime(mObjectLabel), target,
-                this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_NAME", "None"),
-                SystemUtils::toFormatTime(this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None")
+            fmt::format(fmt::runtime(mObjectLabel),
+                mData.at("target"),
+                mData.at("name"),
+                SystemUtils::toFormatTime(mData.at("time"), "None")
             )
         );
         form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.set.remove"), [this, target](Player& pl) -> void {
@@ -245,19 +242,16 @@ namespace LOICollection::Plugins {
         );
         form.sendTo(target, [this, type, &player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
             if (result == ll::form::ModalFormSelectedButton::Upper) {
-                std::string logString = tr({}, "tpa.log1");
-
                 if (type == TpaType::tpa) {
                     player.teleport(pl.getPosition(), pl.getDimensionId());
                     
-                    logString = fmt::format(fmt::runtime(logString), pl.getRealName(), player.getRealName());
-                } else {
-                    pl.teleport(player.getPosition(), player.getDimensionId());
-                    
-                    logString = fmt::format(fmt::runtime(logString), player.getRealName(), pl.getRealName());
+                    this->mParent.getLogger()->info(fmt::format(fmt::runtime(tr({}, "tpa.log1")), pl.getRealName(), player.getRealName()));
+                    return;
                 }
 
-                this->mParent.getLogger()->info(logString);
+                pl.teleport(player.getPosition(), player.getDimensionId());
+                
+                this->mParent.getLogger()->info(fmt::format(fmt::runtime(tr({}, "tpa.log1")), player.getRealName(), pl.getRealName()));
                 return;
             }
             
@@ -399,10 +393,15 @@ namespace LOICollection::Plugins {
                 return;
 
             std::string mObject = event.self().getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
-            
-            if (!this->mImpl->db2->has("OBJECT$" + mObject, "Tpa_Toggle1"))
-                this->mImpl->db2->set("OBJECT$" + mObject, "Tpa_Toggle1", "false");
+
+            if (!this->mImpl->db2->has("Tpa", mObject)) {
+                std::unordered_map<std::string, std::string> mData = {
+                    { "name", event.self().getRealName() },
+                    { "invite", "false" }
+                };
+
+                this->mImpl->db2->set("Tpa", mObject, mData);
+            }
         });
     }
 
@@ -417,11 +416,16 @@ namespace LOICollection::Plugins {
 
         std::string mObject = player.getUuid().asString();
         std::string mTargetObject = target.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
+        std::string mTismestamp = SystemUtils::getCurrentTimestamp();
 
-        this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
-        this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
+        std::unordered_map<std::string, std::string> mData = {
+            { "name", target.getRealName() },
+            { "target", mTargetObject },
+            { "author", mObject },
+            { "time", SystemUtils::getNowTime("%Y%m%d%H%M%S") }
+        };
+
+        this->getDatabase()->set("Blacklist", mTismestamp, mData);
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "tpa.log2"), player)), mTargetObject);
 
@@ -434,16 +438,26 @@ namespace LOICollection::Plugins {
     void TpaPlugin::delBlacklist(Player& player, const std::string& target) {
         if (!this->isValid()) 
             return;
-        
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-        if (this->getDatabase()->hasByPrefix("Blacklist", mObject + "." + target, 2))
-            this->getDatabase()->delByPrefix("Blacklist", mObject + "." + target);
+        if (!this->hasBlacklist(player, target)) {
+            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "TpaPlugin");
+
+            return;
+        }
+        
+        std::string mId = this->getDatabase()->find("Blacklist", {
+            { "name", target },
+            { "author", player.getUuid().asString() }
+        }, "", SQLiteStorage::FindCondition::AND);
+
+        if (mId.empty())
+            return;
+
+        this->getDatabase()->del("Blacklist", mId);
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "tpa.log3"), player)), target);
 
-        this->mImpl->BlacklistCache.update(mObject, [target](std::shared_ptr<std::vector<std::string>> mList) -> void {
+        this->mImpl->BlacklistCache.update(player.getUuid().asString(), [target](std::shared_ptr<std::vector<std::string>> mList) -> void {
             mList->erase(std::remove(mList->begin(), mList->end(), target), mList->end());
         });
     }
@@ -453,35 +467,26 @@ namespace LOICollection::Plugins {
             return {};
 
         std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         if (this->mImpl->BlacklistCache.contains(mObject))
             return *this->mImpl->BlacklistCache.get(mObject).value();
-        
-        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Blacklist", mObject + ".%\\_NAME");
 
-        std::vector<std::string> mResult(mKeys.size());
-        std::transform(mKeys.begin(), mKeys.end(), mResult.begin(), [](const std::string& mKey) -> std::string {
-            size_t mPos = mKey.find('.');
-            size_t mPos2 = mKey.find_last_of('_');
-            return (mPos != std::string::npos && mPos2 != std::string::npos && mPos < mPos2) ? mKey.substr(mPos + 1, mPos2 - mPos - 1) : "";
-        });
+        std::vector<std::string> mKeys = this->getDatabase()->find("Blacklist", {
+            { "author", mObject }
+        }, SQLiteStorage::FindCondition::AND);
 
-        this->mImpl->BlacklistCache.put(mObject, mResult);
-
-        return mResult;
+        this->mImpl->BlacklistCache.put(mObject, mKeys);
+        return mKeys;
     }
 
     bool TpaPlugin::hasBlacklist(Player& player, const std::string& uuid) {
         if (!this->isValid())
             return false;
 
-        std::string mTarget = uuid;
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        std::replace(mTarget.begin(), mTarget.end(), '-', '_');
-
-        return this->getDatabase()->hasByPrefix("Blacklist", mObject + "." + mTarget, 2);
+        return !this->getDatabase()->find("Blacklist", {
+            { "target", uuid },
+            { "author", player.getUuid().asString() }
+        }, "", SQLiteStorage::FindCondition::AND).empty();
     }
 
     bool TpaPlugin::isInvite(Player& player) {
@@ -489,15 +494,13 @@ namespace LOICollection::Plugins {
             return false;
 
         std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         if (this->mImpl->InviteCache.contains(mObject))
             return *this->mImpl->InviteCache.get(mObject).value();
         
-        bool result = this->mImpl->db2->get("OBJECT$" + mObject, "Tpa_Toggle1") == "true";
+        bool result = this->mImpl->db2->get("Tpa", mObject, "invite", "false") == "true";
 
         this->mImpl->InviteCache.put(mObject, result);
-
         return result;
     }
 
@@ -538,7 +541,17 @@ namespace LOICollection::Plugins {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        this->getDatabase()->create("Blacklist");
+        this->mImpl->db2->create("Tpa", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("invite");
+        });
+
+        this->getDatabase()->create("Blacklist", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("target");
+            ctor("author");
+            ctor("time");
+        });
         
         this->registeryCommand();
         this->listenEvent();

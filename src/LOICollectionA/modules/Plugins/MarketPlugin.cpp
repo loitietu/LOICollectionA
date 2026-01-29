@@ -50,6 +50,7 @@
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
+#include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"
 
@@ -61,6 +62,8 @@ using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
     struct MarketPlugin::Impl {
+        LRUKCache<std::string, std::vector<std::string>> BlacklistCache;
+
         std::atomic<bool> mRegistered{ false };
 
         Config::C_Market options;
@@ -70,6 +73,8 @@ namespace LOICollection::Plugins {
         std::shared_ptr<ll::io::Logger> logger;
         
         ll::event::ListenerPtr PlayerJoinEventListener;
+
+        Impl() : BlacklistCache(100, 100) {}
     };
 
     MarketPlugin::MarketPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
@@ -98,19 +103,19 @@ namespace LOICollection::Plugins {
             return;
         }
         
-        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->getByPrefix("Item", id + ".");
+        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->get("Item", id);
 
         std::string mIntroduce = tr(mObjectLanguage, "market.gui.sell.introduce");
         ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), 
             fmt::format(fmt::runtime(mIntroduce), 
-                mData.at(id + ".INTRODUCE"),
-                mData.at(id + ".SCORE"),
-                mData.at(id + ".DATA"),
-                mData.at(id + ".PLAYER_NAME")
+                mData.at("introduce"),
+                mData.at("score"),
+                mData.at("data"),
+                mData.at("player_name")
             )
         );
         form.appendButton(tr(mObjectLanguage, "market.gui.sell.buy.button1"), [this, id, mObjectLanguage, mData](Player& pl) mutable -> void {
-            int mScore = SystemUtils::toInt(mData.at(id + ".SCORE"), 0);
+            int mScore = SystemUtils::toInt(mData.at("score"), 0);
 
             std::string mScoreboard = this->mParent.mImpl->options.TargetScoreboard;
             if (ScoreboardUtils::getScore(pl, mScoreboard) < mScore) {
@@ -120,33 +125,33 @@ namespace LOICollection::Plugins {
 
             ScoreboardUtils::reduceScore(pl, mScoreboard, mScore);
 
-            ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at(id + ".DATA"))->mTags);
+            ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at("data"))->mTags);
             InventoryUtils::giveItem(pl, mItemStack, static_cast<int>(mItemStack.mCount));
 
             pl.refreshInventory();
 
-            std::string mObject = mData.at(id + ".PLAYER_UUID");
+            std::string mObject = mData.at("player_uuid");
             if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer) {
-                mPlayer->sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips1")), mData.at(id + ".NAME")));
+                mPlayer->sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips1")), mData.at("name")));
 
                 ScoreboardUtils::addScore(*mPlayer, mScoreboard, mScore);
             } else {
-                int mMarketScore = SystemUtils::toInt(this->mParent.mImpl->db2->get(mObject, "Market_Score"), 0);
+                int mMarketScore = SystemUtils::toInt(this->mParent.mImpl->db2->get("Market", mObject, "Score", "0"), 0);
 
-                this->mParent.mImpl->db2->set(mObject, "Market_Score", std::to_string(mMarketScore + mScore));
+                this->mParent.mImpl->db2->set("Market", mObject, "Score", std::to_string(mMarketScore + mScore));
             }
 
             this->mParent.delItem(id);
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), pl)), mData.at(id + ".NAME"));
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), pl)), mData.at("name"));
         });
         if (player.getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors) {
             form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [this, id, mObjectLanguage, mData](Player& pl) -> void {
-                pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips2")), mData.at(id + ".NAME")));
+                pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips2")), mData.at("name")));
                 
                 this->mParent.delItem(id);
 
-                this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log3"), pl)), mData.at(id + ".NAME"));
+                this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log3"), pl)), mData.at("name"));
             });
         }
         form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
@@ -164,28 +169,28 @@ namespace LOICollection::Plugins {
             return;
         }
 
-        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->getByPrefix("Item", id + ".");
+        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->get("Item", id);
 
         std::string mIntroduce = tr(mObjectLanguage, "market.gui.sell.introduce");
         ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), 
             fmt::format(fmt::runtime(mIntroduce),
-                mData.at(id + ".INTRODUCE"),
-                mData.at(id + ".SCORE"),
-                mData.at(id + ".DATA"),
-                mData.at(id + ".PLAYER_NAME")
+                mData.at("introduce"),
+                mData.at("score"),
+                mData.at("data"),
+                mData.at("player_name")
             )
         );
         form.appendButton(tr(mObjectLanguage, "market.gui.sell.sellItemContent.button1"), [this, id, mObjectLanguage, mData](Player& pl) -> void {
-            pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips2")), mData.at(id + ".NAME")));
+            pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips2")), mData.at("name")));
             
-            ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at(id + ".DATA"))->mTags);
+            ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at("data"))->mTags);
             InventoryUtils::giveItem(pl, mItemStack, static_cast<int>(mItemStack.mCount));
 
             pl.refreshInventory();
 
             this->mParent.delItem(id);
 
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log3"), pl)), mData.at(id + ".NAME"));
+            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log3"), pl)), mData.at("name"));
         });
         form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
             if (id == -1) this->sellItemContent(pl);
@@ -278,11 +283,8 @@ namespace LOICollection::Plugins {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
         std::vector<std::pair<std::string, std::string>> mItems;
-        for (std::string& item : this->mParent.getItems(player)) {
-            std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->getByPrefix("Item", item + ".");
-
-            mItems.emplace_back(mData.at(item + ".NAME"), mData.at(item + ".ICON"));
-        }
+        for (auto& item : this->mParent.getDatabase()->get("Item", this->mParent.getItems(player)))
+            mItems.emplace_back(item.second.at("name"), item.second.at("icon"));
 
         std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
             tr(mObjectLanguage, "market.gui.title"),
@@ -313,14 +315,14 @@ namespace LOICollection::Plugins {
             return;
         }
 
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->get("Blacklist", target);
 
         std::string mObjectLabel = tr(mObjectLanguage, "market.gui.sell.blacklist.set.label");
         ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), 
-            fmt::format(fmt::runtime(mObjectLabel), target,
-                this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_NAME", "None"),
-                SystemUtils::toFormatTime(this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None")
+            fmt::format(fmt::runtime(mObjectLabel),
+                mData.at("target"),
+                mData.at("name"),
+                SystemUtils::toFormatTime(mData.at("time"), "None")
             )
         );
         form.appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist.set.remove"), [this, target](Player& pl) -> void {
@@ -394,7 +396,7 @@ namespace LOICollection::Plugins {
 
         form->appendDivider();
         form->appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist.add"), "textures/ui/editIcon", [this, mObjectLanguage](Player& pl) -> void {
-            int mBlacklistCount = static_cast<int>(this->mParent.getBlacklist(pl).size());
+            int mBlacklistCount = this->mParent.mImpl->options.BlacklistUpload;
             if (static_cast<int>(this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
                 pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips5")), mBlacklistCount));
                 
@@ -435,17 +437,14 @@ namespace LOICollection::Plugins {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
         std::string mUuid = player.getUuid().asString();
-        std::replace(mUuid.begin(), mUuid.end(), '-', '_');
         
         std::vector<std::pair<std::string, std::string>> mItems;
-        for (std::string& item : this->mParent.getItems()) {
-            std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->getByPrefix("Item", item + ".");
-
-            std::vector<std::string> mList = this->mParent.getBlacklist(mData.at(item + ".PLAYER_UUID"));
+        for (auto& item : this->mParent.getDatabase()->get("Item", this->mParent.getItems())) {
+            std::vector<std::string> mList = this->mParent.getBlacklist(item.second.at("player_uuid"));
             if (std::find(mList.begin(), mList.end(), mUuid) != mList.end())
                 continue;
 
-            mItems.emplace_back(mData.at(item + ".NAME"), mData.at(item + ".ICON"));
+            mItems.emplace_back(item.second.at("name"), item.second.at("icon"));
         }
 
         std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
@@ -496,15 +495,20 @@ namespace LOICollection::Plugins {
                 return;
 
             std::string mObject = event.self().getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
+            
+            if (!this->mImpl->db2->has("Market", mObject)) {
+                std::unordered_map<std::string, std::string> mData = {
+                    { "name", event.self().getRealName() },
+                    { "score", "0" }
+                };
 
-            if (!this->mImpl->db2->has("OBJECT$" + mObject, "Market_Score"))
-                this->mImpl->db2->set("OBJECT$" + mObject, "Market_Score", "0");
+                this->mImpl->db2->set("Market", mObject, mData);
+            }
 
-            if (int mScore = SystemUtils::toInt(this->mImpl->db2->get("OBJECT$" + mObject, "Market_Score"), 0); mScore > 0) {
+            if (int mScore = SystemUtils::toInt(this->mImpl->db2->get("Market", mObject, "score"), 0); mScore > 0) {
                 ScoreboardUtils::addScore(event.self(), this->mImpl->options.TargetScoreboard, mScore);
 
-                this->mImpl->db2->set("OBJECT$" + mObject, "Market_Score", "0");
+                this->mImpl->db2->set("Market", mObject, "score", "0");
             }
         });
     }
@@ -518,27 +522,25 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return;
 
+        std::string mTimestamp = SystemUtils::getCurrentTimestamp();
         std::string mObject = player.getUuid().asString();
         std::string mTargetObject = target.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
 
-        this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
-        this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
+        std::unordered_map<std::string, std::string> mData = {
+            { "name", target.getRealName() },
+            { "target", mTargetObject },
+            { "author", mObject },
+            { "time", mTimestamp }
+        };
+
+        this->getDatabase()->set("Blacklist", mTimestamp, mData);
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log4"), player)), mTargetObject);
-    }
 
-    void MarketPlugin::delBlacklist(Player& player, const std::string& target) {
-        if (!this->isValid())
-            return;
-
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-        this->getDatabase()->delByPrefix("Blacklist", target + ".");
-
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log5"), player)), target);
+        if (this->mImpl->BlacklistCache.contains(mObject))
+            this->mImpl->BlacklistCache.update(mObject, [mTargetObject](std::shared_ptr<std::vector<std::string>> mList) -> void {
+                mList->push_back(mTargetObject);
+            });
     }
 
     void MarketPlugin::addItem(Player& player, ItemStack& item, const std::string& name, const std::string& icon, const std::string& intr, int score) {
@@ -547,52 +549,80 @@ namespace LOICollection::Plugins {
 
         std::string mTimestamp = SystemUtils::getCurrentTimestamp();
 
-        SQLiteStorageTransaction transaction(*this->getDatabase());
-        auto connection = transaction.connection();
+        std::unordered_map<std::string, std::string> mData = {
+            { "name", name },
+            { "icon", icon },
+            { "introduce", intr },
+            { "score", std::to_string(score) },
+            { "data", item.save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0) },
+            { "player_name", player.getRealName() },
+            { "player_uuid", player.getUuid().asString() }
+        };
 
-        this->getDatabase()->set(connection, "Item", mTimestamp + ".NAME", name);
-        this->getDatabase()->set(connection, "Item", mTimestamp + ".ICON", icon);
-        this->getDatabase()->set(connection, "Item", mTimestamp + ".INTRODUCE", intr);
-        this->getDatabase()->set(connection, "Item", mTimestamp + ".SCORE", std::to_string(score));
-        this->getDatabase()->set(connection, "Item", mTimestamp + ".DATA", item.save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0));
-        this->getDatabase()->set(connection, "Item", mTimestamp + ".PLAYER_NAME", player.getRealName());
-        this->getDatabase()->set(connection, "Item", mTimestamp + ".PLAYER_UUID", player.getUuid().asString());
-        
-        transaction.commit();
+        this->getDatabase()->set("Item", mTimestamp, mData);
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), player)), name);
+    }
+
+    void MarketPlugin::delBlacklist(Player& player, const std::string& target) {
+        if (!this->isValid())
+            return;
+
+        if (!this->hasBlacklist(player, target)) {
+            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "MarketPlugin");
+
+            return;
+        }
+
+        std::string mId = this->getDatabase()->find("Blacklist", {
+            { "target", target },
+            { "author", player.getUuid().asString() }
+        }, "", SQLiteStorage::FindCondition::AND);
+
+        if (mId.empty())
+            return;
+
+        this->getDatabase()->del("Blacklist", mId);
+
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log5"), player)), target);
+
+        this->mImpl->BlacklistCache.update(player.getUuid().asString(), [target](std::shared_ptr<std::vector<std::string>> mList) -> void {
+            mList->erase(std::remove(mList->begin(), mList->end(), target), mList->end());
+        });
     }
 
     void MarketPlugin::delItem(const std::string& id) {
         if (!this->isValid())
             return;
 
-        this->getDatabase()->delByPrefix("Item", id + ".");
+        if (!this->hasItem(id)) {
+            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "MarketPlugin");
+
+            return;
+        }
+
+        this->getDatabase()->del("Item", id);
     }
 
     std::vector<std::string> MarketPlugin::getBlacklist(Player& player) {
         if (!this->isValid())
             return {};
 
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-        return this->getBlacklist(mObject);
+        return this->getBlacklist(player.getUuid().asString());
     }
 
-    std::vector<std::string> MarketPlugin::getBlacklist(std::string target) {
+    std::vector<std::string> MarketPlugin::getBlacklist(const std::string& target) {
         if (!this->isValid())
             return {};
 
-        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Blacklist", target + ".%\\_NAME");
+        if (this->mImpl->BlacklistCache.contains(target))
+            return *this->mImpl->BlacklistCache.get(target).value();
 
-        std::vector<std::string> mResult(mKeys.size());
-        std::transform(mKeys.begin(), mKeys.end(), mResult.begin(), [](const std::string& mKey) -> std::string {
-            size_t mPos = mKey.find('.');
-            size_t mPos2 = mKey.find_last_of('_');
-            return (mPos != std::string::npos && mPos2 != std::string::npos && mPos < mPos2) ? mKey.substr(mPos + 1, mPos2 - mPos - 1) : "";
-        });
+        std::vector<std::string> mResult = this->getDatabase()->find("Blacklist", {
+            { "target", target }
+        }, SQLiteStorage::FindCondition::AND);
 
+        this->mImpl->BlacklistCache.put(target, mResult);
         return mResult;
     }
 
@@ -600,59 +630,43 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return {};
 
-        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Item", "%.NAME");
-
-        std::vector<std::string> mResult(mKeys.size());
-        std::transform(mKeys.begin(), mKeys.end(), mResult.begin(), [](const std::string& mKey) -> std::string {
-            size_t mPos = mKey.find('.');
-            return mPos != std::string::npos ? mKey.substr(0, mPos) : "";
-        });
-
-        return mResult;
+        return this->getDatabase()->list("Item");
     }
 
     std::vector<std::string> MarketPlugin::getItems(Player& player) {
         if (!this->isValid())
             return {};
 
-        std::string mObject = player.getUuid().asString();
-
-        std::vector<std::string> mKeys = this->getItems();
-
-        std::unordered_map<size_t, std::vector<std::string>> mResultLocal;
-        std::for_each(mKeys.begin(), mKeys.end(), [this, &mResultLocal, mObject](const std::string& mItem) -> void {
-            if (this->getDatabase()->get("Item", mItem + ".PLAYER_UUID") != mObject)
-                return;
-
-            size_t id = std::hash<std::thread::id>()(std::this_thread::get_id());
-
-            mResultLocal[id].push_back(mItem);
-        });
-
-        std::vector<std::string> mResult;
-        for (auto& mLocal : mResultLocal)
-            mResult.insert(mResult.end(), mLocal.second.begin(), mLocal.second.end());
-
-        return mResult;
+        return this->getDatabase()->find("Item", {
+            { "player_uuid", player.getUuid().asString() }
+        }, SQLiteStorage::FindCondition::AND);
     }
 
     bool MarketPlugin::hasItem(const std::string& id) {
         if (!this->isValid())
             return false;
 
-        return this->getDatabase()->hasByPrefix("Item", id + ".", 7);
+        return !this->getDatabase()->find("Item", {
+            { "name", id }
+        }, "", SQLiteStorage::FindCondition::AND).empty();
     }
 
     bool MarketPlugin::hasBlacklist(Player& player, const std::string& uuid) {
         if (!this->isValid())
             return false;
 
-        std::string mTarget = uuid;
         std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        std::replace(mTarget.begin(), mTarget.end(), '-', '_');
 
-        return this->getDatabase()->hasByPrefix("Blacklist", mObject + "." + mTarget, 2);
+        if (this->mImpl->BlacklistCache.contains(mObject)) {
+            auto mList = this->mImpl->BlacklistCache.get(mObject).value();
+
+            return std::find(mList->begin(), mList->end(), uuid) != mList->end();
+        }
+
+        return !this->getDatabase()->find("Blacklist", {
+            { "target", uuid },
+            { "author", mObject }
+        }, "", SQLiteStorage::FindCondition::AND).empty();
     }
 
     bool MarketPlugin::isValid() {
@@ -692,8 +706,26 @@ namespace LOICollection::Plugins {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        this->getDatabase()->create("Item");
-        this->getDatabase()->create("Blacklist");
+        this->mImpl->db2->create("Market", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("score");
+        });
+
+        this->getDatabase()->create("Item", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("icon");
+            ctor("introduce");
+            ctor("score");
+            ctor("data");
+            ctor("player_name");
+            ctor("player_uuid");
+        });
+        this->getDatabase()->create("Blacklist", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("target");
+            ctor("author");
+            ctor("time");
+        });
         
         this->registeryCommand();
         this->listenEvent();

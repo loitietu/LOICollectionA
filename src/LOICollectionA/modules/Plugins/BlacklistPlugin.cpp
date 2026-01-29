@@ -4,7 +4,6 @@
 #include <ranges>
 #include <string>
 #include <algorithm>
-#include <execution>
 #include <filesystem>
 #include <unordered_map>
 
@@ -123,13 +122,15 @@ namespace LOICollection::Plugins {
             return;
         }
 
+        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->get("Blacklist", id);
+
         std::string mObjectLabel = tr(mObjectLanguage, "blacklist.gui.info.label");
         ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.remove.title"), 
             fmt::format(fmt::runtime(mObjectLabel), id, 
-                this->mParent.getDatabase()->get("Blacklist", id + ".NAME", "None"), 
-                this->mParent.getDatabase()->get("Blacklist", id + ".CAUSE", "None"), 
-                SystemUtils::toFormatTime(this->mParent.getDatabase()->get("Blacklist", id + ".SUBTIME", "None"), "None"), 
-                SystemUtils::toFormatTime(this->mParent.getDatabase()->get("Blacklist", id + ".TIME", "None"), "None")
+                mData.at("name"),
+                mData.at("cause"),
+                SystemUtils::toFormatTime(mData.at("subtime"), "None"),
+                SystemUtils::toFormatTime(mData.at("time"), "None")
             )
         );
         form.appendButton(tr(mObjectLanguage, "blacklist.gui.info.remove"), [this, id](Player&) -> void {
@@ -249,7 +250,7 @@ namespace LOICollection::Plugins {
         });
         command.overload<operation>().text("info").required("Object").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->getByPrefix("Blacklist", param.Object + ".");
+            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Blacklist", param.Object);
             
             if (mEvent.empty())
                 return output.error(tr({}, "commands.blacklist.error.info"));
@@ -294,29 +295,25 @@ namespace LOICollection::Plugins {
             std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find_last_of(':'));
             std::string mClientId = packet.mConnectionRequest->getDeviceId();
 
-            std::vector<std::string> mKeys = this->getBlacklists();
-            auto it = std::find_if(std::execution::par, mKeys.begin(), mKeys.end(), [&](const std::string& mId) -> bool {
-                return this->isBlacklist(mId, mUuid, mIp, mClientId);
-            });
-
-            std::string mId = it != mKeys.end() ? *it : "";
+            std::string mId = this->getDatabase()->find("Blacklist", {
+                { "data_uuid", mUuid },
+                { "data_ip", mIp },
+                { "data_clientid", mClientId }
+            }, "", SQLiteStorage::FindCondition::OR);
 
             if (mId.empty())
                 return;
 
-            std::unordered_map<std::string, std::string> mData = this->getDatabase()->getByPrefix("Blacklist", mId + ".");
+            std::unordered_map<std::string, std::string> mData = this->getDatabase()->get("Blacklist", mId);
 
-            if (SystemUtils::isPastOrPresent(mData.at(mId + ".TIME")))
+            if (SystemUtils::isPastOrPresent(mData.at("time")))
                 return this->delBlacklist(mId);
-
-            std::replace(mUuid.begin(), mUuid.end(), '-', '_');
 
             std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(mUuid), "blacklist.tips");
             ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
                 event.getNetworkIdentifier(), event.getSubClientId(), Connection::DisconnectFailReason::Unknown,
                 fmt::format(fmt::runtime(mObjectTips),
-                    SystemUtils::toFormatTime(mData.at(mId + ".TIME"), "None"),
-                    mData.at(mId + ".CAUSE")
+                    SystemUtils::toFormatTime(mData.at("time"), "None"), mData.at("cause")
                 ),
                 std::nullopt, false
             );
@@ -350,24 +347,23 @@ namespace LOICollection::Plugins {
         std::string mCause = cause.empty() ? "None" : cause;
         std::string mTismestamp = SystemUtils::getCurrentTimestamp();
 
-        SQLiteStorageTransaction transaction(*this->getDatabase());
-        auto connection = transaction.connection();
+        std::unordered_map<std::string, std::string> mData = {
+            { "name", player.getRealName() },
+            { "cause", mCause },
+            { "time", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "None") : "None" },
+            { "subtime", SystemUtils::getNowTime("%Y%m%d%H%M%S") },
+            { "data_uuid", player.getUuid().asString() },
+            { "data_ip", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':')) },
+            { "data_clientid", player.getConnectionRequest()->getDeviceId() }
+        };
 
-        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".NAME", player.getRealName());
-        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".CAUSE", mCause);
-        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "None") : "None");
-        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
-        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".DATA_UUID", player.getUuid().asString());
-        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".DATA_IP", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':')));
-        this->getDatabase()->set(connection, "Blacklist", mTismestamp + ".DATA_CLIENTID", player.getConnectionRequest()->getDeviceId());
-        
-        transaction.commit();
+        this->getDatabase()->set("Blacklist", mTismestamp, mData);
 
         std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(player), "blacklist.tips");
         ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
             player.getNetworkIdentifier(), player.getClientSubId(), Connection::DisconnectFailReason::Unknown,
             fmt::format(fmt::runtime(mObjectTips),
-                SystemUtils::toFormatTime(this->getDatabase()->get("Blacklist", mTismestamp + ".TIME"), "None"),
+                SystemUtils::toFormatTime(this->getDatabase()->get("Blacklist", mTismestamp, "time"), "None"),
                 mCause
             ),
             std::nullopt, false
@@ -380,7 +376,13 @@ namespace LOICollection::Plugins {
         if (!this->isValid()) 
             return;
 
-        this->getDatabase()->delByPrefix("Blacklist", id + ".");
+        if (!this->hasBlacklist(id)) {
+            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "BlacklistPlugin");
+
+            return;
+        }
+
+        this->getDatabase()->del("Blacklist", id);
 
         this->getLogger()->info(fmt::runtime(tr({}, "blacklist.log2")), id);
     }
@@ -389,48 +391,29 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return {};
 
-        std::string mUuid = player.getUuid().asString();
-        std::string mIp = player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':'));
-        std::string mClientId = player.getConnectionRequest()->getDeviceId();
-
-        std::vector<std::string> mKeys = this->getBlacklists();
-        auto it = std::find_if(std::execution::par, mKeys.begin(), mKeys.end(), [this, mUuid, mIp, mClientId](const std::string& mId) -> bool {
-            return this->isBlacklist(mId, mUuid, mIp, mClientId);
-        });
-
-        return it != mKeys.end() ? *it : "";
+        return this->getDatabase()->find("Blacklist", {
+            { "data_uuid", player.getUuid().asString() },
+            { "data_ip", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':')) },
+            { "data_clientid", player.getConnectionRequest()->getDeviceId() }
+        }, "", SQLiteStorage::FindCondition::OR);
     }
 
     std::vector<std::string> BlacklistPlugin::getBlacklists(int limit) {
         if (!this->isValid())
             return {};
 
-        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Blacklist", "%.NAME");
+        std::vector<std::string> mKeys = this->getDatabase()->list("Blacklist");
 
-        auto mView = mKeys
+        return mKeys
             | std::views::take(limit > 0 ? limit : static_cast<int>(mKeys.size()))
-            | std::views::transform([](const std::string& mKey) -> std::string {
-                size_t mPos = mKey.find('.');
-                return mPos != std::string::npos ? mKey.substr(0, mPos) : "";
-            });
-
-        return mView | std::ranges::to<std::vector<std::string>>();
+            | std::ranges::to<std::vector<std::string>>();
     }
 
     bool BlacklistPlugin::hasBlacklist(const std::string& id) {
         if (!this->isValid())
             return false;
 
-        return this->getDatabase()->hasByPrefix("Blacklist", id + ".", 7);
-    }
-
-    bool BlacklistPlugin::isBlacklist(const std::string& id, const std::string& uuid, const std::string& ip, const std::string& clientId) {
-        if (!this->isValid())
-            return false;
-
-        std::unordered_map<std::string, std::string> mData = this->getDatabase()->getByPrefix("Blacklist", id + ".");
-
-        return mData.at(id + ".DATA_UUID") == uuid || mData.at(id + ".DATA_IP") == ip || mData.at(id + ".DATA_CLIENTID") == clientId;
+        return this->getDatabase()->has("Blacklist", id);
     }
 
     bool BlacklistPlugin::isBlacklist(Player& player) {
@@ -477,7 +460,15 @@ namespace LOICollection::Plugins {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        this->getDatabase()->create("Blacklist");
+        this->getDatabase()->create("Blacklist", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("cause");
+            ctor("time");
+            ctor("subtime");
+            ctor("data_uuid");
+            ctor("data_ip");
+            ctor("data_clientid");
+        });
         
         this->registeryCommand();
         this->listenEvent();

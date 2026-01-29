@@ -8,6 +8,149 @@
 #include <unordered_map>
 
 template<typename Key, typename Value>
+class LRUCache {
+private:
+    struct CacheEntry {
+        std::shared_ptr<Value> mValue;
+        
+        explicit CacheEntry(std::shared_ptr<Value> val) : mValue(std::move(val)) {}
+    };
+
+    using EntryPtr = std::shared_ptr<CacheEntry>;
+    using ListIterator = typename std::list<Key>::iterator;
+
+    std::list<Key> mCaches;
+    std::unordered_map<Key, std::pair<EntryPtr, ListIterator>> mCacheMap;
+    size_t mCacheCapacity;
+
+    mutable std::shared_mutex mMutex;
+
+    void promote(const Key& key, std::pair<EntryPtr, ListIterator>& entryPair) {
+        if (mCaches.size() >= mCacheCapacity) {
+            Key mLastKey = mCaches.back();
+            mCacheMap.erase(mLastKey);
+            mCaches.pop_back();
+        }
+
+        mCaches.push_front(key);
+        mCacheMap[key] = { entryPair.first, mCaches.begin() };
+    }
+
+public:
+    explicit LRUCache(size_t cacheCapacity) : mCacheCapacity(cacheCapacity) {
+        mCacheMap.reserve(cacheCapacity);
+    }
+
+    std::optional<std::shared_ptr<Value>> get(const Key& key) {
+        std::unique_lock lock(mMutex);
+        
+        auto mCacheIt = mCacheMap.find(key);
+        if (mCacheIt != mCacheMap.end()) {
+            mCaches.erase(mCacheIt->second.second);
+            mCaches.push_front(key);
+
+            mCacheIt->second.second = mCaches.begin();
+
+            return mCacheIt->second.first->mValue;
+        }
+        
+        return std::nullopt;
+    }
+
+    void put(const Key& key, std::shared_ptr<Value> value) {
+        std::unique_lock lock(mMutex);
+        
+        auto mCacheIt = mCacheMap.find(key);
+        if (mCacheIt != mCacheMap.end()) {
+            mCacheIt->second.first->mValue =std::move(value);
+            mCaches.erase(mCacheIt->second.second);
+            mCaches.push_front(key);
+
+            mCacheIt->second.second = mCaches.begin();
+
+            return;
+        }
+        
+        auto entry = std::make_shared<CacheEntry>(std::move(value));
+        
+        if (mCaches.size() >= mCacheCapacity) {
+            Key mLastKey = mCaches.back();
+            mCacheMap.erase(mLastKey);
+            mCaches.pop_back();
+        }
+        
+        mCaches.push_front(key);
+        mCacheMap[key] = { entry, mCaches.begin() };
+    }
+
+    void put(const Key& key, Value value) {
+        put(key, std::make_shared<Value>(std::move(value)));
+    }
+    
+    bool update(const Key& key, std::function<void(std::shared_ptr<Value>)> modifier) {
+        std::unique_lock lock(mMutex);
+
+        auto mCacheIt = mCacheMap.find(key);
+        if (mCacheIt != mCacheMap.end()) {
+            modifier(mCacheIt->second.first->mValue);
+
+            mCaches.erase(mCacheIt->second.second);
+            mCaches.push_front(key);
+
+            mCacheIt->second.second = mCaches.begin();
+
+            return true;
+        }
+
+        return false;
+    }
+
+    bool contains(const Key& key) const {
+        std::shared_lock lock(mMutex);
+        
+        return mCacheMap.find(key) != mCacheMap.end();
+    }
+
+    bool erase(const Key& key) {
+        std::unique_lock lock(mMutex);
+        
+        bool found = false;
+        
+        auto mCacheIt = mCacheMap.find(key);
+        if (mCacheIt != mCacheMap.end()) {
+            mCaches.erase(mCacheIt->second.second);
+            mCacheMap.erase(mCacheIt);
+
+            found = true;
+        }
+        
+        return found;
+    }
+
+    void clear() {
+        std::unique_lock lock(mMutex);
+
+        mCaches.clear();
+        mCacheMap.clear();
+    }
+
+    size_t size() const {
+        std::shared_lock lock(mMutex);
+        return mCaches.size();
+    }
+
+    bool empty() const {
+        std::shared_lock lock(mMutex);
+        return mCaches.empty();
+    }
+
+    std::vector<Key> caches() const {
+        std::shared_lock lock(mMutex);
+        return std::vector<Key>(mCaches.begin(), mCaches.end());
+    }
+};
+
+template<typename Key, typename Value>
 class LRUKCache {
 private:
     struct CacheEntry {

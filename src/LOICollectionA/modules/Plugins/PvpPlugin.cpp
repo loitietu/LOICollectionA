@@ -131,10 +131,15 @@ namespace LOICollection::Plugins {
                 return;
 
             std::string mObject = event.self().getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
-            
-            if (!this->mImpl->db->has("OBJECT$" + mObject, "Pvp_Enable"))
-                this->mImpl->db->set("OBJECT$" + mObject, "Pvp_Enable", "false");
+
+            if (!this->mImpl->db->has("Pvp", mObject)) {
+                std::unordered_map<std::string, std::string> mData = {
+                    { "name", mObject },
+                    { "enable", "false" }
+                };
+
+                this->mImpl->db->set("Pvp", mObject, mData);
+            }
         });
         this->mImpl->PlayerHurtEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::PlayerHurtEvent>([this](LOICollection::ServerEvents::PlayerHurtEvent& event) mutable -> void {
             if (!event.getSource().isPlayer() || event.getSource().isSimulatedPlayer() || event.self().isSimulatedPlayer())
@@ -171,13 +176,11 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return;
         
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-        this->mImpl->db->set("OBJECT$" + mObject, "Pvp_Enable", (value ? "true" : "false"));
+        this->mImpl->db->set("Pvp", player.getUuid().asString(), "enable", (value ? "true" : "false"));
 
         if (value) {
             this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "pvp.log1"), player));
+
             return;
         }
         
@@ -189,15 +192,13 @@ namespace LOICollection::Plugins {
             return false;
 
         std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         if (this->mImpl->PvpCache.contains(mObject)) 
             return *this->mImpl->PvpCache.get(mObject).value();
 
-        bool result = this->mImpl->db->get("OBJECT$" + mObject, "Pvp_Enable") == "true";
+        bool result = this->mImpl->db->get("Pvp", mObject, "enable", "false") == "true";
 
         this->mImpl->PvpCache.put(mObject, result);
-
         return result;
     }
 
@@ -234,6 +235,11 @@ namespace LOICollection::Plugins {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
         
+        this->mImpl->db->create("Pvp", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("enable");
+        });
+
         this->registeryCommand();
         this->listenEvent();
 

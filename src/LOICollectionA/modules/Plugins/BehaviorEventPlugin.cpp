@@ -7,7 +7,6 @@
 #include <utility>
 #include <concepts>
 #include <algorithm>
-#include <execution>
 #include <functional>
 #include <filesystem>
 #include <unordered_map>
@@ -212,7 +211,7 @@ namespace LOICollection::Plugins {
         });
         command.overload<operation>().text("query").text("event").text("info").required("EventId").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->getByPrefix("Events", param.EventId + ".");
+            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Events", param.EventId);
             
             if (mEvent.empty())
                 return output.error(tr({}, "commands.behaviorevent.error.query"));
@@ -226,7 +225,7 @@ namespace LOICollection::Plugins {
         });
         command.overload<operation>().text("query").text("event").text("name").required("EventName").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::vector<std::string> mResult = this->getEvents({{ "EventName", param.EventName }}, {}, param.Limit);
+            std::vector<std::string> mResult = this->getEvents({{ "event_name", param.EventName }}, {}, param.Limit);
             
             if (mResult.empty())
                 return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
@@ -235,7 +234,7 @@ namespace LOICollection::Plugins {
         });
         command.overload<operation>().text("query").text("event").text("time").required("Time").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::vector<std::string> mResult = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
+            std::vector<std::string> mResult = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
                 std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
                 return !SystemUtils::isPastOrPresent(mTime);
             }, param.Limit);
@@ -247,8 +246,8 @@ namespace LOICollection::Plugins {
         });
         command.overload<operation>().text("query").text("event").text("foundation").required("EventName").required("Time").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::vector<std::string> mNames = this->getEvents({{ "EventName", param.EventName }}, {}, param.Limit);
-            std::vector<std::string> mTimes = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
+            std::vector<std::string> mNames = this->getEvents({{ "event_name", param.EventName }}, {}, param.Limit);
+            std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
                 std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
                 return !SystemUtils::isPastOrPresent(mTime);
             }, param.Limit);
@@ -264,9 +263,9 @@ namespace LOICollection::Plugins {
             Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
             std::vector<std::string> mResult = this->getEvents({ 
-                { "Position.x", std::to_string(static_cast<int>(mPosition.x)) },
-                { "Position.y", std::to_string(static_cast<int>(mPosition.y)) },
-                { "Position.z", std::to_string(static_cast<int>(mPosition.z)) }
+                { "position_x", std::to_string(static_cast<int>(mPosition.x)) },
+                { "position_y", std::to_string(static_cast<int>(mPosition.y)) },
+                { "position_z", std::to_string(static_cast<int>(mPosition.z)) }
             }, {}, param.Limit);
             
             if (mResult.empty())
@@ -288,11 +287,11 @@ namespace LOICollection::Plugins {
             Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
             std::vector<std::string> mPositions = this->getEvents({ 
-                { "Position.x", std::to_string(static_cast<int>(mPosition.x)) },
-                { "Position.y", std::to_string(static_cast<int>(mPosition.y)) },
-                { "Position.z", std::to_string(static_cast<int>(mPosition.z)) }
+                { "position_x", std::to_string(static_cast<int>(mPosition.x)) },
+                { "position_y", std::to_string(static_cast<int>(mPosition.y)) },
+                { "position_z", std::to_string(static_cast<int>(mPosition.z)) }
             }, {}, param.Limit);
-            std::vector<std::string> mDimensions = this->getEvents({{ "Position.dimension", std::to_string(param.Dimension) }}, {}, param.Limit);
+            std::vector<std::string> mDimensions = this->getEvents({{ "position_dimension", std::to_string(param.Dimension) }}, {}, param.Limit);
             std::vector<std::string> mResult = SystemUtils::getIntersection({ mPositions, mDimensions });
 
             if (mResult.empty())
@@ -347,11 +346,11 @@ namespace LOICollection::Plugins {
             std::vector<std::string> mAreas = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPosition, radius = (param.Radius * param.Radius)](int x, int y, int z) -> bool {
                 return Vec3(x, y, z).distanceToSqr(mPosition) <= radius;
             });
-            std::vector<std::string> mTimes = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
+            std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
                 std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
                 return !SystemUtils::isPastOrPresent(mTime);
             });
-            std::vector<std::string> mTypes = this->getEvents({{ "EventType", "Operable" }});
+            std::vector<std::string> mTypes = this->getEvents({{ "event_type", "Operable" }});
             std::vector<std::string> mResult = this->filter(
                 SystemUtils::getIntersection({ mAreas, mTimes, mTypes })
             );
@@ -375,11 +374,11 @@ namespace LOICollection::Plugins {
                 return x >= static_cast<double>(mPositionMin.x) && x <= static_cast<double>(mPositionMax.x) && y >= static_cast<double>(mPositionMin.y) && 
                     y <= static_cast<double>(mPositionMax.y) && z >= static_cast<double>(mPositionMin.z) && z <= static_cast<double>(mPositionMax.z);
             });
-            std::vector<std::string> mTimes = this->getEvents({{ "EventTime", "" }}, [time = param.Time](std::string value) -> bool {
+            std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
                 std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
                 return !SystemUtils::isPastOrPresent(mTime);
             });
-            std::vector<std::string> mTypes = this->getEvents({{ "EventType", "Operable" }});
+            std::vector<std::string> mTypes = this->getEvents({{ "event_type", "Operable" }});
             std::vector<std::string> mResult = this->filter(
                 SystemUtils::getIntersection({ mAreas, mTimes, mTypes })
             );
@@ -450,7 +449,7 @@ namespace LOICollection::Plugins {
         }, [](ll::event::Event& event, Event& mEvent) -> void {
             auto& sevent = static_cast<ll::event::PlayerConnectEvent&>(event);
 
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerConnectEvent&>(event);
             
@@ -469,7 +468,7 @@ namespace LOICollection::Plugins {
         }, [](ll::event::Event& event, Event& mEvent) -> void {
             auto& sevent = static_cast<ll::event::PlayerDisconnectEvent&>(event);
 
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerDisconnectEvent&>(event);
             
@@ -488,8 +487,8 @@ namespace LOICollection::Plugins {
         }, [](ll::event::Event& event, Event& mEvent) -> void {
             auto& sevent = static_cast<ll::event::PlayerChatEvent&>(event);
 
-            mEvent.extendedFields.emplace_back("EventMessage", sevent.message());
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("event_message", sevent.message());
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerChatEvent&>(event);
             
@@ -507,8 +506,8 @@ namespace LOICollection::Plugins {
         }, [](ll::event::Event& event, Event& mEvent) -> void {
             auto& sevent = static_cast<ll::event::PlayerAddExperienceEvent&>(event);
 
-            mEvent.extendedFields.emplace_back("EventExperience", std::to_string(sevent.experience()));
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("event_experience", std::to_string(sevent.experience()));
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerAddExperienceEvent&>(event);
             
@@ -526,9 +525,9 @@ namespace LOICollection::Plugins {
         }, [](ll::event::Event& event, Event& mEvent) -> void {
             auto& sevent = static_cast<ll::event::PlayerAttackEvent&>(event);
 
-            mEvent.extendedFields.emplace_back("EventTarget", sevent.target().getTypeName());
-            mEvent.extendedFields.emplace_back("EventCause", magic_enum::enum_name(sevent.cause()).data());
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("event_target", sevent.target().getTypeName());
+            mEvent.extendedFields.emplace_back("event_cause", magic_enum::enum_name(sevent.cause()).data());
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerAttackEvent&>(event);
             
@@ -546,8 +545,8 @@ namespace LOICollection::Plugins {
         }, [](ll::event::Event& event, Event& mEvent) -> void {
             auto& sevent = static_cast<ll::event::PlayerChangePermEvent&>(event);
 
-            mEvent.extendedFields.emplace_back("EventPerm", magic_enum::enum_name(sevent.newPerm()).data());
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("event_perm", magic_enum::enum_name(sevent.newPerm()).data());
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerChangePermEvent&>(event);
             
@@ -566,14 +565,14 @@ namespace LOICollection::Plugins {
             auto& sevent = static_cast<ll::event::PlayerDestroyBlockEvent&>(event);
 
             if (auto mBlock = BlockUtils::getBlock(sevent.pos(), sevent.self().getDimensionId()); mBlock.has_value())
-                mEvent.extendedFields.emplace_back("EventOperable", mBlock.value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
+                mEvent.extendedFields.emplace_back("event_operable", mBlock.value()->mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
             if (auto mBlockEntity = BlockUtils::getBlockEntity(sevent.pos(), sevent.self().getDimensionId()); mBlockEntity.has_value()) {
                 CompoundTag mTag;
                 mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
 
-                mEvent.extendedFields.emplace_back("EventBlockEntity", mTag.toSnbt(SnbtFormat::Minimize, 0));
+                mEvent.extendedFields.emplace_back("event_operable_entity", mTag.toSnbt(SnbtFormat::Minimize, 0));
             }
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerDestroyBlockEvent&>(event);
 
@@ -598,8 +597,8 @@ namespace LOICollection::Plugins {
 
             HashedString mHashedId("minecraft:air");
 
-            mEvent.extendedFields.emplace_back("EventOperable", Block::tryGetFromRegistry(mHashedId).value().mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("event_operable", Block::tryGetFromRegistry(mHashedId).value().mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerPlacedBlockEvent&>(event);
 
@@ -620,8 +619,8 @@ namespace LOICollection::Plugins {
         }, [](ll::event::Event& event, Event& mEvent) -> void {
             auto& sevent = static_cast<ll::event::PlayerDieEvent&>(event);
 
-            mEvent.extendedFields.emplace_back("EventSource", magic_enum::enum_name(sevent.source().mCause).data());
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("event_cause", magic_enum::enum_name(sevent.source().mCause).data());
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerDieEvent&>(event);
             
@@ -640,10 +639,10 @@ namespace LOICollection::Plugins {
         }, [](ll::event::Event& event, Event& mEvent) -> void {
             auto& sevent = static_cast<ll::event::PlayerPickUpItemEvent&>(event);
 
-            mEvent.extendedFields.emplace_back("EventItem", sevent.itemActor().item().save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0));
-            mEvent.extendedFields.emplace_back("EventOrgCount", std::to_string(sevent.orgCount()));
-            mEvent.extendedFields.emplace_back("EventFavoredSlot", std::to_string(sevent.favoredSlot()));
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("event_item", sevent.itemActor().item().save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0));
+            mEvent.extendedFields.emplace_back("event_org_count", std::to_string(sevent.orgCount()));
+            mEvent.extendedFields.emplace_back("event_favored_slot", std::to_string(sevent.favoredSlot()));
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerPickUpItemEvent&>(event);
 
@@ -662,7 +661,7 @@ namespace LOICollection::Plugins {
         }, [](ll::event::Event& event, Event& mEvent) -> void {
             auto& sevent = static_cast<ll::event::PlayerRespawnEvent&>(event);
 
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerRespawnEvent&>(event);
             
@@ -681,8 +680,8 @@ namespace LOICollection::Plugins {
         }, [](ll::event::Event& event, Event& mEvent) -> void {
             auto& sevent = static_cast<ll::event::PlayerUseItemEvent&>(event);
 
-            mEvent.extendedFields.emplace_back("EventItem", sevent.item().save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0));
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("event_item", sevent.item().save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0));
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerUseItemEvent&>(event);
 
@@ -705,9 +704,9 @@ namespace LOICollection::Plugins {
                 CompoundTag mTag;
                 mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
 
-                mEvent.extendedFields.emplace_back("EventOperableEntity", mTag.toSnbt(SnbtFormat::Minimize, 0));
+                mEvent.extendedFields.emplace_back("event_operable_entity", mTag.toSnbt(SnbtFormat::Minimize, 0));
             }
-            mEvent.extendedFields.emplace_back("PlayerName", sevent.self().getRealName());
+            mEvent.extendedFields.emplace_back("player_name", sevent.self().getRealName());
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<LOICollection::ServerEvents::PlayerOpenContainerEvent&>(event);
 
@@ -726,12 +725,12 @@ namespace LOICollection::Plugins {
         }, [](ll::event::Event& event, Event& mEvent) -> void {
             auto& sevent = static_cast<LOICollection::ServerEvents::BlockExplodedEvent&>(event);
 
-            mEvent.extendedFields.emplace_back("EventOperable", sevent.getBlock().mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
+            mEvent.extendedFields.emplace_back("event_operable", sevent.getBlock().mSerializationId->toSnbt(SnbtFormat::Minimize, 0));
             if (auto mBlockEntity = BlockUtils::getBlockEntity(sevent.getPosition(), sevent.getDimensionId()); mBlockEntity.has_value()) {
                 CompoundTag mTag;
                 mBlockEntity.value()->save(mTag, *SaveContextFactory::createCloneSaveContext());
 
-                mEvent.extendedFields.emplace_back("EventBlockEntity", mTag.toSnbt(SnbtFormat::Minimize, 0));
+                mEvent.extendedFields.emplace_back("event_operable_entity", mTag.toSnbt(SnbtFormat::Minimize, 0));
             }
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<LOICollection::ServerEvents::BlockExplodedEvent&>(event);
@@ -775,16 +774,11 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return {};
 
-        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Events", "%.EventName");
+        std::vector<std::string> mKeys = this->getDatabase()->list("Events");
 
-        auto mView = mKeys
+        return mKeys
             | std::views::take(limit > 0 ? limit : static_cast<int>(mKeys.size()))
-            | std::views::transform([](const std::string& mKey) -> std::string {
-                size_t mPos = mKey.find('.');
-                return mPos != std::string::npos ? mKey.substr(0, mPos) : "";
-            });
-
-        return mView | std::ranges::to<std::vector<std::string>>();
+            | std::ranges::to<std::vector<std::string>>();
     }
 
     std::vector<std::string> BehaviorEventPlugin::getEvents(std::vector<std::pair<std::string, std::string>> conditions, std::function<bool(std::string)> filter, int limit) {
@@ -793,28 +787,19 @@ namespace LOICollection::Plugins {
 
         std::vector<std::string> mKeys = this->getEvents(limit);
 
-        std::unordered_map<size_t, std::vector<std::string>> mResultLocal;
-        std::for_each(std::execution::par, mKeys.begin(), mKeys.end(), [this, &mResultLocal, conditions, filter](const std::string& mId) -> void {
-            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->getByPrefix("Events", mId + ".");
-
-            auto mView = conditions | std::views::filter([&mEvent, &mId, filter](const std::pair<std::string, std::string>& mCondition) -> bool {
-                auto it = mEvent.find(mId + "." + mCondition.first);
-                if (it == mEvent.end())
+        std::vector<std::string> mResult;
+        for (auto& [id, data] :  this->getDatabase()->get("Events", mKeys)) {
+            auto mView = conditions | std::views::filter([&data, filter](const std::pair<std::string, std::string>& mCondition) -> bool {
+                auto it = data.find(mCondition.first);
+                if (it == data.end())
                     return false;
 
                 return (!filter && it->second == mCondition.second) || (filter && filter(it->second));
             });
 
-            if (static_cast<size_t>(std::ranges::distance(mView)) == conditions.size()) {
-                size_t id = std::hash<std::thread::id>()(std::this_thread::get_id());
-
-                mResultLocal[id].emplace_back(mId);
-            }
-        });
-
-        std::vector<std::string> mResult;
-        for (auto& mLocal : mResultLocal)
-            mResult.insert(mResult.end(), mLocal.second.begin(), mLocal.second.end());
+            if (static_cast<size_t>(std::ranges::distance(mView)) == conditions.size())
+                mResult.emplace_back(id);
+        }
 
         return mResult;
     }
@@ -825,27 +810,18 @@ namespace LOICollection::Plugins {
 
         std::vector<std::string> mKeys = this->getEvents(limit);
 
-        std::unordered_map<size_t, std::vector<std::string>> mResultLocal;
-        std::for_each(std::execution::par, mKeys.begin(), mKeys.end(), [this, &mResultLocal, dimension, filter](const std::string& mId) -> void {
-            std::unordered_map<std::string, std::string> data = this->getDatabase()->getByPrefix("Events", mId + ".");
-
-            if (SystemUtils::toInt(data.at(mId + ".Position.dimension"), 0) != dimension)
-                return;
-            
-            int x = SystemUtils::toInt(data.at(mId + ".Position.x"), 0);
-            int y = SystemUtils::toInt(data.at(mId + ".Position.y"), 0);
-            int z = SystemUtils::toInt(data.at(mId + ".Position.z"), 0);
-
-            if (filter(x, y, z)) {
-                size_t id = std::hash<std::thread::id>()(std::this_thread::get_id());
-
-                mResultLocal[id].emplace_back(mId);
-            }
-        });
-
         std::vector<std::string> mResult;
-        for (auto& mLocal : mResultLocal)
-            mResult.insert(mResult.end(), mLocal.second.begin(), mLocal.second.end());
+        for (auto& [id, data] : this->getDatabase()->get("Events", mKeys)) {
+            if (SystemUtils::toInt(data.at("position_dimension"), 0) != dimension)
+                continue;
+
+            int x = SystemUtils::toInt(data.at("position_x"), 0);
+            int y = SystemUtils::toInt(data.at("position_y"), 0);
+            int z = SystemUtils::toInt(data.at("position_z"), 0);
+
+            if (filter(x, y, z))
+                mResult.emplace_back(id);
+        }
 
         return mResult;
     }
@@ -856,21 +832,17 @@ namespace LOICollection::Plugins {
 
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mEvents;
 
-        SQLiteStorageTransaction transaction(*this->getDatabase(), true);
-        std::for_each(ids.begin(), ids.end(), [this, connection = transaction.connection(), &mEvents](const std::string& mId) -> void {
-            std::unordered_map<std::string, std::string> data = this->getDatabase()->getByPrefix(connection, "Events", mId + ".");
-
-            auto it = mEvents.find(mId);
+        for (auto& [id, data] :  this->getDatabase()->get("Events", ids)) {
+            auto it = mEvents.find(id);
             if (it == mEvents.end())
-                mEvents[mId] = data;
+                mEvents[id] = data;
             else if (
-                it->second.at(mId + ".Position.x") == data.at(mId + ".Position.x") &&
-                it->second.at(mId + ".Position.y") == data.at(mId + ".Position.y") &&
-                it->second.at(mId + ".Position.z") == data.at(mId + ".Position.z") &&
-                it->second.at(mId + ".Position.dimension") == data.at(mId + ".Position.dimension")
+                it->second.at("position_x") == data.at("position_x") &&
+                it->second.at("position_y") == data.at("position_y") &&
+                it->second.at("position_z") == data.at("position_z") &&
+                it->second.at("position_dimension") == data.at("position_dimension")
             ) it->second = data;
-        });
-        transaction.commit();
+        }
 
         return std::views::keys(mEvents) | std::ranges::to<std::vector<std::string>>();
     }
@@ -879,22 +851,20 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return;
 
-        SQLiteStorageTransaction transaction(*this->getDatabase());
+        std::unordered_map<std::string, std::string> mData = {
+            { "event_name", event.eventName },
+            { "event_time", event.eventTime },
+            { "event_type", event.eventType },
+            { "position_x", std::to_string(event.posX) },
+            { "position_y", std::to_string(event.posY) },
+            { "position_z", std::to_string(event.posZ) },
+            { "position_dimension", std::to_string(event.dimension) }
+        };
 
-        auto connection = transaction.connection();
-
-        this->getDatabase()->set(connection, "Events", id + ".EventName", event.eventName);
-        this->getDatabase()->set(connection, "Events", id + ".EventTime", event.eventTime);
-        this->getDatabase()->set(connection, "Events", id + ".EventType", event.eventType);
-        this->getDatabase()->set(connection, "Events", id + ".Position.x", std::to_string(event.posX));
-        this->getDatabase()->set(connection, "Events", id + ".Position.y", std::to_string(event.posY));
-        this->getDatabase()->set(connection, "Events", id + ".Position.z", std::to_string(event.posZ));
-        this->getDatabase()->set(connection, "Events", id + ".Position.dimension", std::to_string(event.dimension));
-        
         for (auto& fieled : event.extendedFields)
-            this->getDatabase()->set(connection, "Events", id + "." + fieled.first, fieled.second);
+            mData[fieled.first] = fieled.second;
 
-        transaction.commit();
+        this->getDatabase()->set("Events", id, mData);
     }
 
     void BehaviorEventPlugin::back(std::vector<std::string>& ids) {
@@ -902,28 +872,29 @@ namespace LOICollection::Plugins {
             return;
 
         SQLiteStorageTransaction transaction(*this->getDatabase());
-        std::for_each(ids.begin(), ids.end(), [this, connection = transaction.connection()](const std::string& mId) -> void {
-            std::unordered_map<std::string, std::string> data = this->getDatabase()->getByPrefix(connection, "Events", mId + ".");
+        auto connection = transaction.connection();
 
+        for (auto& [id, data] :  this->getDatabase()->get("Events", ids)) {
             BlockPos mPosition(
-                SystemUtils::toInt(data.at(mId + ".Position.x"), 0),
-                SystemUtils::toInt(data.at(mId + ".Position.y"), 0),
-                SystemUtils::toInt(data.at(mId + ".Position.z"), 0)
+                SystemUtils::toInt(data.at("position_x"), 0),
+                SystemUtils::toInt(data.at("position_y"), 0),
+                SystemUtils::toInt(data.at("position_z"), 0)
             );
-            int mDimension = SystemUtils::toInt(data.at(mId + ".Position.dimension"), 0);
+            int mDimension = SystemUtils::toInt(data.at("position_dimension"), 0);
 
-            if (data.contains(mId + ".EventOperable")) {
-                CompoundTag mNbt = CompoundTag::fromSnbt(data.at(mId + ".EventOperable"))->mTags;
+            if (data.contains("event_operable")) {
+                CompoundTag mNbt = CompoundTag::fromSnbt(data.at("event_operable"))->mTags;
 
                 BlockUtils::setBlock(mPosition, mDimension, mNbt);
-            } else if (data.contains(mId + ".EventOperableEntity")) {
-                CompoundTag mNbt = CompoundTag::fromSnbt(data.at(mId + ".EventOperableEntity"))->mTags;
+            } else if (data.contains("event_operable_entity")) {
+                CompoundTag mNbt = CompoundTag::fromSnbt(data.at("event_operable_entity"))->mTags;
 
                 BlockUtils::setBlockEntity(mPosition, mDimension, mNbt);
             }
 
-            this->getDatabase()->delByPrefix(connection, "Events", mId + ".");
-        });
+            this->getDatabase()->del(connection, "Events", id);
+        }
+
         transaction.commit();
     }
 
@@ -931,16 +902,15 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return;
 
-        std::vector<std::string> mKeys = this->getEvents();
-
         SQLiteStorageTransaction transaction(*this->getDatabase());
-        std::for_each(mKeys.begin(), mKeys.end(), [this, connection = transaction.connection(), hours](const std::string& mId) mutable {
-            std::string mEventTime = this->getDatabase()->get(connection, "Events", mId + ".EventTime");
-            
-            std::string mTime = SystemUtils::toTimeCalculate(mEventTime, hours * 3600, "0");
+        auto connection = transaction.connection();
+
+        for (auto& [id, data] :  this->getDatabase()->get("Events", this->getEvents())) {
+            std::string mTime = SystemUtils::toTimeCalculate(data.at("event_time"), hours * 3600, "0");
             if (SystemUtils::isPastOrPresent(mTime))
-                this->getDatabase()->delByPrefix(connection, "Events", mId + ".");
-        });
+                this->getDatabase()->del(connection, "Events", id);
+        }
+
         transaction.commit();
     }
 
@@ -979,7 +949,26 @@ namespace LOICollection::Plugins {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        this->getDatabase()->create("Events");
+        this->getDatabase()->create("Events", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("event_name");
+            ctor("event_time");
+            ctor("event_type");
+            ctor("position_x");
+            ctor("position_y");
+            ctor("position_z");
+            ctor("position_dimension");
+            ctor("event_operable");
+            ctor("event_operable_entity");
+            ctor("event_item");
+            ctor("event_org_count");
+            ctor("event_favored_slot");
+            ctor("event_cause");
+            ctor("event_perm");
+            ctor("event_target");
+            ctor("event_experience");
+            ctor("event_message");
+            ctor("player_name");
+        });
 
         this->registeryCommand();
         this->listenEvent();

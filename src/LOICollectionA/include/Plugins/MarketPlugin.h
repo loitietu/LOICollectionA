@@ -31,12 +31,12 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
 
         LOICOLLECTION_A_API   void addBlacklist(Player& player, Player& target);
-        LOICOLLECTION_A_API   void delBlacklist(Player& player, const std::string& target);
         LOICOLLECTION_A_API   void addItem(Player& player, ItemStack& item, const std::string& name, const std::string& icon, const std::string& intr, int score);
+        LOICOLLECTION_A_API   void delBlacklist(Player& player, const std::string& target);
         LOICOLLECTION_A_API   void delItem(const std::string& id);
 
         LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(Player& player);
-        LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(std::string target);
+        LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(const std::string& target);
         LOICOLLECTION_A_NDAPI std::vector<std::string> getItems();
         LOICOLLECTION_A_NDAPI std::vector<std::string> getItems(Player& player);
 

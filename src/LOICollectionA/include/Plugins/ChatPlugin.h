@@ -29,6 +29,8 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
         LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
 
+        LOICOLLECTION_A_API   void setTitle(Player& player, const std::string& text);
+
         LOICOLLECTION_A_API   void addTitle(Player& player, const std::string& text, int time);
         LOICOLLECTION_A_API   void addBlacklist(Player& player, Player& target);
         LOICOLLECTION_A_API   void delTitle(Player& player, const std::string& text);
@@ -40,6 +42,7 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_NDAPI std::vector<std::string> getTitles(Player& player);
         LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(Player& player);
         
+        LOICOLLECTION_A_NDAPI bool hasTitle(Player& player, const std::string& text);
         LOICOLLECTION_A_NDAPI bool hasBlacklist(Player& player, const std::string& uuid);
         LOICOLLECTION_A_NDAPI bool isTitle(Player& player, const std::string& text); 
         LOICOLLECTION_A_NDAPI bool isBlacklist(Player& player, Player& target);

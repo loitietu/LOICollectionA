@@ -107,17 +107,8 @@ namespace LOICollection::Plugins {
             if (auto data = I18nUtils::getInstance()->data; data.find(langcode) == data.end())
                 langcode = I18nUtils::getInstance()->defaultLocale;
 
-            std::string mObject = event.self().getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-            if (!this->mImpl->db->has("OBJECT$" + mObject))
-                this->mImpl->db->create("OBJECT$" + mObject);
-
-            if (!this->mImpl->db->has("OBJECT$" + mObject, "language"))
-                this->mImpl->db->set("OBJECT$" + mObject, "language", langcode);
-
-            if (!this->mImpl->db->has("OBJECT$" + mObject, "name"))
-                this->mImpl->db->set("OBJECT$" + mObject, "name", event.self().getRealName());
+            if (!this->mImpl->db->has("Language", event.self().getUuid().asString()))
+                this->set(event.self(), langcode);
         }, ll::event::EventPriority::High);
     }
 
@@ -144,25 +135,25 @@ namespace LOICollection::Plugins {
         if (this->mImpl->Cache.contains(mObject))
             return *this->mImpl->Cache.get(mObject).value();
         
-        std::string langcode = this->mImpl->db->get("OBJECT$" + mObject, "language", defaultLocale);
+        std::string langcode = this->mImpl->db->get("Language", mObject, "value", defaultLocale);
         
         this->mImpl->Cache.put(mObject, langcode);
         return langcode;
     }
 
     std::string LanguagePlugin::getLanguage(Player& player) {
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-        return this->getLanguage(mObject);
+        return this->getLanguage(player.getUuid().asString());
     }
 
     void LanguagePlugin::set(Player& player, const std::string& langcode) {
         std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-        this->mImpl->db->set("OBJECT$" + mObject, "language", langcode);
+        std::unordered_map<std::string, std::string> mData = {
+            { "name", player.getRealName() },
+            { "value", langcode }
+        };
 
+        this->mImpl->db->set("Language", mObject, mData);
         this->mImpl->Cache.put(mObject, langcode);
     }
 
@@ -184,6 +175,11 @@ namespace LOICollection::Plugins {
     }
 
     bool LanguagePlugin::registry() {
+        this->mImpl->db->create("Language", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("value");
+        });
+
         this->registeryCommand();
         this->listenEvent();
 

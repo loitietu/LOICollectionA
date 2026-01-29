@@ -4,7 +4,6 @@
 #include <vector>
 #include <ranges>
 #include <algorithm>
-#include <execution>
 #include <filesystem>
 #include <unordered_map>
 
@@ -112,15 +111,15 @@ namespace LOICollection::Plugins {
             return;
         }
         
-        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->getByPrefix("Mute", id + ".");
+        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->get("Mute", id);
 
         std::string mObjectLabel = tr(mObjectLanguage, "mute.gui.info.label");
         ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), 
             fmt::format(fmt::runtime(mObjectLabel), id,
-                mData.at(id + ".NAME"),
-                mData.at(id + ".CAUSE"),
-                SystemUtils::toFormatTime(mData.at(id + ".SUBTIME"), "None"),
-                SystemUtils::toFormatTime(mData.at(id + ".TIME"), "None")
+                mData.at("name"),
+                mData.at("cause"),
+                SystemUtils::toFormatTime(mData.at("subtime"), "None"),
+                SystemUtils::toFormatTime(mData.at("time"), "None")
             )
         );
         form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [this, id](Player&) -> void {
@@ -281,7 +280,7 @@ namespace LOICollection::Plugins {
         });
         command.overload<operation>().text("info").required("Object").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->getByPrefix("Mute", param.Object + ".");
+            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Mute", param.Object);
             
             if (mEvent.empty())
                 return output.error(tr({}, "commands.mute.error.info"));
@@ -322,13 +321,13 @@ namespace LOICollection::Plugins {
             if (mId.empty())
                 return;
 
-            std::unordered_map<std::string, std::string> mData = this->getDatabase()->getByPrefix("Mute", mId + ".");
+            std::unordered_map<std::string, std::string> mData = this->getDatabase()->get("Mute", mId);
 
-            if (SystemUtils::isPastOrPresent(mData.at(mId + ".TIME")))
+            if (SystemUtils::isPastOrPresent(mData.at("time")))
                 return this->delMute(event.self());
 
             std::string mObjectTips = fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "mute.tips")), 
-                mData.at(mId + ".CAUSE"), SystemUtils::toFormatTime(mData.at(mId + ".TIME"), "None")
+                mData.at("cause"), SystemUtils::toFormatTime(mData.at("time"), "None")
             );
             
             event.self().sendMessage(mObjectTips);
@@ -363,16 +362,15 @@ namespace LOICollection::Plugins {
         std::string mCause = cause.empty() ? "None" : cause;
         std::string mTimestamp = SystemUtils::getCurrentTimestamp();
 
-        SQLiteStorageTransaction transaction(*this->getDatabase());
-        auto connection = transaction.connection();
+        std::unordered_map<std::string, std::string> mData = {
+            { "name", player.getRealName() },
+            { "cause", mCause },
+            { "time", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "0") : "0" },
+            { "subtime", SystemUtils::getNowTime("%Y%m%d%H%M%S") },
+            { "data", player.getUuid().asString() }
+        };
 
-        this->getDatabase()->set(connection, "Mute", mTimestamp + ".NAME", player.getRealName());
-        this->getDatabase()->set(connection, "Mute", mTimestamp + ".CAUSE", mCause);
-        this->getDatabase()->set(connection, "Mute", mTimestamp + ".TIME", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "0") : "0");
-        this->getDatabase()->set(connection, "Mute", mTimestamp + ".SUBTIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
-        this->getDatabase()->set(connection, "Mute", mTimestamp + ".DATA", player.getUuid().asString());
-
-        transaction.commit();
+        this->getDatabase()->set("Mute", mTimestamp, mData);
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "mute.log1"), player)), mCause);
     }
@@ -388,7 +386,13 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return;
 
-        this->getDatabase()->delByPrefix("Mute", id + ".");
+        if (!this->hasMute(id)) {
+            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "MutePlugin");
+
+            return;
+        }
+
+        this->getDatabase()->del("Mute", id);
 
         this->getLogger()->info(fmt::runtime(tr({}, "mute.log2")), id);
     }
@@ -397,37 +401,27 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return {};
 
-        std::string mUuid = player.getUuid().asString();
-
-        std::vector<std::string> mKeys = this->getMutes();
-        auto it = std::find_if(std::execution::par, mKeys.begin(), mKeys.end(), [this, &mUuid](const std::string& mId) -> bool {
-            return this->getDatabase()->get("Mute", mId + ".DATA") == mUuid;
-        });
-
-        return it != mKeys.end() ? *it : "";
+        return this->getDatabase()->find("Mute", {
+            { "data", player.getUuid().asString() }
+        }, "", SQLiteStorage::FindCondition::AND);
     }
 
     std::vector<std::string> MutePlugin::getMutes(int limit) {
         if (!this->isValid())
             return {};
         
-        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Mute", "%.NAME");
+        std::vector<std::string> mKeys = this->getDatabase()->list("Mute");
 
-        auto mView = mKeys
+        return mKeys
             | std::views::take(limit > 0 ? limit : static_cast<int>(mKeys.size()))
-            | std::views::transform([](const std::string& mKey) -> std::string {
-                size_t mPos = mKey.find('.');
-                return mPos != std::string::npos ? mKey.substr(0, mPos) : "";
-            });
-
-        return mView | std::ranges::to<std::vector<std::string>>();
+            | std::ranges::to<std::vector<std::string>>();
     }
 
     bool MutePlugin::hasMute(const std::string& id) {
         if (!this->isValid())
             return false;
 
-        return this->getDatabase()->hasByPrefix("Mute", id + ".", 5);
+        return this->getDatabase()->has("Mute", id);
     }
 
     bool MutePlugin::isMute(Player& player) {
@@ -474,7 +468,13 @@ namespace LOICollection::Plugins {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
-        this->getDatabase()->create("Mute");
+        this->getDatabase()->create("Mute", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("cause");
+            ctor("time");
+            ctor("subtime");
+            ctor("data");
+        });
         
         this->registeryCommand();
         this->listenEvent();

@@ -226,10 +226,7 @@ namespace LOICollection::Plugins {
         form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) mutable -> void {
             if (!dt) return this->setting(pl);
 
-            std::string mObject = pl.getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-            this->mParent.mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", std::get<std::string>(dt->at("dropdown")));
+            this->mParent.setTitle(pl, std::get<std::string>(dt->at("dropdown")));
             
             this->mParent.getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log1"), pl));
         });
@@ -245,14 +242,14 @@ namespace LOICollection::Plugins {
             return;
         }
 
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->get("Blacklist", target);
 
         std::string mObjectLabel = tr(mObjectLanguage, "chat.gui.setBlacklist.set.label");
         ll::form::SimpleForm form(tr(mObjectLanguage, "chat.gui.title"), 
-            fmt::format(fmt::runtime(mObjectLabel), target,
-                this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_NAME", "None"),
-                SystemUtils::toFormatTime(this->mParent.getDatabase()->get("Blacklist", mObject + "." + target + "_TIME", "None"), "None")
+            fmt::format(fmt::runtime(mObjectLabel),
+                mData.at("target"),
+                mData.at("name"),
+                SystemUtils::toFormatTime(mData.at("time"), "None")
             )
         );
         form.appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.set.remove"), [this, target](Player& pl) -> void {
@@ -326,7 +323,7 @@ namespace LOICollection::Plugins {
 
         form->appendDivider();
         form->appendButton(tr(mObjectLanguage, "chat.gui.setBlacklist.add"), "", [this, mObjectLanguage](Player& pl) -> void {
-            int mBlacklistCount = static_cast<int>(this->mParent.getBlacklist(pl).size());
+            int mBlacklistCount = this->mParent.mImpl->options.BlacklistUpload;
             if (static_cast<int>(this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
                 pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "chat.gui.setBlacklist.tips1")), mBlacklistCount));
                 
@@ -409,10 +406,7 @@ namespace LOICollection::Plugins {
                 return output.error(tr({}, "commands.generic.target"));
 
             for (Player*& pl : results) {
-                std::string mObject = pl->getUuid().asString();
-                std::replace(mObject.begin(), mObject.end(), '-', '_');
-                
-                this->mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", param.Title);
+                this->setTitle(*pl, param.Title);
 
                 output.success(fmt::runtime(tr({}, "commands.chat.success.set")), pl->getRealName(), param.Title);
             }
@@ -467,10 +461,15 @@ namespace LOICollection::Plugins {
                 return;
 
             std::string mObject = event.self().getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
+            
+            if (!this->mImpl->db2->has("Chat", mObject)) {
+                std::unordered_map<std::string, std::string> mData = {
+                    { "name", event.self().getRealName() },
+                    { "title", "None" }
+                };
 
-            if (!this->mImpl->db2->has("OBJECT$" + mObject, "Chat_Title"))
-                this->mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", "None");
+                this->mImpl->db2->set("Chat", mObject, mData);
+            }
         });
         this->mImpl->PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>([this](ll::event::PlayerChatEvent& event) -> void {
             if (event.self().isSimulatedPlayer() || MutePlugin::getInstance().isMute(event.self()))
@@ -499,15 +498,28 @@ namespace LOICollection::Plugins {
         eventBus.removeListener(this->mImpl->PlayerChatEventListener);
     }
 
+    void ChatPlugin::setTitle(Player& player, const std::string& text) {
+        if (!this->isValid())
+            return;
+
+        this->mImpl->db2->set("Chat", player.getUuid().asString(), "title", text);
+    }
+
     void ChatPlugin::addTitle(Player& player, const std::string& text, int time) {
         if (!this->isValid()) 
             return;
 
         std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        
-        this->getDatabase()->set("Titles", mObject + "." + text, time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "None") : "None");
-        
+        std::string mTismestamp = SystemUtils::getCurrentTimestamp();
+
+        std::unordered_map<std::string, std::string> mData = {
+            { "title", text },
+            { "author", mObject },
+            { "time", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "None") : "None" }
+        };
+
+        this->getDatabase()->set("Titles", mTismestamp, mData);
+
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log2"), player)), text);
     }
 
@@ -517,11 +529,16 @@ namespace LOICollection::Plugins {
 
         std::string mObject = player.getUuid().asString();
         std::string mTargetObject = target.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
+        std::string mTismestamp = SystemUtils::getCurrentTimestamp();
 
-        this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_NAME", target.getRealName());
-        this->getDatabase()->set("Blacklist", mObject + "." + mTargetObject + "_TIME", SystemUtils::getNowTime("%Y%m%d%H%M%S"));
+        std::unordered_map<std::string, std::string> mData = {
+            { "name", target.getRealName() },
+            { "target", mTargetObject },
+            { "author", mObject },
+            { "time", SystemUtils::getNowTime("%Y%m%d%H%M%S") }
+        };
+
+        this->getDatabase()->set("Blacklist", mTismestamp, mData);
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log5"), player)), mTargetObject);
 
@@ -535,14 +552,25 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
              return;
 
+        if (!this->hasTitle(player, text)) {
+            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "ChatPlugin");
+
+            return;
+        }
+
+        std::string mId = this->getDatabase()->find("Titles", {
+            { "title", text },
+            { "author", player.getUuid().asString() }
+        }, "", SQLiteStorage::FindCondition::AND);
+
+        if (mId.empty())
+            return;
+
+        this->getDatabase()->del("Titles", mId);
+
         std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-        if (this->getDatabase()->has("Titles", mObject + "." + text))
-            this->getDatabase()->del("Titles", mObject + "." + text);
-
-        if (this->mImpl->db2->get("OBJECT$" + mObject, "Chat_Title", "None") == text)
-            this->mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", "None");
+        if (this->mImpl->db2->get("Chat", mObject, "title", "None") == text)
+            this->setTitle(player, "None");
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log3"), player)), text);
     }
@@ -551,15 +579,25 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return;
 
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        if (!this->hasBlacklist(player, target)) {
+            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "ChatPlugin");
 
-        if (this->getDatabase()->hasByPrefix("Blacklist", mObject + "." + target + "_TIME", 2))
-            this->getDatabase()->delByPrefix("Blacklist", mObject + "." + target);
+            return;
+        }
+
+        std::string mId = this->getDatabase()->find("Blacklist", {
+            { "name", target },
+            { "author", player.getUuid().asString() }
+        }, "", SQLiteStorage::FindCondition::AND);
+
+        if (mId.empty())
+            return;
+
+        this->getDatabase()->del("Blacklist", mId);
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log6"), player)), target);
 
-        this->mImpl->BlacklistCache.update(mObject, [target](std::shared_ptr<std::vector<std::string>> mList) -> void {
+        this->mImpl->BlacklistCache.update(player.getUuid().asString(), [target](std::shared_ptr<std::vector<std::string>> mList) -> void {
             mList->erase(std::remove(mList->begin(), mList->end(), target), mList->end());
         });
     }
@@ -569,14 +607,12 @@ namespace LOICollection::Plugins {
             return "None";
 
         std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
 
-        std::string mTitle = this->mImpl->db2->get("OBJECT$" + mObject, "Chat_Title", "None");
-        
+        std::string mTitle = this->mImpl->db2->get("Chat", mObject, "title", "None");
         if (SystemUtils::isPastOrPresent(this->getDatabase()->get("Titles", mObject + "." + mTitle, "None"))) {
-            this->mImpl->db2->set("OBJECT$" + mObject, "Chat_Title", "None");
+            this->setTitle(player, "None");
+
             this->getDatabase()->del("Titles", mObject + "." + mTitle);
-            
             return "None";
         }
 
@@ -587,28 +623,24 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return "None";
 
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
+        std::string mId = this->getDatabase()->find("Titles", {
+            { "title", text },
+            { "author", player.getUuid().asString() }
+        }, "", SQLiteStorage::FindCondition::AND);
 
-        return this->getDatabase()->get("Titles", mObject + "." + text, "None"); 
+        if (mId.empty())
+            return "None";
+
+        return this->getDatabase()->get("Titles", mId, "title", "None");
     }
 
     std::vector<std::string> ChatPlugin::getTitles(Player& player) {
         if (!this->isValid())
             return {};
 
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Titles", mObject + ".");
-
-        std::vector<std::string> mResult(mKeys.size());
-        std::transform(mKeys.begin(), mKeys.end(), mResult.begin(), [](const std::string& mKey) -> std::string {
-            size_t mPos = mKey.find('.');
-            return (mPos != std::string::npos) ? mKey.substr(mPos + 1) : "";
+        return this->getDatabase()->find("Titles", "title", {
+            { "author", player.getUuid().asString() }
         });
-
-        return mResult;
     }
 
     std::vector<std::string> ChatPlugin::getBlacklist(Player& player) {
@@ -616,63 +648,61 @@ namespace LOICollection::Plugins {
             return {};
 
         std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
 
         if (this->mImpl->BlacklistCache.contains(mObject))
             return *this->mImpl->BlacklistCache.get(mObject).value();
 
-        std::vector<std::string> mKeys = this->getDatabase()->listByPrefix("Blacklist", mObject + ".%\\_NAME");
+        std::vector<std::string> mKeys = this->getDatabase()->find("Blacklist", {
+            { "author", mObject }
+        }, SQLiteStorage::FindCondition::AND);
 
-        std::vector<std::string> mResult(mKeys.size());
-        std::transform(mKeys.begin(), mKeys.end(), mResult.begin(), [](const std::string& mKey) -> std::string {
-            size_t mPos = mKey.find('.');
-            size_t mPos2 = mKey.find_last_of('_');
-            return (mPos != std::string::npos && mPos2 != std::string::npos && mPos < mPos2) ? mKey.substr(mPos + 1, mPos2 - mPos - 1) : "";
-        });
+        this->mImpl->BlacklistCache.put(mObject, mKeys);
+        return mKeys;
+    }
 
-        this->mImpl->BlacklistCache.put(mObject, mResult);
+    bool ChatPlugin::hasTitle(Player& player, const std::string& text) {
+        if (!this->isValid())
+            return false;
 
-        return mResult;
+        return !this->getDatabase()->find("Titles", {
+            { "title", text },
+            { "author", player.getUuid().asString() }
+        }, "", SQLiteStorage::FindCondition::AND).empty();
     }
 
     bool ChatPlugin::hasBlacklist(Player& player, const std::string& uuid) {
         if (!this->isValid())
             return false;
 
-        std::string mTarget = uuid;
         std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-        std::replace(mTarget.begin(), mTarget.end(), '-', '_');
 
-        return this->getDatabase()->hasByPrefix("Blacklist", mObject + "." + mTarget, 2);
+        if (this->mImpl->BlacklistCache.contains(mObject)) {
+            auto mList = this->mImpl->BlacklistCache.get(mObject).value();
+
+            return std::find(mList->begin(), mList->end(), uuid) != mList->end();
+        }
+
+        return !this->getDatabase()->find("Blacklist", {
+            { "target", uuid },
+            { "author", mObject }
+        }, "", SQLiteStorage::FindCondition::AND).empty();
     }
 
     bool ChatPlugin::isTitle(Player& player, const std::string& text) {
         if (!this->isValid()) 
             return false;
 
-        std::string mObject = player.getUuid().asString();
-        std::replace(mObject.begin(), mObject.end(), '-', '_');
-
-        return this->getDatabase()->has("Titles", mObject + "." + text);
+        return !this->getDatabase()->find("Titles", {
+            { "title", text },
+            { "author", player.getUuid().asString() }
+        }, "", SQLiteStorage::FindCondition::AND).empty();
     }
 
     bool ChatPlugin::isBlacklist(Player& player, Player& target) {
         if (!this->isValid()) 
             return false;
 
-        std::string mObjcet = player.getUuid().asString();
-        std::string mTargetObject = target.getUuid().asString();
-        std::replace(mObjcet.begin(), mObjcet.end(), '-', '_');
-        std::replace(mTargetObject.begin(), mTargetObject.end(), '-', '_');
-
-        if (this->mImpl->BlacklistCache.contains(mObjcet)) {
-            auto mList = this->mImpl->BlacklistCache.get(mObjcet).value();
-
-            return std::find(mList->begin(), mList->end(), mTargetObject) != mList->end();
-        }
-
-        return this->getDatabase()->has("Blacklist", mObjcet + "." + mTargetObject + "_TIME");
+        return this->hasBlacklist(player, target.getUuid().asString());
     }
 
     bool ChatPlugin::isValid() {
@@ -712,8 +742,22 @@ namespace LOICollection::Plugins {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        this->getDatabase()->create("Blacklist");
-        this->getDatabase()->create("Titles");
+        this->mImpl->db2->create("Chat", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("title");
+        });
+
+        this->getDatabase()->create("Blacklist", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("name");
+            ctor("target");
+            ctor("author");
+            ctor("time");
+        });
+        this->getDatabase()->create("Titles", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("title");
+            ctor("author");
+            ctor("time");
+        });
         
         this->registeryCommand();
         this->listenEvent();
