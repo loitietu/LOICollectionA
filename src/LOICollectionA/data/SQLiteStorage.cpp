@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <format>
 #include <memory>
 #include <ranges>
@@ -226,7 +227,10 @@ bool SQLiteStorage::has(std::shared_ptr<ConnectionContext> context, std::string_
 }
 
 std::unordered_map<std::string, std::string> SQLiteStorage::get(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key) {
-    std::vector<std::string> data = this->columns(context, table);
+    std::vector<std::string> data = this->columns(context, table)
+        | std::views::drop(3)
+        | std::ranges::to<std::vector<std::string>>();
+    
     if (data.empty())
         return {};
 
@@ -245,9 +249,14 @@ std::unordered_map<std::string, std::string> SQLiteStorage::get(std::shared_ptr<
     std::unordered_map<std::string, std::string> result;
     stmt.bind(1, std::string(key));
 
-    while (stmt.executeStep()) {
-        for (int i = 0; i < static_cast<int>(data.size()); ++i)
-            result.emplace(data[i], stmt.getColumn(i).getText());
+    if (stmt.executeStep()) {
+        for (int i = 0; i < static_cast<int>(data.size()); ++i) {
+            std::string mResult = stmt.getColumn(i).getText();
+            if (mResult.empty())
+                continue;
+
+            result.emplace(data[i], mResult);
+        }
     }
 
     return result;
@@ -257,7 +266,10 @@ std::unordered_map<std::string, std::unordered_map<std::string, std::string>> SQ
     if (keys.empty())
         return {};
     
-    std::vector<std::string> data = this->columns(context, table);
+    std::vector<std::string> data = this->columns(context, table)
+        | std::views::drop(3)
+        | std::ranges::to<std::vector<std::string>>();
+    
     if (data.empty())
         return {};
 
@@ -328,21 +340,17 @@ std::string SQLiteStorage::get(std::shared_ptr<ConnectionContext> context, std::
 std::string SQLiteStorage::find(std::shared_ptr<ConnectionContext> context, std::string_view table, std::vector<std::pair<std::string, std::string>> conditions, std::string_view defaultValue, FindCondition match) {
     if (conditions.empty())
         return std::string(defaultValue);
-    
-    std::vector<std::string> data = this->columns(context, table);
-    if (data.empty())
-        return {};
 
-    std::string sql = std::ranges::fold_left(std::views::drop(data, 1), data.front(), [](std::string acc, const std::string& s) -> std::string {
-        return std::move(acc) + ", " + s;
+    auto transformed = conditions
+        | std::views::transform([](const std::pair<std::string, std::string>& p) -> std::string {
+            return p.first + " = ?";
+        });
+    std::string where = std::ranges::fold_left(std::views::drop(transformed, 1), transformed.front(), [match](std::string acc, const std::string& s) -> std::string {
+        return std::move(acc) + (match == FindCondition::AND ? " AND " : " OR ") + s;
     });
 
-    std::string where = conditions.front().first + " = ?";
-    for (int i = 1; i < static_cast<int>(conditions.size()); ++i)
-        where += (match == FindCondition::AND ? " AND " : " OR ") + conditions[i].first + " = ?";
-
     auto& stmt = getCachedStatement(*context,
-        std::format("SELECT {} FROM {} WHERE {};", sql, table, where)
+        std::format("SELECT key FROM {} WHERE {} LIMIT 1;", table, where)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 
@@ -362,28 +370,24 @@ std::vector<std::string> SQLiteStorage::find(std::shared_ptr<ConnectionContext> 
     if (conditions.empty())
         return {};
     
-    std::vector<std::string> data = this->columns(context, table);
-    if (data.empty())
-        return {};
-    
-    std::string sql = std::ranges::fold_left(std::views::drop(data, 1), data.front(), [](std::string acc, const std::string& s) -> std::string {
-        return std::move(acc) + ", " + s;
+    auto transformed = conditions
+        | std::views::transform([](const std::pair<std::string, std::string>& p) -> std::string {
+            return p.first + " = ?";
+        });
+    std::string where = std::ranges::fold_left(std::views::drop(transformed, 1), transformed.front(), [match](std::string acc, const std::string& s) -> std::string {
+        return std::move(acc) + (match == FindCondition::AND ? " AND " : " OR ") + s;
     });
-    
-    std::string where = conditions.front().first + " = ?";
-    for (int i = 1; i < static_cast<int>(conditions.size()); ++i)
-        where += (match == FindCondition::AND ? " AND " : " OR ") + conditions[i].first + " = ?";
 
     auto& stmt = getCachedStatement(*context,
-        std::format("SELECT DISTINCT {} FROM {} WHERE {};", sql, table, where)
+        std::format("SELECT DISTINCT key FROM {} WHERE {};", table, where)
     );
 
     auto guard = make_success_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
-    for (auto& condition : conditions)
-        stmt.bind(condition.first, condition.second);
+    for (int i = 0; i < static_cast<int>(conditions.size()); ++i)
+        stmt.bind(i + 1, conditions[i].second);
 
     std::vector<std::string> result;
     while (stmt.executeStep())
@@ -396,9 +400,13 @@ std::vector<std::string> SQLiteStorage::find(std::shared_ptr<ConnectionContext> 
     if (conditions.empty())
         return {};
     
-    std::string where = conditions.front().first + " = ?";
-    for (int i = 1; i < static_cast<int>(conditions.size()); ++i)
-        where += (match == FindCondition::AND ? " AND " : " OR ") + conditions[i].first + " = ?";
+    auto transformed = conditions
+        | std::views::transform([](const std::pair<std::string, std::string>& p) -> std::string {
+            return p.first + " = ?";
+        });
+    std::string where = std::ranges::fold_left(std::views::drop(transformed, 1), transformed.front(), [match](std::string acc, const std::string& s) -> std::string {
+        return std::move(acc) + (match == FindCondition::AND ? " AND " : " OR ") + s;
+    });
 
     auto& stmt = getCachedStatement(*context,
         std::format("SELECT DISTINCT {} FROM {} WHERE {};", column, table, where)
@@ -408,8 +416,8 @@ std::vector<std::string> SQLiteStorage::find(std::shared_ptr<ConnectionContext> 
         stmt.reset(); 
     });
 
-    for (auto& condition : conditions)
-        stmt.bind(condition.first, condition.second);
+    for (int i = 0; i < static_cast<int>(conditions.size()); ++i)
+        stmt.bind(i + 1, conditions[i].second);
 
     std::vector<std::string> result;
     while (stmt.executeStep())
@@ -459,9 +467,7 @@ std::vector<std::string> SQLiteStorage::columns(std::shared_ptr<ConnectionContex
     while (info.executeStep())
         columns.emplace_back(info.getColumn(1).getText());
 
-    return columns
-        | std::views::drop(3)
-        | std::ranges::to<std::vector<std::string>>();
+    return columns;
 }
 
 void SQLiteStorage::exec(std::string_view sql) {
