@@ -41,7 +41,7 @@ class SQLiteStorage:
         return result[0] if result else default_val
 
     def tables(self) -> List[str]:
-        cursor = self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;")
+        cursor = self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;")
         return [row[0] for row in cursor.fetchall()]
     
 if __name__ == "__main__":

@@ -337,7 +337,7 @@ namespace LOICollection::Plugins {
 
         auto mSorted = mData
             | std::views::take(limit > 0 ? limit : static_cast<int>(mData.size()))
-            | std::views::transform([this, type](const auto& key) { 
+            | std::views::transform([this, type](const std::string& key) { 
                 return std::make_pair(key, this->getStatistic(key, type));
             }) | std::ranges::to<std::vector<std::pair<std::string, int>>>();
 

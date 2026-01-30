@@ -167,19 +167,43 @@ namespace LOICollection::Plugins {
     void BlacklistPlugin::gui::add(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "blacklist.gui.add.title"), tr(mObjectLanguage, "blacklist.gui.add.label"));
-        ll::service::getLevel()->forEachPlayer([this, &form](Player& mTarget) -> bool {
+        std::vector<std::string> mPlayers;
+        std::vector<std::string> mPlayerUuids;
+
+        ll::service::getLevel()->forEachPlayer([&mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
             if (mTarget.isSimulatedPlayer())
                 return true;
 
-            form.appendButton(mTarget.getRealName(), [this, &mTarget](Player& pl) -> void  {
-                this->content(pl, mTarget);
-            });
+            mPlayers.push_back(mTarget.getRealName());
+            mPlayerUuids.push_back(mTarget.getUuid().asString());
             return true;
         });
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->open(pl);
+
+        std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
+            tr(mObjectLanguage, "blacklist.gui.add.title"),
+            tr(mObjectLanguage, "blacklist.gui.add.label"),
+            mPlayers
+        );
+        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
+        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
+        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
+        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
+        form->setCallback([this, mObjectLanguage, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
+            Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
+            if (!mPlayer) {
+                pl.sendMessage(tr(mObjectLanguage, "blacklist.gui.error"));
+
+                this->open(pl);
+                return;
+            }
+
+            this->content(pl, *mPlayer);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->open(pl);
+        });
+
+        form->sendPage(player, 1);
     }
 
     void BlacklistPlugin::gui::remove(Player& player) {
@@ -218,7 +242,7 @@ namespace LOICollection::Plugins {
     }
 
     void BlacklistPlugin::registeryCommand() {
-        ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(BlacklistObjectName, getBlacklists());
+        ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(BlacklistObjectName, this->getBlacklists());
 
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
             .getOrCreateCommand("blacklist", tr({}, "commands.blacklist.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);

@@ -47,7 +47,7 @@ class SQLiteStorage:
         if table:
             cursor = self.conn.execute(f"SELECT key FROM {table};")
         else:
-            cursor = self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;")
+            cursor = self.conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;")
         return [row[0] for row in cursor.fetchall()]
     
 if __name__ == "__main__":
