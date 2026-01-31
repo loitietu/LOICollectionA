@@ -138,7 +138,7 @@ void SQLiteStorage::remove(std::shared_ptr<ConnectionContext> context, std::stri
 }
 
 void SQLiteStorage::set(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view column, std::string_view value) {
-    auto& stmt = getCachedStatement(*context,
+    auto& stmt = this->getCachedStatement(*context,
         std::format("INSERT INTO {0} (key, {1}) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET {1} = excluded.{1}, updated_at = CURRENT_TIMESTAMP;", table, column)
     );
 
@@ -170,7 +170,7 @@ void SQLiteStorage::set(std::shared_ptr<ConnectionContext> context, std::string_
         return std::move(acc) + ", " + s;
     });
     
-    auto& stmt = getCachedStatement(*context, std::format(
+    auto& stmt = this->getCachedStatement(*context, std::format(
         "INSERT OR REPLACE INTO {} (key, {}, updated_at) VALUES (?, {}, CURRENT_TIMESTAMP);",
         table, columns, placeholder
     ));
@@ -188,7 +188,7 @@ void SQLiteStorage::set(std::shared_ptr<ConnectionContext> context, std::string_
 }
 
 void SQLiteStorage::del(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key) {
-    auto& stmt = getCachedStatement(*context,
+    auto& stmt = this->getCachedStatement(*context,
         std::format("DELETE FROM {} WHERE key = ?;", table)
     );
 
@@ -200,8 +200,37 @@ void SQLiteStorage::del(std::shared_ptr<ConnectionContext> context, std::string_
     stmt.exec();
 }
 
+void SQLiteStorage::del(std::shared_ptr<ConnectionContext> context, std::string_view table, std::vector<std::string> keys) {
+    if (keys.empty())
+        return;
+
+    auto chunks = std::views::chunk(keys, 500);
+    for (auto chunk : chunks) {
+        std::vector<std::string> placeholders(chunk.size());
+        std::ranges::fill(placeholders, "?");
+
+        std::string placeholder = std::ranges::fold_left(std::views::drop(placeholders, 1), placeholders.front(), [](std::string acc, const std::string& s) -> std::string {
+            return std::move(acc) + ", " + s;
+        });
+        
+        auto& stmt = this->getCachedStatement(*context, std::format(
+            "DELETE FROM {} WHERE key IN ({})",
+            table, placeholder
+        ));
+
+        auto guard = make_success_guard([&stmt]() -> void { 
+            stmt.reset(); 
+        });
+        
+        for (int i = 0; i < static_cast<int>(chunk.size()); ++i)
+            stmt.bind(i + 1, chunk[i]);
+
+        stmt.exec();
+    }
+}
+
 bool SQLiteStorage::has(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key) {
-    auto& stmt = getCachedStatement(*context,
+    auto& stmt = this->getCachedStatement(*context,
         std::format("SELECT 1 FROM {} WHERE key = ? LIMIT 1;", table)
     );
 
@@ -214,7 +243,7 @@ bool SQLiteStorage::has(std::shared_ptr<ConnectionContext> context, std::string_
 }
 
 bool SQLiteStorage::has(std::shared_ptr<ConnectionContext> context, std::string_view table) {
-    auto& stmt = getCachedStatement(*context,
+    auto& stmt = this->getCachedStatement(*context,
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name = ? LIMIT 1;"
     );
 
@@ -238,7 +267,7 @@ std::unordered_map<std::string, std::string> SQLiteStorage::get(std::shared_ptr<
         return std::move(acc) + ", " + s;
     });
 
-    auto& stmt = getCachedStatement(*context,
+    auto& stmt = this->getCachedStatement(*context,
         std::format("SELECT {} FROM {} WHERE key = ?;", sql, table)
     );
 
@@ -288,7 +317,7 @@ std::unordered_map<std::string, std::unordered_map<std::string, std::string>> SQ
             return std::move(acc) + ", " + s;
         });
         
-        auto& stmt = getCachedStatement(*context, std::format(
+        auto& stmt = this->getCachedStatement(*context, std::format(
             "SELECT key, {} FROM {} WHERE key IN ({})",
             sql, table, placeholder
         ));
@@ -322,7 +351,7 @@ std::unordered_map<std::string, std::unordered_map<std::string, std::string>> SQ
 }
 
 std::string SQLiteStorage::get(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view column, std::string_view defaultValue) {
-    auto& stmt = getCachedStatement(*context,
+    auto& stmt = this->getCachedStatement(*context,
         std::format("SELECT {0} FROM {1} WHERE key = ?;", column, table)
     );
 
@@ -349,7 +378,7 @@ std::string SQLiteStorage::find(std::shared_ptr<ConnectionContext> context, std:
         return std::move(acc) + (match == FindCondition::AND ? " AND " : " OR ") + s;
     });
 
-    auto& stmt = getCachedStatement(*context,
+    auto& stmt = this->getCachedStatement(*context,
         std::format("SELECT key FROM {} WHERE {} LIMIT 1;", table, where)
     );
 
@@ -378,7 +407,7 @@ std::vector<std::string> SQLiteStorage::find(std::shared_ptr<ConnectionContext> 
         return std::move(acc) + (match == FindCondition::AND ? " AND " : " OR ") + s;
     });
 
-    auto& stmt = getCachedStatement(*context,
+    auto& stmt = this->getCachedStatement(*context,
         std::format("SELECT DISTINCT key FROM {} WHERE {};", table, where)
     );
 
@@ -408,7 +437,7 @@ std::vector<std::string> SQLiteStorage::find(std::shared_ptr<ConnectionContext> 
         return std::move(acc) + (match == FindCondition::AND ? " AND " : " OR ") + s;
     });
 
-    auto& stmt = getCachedStatement(*context,
+    auto& stmt = this->getCachedStatement(*context,
         std::format("SELECT DISTINCT {} FROM {} WHERE {};", column, table, where)
     );
 
@@ -427,7 +456,7 @@ std::vector<std::string> SQLiteStorage::find(std::shared_ptr<ConnectionContext> 
 }
 
 std::vector<std::string> SQLiteStorage::list(std::shared_ptr<ConnectionContext> context, std::string_view table) {
-    auto& stmt = getCachedStatement(*context,
+    auto& stmt = this->getCachedStatement(*context,
         std::format("SELECT DISTINCT key FROM {};", table)
     );
 
@@ -443,7 +472,7 @@ std::vector<std::string> SQLiteStorage::list(std::shared_ptr<ConnectionContext> 
 }
 
 std::vector<std::string> SQLiteStorage::list(std::shared_ptr<ConnectionContext> context) {
-    auto& stmt = getCachedStatement(*context,
+    auto& stmt = this->getCachedStatement(*context,
         "SELECT DISTINCT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;"
     );
 
@@ -459,13 +488,17 @@ std::vector<std::string> SQLiteStorage::list(std::shared_ptr<ConnectionContext> 
 }
 
 std::vector<std::string> SQLiteStorage::columns(std::shared_ptr<ConnectionContext> context, std::string_view table) {
-    auto& info = getCachedStatement(*context,
+    auto& stmt = this->getCachedStatement(*context,
         std::format("PRAGMA table_info({})", table)
     );
 
+    auto guard = make_success_guard([&stmt]() -> void { 
+        stmt.reset(); 
+    });
+
     std::vector<std::string> columns;
-    while (info.executeStep())
-        columns.emplace_back(info.getColumn(1).getText());
+    while (stmt.executeStep())
+        columns.emplace_back(stmt.getColumn(1).getText());
 
     return columns;
 }
@@ -546,6 +579,19 @@ void SQLiteStorage::del(std::string_view table, std::string_view key) {
     });
 
     this->del(conn, table, key);
+}
+
+void SQLiteStorage::del(std::string_view table, std::vector<std::string> keys) {
+    auto conn = this->writeConnectionPool->getConnection();
+
+    if (!conn)
+        return;
+
+    auto guard = make_scope_guard([this, conn]() -> void { 
+        this->writeConnectionPool->returnConnection(conn); 
+    });
+
+    this->del(conn, table, keys);
 }
 
 bool SQLiteStorage::has(std::string_view table, std::string_view key) {

@@ -103,6 +103,7 @@ namespace Config {
         int CleanThresholdEvent = 10000;
         int CleanDatabaseInterval = 1;
         int RefreshIntervalInMinutes = 5;
+        int SingleBacktrackingQuantity = 2000;
 
         struct C_Events {
             struct C_onPlayerConnect {

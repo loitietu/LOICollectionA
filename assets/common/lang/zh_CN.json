@@ -1,6 +1,6 @@
 {
     "name": "简体中文",
-    "console.log.error.containter": "{} -> 无法向容器添加元素",
+    "console.log.error.containter": "{} -> 当前吞吐量超出预期, 无法向容器添加元素",
     "console.log.error.object": "{} -> 无法向对象添加属性",
     "commands.generic.target": "没有与选择器匹配的目标",
     "commands.generic.ui": "已将 UI 打开给玩家 {0}",
@@ -50,7 +50,7 @@
     "commands.behaviorevent.success.clean": "已清除所有规定的行为事件",
     "commands.behaviorevent.success.query": "当前查询行为事件列表如下(只显示前 {0} 条): {1}",
     "commands.behaviorevent.success.query.info": "目标行为事件信息:",
-    "commands.behaviorevent.success.back": "区域行为事件已回溯",
+    "commands.behaviorevent.success.back": "区域行为事件已回溯，请等待服务器处理",
     "commands.statistics.description": "§e§lLOICollection -> §b玩家数据统计",
     "generic.tips.noinput": "没有输入内容, 无法执行后续操作",
     "generic.gui.page.previous": "上一页",

@@ -47,6 +47,7 @@ public:
     LOICOLLECTION_A_API   void set(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view column, std::string_view value);
     LOICOLLECTION_A_API   void set(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::unordered_map<std::string, std::string> values);
     LOICOLLECTION_A_API   void del(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key);
+    LOICOLLECTION_A_API   void del(std::shared_ptr<ConnectionContext> context, std::string_view table, std::vector<std::string> keys);
 
     LOICOLLECTION_A_NDAPI bool has(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key);
     LOICOLLECTION_A_NDAPI bool has(std::shared_ptr<ConnectionContext> context, std::string_view table);
@@ -73,6 +74,7 @@ public:
     LOICOLLECTION_A_API   void set(std::string_view table, std::string_view key, std::string_view column, std::string_view value);
     LOICOLLECTION_A_API   void set(std::string_view table, std::string_view key, std::unordered_map<std::string, std::string> values);
     LOICOLLECTION_A_API   void del(std::string_view table, std::string_view key);
+    LOICOLLECTION_A_API   void del(std::string_view table, std::vector<std::string> keys);
     
     LOICOLLECTION_A_NDAPI bool has(std::string_view table, std::string_view key);
     LOICOLLECTION_A_NDAPI bool has(std::string_view table);

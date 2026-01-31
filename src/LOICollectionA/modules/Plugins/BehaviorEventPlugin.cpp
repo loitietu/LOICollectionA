@@ -19,7 +19,9 @@
 
 #include <ll/api/coro/CoroTask.h>
 #include <ll/api/coro/InterruptableSleep.h>
+#include <ll/api/chrono/GameChrono.h>
 #include <ll/api/thread/ThreadPoolExecutor.h>
+#include <ll/api/thread/ServerThreadExecutor.h>
 #include <ll/api/base/Containers.h>
 
 #include <ll/api/command/Command.h>
@@ -88,6 +90,11 @@
 
 #include "LOICollectionA/include/Plugins/BehaviorEventPlugin.h"
 
+struct Traits : moodycamel::ConcurrentQueueDefaultTraits {
+    static const size_t BLOCK_SIZE = 1024;
+    static const size_t IMPLICIT_INITIAL_INDEX_SIZE = 2048;
+};
+
 using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
@@ -105,7 +112,7 @@ namespace LOICollection::Plugins {
     };
 
     struct BehaviorEventPlugin::Impl {
-        ll::ConcurrentQueue<Event> mEvents;
+        moodycamel::ConcurrentQueue<Event, Traits> mEvents;
 
         std::atomic<bool> mRegistered{ false };
 
@@ -788,7 +795,7 @@ namespace LOICollection::Plugins {
         std::vector<std::string> mKeys = this->getEvents(limit);
 
         std::vector<std::string> mResult;
-        for (auto& [id, data] :  this->getDatabase()->get("Events", mKeys)) {
+        for (auto& [id, data] : this->getDatabase()->get("Events", mKeys)) {
             auto mView = conditions | std::views::filter([&data, filter](const std::pair<std::string, std::string>& mCondition) -> bool {
                 auto it = data.find(mCondition.first);
                 if (it == data.end())
@@ -831,8 +838,7 @@ namespace LOICollection::Plugins {
             return {};
 
         std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mEvents;
-
-        for (auto& [id, data] :  this->getDatabase()->get("Events", ids)) {
+        for (auto& [id, data] : this->getDatabase()->get("Events", ids)) {
             auto it = mEvents.find(id);
             if (it == mEvents.end())
                 mEvents[id] = data;
@@ -871,47 +877,58 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return;
 
-        SQLiteStorageTransaction transaction(*this->getDatabase());
-        auto connection = transaction.connection();
+        std::vector<std::vector<std::string>> chunks = ids
+            | std::views::chunk(std::max(this->mImpl->options.SingleBacktrackingQuantity, 1))
+            | std::ranges::to<std::vector<std::vector<std::string>>>();
 
-        for (auto& [id, data] :  this->getDatabase()->get("Events", ids)) {
-            BlockPos mPosition(
-                SystemUtils::toInt(data.at("position_x"), 0),
-                SystemUtils::toInt(data.at("position_y"), 0),
-                SystemUtils::toInt(data.at("position_z"), 0)
-            );
-            int mDimension = SystemUtils::toInt(data.at("position_dimension"), 0);
+        ll::coro::keepThis([this, chunks]() -> ll::coro::CoroTask<> {
+            int index = 0;
+            
+            while (index < static_cast<int>(chunks.size())) {
+                co_await ll::chrono::ticks(1);
 
-            if (data.contains("event_operable")) {
-                CompoundTag mNbt = CompoundTag::fromSnbt(data.at("event_operable"))->mTags;
+                const std::vector<std::string>& mIds = chunks.at(index);
+                for (auto& [id, data] : this->getDatabase()->get("Events", mIds)) {
+                    BlockPos mPosition(
+                        SystemUtils::toInt(data.at("position_x"), 0),
+                        SystemUtils::toInt(data.at("position_y"), 0),
+                        SystemUtils::toInt(data.at("position_z"), 0)
+                    );
+                    int mDimension = SystemUtils::toInt(data.at("position_dimension"), 0);
 
-                BlockUtils::setBlock(mPosition, mDimension, mNbt);
-            } else if (data.contains("event_operable_entity")) {
-                CompoundTag mNbt = CompoundTag::fromSnbt(data.at("event_operable_entity"))->mTags;
+                    if (data.contains("event_operable")) {
+                        CompoundTag mNbt = CompoundTag::fromSnbt(data.at("event_operable"))->mTags;
 
-                BlockUtils::setBlockEntity(mPosition, mDimension, mNbt);
+                        BlockUtils::setBlock(mPosition, mDimension, mNbt);
+                    } else if (data.contains("event_operable_entity")) {
+                        CompoundTag mNbt = CompoundTag::fromSnbt(data.at("event_operable_entity"))->mTags;
+
+                        BlockUtils::setBlockEntity(mPosition, mDimension, mNbt);
+                    }
+                }
+
+                this->getDatabase()->del("Events", mIds);
+
+                ++index;
             }
 
-            this->getDatabase()->del(connection, "Events", id);
-        }
-
-        transaction.commit();
+            co_return;
+        }).launch(ll::thread::ServerThreadExecutor::getDefault());
     }
 
     void BehaviorEventPlugin::clean(int hours) {
         if (!this->isValid())
             return;
 
-        SQLiteStorageTransaction transaction(*this->getDatabase());
-        auto connection = transaction.connection();
-
-        for (auto& [id, data] :  this->getDatabase()->get("Events", this->getEvents())) {
+        std::vector<std::string> mIds;
+        for (auto& [id, data] : this->getDatabase()->get("Events", this->getEvents())) {
             std::string mTime = SystemUtils::toTimeCalculate(data.at("event_time"), hours * 3600, "0");
             if (SystemUtils::isPastOrPresent(mTime))
-                this->getDatabase()->del(connection, "Events", id);
+                mIds.emplace_back(id);
         }
 
-        transaction.commit();
+        if (!mIds.empty())
+            this->getDatabase()->del("Events", mIds);
     }
 
     bool BehaviorEventPlugin::isValid() {

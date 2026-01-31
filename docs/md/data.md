@@ -12,7 +12,7 @@
 
 ```json
 {
-    "version": 44456286, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
+    "version": 28422386, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
         "Blacklist": false, // 是否启用黑名单
@@ -111,6 +111,7 @@
             "CleanThresholdEvent": 10000, // 行为事件清理阈值
             "CleanDatabaseInterval": 1, // 数据库自动清理间隔（单位为小时）
             "RefreshIntervalInMinutes": 5, // 行为事件记录间隔（单位为分钟）
+            "SingleBacktrackingQuantity": 2000, // 单次回溯事件数量（注：数量越大，单 tick 内处理的事件就越多，可能会导致服务器滞留直至完成处理）
             "Events": { // 行为事件配置
                 "onPlayerConnect": { // 玩家连接事件
                     "ModuleEnabled": true, // 是否启用该事件
@@ -211,7 +212,7 @@
 ```
 
 > [!NOTE]
-> 以上内容取自 LOICollectionA 1.10.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以上内容取自 LOICollectionA 1.10.1 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 
 ## 模块数据文件
 
