@@ -399,14 +399,8 @@ namespace LOICollection::Plugins {
             return {};
 
         std::vector<std::pair<std::string, std::string>> mResult;
-
-        SQLiteStorageTransaction transaction(*this->mImpl->db, true);
-        auto connection = transaction.connection();
-
-        for (const std::string& mObject : this->mImpl->db->list(connection))
-            mResult.emplace_back(mObject, this->mImpl->db->get(connection, "Wallet", mObject, "name", "Unknown"));
-
-        transaction.commit();
+        for (auto& [id, data] : this->mImpl->db->get("Wallet", this->mImpl->db->list("Wallet")))
+            mResult.emplace_back(id, data.at("name"));
 
         return mResult;
     }
