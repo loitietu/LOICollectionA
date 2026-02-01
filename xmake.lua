@@ -10,8 +10,14 @@ option("shared")
     set_description("Build shared library")
 option_end()
 
+option("target_type")
+    set_default("server")
+    set_showmenu(true)
+    set_values("server", "client")
+option_end()
+
 add_requires("sqlitecpp 3.3.3", {configs = {shared = get_config("shared")}})
-add_requires("levilamina 1.7.7", {configs = {target_type = "server"}})
+add_requires("levilamina 1.9.2", {configs = {target_type = "server"}})
 add_requires(
     "levibuildscript",
     "preloader 1.15.7",
@@ -22,7 +28,7 @@ if not has_config("vs_runtime") then
     set_runtimes("MD")
 end
 
-set_version("1.10.1")
+set_version("1.11.0")
 
 includes("scripts/modpacker.lua")
 
@@ -79,6 +85,8 @@ target("LOICollectionA")
     set_kind("shared")
     set_languages("cxx20")
     set_symbols("debug")
+
+    add_defines("LL_PLAT_S")
 
     if is_mode("debug") then
         add_defines("DEBUG")

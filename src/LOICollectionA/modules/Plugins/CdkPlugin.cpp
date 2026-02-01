@@ -333,7 +333,7 @@ namespace LOICollection::Plugins {
     }
 
     void CdkPlugin::registeryCommand() {
-        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
+        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("cdk", tr({}, "commands.cdk.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("convert").required("Id").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
@@ -440,10 +440,11 @@ namespace LOICollection::Plugins {
                 Bedrock::Safety::RedactableString mRedactableString;
                 mRedactableString.mUnredactedString = value.value("name", "");
                 
-                ItemStack itemStack(value.value("id", ""), 1, value.value("specialvalue", 0), nullptr);
-                itemStack.setCustomName(mRedactableString);
+                auto itemStack = std::make_unique<ItemStack>();
+                itemStack->reinit(value.value("id", ""), 0, value.value("specialvalue", 0));
+                itemStack->setCustomName(mRedactableString);
                 
-                InventoryUtils::giveItem(player, itemStack, value.value("quantity", 1));
+                InventoryUtils::giveItem(player, *itemStack, value.value("quantity", 1));
             }
         }
 

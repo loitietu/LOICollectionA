@@ -121,6 +121,7 @@ namespace LOICollection::frontend {
     std::string Evaluator::valueToString(const Value& val) {
         return std::visit([](auto&& arg) -> std::string {
             using T = std::decay_t<decltype(arg)>;
+
             if constexpr (std::is_same_v<std::remove_cv_t<T>, int>)
                 return std::to_string(arg);
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, float>) {
@@ -210,6 +211,7 @@ namespace LOICollection::frontend {
     bool Evaluator::valueToBool(const Value& val) {
         return std::visit([](auto&& arg) -> bool {
             using T = std::decay_t<decltype(arg)>;
+            
             if constexpr (std::is_same_v<std::remove_cv_t<T>, int>)
                 return arg != 0;
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, float>)

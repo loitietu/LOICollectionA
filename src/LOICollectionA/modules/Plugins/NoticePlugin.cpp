@@ -325,9 +325,9 @@ namespace LOICollection::Plugins {
     }
 
     void NoticePlugin::registeryCommand() {
-        ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(NoticeObjectName, this->getDatabase()->keys());
+        ll::command::CommandRegistrar::getInstance(false).tryRegisterSoftEnum(NoticeObjectName, this->getDatabase()->keys());
 
-        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
+        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("notice", tr({}, "commands.notice.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").optional("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
@@ -389,11 +389,11 @@ namespace LOICollection::Plugins {
         });
 
         this->mImpl->NoticeCreateEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NoticeCreateEvent>([](LOICollection::ServerEvents::NoticeCreateEvent& event) mutable -> void {
-            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(NoticeObjectName, { event.getTarget() });
+            ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues(NoticeObjectName, { event.getTarget() });
         });
 
         this->mImpl->NoticeDeleteEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NoticeDeleteEvent>([](LOICollection::ServerEvents::NoticeDeleteEvent& event) mutable -> void {
-            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(NoticeObjectName, { event.getTarget() });
+            ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues(NoticeObjectName, { event.getTarget() });
         });
     }
 

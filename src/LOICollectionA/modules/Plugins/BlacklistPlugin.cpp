@@ -242,9 +242,9 @@ namespace LOICollection::Plugins {
     }
 
     void BlacklistPlugin::registeryCommand() {
-        ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(BlacklistObjectName, this->getBlacklists());
+        ll::command::CommandRegistrar::getInstance(false).tryRegisterSoftEnum(BlacklistObjectName, this->getBlacklists());
 
-        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
+        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("blacklist", tr({}, "commands.blacklist.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("add").required("Target").optional("Cause").optional("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
@@ -309,13 +309,13 @@ namespace LOICollection::Plugins {
 
     void BlacklistPlugin::listenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        this->mImpl->NetworkPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([this](LOICollection::ServerEvents::NetworkPacketEvent& event) -> void {
+        this->mImpl->NetworkPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketAfterEvent>([this](LOICollection::ServerEvents::NetworkPacketAfterEvent& event) -> void {
             if (event.getPacket().getId() != MinecraftPacketIds::Login)
                 return;
 
             auto packet = static_cast<LoginPacket const&>(event.getPacket());
 
-            std::string mUuid = packet.mConnectionRequest->mAuthenticationInfo->AuthenticatedUuid->asString();
+            std::string mUuid = packet.mConnectionRequest->mCertificateData->mRawToken.mDataInfo.get("extraData", {}).get("identity", "None").asString("None");
             std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find_last_of(':'));
             std::string mClientId = packet.mConnectionRequest->getDeviceId();
 
@@ -349,11 +349,11 @@ namespace LOICollection::Plugins {
             if (mId.empty())
                 return;
 
-            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(BlacklistObjectName, { mId });
+            ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues(BlacklistObjectName, { mId });
         });
 
         this->mImpl->BlacklistRemoveEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::BlacklistRemoveEvent>([](LOICollection::ServerEvents::BlacklistRemoveEvent& event) -> void {
-            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(BlacklistObjectName, { event.getTarget() });
+            ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues(BlacklistObjectName, { event.getTarget() });
         });
     }
 

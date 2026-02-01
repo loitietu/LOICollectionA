@@ -42,7 +42,7 @@ namespace LOICollection::ProtableTool {
 
     void BasicHook::listenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        this->mImpl->NetworkPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([this](LOICollection::ServerEvents::NetworkPacketEvent& event) -> void {
+        this->mImpl->NetworkPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketBeforeEvent>([this](LOICollection::ServerEvents::NetworkPacketBeforeEvent& event) -> void {
             if (event.getPacket().getId() != MinecraftPacketIds::StartGame)
                 return;
 

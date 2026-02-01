@@ -14,6 +14,7 @@
 #include <mc/world/level/block/RedStoneWireBlock.h>
 #include <mc/world/level/block/RedstoneTorchBlock.h>
 #include <mc/world/level/block/actor/PistonBlockActor.h>
+#include <mc/world/level/block/block_events/BlockRedstoneUpdateEvent.h>
 #include <mc/world/level/dimension/Dimension.h>
 
 #include "LOICollectionA/include/ServerEvents/world/RedStoneEvent.h"
@@ -43,68 +44,42 @@ namespace LOICollection::ServerEvents {
         RedStoneWireBlockHook,
         HookPriority::Normal,
         RedStoneWireBlock,
-        &RedStoneWireBlock::$onRedstoneUpdate,
+        &RedStoneWireBlock::_onRedstoneUpdate,
         void,
-        BlockSource& region,
-        BlockPos const& pos,
-        int strength,
-        bool isFirstTime
+        BlockEvents::BlockRedstoneUpdateEvent& blockEvent
     ) {
-        RedStoneEvent event(pos, region, region.getDimensionId(), strength, isFirstTime);
+        RedStoneEvent event(blockEvent.mPos, blockEvent.mRegion, blockEvent.mRegion.getDimensionId(), blockEvent.mSignalLevel, blockEvent.mIsFirstTime);
         ll::event::EventBus::getInstance().publish(event);
         
-        origin(region, pos, strength, isFirstTime);
+        origin(blockEvent);
     }
 
     LL_TYPE_INSTANCE_HOOK(
         RedStoneTorchBlockHook,
         HookPriority::Normal,
         RedstoneTorchBlock,
-        &RedstoneTorchBlock::$onRedstoneUpdate,
+        &RedstoneTorchBlock::_onRedstoneUpdate,
         void,
-        BlockSource& region,
-        BlockPos const& pos,
-        int strength,
-        bool isFirstTime
+        BlockEvents::BlockRedstoneUpdateEvent& blockEvent
     ) {
-        RedStoneEvent event(pos, region, region.getDimensionId(), strength, isFirstTime);
+        RedStoneEvent event(blockEvent.mPos, blockEvent.mRegion, blockEvent.mRegion.getDimensionId(), blockEvent.mSignalLevel, blockEvent.mIsFirstTime);
         ll::event::EventBus::getInstance().publish(event);
         
-        origin(region, pos, strength, isFirstTime);
-    }
-
-    LL_TYPE_INSTANCE_HOOK(
-        DiodeBlockHook,
-        HookPriority::Normal,
-        DiodeBlock,
-        &DiodeBlock::$onRedstoneUpdate,
-        void,
-        BlockSource& region,
-        BlockPos const& pos,
-        int strength,
-        bool isFirstTime
-    ) {
-        RedStoneEvent event(pos, region, region.getDimensionId(), strength, isFirstTime);
-        ll::event::EventBus::getInstance().publish(event);
-        
-        origin(region, pos, strength, isFirstTime);
+        origin(blockEvent);
     }
 
     LL_TYPE_INSTANCE_HOOK(
         ComparatorBlockHook,
         HookPriority::Normal,
         ComparatorBlock,
-        &ComparatorBlock::$onRedstoneUpdate,
+        &ComparatorBlock::_onRedstoneUpdate,
         void,
-        BlockSource& region,
-        BlockPos const& pos,
-        int strength,
-        bool isFirstTime
+        BlockEvents::BlockRedstoneUpdateEvent& blockEvent
     ) {
-        RedStoneEvent event(pos, region, region.getDimensionId(), strength, isFirstTime);
+        RedStoneEvent event(blockEvent.mPos, blockEvent.mRegion, blockEvent.mRegion.getDimensionId(), blockEvent.mSignalLevel, blockEvent.mIsFirstTime);
         ll::event::EventBus::getInstance().publish(event);
         
-        origin(region, pos, strength, isFirstTime);
+        origin(blockEvent);
     }
 
     LL_TYPE_INSTANCE_HOOK(
@@ -126,7 +101,7 @@ namespace LOICollection::ServerEvents {
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactory();
     class RedStoneEventEmitter : public ll::event::Emitter<emitterFactory, RedStoneEvent> {
-        ll::memory::HookRegistrar<RedStoneWireBlockHook, RedStoneTorchBlockHook, DiodeBlockHook, ComparatorBlockHook, ObserverBlockHook> hook;
+        ll::memory::HookRegistrar<RedStoneWireBlockHook, RedStoneTorchBlockHook, ComparatorBlockHook, ObserverBlockHook> hook;
     };
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactory() {

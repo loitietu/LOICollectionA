@@ -24,11 +24,19 @@
 #include "LOICollectionA/include/ServerEvents/server/NetworkPacketEvent.h"
 
 namespace LOICollection::ServerEvents {
-    const NetworkIdentifier& NetworkPacketEvent::getNetworkIdentifier() const {
+    const NetworkIdentifier& NetworkPacketBeforeEvent::getNetworkIdentifier() const {
         return mNetworkIdentifier;
     }
 
-    const Packet& NetworkPacketEvent::getPacket() const {
+    const NetworkIdentifier& NetworkPacketAfterEvent::getNetworkIdentifier() const {
+        return mNetworkIdentifier;
+    }
+
+    const Packet& NetworkPacketBeforeEvent::getPacket() const {
+        return mPacket;
+    }
+
+    const Packet& NetworkPacketAfterEvent::getPacket() const {
         return mPacket;
     }
 
@@ -36,11 +44,19 @@ namespace LOICollection::ServerEvents {
         return mPacket;
     }
 
-    SubClientId NetworkPacketEvent::getSubClientId() const {
+    SubClientId NetworkPacketBeforeEvent::getSubClientId() const {
         return mSubClientId;
     }
 
-    NetworkPacketType NetworkPacketEvent::getType() const {
+    SubClientId NetworkPacketAfterEvent::getSubClientId() const {
+        return mSubClientId;
+    }
+
+    NetworkPacketType NetworkPacketBeforeEvent::getType() const {
+        return mType;
+    }
+
+    NetworkPacketType NetworkPacketAfterEvent::getType() const {
         return mType;
     }
 
@@ -54,12 +70,15 @@ namespace LOICollection::ServerEvents {
         Packet const& packet,
         SubClientId subClientId
     ) {
-        NetworkPacketEvent event(identifier, packet, subClientId, NetworkPacketType::send);
-        ll::event::EventBus::getInstance().publish(event);
-        if (event.isCancelled())
+        NetworkPacketBeforeEvent beforeEvent(identifier, packet, subClientId, NetworkPacketType::send);
+        ll::event::EventBus::getInstance().publish(beforeEvent);
+        if (beforeEvent.isCancelled())
             return;
 
         origin(identifier, packet, subClientId);
+
+        NetworkPacketAfterEvent afterEvent(identifier, packet, subClientId, NetworkPacketType::send);
+        ll::event::EventBus::getInstance().publish(afterEvent);
     }
 
     LL_TYPE_INSTANCE_HOOK(
@@ -72,12 +91,15 @@ namespace LOICollection::ServerEvents {
         Packet const& packet,
         uint size
     ) {
-        NetworkPacketEvent event(source, packet, packet.mSenderSubId, NetworkPacketType::receive);
-        ll::event::EventBus::getInstance().publish(event);
-        if (event.isCancelled())
+        NetworkPacketBeforeEvent beforeEvent(source, packet, packet.mSenderSubId, NetworkPacketType::receive);
+        ll::event::EventBus::getInstance().publish(beforeEvent);
+        if (beforeEvent.isCancelled())
             return;
 
         origin(source, packet, size);
+        
+        NetworkPacketAfterEvent afterEvent(source, packet, packet.mSenderSubId, NetworkPacketType::receive);
+        ll::event::EventBus::getInstance().publish(afterEvent);
     }
 
     LL_TYPE_INSTANCE_HOOK(
@@ -115,7 +137,7 @@ namespace LOICollection::ServerEvents {
     }
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactory1();
-    class NetworkPacketEventEmitter : public ll::event::Emitter<emitterFactory1, NetworkPacketEvent> {
+    class NetworkPacketEventEmitter : public ll::event::Emitter<emitterFactory1, NetworkPacketBeforeEvent, NetworkPacketAfterEvent> {
         ll::memory::HookRegistrar<NetworkPacketEventHook1, NetworkPacketEventHook2> hook;
     };
 

@@ -209,7 +209,7 @@ namespace LOICollection::Plugins {
     }
 
     void BehaviorEventPlugin::registeryCommand() {
-        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
+        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("behaviorevent", tr({}, "commands.behaviorevent.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload().text("clean").execute([this](CommandOrigin const&, CommandOutput& output) -> void {
             this->clean(this->mImpl->options.OrganizeDatabaseInterval);

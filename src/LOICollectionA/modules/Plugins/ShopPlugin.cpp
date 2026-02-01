@@ -598,9 +598,14 @@ namespace LOICollection::Plugins {
                 return;
             if (type == ShopType::buy) {
                 if (this->mParent.checkModifiedData(pl, data, mNumber)) {
-                    ItemStack itemStack = data.contains("nbt") ? ItemStack::fromTag(CompoundTag::fromSnbt(data.value("nbt", ""))->mTags)
-                        : ItemStack(data.value("id", ""), 1, 0, nullptr);
-                    InventoryUtils::giveItem(pl, itemStack, mNumber);
+                    auto itemStack = std::make_unique<ItemStack>();
+
+                    if (data.contains("nbt"))
+                        itemStack = std::make_unique<ItemStack>(ItemStack::fromTag(CompoundTag::fromSnbt(data.value("nbt", ""))->mTags));
+                    else
+                        itemStack->reinit(data.value("id", ""), 1, 0);
+                    
+                    InventoryUtils::giveItem(pl, *itemStack, mNumber);
                     pl.refreshInventory();
                     return;
                 }
@@ -678,9 +683,9 @@ namespace LOICollection::Plugins {
     }
 
     void ShopPlugin::registeryCommand() {
-        ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(ShopObjectName, this->getDatabase()->keys());
+        ll::command::CommandRegistrar::getInstance(false).tryRegisterSoftEnum(ShopObjectName, this->getDatabase()->keys());
 
-        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
+        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("shop", tr({}, "commands.shop.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").required("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
@@ -711,11 +716,11 @@ namespace LOICollection::Plugins {
     void ShopPlugin::listenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         this->mImpl->ShopCreateEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::ShopCreateEvent>([](LOICollection::ServerEvents::ShopCreateEvent& event) -> void {
-            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(ShopObjectName, { event.getTarget() });
+            ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues(ShopObjectName, { event.getTarget() });
         });
 
         this->mImpl->ShopDeleteEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::ShopDeleteEvent>([](LOICollection::ServerEvents::ShopDeleteEvent& event) -> void {
-            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(ShopObjectName, { event.getTarget() });
+            ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues(ShopObjectName, { event.getTarget() });
         });
     }
 

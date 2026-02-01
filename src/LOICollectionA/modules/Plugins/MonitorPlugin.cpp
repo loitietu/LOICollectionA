@@ -213,7 +213,7 @@ namespace LOICollection::Plugins {
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
                 return;
 
-            TextPacket::createSystemMessage(
+            TextPacket::createRawMessage(
                 LOICollectionAPI::APIUtils::getInstance().translate(option.FormatText.join, event.self())
             ).sendToClients();
 
@@ -224,7 +224,7 @@ namespace LOICollection::Plugins {
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
                 return;
 
-            TextPacket::createSystemMessage(
+            TextPacket::createRawMessage(
                 LOICollectionAPI::APIUtils::getInstance().translate(option.FormatText.exit, event.self())
             ).sendToClients();
 
@@ -278,34 +278,16 @@ namespace LOICollection::Plugins {
             }
         }));
 
-        this->mImpl->mListeners.emplace("NetworkPacketEvent", eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([option = this->mImpl->options.DisableCommand](LOICollection::ServerEvents::NetworkPacketEvent& event) -> void {
+        this->mImpl->mListeners.emplace("NetworkPacketEvent", eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketBeforeEvent>([option = this->mImpl->options.DisableCommand](LOICollection::ServerEvents::NetworkPacketBeforeEvent& event) -> void {
             if (!option.ModuleEnabled || event.getPacket().getId() != MinecraftPacketIds::AvailableCommands)
                 return;
 
             auto& packet = static_cast<AvailableCommandsPacket&>(const_cast<Packet&>(event.getPacket()));
 
             std::vector<std::string> mObjectCommands = option.CommandLists;
-
-            std::vector<size_t> mCommandsToRemove;
-            for (size_t i = 0; i < packet.mCommands->size(); ++i) {
-                if (std::find(mObjectCommands.begin(), mObjectCommands.end(), *packet.mCommands->at(i).name) == mObjectCommands.end()) 
-                    continue;
-                mCommandsToRemove.push_back(i);
-            }
-
-            std::sort(mCommandsToRemove.rbegin(), mCommandsToRemove.rend());
-
-            for (size_t i : mCommandsToRemove) {
-                if (i >= packet.mCommands->size()) 
-                    continue;
-
-                packet.mCommands->at(i).$dtor();
-                if (i < packet.mCommands->size() - 1) {
-                    new (&packet.mCommands->at(i)) AvailableCommandsPacket::CommandData(std::move(packet.mCommands->back()));
-                    packet.mCommands->back().$dtor();
-                }
-                packet.mCommands->pop_back();
-            }
+            std::erase_if(packet.mCommands.get(), [mObjectCommands](AvailableCommandsPacket::CommandData& item) -> bool {
+                return std::find(mObjectCommands.begin(), mObjectCommands.end(), item.name.get()) != mObjectCommands.end();
+            });
         }));
 
         std::vector<std::string> mTextPacketType{"multiplayer.player.joined", "multiplayer.player.left"};
@@ -315,14 +297,25 @@ namespace LOICollection::Plugins {
 
             auto packet = static_cast<TextPacket const&>(event.getPacket());
             
-            bool result = std::any_of(mTextPacketType.begin(), mTextPacketType.end(), [target = packet.mMessage](const std::string& item) {
+            bool result = std::any_of(mTextPacketType.begin(), mTextPacketType.end(), [target = packet.getMessage()](const std::string& item) -> bool {
                 return target.find(item) != std::string::npos;
             });
 
-            if (!result || !(packet.params.size() > 0))
+            std::string mAuthor = std::visit([](auto&& arg) -> std::string {
+                using T = std::decay_t<decltype(arg)>;
+
+                if constexpr (std::is_same_v<T, TextPacket::MessageAndParams>)
+                    return arg.mParams->at(0);
+                if constexpr (std::is_same_v<T, TextPacket::AuthorAndMessage>)
+                    return arg.mAuthor;
+                
+                return "";
+            }, packet.mBody.get());
+
+            if (!result || mAuthor.empty())
                 return;
             
-            if (Player* player = ll::service::getLevel()->getPlayer(packet.params.at(0)); player) {
+            if (Player* player = ll::service::getLevel()->getPlayer(mAuthor); player) {
                 std::string mUuid = player->getUuid().asString();
                 if (std::find(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), mUuid) != mInterceptTextObjectPacket.end())
                     event.cancel();

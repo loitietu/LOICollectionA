@@ -52,7 +52,7 @@ namespace LOICollection::ProtableTool {
 
     void OrderedUI::listenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        this->mImpl->ModalFormRequestEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([this](LOICollection::ServerEvents::NetworkPacketEvent& event) mutable -> void {
+        this->mImpl->ModalFormRequestEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketBeforeEvent>([this](LOICollection::ServerEvents::NetworkPacketBeforeEvent& event) mutable -> void {
             if (event.getPacket().getId() != MinecraftPacketIds::ShowModalForm)
                 return;
 
@@ -71,7 +71,7 @@ namespace LOICollection::ProtableTool {
 
             this->mImpl->mFormResponse[mIdentifierHash] = packet.mFormId;
         });
-        this->mImpl->ModalFormResponseEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketEvent>([this](LOICollection::ServerEvents::NetworkPacketEvent& event) mutable -> void {
+        this->mImpl->ModalFormResponseEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketBeforeEvent>([this](LOICollection::ServerEvents::NetworkPacketBeforeEvent& event) mutable -> void {
             if (event.getPacket().getId() != MinecraftPacketIds::ModalFormResponse)
                 return;
 

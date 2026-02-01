@@ -364,7 +364,7 @@ namespace LOICollection::Plugins {
     }
 
     void ChatPlugin::registeryCommand() {
-        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
+        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("chat", tr({}, "commands.chat.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("add").required("Target").required("Title").optional("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {

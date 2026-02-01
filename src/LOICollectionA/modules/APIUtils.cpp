@@ -21,7 +21,7 @@
 #include <mc/world/level/BlockPos.h>
 #include <mc/world/actor/BuiltInActorComponents.h>
 #include <mc/world/actor/player/Player.h>
-#include <mc/world/actor/provider/ActorAttribute.h>
+#include <mc/world/attribute/AttributeInstanceConstRef.h>
 #include <mc/world/attribute/AttributeInstance.h>
 #include <mc/entity/components/ActorRotationComponent.h>
 #include <mc/network/ServerNetworkHandler.h>
@@ -162,22 +162,34 @@ namespace LOICollection::LOICollectionAPI {
             return player.canFly() ? "true" : "false";
         });
         this->registerVariable("player_health", [](Player& player) -> std::string {
-            return std::to_string(ActorAttribute::getHealth(player.getEntityContext()));
+            return std::to_string(player.getHealth());
         });
         this->registerVariable("player_max_health", [](Player& player) -> std::string {
             return std::to_string(static_cast<int>(player.getMaxHealth()));
         });
         this->registerVariable("player_hunger", [](Player& player) -> std::string {
-            return std::to_string(static_cast<int>(player.getAttribute(Player::HUNGER()).mCurrentValue));
+            if (auto attribute = player.getAttribute(Player::HUNGER()).mPtr; attribute)
+                return std::to_string(static_cast<int>(attribute->mCurrentValue));
+
+            return "None";
         });
         this->registerVariable("player_max_hunger", [](Player& player) -> std::string {
-            return std::to_string(static_cast<int>(player.getAttribute(Player::HUNGER()).mCurrentMaxValue));
+            if (auto attribute = player.getAttribute(Player::HUNGER()).mPtr; attribute)
+                return std::to_string(static_cast<int>(attribute->mCurrentMaxValue));
+
+            return "None";
         });
         this->registerVariable("player_saturation", [](Player& player) -> std::string {
-            return std::to_string(static_cast<int>(player.getAttribute(Player::SATURATION()).mCurrentValue));
+            if (auto attribute = player.getAttribute(Player::SATURATION()).mPtr; attribute)
+                return std::to_string(static_cast<int>(attribute->mCurrentValue));
+
+            return "None";
         });
         this->registerVariable("player_max_saturation", [](Player& player) -> std::string {
-            return std::to_string(static_cast<int>(player.getAttribute(Player::SATURATION()).mCurrentMaxValue));
+            if (auto attribute = player.getAttribute(Player::SATURATION()).mPtr; attribute)
+                return std::to_string(static_cast<int>(attribute->mCurrentMaxValue));
+
+            return "None";
         });
         this->registerVariable("player_speed", [](Player& player) -> std::string {
             return std::to_string(player.getSpeed());
@@ -195,10 +207,16 @@ namespace LOICollection::LOICollectionAPI {
             return player.getIPAndPort();
         });
         this->registerVariable("player_exp_xp", [](Player& player) -> std::string {
-            return std::to_string(static_cast<int>(player.getAttribute(Player::EXPERIENCE()).mCurrentValue));
+            if (auto attribute = player.getAttribute(Player::EXPERIENCE()).mPtr; attribute)
+                return std::to_string(static_cast<int>(attribute->mCurrentValue));
+
+            return "None";
         });
         this->registerVariable("player_exp_level", [](Player& player) -> std::string {
-            return std::to_string(static_cast<int>(player.getAttribute(Player::LEVEL()).mCurrentValue));
+            if (auto attribute = player.getAttribute(Player::LEVEL()).mPtr; attribute)
+                return std::to_string(static_cast<int>(attribute->mCurrentValue));
+
+            return "None";
         });
         this->registerVariable("player_exp_level_next", [](Player& player) -> std::string {
             return std::to_string(player.getXpNeededForNextLevel());

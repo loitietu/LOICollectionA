@@ -812,9 +812,9 @@ namespace LOICollection::Plugins {
     }
 
     void MenuPlugin::registeryCommand() {
-        ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(MenuObjectName, this->getDatabase()->keys());
+        ll::command::CommandRegistrar::getInstance(false).tryRegisterSoftEnum(MenuObjectName, this->getDatabase()->keys());
 
-        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
+        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("menu", tr({}, "commands.menu.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").optional("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
@@ -848,13 +848,15 @@ namespace LOICollection::Plugins {
                 return output.error(tr({}, "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            ItemStack itemStack(this->mImpl->options.MenuItemId, 1, 0, nullptr);
-            if (!itemStack || itemStack.isNull())
+            auto itemStack = std::make_unique<ItemStack>();
+            itemStack->reinit(this->mImpl->options.MenuItemId, 1, 0);
+            
+            if (!itemStack || itemStack->isNull())
                 return output.error(tr({}, "commands.menu.error.item.null"));
             if (InventoryUtils::isItemInInventory(player, this->mImpl->options.MenuItemId, 1))
                 return output.error(fmt::runtime(tr({}, "commands.menu.error.item.give")), player.getRealName());
 
-            InventoryUtils::giveItem(player, itemStack, 1);
+            InventoryUtils::giveItem(player, *itemStack, 1);
             player.refreshInventory();
 
             output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
@@ -875,19 +877,21 @@ namespace LOICollection::Plugins {
             if (event.self().isSimulatedPlayer())
                 return;
 
-            ItemStack itemStack(this->mImpl->options.MenuItemId, 1, 0, nullptr);
+            auto itemStack = std::make_unique<ItemStack>();
+            itemStack->reinit(this->mImpl->options.MenuItemId, 1, 0);
+
             if (!itemStack || InventoryUtils::isItemInInventory(event.self(), this->mImpl->options.MenuItemId, 1))
                 return;
-            InventoryUtils::giveItem(event.self(), itemStack, 1);
+            InventoryUtils::giveItem(event.self(), *itemStack, 1);
             event.self().refreshInventory();
         });
 
         this->mImpl->MenuCreateEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::MenuCreateEvent>([](LOICollection::ServerEvents::MenuCreateEvent& event) -> void {
-            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MenuObjectName, { event.getTarget() });
+            ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues(MenuObjectName, { event.getTarget() });
         });
 
         this->mImpl->MenuDeleteEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::MenuDeleteEvent>([](LOICollection::ServerEvents::MenuDeleteEvent& event) -> void {
-            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(MenuObjectName, { event.getTarget() });
+            ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues(MenuObjectName, { event.getTarget() });
         });
     }
 

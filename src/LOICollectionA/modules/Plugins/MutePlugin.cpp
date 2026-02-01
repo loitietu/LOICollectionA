@@ -231,9 +231,9 @@ namespace LOICollection::Plugins {
     }
 
     void MutePlugin::registeryCommand() {
-        ll::command::CommandRegistrar::getInstance().tryRegisterSoftEnum(MuteObjectName, getMutes());
+        ll::command::CommandRegistrar::getInstance(false).tryRegisterSoftEnum(MuteObjectName, getMutes());
 
-        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance()
+        ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("mute", tr({}, "commands.mute.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("add").required("Target").optional("Cause").optional("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
@@ -340,11 +340,11 @@ namespace LOICollection::Plugins {
             if (mId.empty())
                 return;
             
-            ll::command::CommandRegistrar::getInstance().addSoftEnumValues(MuteObjectName, { mId });
+            ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues(MuteObjectName, { mId });
         });
 
         this->mImpl->MuteRemoveEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::MuteRemoveEvent>([](LOICollection::ServerEvents::MuteRemoveEvent& event) -> void {
-            ll::command::CommandRegistrar::getInstance().removeSoftEnumValues(MuteObjectName, { event.getTarget() });
+            ll::command::CommandRegistrar::getInstance(false).removeSoftEnumValues(MuteObjectName, { event.getTarget() });
         });
     }
 

@@ -17,7 +17,7 @@ namespace LOICollection::ServerEvents {
         receive
     };
 
-    class NetworkPacketEvent final : public ll::event::Cancellable<ll::event::Event> {
+    class NetworkPacketBeforeEvent final : public ll::event::Cancellable<ll::event::Event> {
     protected:
         const NetworkIdentifier& mNetworkIdentifier;
         const Packet& mPacket;
@@ -27,7 +27,30 @@ namespace LOICollection::ServerEvents {
         NetworkPacketType mType;
     
     public:
-        constexpr explicit NetworkPacketEvent(
+        constexpr explicit NetworkPacketBeforeEvent(
+            const NetworkIdentifier& networkIdentifier,
+            const Packet& packet,
+            SubClientId subClientId,
+            NetworkPacketType type
+        ) : mNetworkIdentifier(networkIdentifier), mPacket(packet), mSubClientId(subClientId), mType(type) {}
+
+        LOICOLLECTION_A_NDAPI const NetworkIdentifier& getNetworkIdentifier() const;
+        LOICOLLECTION_A_NDAPI const Packet& getPacket() const;
+        LOICOLLECTION_A_NDAPI SubClientId getSubClientId() const;
+        LOICOLLECTION_A_NDAPI NetworkPacketType getType() const;
+    };
+
+    class NetworkPacketAfterEvent final : public ll::event::Event {
+    protected:
+        const NetworkIdentifier& mNetworkIdentifier;
+        const Packet& mPacket;
+        
+        SubClientId mSubClientId;
+
+        NetworkPacketType mType;
+    
+    public:
+        constexpr explicit NetworkPacketAfterEvent(
             const NetworkIdentifier& networkIdentifier,
             const Packet& packet,
             SubClientId subClientId,

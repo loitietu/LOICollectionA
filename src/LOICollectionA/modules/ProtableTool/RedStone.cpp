@@ -79,7 +79,7 @@ namespace LOICollection::ProtableTool {
                 for (auto& it : this->mImpl->mRedStoneMap) {
                     for (auto it2 = it.second.begin(); it2 != it.second.end(); ++it2) {
                         if (it2->second >= this->mImpl->mRedStoneTick) {
-                            ll::service::getLevel()->destroyBlock(getBlockSource(it.first), it2->first, true, BlockChangeContext());
+                            ll::service::getLevel()->destroyBlock(getBlockSource(it.first), it2->first, true, BlockChangeContext(false));
                             
                             this->getLogger()->info("RedStone: {}({})", it2->first.toString(), it.first);
                         }
