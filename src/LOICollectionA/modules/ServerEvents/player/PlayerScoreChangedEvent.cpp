@@ -90,6 +90,7 @@ namespace LOICollection::ServerEvents {
     ) {
         if (id.mIdentityDef->mIdentityType != IdentityDefinition::Type::Player)
             return origin(id, obj);
+        
         int64 mActorUniqueId = id.mIdentityDef->mPlayerId->mActorUniqueId;
 
         int mScoreValue = obj.getPlayerScore(id).mValue;

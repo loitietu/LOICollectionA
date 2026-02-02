@@ -12,10 +12,13 @@
 
 ```json
 {
-    "version": 28422386, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
+    "version": 88422308, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
-        "Blacklist": false, // 是否启用黑名单
+        "Blacklist": {
+            "ModuleEnabled": true, // 是否启用黑名单
+            "BroadcastMessage": true // 是否启用黑名单内容广播
+        },
         "Mute": false,   // 是否启用禁言
         "Cdk": false, // 是否启用 CDK
         "Menu": { // 菜单配置
@@ -44,26 +47,24 @@
             },
             "ServerToast": {
                 "ModuleEnabled": true, // 是否启用服务器提示
-                "FormatText": {
-                    "join": "{player}' 加入了服务器'", // 玩家加入服务器提示，支持 LOICollectionA API 变量
-                    "exit": "{player}' 退出了服务器'" // 玩家退出服务器提示，支持 LOICollectionA API 变量
+                "Messager": {
+                    "join": true, // 是否启用玩家加入服务器提示
+                    "leave": true // 是否启用玩家退出服务器提示
                 }
             },
             "ChangeScore": {
                 "ModuleEnabled": true, // 是否启用 Score 变化检测
-                "ScoreboardLists": [], // 检测 Score 变化的对象（为空时会检测所有 Score 的变更）
-                "FormatText": "§e§l检测到Score §f${Object}§e 发生变化 §b原值: §f${OriMoney} §a更改: §f${SetMoney} §e现值: §f${GetMoney}" // Score 变化提示
+                "ScoreboardLists": [] // 检测 Score 变化的对象（为空时会检测所有 Score 的变更）
             },
             "DisableCommand": {
                 "ModuleEnabled": true, // 是否启用指令禁用检测
-                "FormatText": "该指令已被禁用", // 指令禁用提示
                 "CommandLists": [] // 被禁用的指令列表
             },
             "DynamicMotd": {
                 "ModuleEnabled": true, // 是否启用动态服务器 MOTD
                 "RefreshInterval": 200, // 刷新间隔，单位为 tick（20 tick = 1 秒）
                 "Pages": [
-                    "'在线玩家: '{server.player.online}'/'{server.player.max}" // 每行显示内容，支持 LOICollectionA API 变量
+                    "'Players: '{server.player.online}'/'{server.player.max}" // 每行显示内容，支持 LOICollectionA API 变量
                 ]
             },
             "Sidebar": {
@@ -212,7 +213,7 @@
 ```
 
 > [!NOTE]
-> 以上内容取自 LOICollectionA 1.10.1 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以上内容取自 LOICollectionA 1.11.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 
 ## 模块数据文件
 

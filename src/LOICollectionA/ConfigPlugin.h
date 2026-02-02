@@ -34,28 +34,26 @@ namespace Config {
 
         struct C_ServerToast {
             bool ModuleEnabled = true;
-            struct C_FormatText {
-                std::string join = "{player}' 加入了服务器'";
-                std::string exit = "{player}' 离开了服务器'";
-            } FormatText;
+            struct C_Messager {
+                bool join = true;
+                bool leave = true;
+            } Messager;
         } ServerToast;
 
         struct C_ChangeScore {
             bool ModuleEnabled = true;
             std::vector<std::string> ScoreboardLists{};
-            std::string FormatText = "§e§l检测到Score §f{0}§e 发生变化 §b原值: §f{1} §a更改: §f{2} §e现值: §f{3}";
         } ChangeScore;
 
         struct C_DisableCommand {
             bool ModuleEnabled = true;
-            std::string FormatText = "该指令已被禁用";
             std::vector<std::string> CommandLists{};
         } DisableCommand;
         
         struct C_DynamicMotd {
             bool ModuleEnabled = true;
             int RefreshInterval = 200;
-            std::vector<std::string> Pages{ "'在线玩家: '{server.player.online}'/'{server.player.max}" };
+            std::vector<std::string> Pages{ "'Players: '{server.player.online}'/'{server.player.max}" };
         } DynamicMotd;
 
         struct C_Sidebar {

@@ -31,6 +31,7 @@
 #include <mc/network/NetworkIdentifier.h>
 #include <mc/network/MinecraftPacketIds.h>
 #include <mc/network/ServerNetworkHandler.h>
+#include <mc/network/packet/TextPacket.h>
 #include <mc/network/packet/LoginPacket.h>
 #include <mc/network/packet/DisconnectPacket.h>
 #include <mc/network/connection/DisconnectFailReason.h>
@@ -335,7 +336,7 @@ namespace LOICollection::Plugins {
 
             std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(mUuid), "blacklist.tips");
             ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
-                event.getNetworkIdentifier(), event.getSubClientId(), Connection::DisconnectFailReason::Unknown,
+                event.getNetworkIdentifier(), event.getSubClientId(), Connection::DisconnectFailReason::Kicked,
                 fmt::format(fmt::runtime(mObjectTips),
                     SystemUtils::toFormatTime(mData.at("time"), "None"), mData.at("cause")
                 ),
@@ -392,6 +393,18 @@ namespace LOICollection::Plugins {
             ),
             std::nullopt, false
         );
+
+        if (this->mImpl->options.BroadcastMessage) {
+            ll::service::getLevel()->forEachPlayer([&player](Player& mTarget) -> bool {
+                std::string mMessage = tr(LanguagePlugin::getInstance().getLanguage(mTarget), "blacklist.broadcast");
+
+                TextPacket::createRawMessage(
+                    LOICollectionAPI::APIUtils::getInstance().translate(mMessage, player)
+                ).sendTo(mTarget);
+
+                return true;
+            });
+        }
 
         this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "blacklist.log1"), player));
     }

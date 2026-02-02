@@ -3,6 +3,7 @@
 #include <string>
 
 #include <ll/api/event/Event.h>
+#include <ll/api/event/Cancellable.h>
 #include <ll/api/event/player/PlayerEvent.h>
 
 #include "LOICollectionA/base/Macro.h"
@@ -10,7 +11,7 @@
 class Player;
 
 namespace LOICollection::ServerEvents {
-    class BlacklistAddEvent final : public ll::event::PlayerEvent {
+    class BlacklistAddEvent final : public ll::event::Cancellable<ll::event::PlayerEvent> {
     protected:
         const std::string& mCause;
         int mTime;
@@ -20,13 +21,13 @@ namespace LOICollection::ServerEvents {
             Player& player,
             const std::string& cause,
             int time
-        ) : PlayerEvent(player), mCause(cause), mTime(time) {}
+        ) : Cancellable(player), mCause(cause), mTime(time) {}
 
         LOICOLLECTION_A_NDAPI std::string getCause() const;
         LOICOLLECTION_A_NDAPI int getTime() const;
     };
 
-    class BlacklistRemoveEvent final : public ll::event::Event {
+    class BlacklistRemoveEvent final : public ll::event::Cancellable<ll::event::Event> {
     protected:
         const std::string& mTarget;
 

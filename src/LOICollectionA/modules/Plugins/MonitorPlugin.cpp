@@ -48,10 +48,12 @@
 #include "LOICollectionA/include/RegistryHelper.h"
 
 #include "LOICollectionA/include/APIUtils.h"
+#include "LOICollectionA/include/Plugins/LanguagePlugin.h"
 
 #include "LOICollectionA/include/ServerEvents/server/NetworkPacketEvent.h"
 #include "LOICollectionA/include/ServerEvents/player/PlayerScoreChangedEvent.h"
 
+#include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/mc/ScoreboardUtils.h"
 
 #include "LOICollectionA/base/Wrapper.h"
@@ -67,10 +69,12 @@ RemoveObjectivePacket::RemoveObjectivePacket() : mSerializationMode() {};
 RemoveObjectivePacketPayload::RemoveObjectivePacketPayload() = default;
 SetScorePacket::SetScorePacket() : mType() {};
 
-std::vector<std::string> mInterceptTextObjectPacket;
+using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
     struct MonitorPlugin::Impl {
+        std::vector<std::string> mInterceptTextObjectPacket;
+
         std::atomic<bool> mRegistered{ false };
 
         Config::C_Monitor options;
@@ -209,26 +213,42 @@ namespace LOICollection::Plugins {
         }
 
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        this->mImpl->mListeners.emplace("PlayerConnect", eventBus.emplaceListener<ll::event::PlayerConnectEvent>([option = this->mImpl->options.ServerToast](ll::event::PlayerConnectEvent& event) -> void {
+        this->mImpl->mListeners.emplace("PlayerConnect", eventBus.emplaceListener<ll::event::PlayerConnectEvent>([this, option = this->mImpl->options.ServerToast](ll::event::PlayerConnectEvent& event) mutable -> void {
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
                 return;
 
-            TextPacket::createRawMessage(
-                LOICollectionAPI::APIUtils::getInstance().translate(option.FormatText.join, event.self())
-            ).sendToClients();
+            if (option.Messager.join) {
+                ll::service::getLevel()->forEachPlayer([&player = event.self()](Player& mTarget) -> bool {
+                    std::string mMessage = tr(LanguagePlugin::getInstance().getLanguage(mTarget), "monitor.servertoast.join");
 
-            mInterceptTextObjectPacket.push_back(event.self().getUuid().asString());
+                    TextPacket::createRawMessage(
+                        LOICollectionAPI::APIUtils::getInstance().translate(mMessage, player)
+                    ).sendTo(mTarget);
+
+                    return true;
+                });
+            }
+
+            this->mImpl->mInterceptTextObjectPacket.push_back(event.self().getUuid().asString());
         }));
 
-        this->mImpl->mListeners.emplace("PlayerDisconnect", eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([option = this->mImpl->options.ServerToast](ll::event::PlayerDisconnectEvent& event) -> void {
+        this->mImpl->mListeners.emplace("PlayerDisconnect", eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([this, option = this->mImpl->options.ServerToast](ll::event::PlayerDisconnectEvent& event) mutable -> void {
             if (event.self().isSimulatedPlayer() || !option.ModuleEnabled)
                 return;
 
-            TextPacket::createRawMessage(
-                LOICollectionAPI::APIUtils::getInstance().translate(option.FormatText.exit, event.self())
-            ).sendToClients();
+            if (option.Messager.leave) {
+                ll::service::getLevel()->forEachPlayer([&player = event.self()](Player& mTarget) -> bool {
+                    std::string mMessage = tr(LanguagePlugin::getInstance().getLanguage(mTarget), "monitor.servertoast.leave");
 
-            mInterceptTextObjectPacket.erase(std::remove(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), event.self().getUuid().asString()), mInterceptTextObjectPacket.end());
+                    TextPacket::createRawMessage(
+                        LOICollectionAPI::APIUtils::getInstance().translate(mMessage, player)
+                    ).sendTo(mTarget);
+
+                    return true;
+                });
+            }
+
+            this->mImpl->mInterceptTextObjectPacket.erase(std::remove(this->mImpl->mInterceptTextObjectPacket.begin(), this->mImpl->mInterceptTextObjectPacket.end(), event.self().getUuid().asString()), this->mImpl->mInterceptTextObjectPacket.end());
         }));
 
         this->mImpl->mListeners.emplace("PlayerScoreChanged", eventBus.emplaceListener<LOICollection::ServerEvents::PlayerScoreChangedEvent>([option = this->mImpl->options.ChangeScore](LOICollection::ServerEvents::PlayerScoreChangedEvent& event) -> void {
@@ -245,7 +265,7 @@ namespace LOICollection::Plugins {
             if (mObjectScoreboards.empty() || std::find(mObjectScoreboards.begin(), mObjectScoreboards.end(), mId) != mObjectScoreboards.end()) {
                 int mOriScore = ScoreboardUtils::getScore(event.self(), mId);
 
-                std::string mMessage = fmt::format(fmt::runtime(option.FormatText), mId,
+                std::string mMessage = fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "monitor.changescore.text")), mId,
                     (mType == ScoreChangedType::add ? (mOriScore - mScore) : (mType == ScoreChangedType::reduce ? (mOriScore + mScore) : mScore)),
                     (mType == ScoreChangedType::add ? "+" : (mType == ScoreChangedType::reduce ? "-" : "")) + std::to_string(mScore),
                     mOriScore
@@ -272,9 +292,12 @@ namespace LOICollection::Plugins {
                 Actor* entity = event.commandContext().mOrigin->getEntity();
                 if (entity == nullptr || !entity->isPlayer())
                     return;
+                
                 auto player = static_cast<Player*>(entity);
 
-                player->sendMessage(LOICollectionAPI::APIUtils::getInstance().translate(option.FormatText, *player));
+                player->sendMessage(LOICollectionAPI::APIUtils::getInstance().translate(
+                    tr(LanguagePlugin::getInstance().getLanguage(*player), "monitor.disablecommand.text"), *player
+                ));
             }
         }));
 
@@ -291,7 +314,7 @@ namespace LOICollection::Plugins {
         }));
 
         std::vector<std::string> mTextPacketType{"multiplayer.player.joined", "multiplayer.player.left"};
-        this->mImpl->mListeners.emplace("NetworkBroadcastPacketEvent", eventBus.emplaceListener<LOICollection::ServerEvents::NetworkBroadcastPacketEvent>([mTextPacketType, option = this->mImpl->options.ServerToast](LOICollection::ServerEvents::NetworkBroadcastPacketEvent& event) -> void {
+        this->mImpl->mListeners.emplace("NetworkBroadcastPacketEvent", eventBus.emplaceListener<LOICollection::ServerEvents::NetworkBroadcastPacketEvent>([this, mTextPacketType, option = this->mImpl->options.ServerToast](LOICollection::ServerEvents::NetworkBroadcastPacketEvent& event) -> void {
             if (!option.ModuleEnabled || event.getPacket().getId() != MinecraftPacketIds::Text)
                 return;
 
@@ -317,7 +340,7 @@ namespace LOICollection::Plugins {
             
             if (Player* player = ll::service::getLevel()->getPlayer(mAuthor); player) {
                 std::string mUuid = player->getUuid().asString();
-                if (std::find(mInterceptTextObjectPacket.begin(), mInterceptTextObjectPacket.end(), mUuid) != mInterceptTextObjectPacket.end())
+                if (std::find(this->mImpl->mInterceptTextObjectPacket.begin(), this->mImpl->mInterceptTextObjectPacket.end(), mUuid) != this->mImpl->mInterceptTextObjectPacket.end())
                     event.cancel();
             }
         }));

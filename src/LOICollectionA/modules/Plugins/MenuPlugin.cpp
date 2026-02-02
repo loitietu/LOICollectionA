@@ -947,7 +947,7 @@ namespace LOICollection::Plugins {
 
         if (action.contains("permission")) {
             if (static_cast<int>(player.getCommandPermissionLevel()) < action["permission"])
-                return executeCommand(player, original.value("info", nlohmann::ordered_json{}).value("permission", ""));
+                return this->executeCommand(player, original.value("info", nlohmann::ordered_json{}).value("permission", ""));
         }
 
         if (action.contains("scores")) {
@@ -965,6 +965,7 @@ namespace LOICollection::Plugins {
             
             for (const auto& cmd : action["run"])
                 this->executeCommand(player, cmd.get<std::string>());
+            
             return;
         }
 

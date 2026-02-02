@@ -35,10 +35,12 @@ namespace LOICollection::ServerEvents {
         const std::string& cause,
         int time
     ) {
-        origin(player, cause, time);
-
         BlacklistAddEvent event(player, cause, time);
         ll::event::EventBus::getInstance().publish(event);
+        if (event.isCancelled())
+            return;
+
+        origin(player, cause, time);
     }
 
     LL_TYPE_INSTANCE_HOOK(
@@ -49,10 +51,12 @@ namespace LOICollection::ServerEvents {
         void,
         const std::string& id
     ) {
-        origin(id);
-
         BlacklistRemoveEvent event(id);
         ll::event::EventBus::getInstance().publish(event);
+        if (event.isCancelled())
+            return;
+        
+        origin(id);
     }
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactoryAdd();
