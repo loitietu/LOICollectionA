@@ -137,14 +137,14 @@ namespace LOICollection::Plugins {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         
         std::vector<std::string> mPlayers;
-        std::vector<std::string> mPlayerUuids;
+        std::vector<mce::UUID> mPlayerUuids;
 
         ll::service::getLevel()->forEachPlayer([&mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
             if (mTarget.isSimulatedPlayer())
                 return true;
 
             mPlayers.push_back(mTarget.getRealName());
-            mPlayerUuids.push_back(mTarget.getUuid().asString());
+            mPlayerUuids.push_back(mTarget.getUuid());
             return true;
         });
 
@@ -179,14 +179,14 @@ namespace LOICollection::Plugins {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
         std::vector<std::string> mPlayers;
-        std::vector<std::string> mPlayerUuids;
+        std::vector<mce::UUID> mPlayerUuids;
 
         ll::service::getLevel()->forEachPlayer([&mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
             if (mTarget.isSimulatedPlayer())
                 return true;
 
             mPlayers.push_back(mTarget.getRealName());
-            mPlayerUuids.push_back(mTarget.getUuid().asString());
+            mPlayerUuids.push_back(mTarget.getUuid());
             return true;
         });
 
@@ -264,14 +264,14 @@ namespace LOICollection::Plugins {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
         
         std::vector<std::string> mPlayers;
-        std::vector<std::string> mPlayerUuids;
+        std::vector<mce::UUID> mPlayerUuids;
 
         ll::service::getLevel()->forEachPlayer([&player, &mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
             if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
                 return true;
 
             mPlayers.push_back(mTarget.getRealName());
-            mPlayerUuids.push_back(mTarget.getUuid().asString());
+            mPlayerUuids.push_back(mTarget.getUuid());
             return true;
         });
 
