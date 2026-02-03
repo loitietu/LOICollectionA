@@ -42,8 +42,8 @@ namespace LOICollection::Plugins {
     public:
         LOICOLLECTION_A_NDAPI static BehaviorEventPlugin& getInstance();
 
-        LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
-        LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
+        LOICOLLECTION_A_NDAPI std::shared_ptr<SQLiteStorage> getDatabase();
+        LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
 
         LOICOLLECTION_A_NDAPI Event getBasicEvent(const std::string& name, const std::string& type, const Vec3& position, int dimension);
 

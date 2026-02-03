@@ -62,8 +62,8 @@ namespace LOICollection::ProtableTool {
         return instance;
     }
 
-    ll::io::Logger* RedStone::getLogger() {
-        return this->mImpl->logger.get();
+    std::shared_ptr<ll::io::Logger> RedStone::getLogger() {
+        return this->mImpl->logger;
     }
 
     void RedStone::listenEvent() {

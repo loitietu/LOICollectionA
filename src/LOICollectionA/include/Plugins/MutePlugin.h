@@ -26,8 +26,8 @@ namespace LOICollection::Plugins {
     public:
         LOICOLLECTION_A_NDAPI static MutePlugin& getInstance();
 
-        LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
-        LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
+        LOICOLLECTION_A_NDAPI std::shared_ptr<SQLiteStorage> getDatabase();
+        LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
 
         LOICOLLECTION_A_API   void addMute(Player& player, const std::string& cause, int time);
         LOICOLLECTION_A_API   void delMute(Player& player);

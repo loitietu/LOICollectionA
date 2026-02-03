@@ -59,8 +59,8 @@ namespace LOICollection::Plugins {
         return instance;
     }
 
-    ll::io::Logger* LanguagePlugin::getLogger() {
-        return this->mImpl->logger.get();
+    std::shared_ptr<ll::io::Logger> LanguagePlugin::getLogger() {
+        return this->mImpl->logger;
     }
 
     void LanguagePlugin::gui::open(Player& player) {

@@ -63,7 +63,7 @@ namespace LOICollection::Plugins {
 
         bool ModuleEnabled = false;
         
-        std::unique_ptr<JsonStorage> db;
+        std::shared_ptr<JsonStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
     };
 
@@ -75,12 +75,12 @@ namespace LOICollection::Plugins {
         return instance;
     }
 
-    JsonStorage* CdkPlugin::getDatabase() {
-        return this->mImpl->db.get();
+    std::shared_ptr<JsonStorage> CdkPlugin::getDatabase() {
+        return this->mImpl->db;
     }
 
-    ll::io::Logger* CdkPlugin::getLogger() {
-        return this->mImpl->logger.get();
+    std::shared_ptr<ll::io::Logger> CdkPlugin::getLogger() {
+        return this->mImpl->logger;
     }
 
     void CdkPlugin::gui::convert(Player& player) {
@@ -476,7 +476,7 @@ namespace LOICollection::Plugins {
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("ConfigPath")->data());
 
-        this->mImpl->db = std::make_unique<JsonStorage>(mDataPath / "cdk.json");
+        this->mImpl->db = std::make_shared<JsonStorage>(mDataPath / "cdk.json");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
 

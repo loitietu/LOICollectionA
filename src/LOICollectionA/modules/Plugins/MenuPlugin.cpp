@@ -77,7 +77,7 @@ namespace LOICollection::Plugins {
 
         Config::C_Menu options;
         
-        std::unique_ptr<JsonStorage> db;
+        std::shared_ptr<JsonStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
         
         ll::event::ListenerPtr PlayerJoinEventListener;
@@ -94,12 +94,12 @@ namespace LOICollection::Plugins {
         return instance;
     }
 
-    JsonStorage* MenuPlugin::getDatabase() {
-        return this->mImpl->db.get();
+    std::shared_ptr<JsonStorage> MenuPlugin::getDatabase() {
+        return this->mImpl->db;
     }
 
-    ll::io::Logger* MenuPlugin::getLogger() {
-        return this->mImpl->logger.get();
+    std::shared_ptr<ll::io::Logger> MenuPlugin::getLogger() {
+        return this->mImpl->logger;
     }
 
     void MenuPlugin::gui::editNewInfo(Player& player, MenuType type) {
@@ -989,7 +989,7 @@ namespace LOICollection::Plugins {
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("ConfigPath")->data());
 
-        this->mImpl->db = std::make_unique<JsonStorage>(mDataPath / "menu.json");
+        this->mImpl->db = std::make_shared<JsonStorage>(mDataPath / "menu.json");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Menu;
 

@@ -71,7 +71,7 @@ namespace LOICollection::Plugins {
 
         Config::C_Chat options;
 
-        std::unique_ptr<SQLiteStorage> db;
+        std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<SQLiteStorage> db2;
         std::shared_ptr<ll::io::Logger> logger;
 
@@ -89,12 +89,12 @@ namespace LOICollection::Plugins {
         return instance;
     }
 
-    SQLiteStorage* ChatPlugin::getDatabase() {
-        return this->mImpl->db.get();
+    std::shared_ptr<SQLiteStorage> ChatPlugin::getDatabase() {
+        return this->mImpl->db;
     }
 
-    ll::io::Logger* ChatPlugin::getLogger() {
-        return this->mImpl->logger.get();
+    std::shared_ptr<ll::io::Logger> ChatPlugin::getLogger() {
+        return this->mImpl->logger;
     }
 
     void ChatPlugin::gui::contentAdd(Player& player, Player& target) {
@@ -715,7 +715,7 @@ namespace LOICollection::Plugins {
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
 
-        this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "chat.db").string());
+        this->mImpl->db = std::make_shared<SQLiteStorage>((mDataPath / "chat.db").string());
         this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Chat;

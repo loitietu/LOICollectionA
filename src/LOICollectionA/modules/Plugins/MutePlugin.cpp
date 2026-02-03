@@ -77,7 +77,7 @@ namespace LOICollection::Plugins {
 
         bool ModuleEnabled = false;
 
-        std::unique_ptr<SQLiteStorage> db;
+        std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
         
         ll::event::ListenerPtr PlayerChatEventListener;
@@ -93,12 +93,12 @@ namespace LOICollection::Plugins {
         return instance;
     }
     
-    SQLiteStorage* MutePlugin::getDatabase() {
-        return this->mImpl->db.get();
+    std::shared_ptr<SQLiteStorage> MutePlugin::getDatabase() {
+        return this->mImpl->db;
     }
 
-    ll::io::Logger* MutePlugin::getLogger() {
-        return this->mImpl->logger.get();
+    std::shared_ptr<ll::io::Logger> MutePlugin::getLogger() {
+        return this->mImpl->logger;
     }
 
     void MutePlugin::gui::info(Player& player, const std::string& id) {
@@ -443,7 +443,7 @@ namespace LOICollection::Plugins {
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
 
-        this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "mute.db").string());
+        this->mImpl->db = std::make_shared<SQLiteStorage>((mDataPath / "mute.db").string());
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
 

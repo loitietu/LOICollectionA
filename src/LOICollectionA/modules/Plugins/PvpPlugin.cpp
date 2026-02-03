@@ -72,8 +72,8 @@ namespace LOICollection::Plugins {
         return instance;
     }
 
-    ll::io::Logger* PvpPlugin::getLogger() {
-        return this->mImpl->logger.get();
+    std::shared_ptr<ll::io::Logger> PvpPlugin::getLogger() {
+        return this->mImpl->logger;
     }
 
     void PvpPlugin::gui::open(Player& player) {

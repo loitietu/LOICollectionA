@@ -89,7 +89,7 @@ namespace LOICollection::Plugins {
 
         Config::C_Blacklist options;
         
-        std::unique_ptr<SQLiteStorage> db;
+        std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
 
         ll::event::ListenerPtr NetworkPacketEventListener;
@@ -105,12 +105,12 @@ namespace LOICollection::Plugins {
         return instance;
     }
     
-    SQLiteStorage* BlacklistPlugin::getDatabase() {
-        return this->mImpl->db.get();
+    std::shared_ptr<SQLiteStorage> BlacklistPlugin::getDatabase() {
+        return this->mImpl->db;
     }
 
-    ll::io::Logger* BlacklistPlugin::getLogger() {
-        return this->mImpl->logger.get();
+    std::shared_ptr<ll::io::Logger> BlacklistPlugin::getLogger() {
+        return this->mImpl->logger;
     }
 
     void BlacklistPlugin::gui::info(Player& player, const std::string& id) {
@@ -310,7 +310,7 @@ namespace LOICollection::Plugins {
 
     void BlacklistPlugin::listenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
-        this->mImpl->NetworkPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketAfterEvent>([this](LOICollection::ServerEvents::NetworkPacketAfterEvent& event) -> void {
+        this->mImpl->NetworkPacketEventListener = eventBus.emplaceListener<LOICollection::ServerEvents::NetworkPacketBeforeEvent>([this](LOICollection::ServerEvents::NetworkPacketBeforeEvent& event) -> void {
             if (event.getPacket().getId() != MinecraftPacketIds::Login)
                 return;
 
@@ -472,7 +472,7 @@ namespace LOICollection::Plugins {
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
 
-        this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "blacklist.db").string());
+        this->mImpl->db = std::make_shared<SQLiteStorage>((mDataPath / "blacklist.db").string());
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.Blacklist;
 

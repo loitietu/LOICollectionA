@@ -102,8 +102,8 @@ namespace LOICollection::Plugins {
         return instance;
     }
 
-    ll::io::Logger* WalletPlugin::getLogger() {
-        return this->mImpl->logger.get();
+    std::shared_ptr<ll::io::Logger> WalletPlugin::getLogger() {
+        return this->mImpl->logger;
     }
 
     void WalletPlugin::gui::content(Player& player, const std::string& target, TransferType type) {

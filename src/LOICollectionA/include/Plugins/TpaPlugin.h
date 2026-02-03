@@ -31,8 +31,8 @@ namespace LOICollection::Plugins {
     public:
         LOICOLLECTION_A_NDAPI static TpaPlugin& getInstance();
 
-        LOICOLLECTION_A_NDAPI SQLiteStorage* getDatabase();
-        LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
+        LOICOLLECTION_A_NDAPI std::shared_ptr<SQLiteStorage> getDatabase();
+        LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
 
         LOICOLLECTION_A_API   void addBlacklist(Player& player, Player& target);
         LOICOLLECTION_A_API   void delBlacklist(Player& player, const std::string& target);

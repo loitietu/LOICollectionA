@@ -68,7 +68,7 @@ namespace LOICollection::Plugins {
 
         bool ModuleEnabled = false;
 
-        std::unique_ptr<JsonStorage> db;
+        std::shared_ptr<JsonStorage> db;
         std::shared_ptr<SQLiteStorage> db2;
         std::shared_ptr<ll::io::Logger> logger;
         
@@ -87,12 +87,12 @@ namespace LOICollection::Plugins {
         return instance;
     }
     
-    JsonStorage* NoticePlugin::getDatabase() {
-        return this->mImpl->db.get();
+    std::shared_ptr<JsonStorage> NoticePlugin::getDatabase() {
+        return this->mImpl->db;
     }
 
-    ll::io::Logger* NoticePlugin::getLogger() {
-        return this->mImpl->logger.get();
+    std::shared_ptr<ll::io::Logger> NoticePlugin::getLogger() {
+        return this->mImpl->logger;
     }
 
     void NoticePlugin::gui::setting(Player& player) {
@@ -460,7 +460,7 @@ namespace LOICollection::Plugins {
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("ConfigPath")->data());
 
-        this->mImpl->db = std::make_unique<JsonStorage>(mDataPath / "notice.json");
+        this->mImpl->db = std::make_shared<JsonStorage>(mDataPath / "notice.json");
         this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;

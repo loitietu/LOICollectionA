@@ -76,7 +76,7 @@ namespace LOICollection {
 
         std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
         std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {
-            modules::ModRegistry* mRegistry = modules::ModManager::getInstance().getRegistry(mod);
+            std::shared_ptr<modules::ModRegistry> mRegistry = modules::ModManager::getInstance().getRegistry(mod);
 
             if (!mRegistry) {
                 logger.error("Failed to get mod registry for mod {}", mod);
@@ -104,7 +104,7 @@ namespace LOICollection {
 
         std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
         std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {
-            modules::ModRegistry* mRegistry = modules::ModManager::getInstance().getRegistry(mod);
+            std::shared_ptr<modules::ModRegistry> mRegistry = modules::ModManager::getInstance().getRegistry(mod);
 
             if (!mRegistry) {
                 logger.error("Failed to get mod registry for mod {}", mod);
@@ -122,7 +122,7 @@ namespace LOICollection {
 
         std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
         std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {
-            modules::ModRegistry* mRegistry = modules::ModManager::getInstance().getRegistry(mod);
+            std::shared_ptr<modules::ModRegistry> mRegistry = modules::ModManager::getInstance().getRegistry(mod);
 
             if (!mRegistry) {
                 logger.error("Failed to get mod registry for mod {}", mod);
@@ -140,7 +140,7 @@ namespace LOICollection {
 
         std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
         std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {
-            modules::ModRegistry* mRegistry = modules::ModManager::getInstance().getRegistry(mod);
+            std::shared_ptr<modules::ModRegistry> mRegistry = modules::ModManager::getInstance().getRegistry(mod);
 
             if (!mRegistry) {
                 logger.error("Failed to get mod registry for mod {}", mod);

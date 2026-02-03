@@ -25,8 +25,8 @@ namespace LOICollection::Plugins {
     public:
         LOICOLLECTION_A_NDAPI static NoticePlugin& getInstance();
 
-        LOICOLLECTION_A_NDAPI JsonStorage* getDatabase();
-        LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
+        LOICOLLECTION_A_NDAPI std::shared_ptr<JsonStorage> getDatabase();
+        LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
 
         LOICOLLECTION_A_API   void create(const std::string& id, const std::string& title, int priority, bool poiontout);
         LOICOLLECTION_A_API   void remove(const std::string& id);

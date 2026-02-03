@@ -77,7 +77,7 @@ namespace LOICollection::Plugins {
 
         bool ModuleEnabled = false;
 
-        std::unique_ptr<JsonStorage> db;
+        std::shared_ptr<JsonStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
 
         ll::event::ListenerPtr ShopCreateEventListener;
@@ -92,12 +92,12 @@ namespace LOICollection::Plugins {
         return instance;
     }
     
-    JsonStorage* ShopPlugin::getDatabase() {
-        return this->mImpl->db.get();
+    std::shared_ptr<JsonStorage> ShopPlugin::getDatabase() {
+        return this->mImpl->db;
     }
 
-    ll::io::Logger* ShopPlugin::getLogger() {
-        return this->mImpl->logger.get();
+    std::shared_ptr<ll::io::Logger> ShopPlugin::getLogger() {
+        return this->mImpl->logger;
     }
 
     void ShopPlugin::gui::editNewInfo(Player& player, ShopType type) {
@@ -533,17 +533,13 @@ namespace LOICollection::Plugins {
         auto data = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id);
 
         std::vector<std::pair<std::string, std::string>> mItems;
-        std::vector<std::string> mItemIds;
-        std::vector<std::string> mItemTypes;
-        std::vector<int> mItemIndexs;
+        std::vector<nlohmann::ordered_json> mItemIds;
 
-        for (size_t i = 0; i < data.value("classiflcation", nlohmann::ordered_json()).size(); ++i) {
-            nlohmann::ordered_json& item = data.value("classiflcation", nlohmann::ordered_json())[i];
+        for (size_t i = 0; i < data.value("classiflcation", nlohmann::ordered_json::array()).size(); ++i) {
+            nlohmann::ordered_json& item = data.at("classiflcation")[i];
 
-            mItems.emplace_back(std::make_pair(LOICollectionAPI::APIUtils::getInstance().translate(item.value("title", ""), player), item.value("image", "")));
-            mItemIds.push_back(item.value("id", ""));
-            mItemTypes.push_back(item.value("type", ""));
-            mItemIndexs.push_back(static_cast<int>(i));
+            mItems.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(item.value("title", ""), player), item.value("image", ""));
+            mItemIds.emplace_back(item);
         }
 
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
@@ -557,27 +553,26 @@ namespace LOICollection::Plugins {
         form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
         form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
         form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this, type, id, mItemIds = std::move(mItemIds), mItemTypes = std::move(mItemTypes), mItemIndexs = std::move(mItemIndexs)](Player& pl, int index) -> void {
-            int mIndex = mItemIndexs.at(index);
-            std::string mType = mItemTypes.at(index);
+        form->setCallback([this, type, id, mItemIds = std::move(mItemIds)](Player& pl, int index) -> void {
+            const nlohmann::ordered_json& item = mItemIds.at(index);
 
-            switch (ll::hash_utils::doHash(mType)) {
+            switch (ll::hash_utils::doHash(item.value("type", ""))) {
                 case ll::hash_utils::doHash("commodity"):
-                    this->commodity(pl, mIndex, id, type);
+                    this->commodity(pl, index, id, type);
                     break;
                 case ll::hash_utils::doHash("title"):
-                    this->title(pl, mIndex, id, type);
+                    this->title(pl, index, id, type);
                     break;
                 case ll::hash_utils::doHash("from"):
-                    this->open(pl, mItemIds.at(index));
+                    this->open(pl, item);
                     break;
                 default:
-                    this->mParent.getLogger()->error("Unknown UI type {}.", mType);
+                    this->mParent.getLogger()->error("Unknown UI type {}.", item.value("type", ""));
                     break;
             };
         });
         form->setCloseCallback([this, data](Player& pl) -> void {
-            this->mParent.executeCommand(pl, data.value("info", nlohmann::ordered_json{}).value("exit", ""));
+            this->mParent.executeCommand(pl, data.value("info", nlohmann::ordered_json()).value("exit", ""));
         });
 
         form->sendPage(player, 1);
@@ -591,11 +586,12 @@ namespace LOICollection::Plugins {
         form.appendLabel(LOICollectionAPI::APIUtils::getInstance().translate(data.value("introduce", ""), player));
         form.appendInput("Input", LOICollectionAPI::APIUtils::getInstance().translate(data.value("number", ""), player), "", "1");
         form.sendTo(player, [this, original, data, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-            if (!dt) return this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json{}).value("exit", ""));
+            if (!dt) return this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("exit", ""));
 
             int mNumber = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
             if (mNumber > 2304 || mNumber <= 0)
                 return;
+
             if (type == ShopType::buy) {
                 if (this->mParent.checkModifiedData(pl, data, mNumber)) {
                     auto itemStack = std::make_unique<ItemStack>();
@@ -609,8 +605,10 @@ namespace LOICollection::Plugins {
                     pl.refreshInventory();
                     return;
                 }
-                return this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json{}).value("score", ""));
+
+                return this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("score", ""));
             }
+
             if (InventoryUtils::isItemInInventory(pl, data.value("id", ""), mNumber)) {
                 nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json());
                 for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
@@ -620,7 +618,8 @@ namespace LOICollection::Plugins {
                 pl.refreshInventory();
                 return;
             }
-            this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json{}).value("item", ""));
+            
+            this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("item", ""));
         });
     }
 
@@ -642,10 +641,12 @@ namespace LOICollection::Plugins {
                     if (this->mParent.checkModifiedData(pl, data, 1)) {
                         if (data.contains("time"))
                             return ChatPlugin::getInstance().addTitle(pl, id, data.value("time", 0));
+
                         return ChatPlugin::getInstance().addTitle(pl, id, 0);
                     }
-                    return this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json{}).value("sScore", ""));
+                    return this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("sScore", ""));
                 }
+
                 if (ChatPlugin::getInstance().isTitle(pl, id)) {
                     nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json());
                     for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
@@ -653,7 +654,8 @@ namespace LOICollection::Plugins {
 
                     return ChatPlugin::getInstance().delTitle(pl, id);
                 }
-                this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json{}).value("title", ""));
+
+                this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("title", ""));
             }
         });
     }
@@ -676,6 +678,7 @@ namespace LOICollection::Plugins {
                     this->mParent.getLogger()->error("Unknown UI type {}.", data.value("type", ""));
                     break;
             };
+
             return;
         }
 
@@ -800,7 +803,7 @@ namespace LOICollection::Plugins {
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("ConfigPath")->data());
 
-        this->mImpl->db = std::make_unique<JsonStorage>(mDataPath / "shop.json");
+        this->mImpl->db = std::make_shared<JsonStorage>(mDataPath / "shop.json");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
 

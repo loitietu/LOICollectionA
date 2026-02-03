@@ -26,10 +26,10 @@ namespace LOICollection::modules {
 
         LOICOLLECTION_A_NDAPI static ModManager& getInstance();
 
-        LOICOLLECTION_A_API   void registry(std::unique_ptr<ModRegistry> registry, ModulePriority priority = ModulePriority::Normal);
+        LOICOLLECTION_A_API   void registry(std::shared_ptr<ModRegistry> registry, ModulePriority priority = ModulePriority::Normal);
         LOICOLLECTION_A_API   void unregistry(const std::string& name);
 
-        LOICOLLECTION_A_NDAPI ModRegistry* getRegistry(const std::string& name) const;
+        LOICOLLECTION_A_NDAPI std::shared_ptr<ModRegistry> getRegistry(const std::string& name) const;
 
         LOICOLLECTION_A_NDAPI std::vector<std::string> mods() const;
 

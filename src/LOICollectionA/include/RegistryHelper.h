@@ -30,7 +30,7 @@ namespace LOICollection::modules {
 
     template <typename C, typename B>
     void registry(const std::string& name, B& binder, ModulePriority priority) {
-        std::unique_ptr<ModRegistry> registry = std::make_unique<ModRegistry>(name);
+        std::shared_ptr<ModRegistry> registry = std::make_shared<ModRegistry>(name);
 
         registry->onLoad(std::bind(&C::load, &binder));
         registry->onUnload(std::bind(&C::unload, &binder));

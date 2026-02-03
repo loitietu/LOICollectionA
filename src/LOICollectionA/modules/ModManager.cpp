@@ -13,7 +13,7 @@ namespace LOICollection::modules {
 
         ModulePriority priority { ModulePriority::Normal };
 
-        std::unique_ptr<ModRegistry> registry;
+        std::shared_ptr<ModRegistry> registry;
     };
 
     struct ModManager::Impl {
@@ -28,7 +28,7 @@ namespace LOICollection::modules {
         return instance;
     }
 
-    void ModManager::registry(std::unique_ptr<ModRegistry> registry, ModulePriority priority) {
+    void ModManager::registry(std::shared_ptr<ModRegistry> registry, ModulePriority priority) {
         Module mModule;
         mModule.name = registry->getName();
         mModule.priority = priority;
@@ -54,7 +54,7 @@ namespace LOICollection::modules {
         });
     }
 
-    ModRegistry* ModManager::getRegistry(const std::string& name) const {
+    std::shared_ptr<ModRegistry> ModManager::getRegistry(const std::string& name) const {
         auto it = std::find_if(this->mImpl->mRegistries.begin(), this->mImpl->mRegistries.end(), [name](const Module& module) {
             return module.name == name;
         });
@@ -62,7 +62,7 @@ namespace LOICollection::modules {
         if (it == this->mImpl->mRegistries.end())
             return nullptr;
 
-        return it->registry.get();
+        return it->registry;
     }
 
     std::vector<std::string> ModManager::mods() const {

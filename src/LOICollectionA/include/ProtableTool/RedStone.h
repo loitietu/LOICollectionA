@@ -21,7 +21,7 @@ namespace LOICollection::ProtableTool{
     public:
         LOICOLLECTION_A_NDAPI static RedStone& getInstance();
 
-        LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
+        LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
 
     public:
         LOICOLLECTION_A_API bool load();

@@ -118,7 +118,7 @@ namespace LOICollection::Plugins {
 
         Config::C_BehaviorEvent options;
 
-        std::unique_ptr<SQLiteStorage> db;
+        std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
 
         std::unordered_map<std::string, ll::event::ListenerPtr> mListeners;
@@ -140,12 +140,12 @@ namespace LOICollection::Plugins {
         return instance;
     }
 
-    SQLiteStorage* BehaviorEventPlugin::getDatabase() {
-        return this->mImpl->db.get();
+    std::shared_ptr<SQLiteStorage> BehaviorEventPlugin::getDatabase() {
+        return this->mImpl->db;
     }
 
-    ll::io::Logger* BehaviorEventPlugin::getLogger() {
-        return this->mImpl->logger.get();
+    std::shared_ptr<ll::io::Logger> BehaviorEventPlugin::getLogger() {
+        return this->mImpl->logger;
     }
 
     template<typename T>
@@ -941,7 +941,7 @@ namespace LOICollection::Plugins {
 
         auto mDataPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("DataPath")->data());
 
-        this->mImpl->db = std::make_unique<SQLiteStorage>((mDataPath / "behaviorevent.db").string());
+        this->mImpl->db = std::make_shared<SQLiteStorage>((mDataPath / "behaviorevent.db").string());
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().Plugins.BehaviorEvent;
 

@@ -104,7 +104,7 @@ namespace LOICollection::Form {
                     self->mImpl->mCallback(pl, element);
 
                 if (self->mImpl->mCallbackIndex)
-                    self->mImpl->mCallbackIndex(pl, page * self->mImpl->mNumElementPerPage + i);
+                    self->mImpl->mCallbackIndex(pl, (page - 1) * self->mImpl->mNumElementPerPage + i);
             });
         }
 

@@ -23,7 +23,7 @@ namespace LOICollection::Plugins {
     public:
         LOICOLLECTION_A_NDAPI static PvpPlugin& getInstance();
 
-        LOICOLLECTION_A_NDAPI ll::io::Logger* getLogger();
+        LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
 
         LOICOLLECTION_A_API   void enable(Player& player, bool value);
 
