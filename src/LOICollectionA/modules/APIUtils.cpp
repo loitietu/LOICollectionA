@@ -13,6 +13,9 @@
 #include <ll/api/memory/Memory.h>
 #include <ll/api/service/Bedrock.h>
 
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
+
 #include <mc/util/ProfilerLite.h>
 #include <mc/deps/core/math/Vec2.h>
 #include <mc/deps/core/math/Vec3.h>
@@ -25,6 +28,8 @@
 #include <mc/world/attribute/AttributeInstance.h>
 #include <mc/entity/components/ActorRotationComponent.h>
 #include <mc/network/ServerNetworkHandler.h>
+
+#include "LOICollectionA/base/Cache.h"
 
 #include "LOICollectionA/frontend/Lexer.h"
 #include "LOICollectionA/frontend/Parser.h"
@@ -41,13 +46,13 @@
 #include "LOICollectionA/utils/mc/ScoreboardUtils.h"
 #include "LOICollectionA/utils/core/SystemUtils.h"
 
-#include "LOICollectionA/base/Cache.h"
-
 #include "LOICollectionA/include/APIUtils.h"
 
 namespace LOICollection::LOICollectionAPI {
     struct APIUtils::Impl {
         LRUKCache<std::string, frontend::ASTNode> mAstCache;
+
+        std::shared_ptr<ll::io::Logger> logger;
 
         std::unordered_map<std::string, std::function<std::string()>> mVariableCommonMap;
         std::unordered_map<std::string, std::function<std::string(Player&)>> mVariableMap;
@@ -58,6 +63,8 @@ namespace LOICollection::LOICollectionAPI {
     };
 
     APIUtils::APIUtils() : mImpl(std::make_unique<Impl>()) {
+        this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
+
         this->registerVariable("version_mc", []() -> std::string {
             return ll::getGameVersion().to_string();
         });
@@ -346,7 +353,7 @@ namespace LOICollection::LOICollectionAPI {
         return "None";
     }
 
-    std::string APIUtils::translate(const std::string& str, Player& player) {
+    std::string APIUtils::translate(const std::string& str, Player& player) try {
         frontend::Evaluator mEvaluator;
 
         if (this->mImpl->mAstCache.contains(str)) {
@@ -368,9 +375,13 @@ namespace LOICollection::LOICollectionAPI {
 
         this->mImpl->mAstCache.put(str, mTemplate);
         return result;
+    } catch (const std::exception& e) {
+        this->mImpl->logger->error("APIUtils: {}", e.what());
+        
+        return "None";
     }
 
-    std::string APIUtils::translate(const std::string& str) {
+    std::string APIUtils::translate(const std::string& str) try {
         frontend::Evaluator mEvaluator;
 
         if (this->mImpl->mAstCache.contains(str)) {
@@ -392,5 +403,9 @@ namespace LOICollection::LOICollectionAPI {
 
         this->mImpl->mAstCache.put(str, mTemplate);
         return result;
+    } catch (const std::exception& e) {
+        this->mImpl->logger->error("APIUtils: {}", e.what());
+
+        return "None";
     }
 }
