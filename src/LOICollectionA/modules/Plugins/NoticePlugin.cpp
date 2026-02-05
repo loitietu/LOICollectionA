@@ -113,6 +113,12 @@ namespace LOICollection::Plugins {
     void NoticePlugin::gui::content(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "notice.gui.error"));
+            
+            return;
+        }
+
         ll::form::CustomForm form(tr(mObjectLanguage, "notice.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "notice.gui.label"));
         form.appendInput("Input", tr(mObjectLanguage, "notice.gui.edit.title"), "", this->mParent.getDatabase()->get_ptr<std::string>("/" + id + "/title", ""));
@@ -331,15 +337,15 @@ namespace LOICollection::Plugins {
             .getOrCreateCommand("notice", tr({}, "commands.notice.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").optional("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
-            Player& player = *static_cast<Player*>(entity);
+                Actor* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error(tr({}, "commands.generic.target"));
+                Player& player = *static_cast<Player*>(entity);
 
-            param.Object.empty() ? this->mGui->open(player) : this->mGui->notice(player, param.Object);
+                param.Object.empty() ? this->mGui->open(player) : this->mGui->notice(player, param.Object);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
-        });
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            });
         command.overload().text("edit").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                 return output.error(tr({}, "commands.generic.permission"));

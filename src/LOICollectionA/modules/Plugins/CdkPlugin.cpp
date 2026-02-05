@@ -178,6 +178,13 @@ namespace LOICollection::Plugins {
     void CdkPlugin::gui::cdkAwardScore(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "cdk.gui.error"));
+
+            this->open(player);
+            return;
+        }
+
         ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
         form.appendInput("Input1", tr(mObjectLanguage, "cdk.gui.award.score.input1"), tr(mObjectLanguage, "cdk.gui.award.score.input1.placeholder"));
@@ -201,6 +208,13 @@ namespace LOICollection::Plugins {
 
     void CdkPlugin::gui::cdkAwardItem(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "cdk.gui.error"));
+
+            this->open(player);
+            return;
+        }
         
         ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
@@ -241,6 +255,13 @@ namespace LOICollection::Plugins {
 
     void CdkPlugin::gui::cdkAwardTitle(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "cdk.gui.error"));
+
+            this->open(player);
+            return;
+        }
 
         ll::form::CustomForm form(tr(mObjectLanguage, "cdk.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "cdk.gui.label"));
@@ -337,15 +358,15 @@ namespace LOICollection::Plugins {
             .getOrCreateCommand("cdk", tr({}, "commands.cdk.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("convert").required("Id").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
-            Player& player = *static_cast<Player*>(entity);
+                Actor* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error(tr({}, "commands.generic.target"));
+                Player& player = *static_cast<Player*>(entity);
 
-            this->convert(player, param.Id);
-            
-            output.success(fmt::runtime(tr({}, "commands.cdk.success.convert")), player.getRealName(), param.Id);
-        });
+                this->convert(player, param.Id);
+                
+                output.success(fmt::runtime(tr({}, "commands.cdk.success.convert")), player.getRealName(), param.Id);
+            });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())

@@ -137,8 +137,16 @@ namespace LOICollection::Plugins {
         form.appendLabel(tr(mObjectLanguage, "mute.gui.label"));
         form.appendInput("Input1", tr(mObjectLanguage, "mute.gui.add.input1"), tr(mObjectLanguage, "mute.gui.add.input1.placeholder"));
         form.appendInput("Input2", tr(mObjectLanguage, "mute.gui.add.input2"), tr(mObjectLanguage, "mute.gui.add.input2.placeholder"));
-        form.sendTo(player, [this, &target, mObjectLanguage](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+        form.sendTo(player, [this, mObjectLanguage, target = target.getUuid()](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
             if (!dt) return this->add(pl);
+
+            Player* mTarget = ll::service::getLevel()->getPlayer(target);
+            if (!mTarget) {
+                pl.sendMessage(tr(mObjectLanguage, "mute.gui.error"));
+
+                this->add(pl);
+                return;
+            }
 
             std::string mCause = std::get<std::string>(dt->at("Input1"));
 
@@ -149,7 +157,7 @@ namespace LOICollection::Plugins {
 
             int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
 
-            this->mParent.addMute(target, mCause, time);
+            this->mParent.addMute(*mTarget, mCause, time);
         });
     }
 
@@ -237,70 +245,70 @@ namespace LOICollection::Plugins {
             .getOrCreateCommand("mute", tr({}, "commands.mute.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("add").required("Target").optional("Cause").optional("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            CommandSelectorResults<Player> results = param.Target.results(origin);
-            if (results.empty())
-                return output.error(tr({}, "commands.generic.target"));
+                CommandSelectorResults<Player> results = param.Target.results(origin);
+                if (results.empty())
+                    return output.error(tr({}, "commands.generic.target"));
 
-            for (Player*& pl : results) {
-                if (this->isMute(*pl) || pl->getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || pl->isSimulatedPlayer()) {
-                    output.error(fmt::runtime(tr({}, "commands.mute.error.add")), pl->getRealName());
-                    continue;
+                for (Player*& pl : results) {
+                    if (this->isMute(*pl) || pl->getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || pl->isSimulatedPlayer()) {
+                        output.error(fmt::runtime(tr({}, "commands.mute.error.add")), pl->getRealName());
+                        continue;
+                    }
+
+                    this->addMute(*pl, param.Cause, param.Time);
+
+                    output.success(fmt::runtime(tr({}, "commands.mute.success.add")), pl->getRealName());
                 }
-
-                this->addMute(*pl, param.Cause, param.Time);
-
-                output.success(fmt::runtime(tr({}, "commands.mute.success.add")), pl->getRealName());
-            }
-        });
+            });
         command.overload<operation>().text("remove").text("target").required("Target").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            CommandSelectorResults<Player> results = param.Target.results(origin);
-            if (results.empty())
-                return output.error(tr({}, "commands.generic.target"));
-            
-            for (Player*& pl : results) {
-                if (!this->isMute(*pl)) {
-                    output.error(fmt::runtime(tr({}, "commands.mute.error.remove")), pl->getRealName());
-                    continue;
+                CommandSelectorResults<Player> results = param.Target.results(origin);
+                if (results.empty())
+                    return output.error(tr({}, "commands.generic.target"));
+                
+                for (Player*& pl : results) {
+                    if (!this->isMute(*pl)) {
+                        output.error(fmt::runtime(tr({}, "commands.mute.error.remove")), pl->getRealName());
+                        continue;
+                    }
+
+                    this->delMute(*pl);
+
+                    output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), pl->getRealName());
                 }
-
-                this->delMute(*pl);
-
-                output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), pl->getRealName());
-            }
-        });
+            });
         command.overload<operation>().text("remove").text("id").required("Object").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            if (!this->hasMute(param.Object))
-                return output.error(tr({}, "commands.mute.error.remove"));
+                if (!this->hasMute(param.Object))
+                    return output.error(tr({}, "commands.mute.error.remove"));
 
-            this->delMute(param.Object);
+                this->delMute(param.Object);
 
-            output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), param.Object);
-        });
+                output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), param.Object);
+            });
         command.overload<operation>().text("info").required("Object").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Mute", param.Object);
-            
-            if (mEvent.empty())
-                return output.error(tr({}, "commands.mute.error.info"));
+                std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Mute", param.Object);
+                
+                if (mEvent.empty())
+                    return output.error(tr({}, "commands.mute.error.info"));
 
-            output.success(tr({}, "commands.mute.success.info"));
-            std::for_each(mEvent.begin(), mEvent.end(), [&output](const std::pair<std::string, std::string>& mPair) {
-                std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
+                output.success(tr({}, "commands.mute.success.info"));
+                std::for_each(mEvent.begin(), mEvent.end(), [&output](const std::pair<std::string, std::string>& mPair) {
+                    std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
 
-                output.success("{0}: {1}", mKey, mPair.second);
+                    output.success("{0}: {1}", mKey, mPair.second);
+                });
             });
-        });
         command.overload<operation>().text("list").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::vector<std::string> mObjectList = this->getMutes(param.Limit);
-            
-            if (mObjectList.empty())
-                return output.success(fmt::runtime(tr({}, "commands.mute.success.list")), param.Limit, "None");
+                std::vector<std::string> mObjectList = this->getMutes(param.Limit);
+                
+                if (mObjectList.empty())
+                    return output.success(fmt::runtime(tr({}, "commands.mute.success.list")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.mute.success.list")), param.Limit, fmt::join(mObjectList, ", "));
-        });
+                output.success(fmt::runtime(tr({}, "commands.mute.success.list")), param.Limit, fmt::join(mObjectList, ", "));
+            });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())

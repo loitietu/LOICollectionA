@@ -5,11 +5,17 @@
 #include <vector>
 #include <algorithm>
 #include <filesystem>
+#include <unordered_map>
 
 #include <fmt/core.h>
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
+
+#include <ll/api/coro/CoroTask.h>
+#include <ll/api/coro/InterruptableSleep.h>
+#include <ll/api/thread/ServerThreadExecutor.h>
+
 #include <ll/api/form/ModalForm.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/form/CustomForm.h>
@@ -57,6 +63,14 @@
 using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
+    struct TpaPlugin::RequestEntry {
+        std::string id;
+        std::string source;
+        std::string target;
+
+        TpaType type = TpaType::tpa;
+    };
+
     enum SelectorType : int {
         tpa = 0,
         tphere = 1
@@ -65,9 +79,13 @@ namespace LOICollection::Plugins {
     struct TpaPlugin::operation {
         CommandSelector<Player> Target;
         SelectorType Type;
+        std::string Id;
     };
 
     struct TpaPlugin::Impl {
+        std::unordered_map<std::string, std::vector<RequestEntry>> mRequestMap;
+        std::unordered_map<std::string, std::shared_ptr<ll::coro::InterruptableSleep>> mRequestTimers;
+
         LRUKCache<std::string, std::vector<std::string>> BlacklistCache;
         LRUKCache<std::string, bool> InviteCache;
 
@@ -235,27 +253,30 @@ namespace LOICollection::Plugins {
     void TpaPlugin::gui::tpa(Player& player, Player& target, TpaType type) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(target);
 
-        std::string mLabelId = (type == TpaType::tpa) ? "tpa.there" : "tpa.here";
+        int mRequestUpload = this->mParent.mImpl->options.RequestUpload;
+        if (static_cast<int>(this->mParent.mImpl->mRequestMap[player.getUuid().asString()].size()) >= mRequestUpload) {
+            player.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "tpa.tips5")), mRequestUpload));
+            
+            return;
+        }
 
-        ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"), LOICollectionAPI::APIUtils::getInstance().translate(tr(mObjectLanguage, mLabelId), player),
-            tr(mObjectLanguage, "tpa.yes"), tr(mObjectLanguage, "tpa.no")
+        std::string mId = SystemUtils::getCurrentTimestamp();
+
+        this->mParent.sendRequest(player, target, mId, type);
+
+        ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"),
+            LOICollectionAPI::APIUtils::getInstance().translate(tr(mObjectLanguage, (type == TpaType::tpa) ? "tpa.there" : "tpa.here"), player),
+            tr(mObjectLanguage, "tpa.yes"),
+            tr(mObjectLanguage, "tpa.no")
         );
-        form.sendTo(target, [this, type, &player](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
+        form.sendTo(target, [this, mObjectLanguage, mId](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
             if (result == ll::form::ModalFormSelectedButton::Upper) {
-                if (type == TpaType::tpa) {
-                    player.teleport(pl.getPosition(), pl.getDimensionId());
-                    
-                    this->mParent.getLogger()->info(fmt::format(fmt::runtime(tr({}, "tpa.log1")), pl.getRealName(), player.getRealName()));
-                    return;
-                }
+                this->mParent.acceptRequest(pl, mId);
 
-                pl.teleport(player.getPosition(), player.getDimensionId());
-                
-                this->mParent.getLogger()->info(fmt::format(fmt::runtime(tr({}, "tpa.log1")), player.getRealName(), pl.getRealName()));
                 return;
             }
             
-            player.sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(player), "tpa.no.tips")), pl.getRealName()));
+            this->mParent.rejectRequest(pl, mId);
         });
     }
 
@@ -265,8 +286,16 @@ namespace LOICollection::Plugins {
         ll::form::CustomForm form(tr(mObjectLanguage, "tpa.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "tpa.gui.label"));
         form.appendDropdown("dropdown", tr(mObjectLanguage, "tpa.gui.dropdown"), { "tpa", "tphere" });
-        form.sendTo(player, [this, &target, mObjectLanguage](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+        form.sendTo(player, [this, mObjectLanguage, target = target.getUuid()](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
             if (!dt) return this->open(pl);
+
+            Player* mTarget = ll::service::getLevel()->getPlayer(target);
+            if (!mTarget) {
+                pl.sendMessage(tr(mObjectLanguage, "tpa.gui.error"));
+
+                this->open(pl);
+                return;
+            }
 
             std::string mScoreboard = this->mParent.mImpl->options.TargetScoreboard;
 
@@ -278,7 +307,7 @@ namespace LOICollection::Plugins {
 
             ScoreboardUtils::reduceScore(pl, mScoreboard, mRequestRequired);
 
-            this->tpa(pl, target, 
+            this->tpa(pl, *mTarget, 
                 std::get<std::string>(dt->at("dropdown")) == "tpa" ? TpaType::tpa : TpaType::tphere
             );
         });
@@ -328,42 +357,85 @@ namespace LOICollection::Plugins {
             .getOrCreateCommand("tpa", tr({}, "commands.tpa.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("invite").required("Type").required("Target").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
-            Player& player = *static_cast<Player*>(entity);
+                Actor* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error(tr({}, "commands.generic.target"));
+                Player& player = *static_cast<Player*>(entity);
 
-            CommandSelectorResults<Player> results = param.Target.results(origin);
-            if (results.empty())
-                return output.error(tr({}, "commands.generic.target"));
+                CommandSelectorResults<Player> results = param.Target.results(origin);
+                if (results.empty())
+                    return output.error(tr({}, "commands.generic.target"));
 
-            std::string mObject = player.getUuid().asString();
-            std::replace(mObject.begin(), mObject.end(), '-', '_');
+                std::string mObject = player.getUuid().asString();
+                auto mResults = results | std::views::filter([this, mObject](Player*& mTarget) -> bool {
+                    std::vector<std::string> mList = this->getBlacklist(*mTarget);
+                    return !mTarget->isSimulatedPlayer() && std::find(mList.begin(), mList.end(), mObject) == mList.end() && !this->isInvite(*mTarget); 
+                });
 
-            auto mResults = results | std::views::filter([this, mObject](Player*& mTarget) -> bool { 
-                std::vector<std::string> mList = this->getBlacklist(*mTarget);
-                return !mTarget->isSimulatedPlayer() && std::find(mList.begin(), mList.end(), mObject) == mList.end() && !this->isInvite(*mTarget); 
+                int mResultSize = static_cast<int>(std::ranges::distance(mResults));
+                if (this->mImpl->options.RequestUpload > 0 && mResultSize > this->mImpl->options.RequestUpload) {
+                    output.error(fmt::runtime(tr({}, "commands.tpa.error.invite.request")), this->mImpl->options.RequestUpload);
+                    return;
+                }
+
+                int mMoney = this->mImpl->options.RequestRequired * mResultSize;
+                if (ScoreboardUtils::getScore(player, this->mImpl->options.TargetScoreboard) < mMoney) {
+                    output.error(fmt::runtime(tr({}, "commands.tpa.error.invite")), mMoney);
+                    return;
+                }
+
+                ScoreboardUtils::reduceScore(player, this->mImpl->options.TargetScoreboard, mMoney);
+
+                for (Player*& pl : mResults) {
+                    this->mGui->tpa(player, *pl, param.Type == SelectorType::tpa
+                        ? TpaType::tpa : TpaType::tphere
+                    );
+
+                    output.success(fmt::runtime(tr({}, "commands.tpa.success.invite")), pl->getRealName());
+                }
             });
+        command.overload<operation>().text("accept").required("Id").execute(
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
+                Actor* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error(tr({}, "commands.generic.target"));
+                Player& player = *static_cast<Player*>(entity);
 
-            std::string mScoreboard = this->mImpl->options.TargetScoreboard;
+                if (!this->acceptRequest(player, param.Id)) {
+                    output.error(fmt::runtime(tr({}, "commands.tpa.error.accept")), param.Id);
+                    return;
+                }
 
-            int mRequestRequired = this->mImpl->options.RequestRequired;
-            int mMoney = mRequestRequired * static_cast<int>(std::ranges::distance(mResults));
-            if (mRequestRequired && ScoreboardUtils::getScore(player, mScoreboard) < mMoney) {
-                output.error(fmt::runtime(tr({}, "commands.tpa.error.invite")), mMoney);
-                return;
-            }
+                output.success(fmt::runtime(tr({}, "commands.tpa.success.accept")), param.Id);
+            });
+        command.overload<operation>().text("reject").required("Id").execute(
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
+                Actor* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error(tr({}, "commands.generic.target"));
+                Player& player = *static_cast<Player*>(entity);
 
-            ScoreboardUtils::reduceScore(player, mScoreboard, mMoney);
+                if (!this->rejectRequest(player, param.Id)) {
+                    output.error(fmt::runtime(tr({}, "commands.tpa.error.reject")), param.Id);
+                    return;
+                }
 
-            for (Player*& pl : mResults) {
-                this->mGui->tpa(player, *pl, param.Type == SelectorType::tpa
-                    ? TpaType::tpa : TpaType::tphere
-                );
+                output.success(fmt::runtime(tr({}, "commands.tpa.success.reject")), param.Id);
+            });
+        command.overload<operation>().text("cancel").required("Id").execute(
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
+                Actor* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error(tr({}, "commands.generic.target"));
+                Player& player = *static_cast<Player*>(entity);
 
-                output.success(fmt::runtime(tr({}, "commands.tpa.success.invite")), pl->getRealName());
-            }
-        });
+                if (!this->cancelRequest(player, param.Id)) {
+                    output.error(fmt::runtime(tr({}, "commands.tpa.error.cancel")), param.Id);
+                    return;
+                }
+
+                output.success(fmt::runtime(tr({}, "commands.tpa.success.cancel")), param.Id);
+            });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
@@ -408,6 +480,9 @@ namespace LOICollection::Plugins {
     void TpaPlugin::unlistenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
+
+        for (auto& it : this->mImpl->mRequestTimers)
+            it.second->interrupt();
     }
 
     void TpaPlugin::addBlacklist(Player& player, Player& target) {
@@ -460,6 +535,142 @@ namespace LOICollection::Plugins {
         this->mImpl->BlacklistCache.update(player.getUuid().asString(), [target](std::shared_ptr<std::vector<std::string>> mList) -> void {
             mList->erase(std::remove(mList->begin(), mList->end(), target), mList->end());
         });
+    }
+
+    bool TpaPlugin::acceptRequest(Player& player, const std::string& id) {
+        if (!this->isValid())
+            return false;
+
+        std::string mObject = player.getUuid().asString();
+
+        RequestEntry mEntry;
+        for (auto& it : this->mImpl->mRequestMap) {
+            std::vector<RequestEntry>& mEntries = it.second;
+            auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
+                return entry.id == id;
+            });
+
+            if (mIt == mEntries.end() || mIt->target != mObject)
+                continue;
+
+            mEntry = *mIt;
+
+            mEntries.erase(mIt);
+            break;
+        }
+
+        if (mEntry.id.empty())
+            return false;
+
+        Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mEntry.source));
+        if (!sourcePlayer) {
+            player.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(player), "tpa.gui.error"));
+            return false;
+        }
+
+        sourcePlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "tpa.yes.tips")), player.getRealName(), mEntry.id));
+
+        if (mEntry.type == TpaType::tpa) {
+            sourcePlayer->teleport(player.getPosition(), player.getDimensionId());
+
+            this->getLogger()->info(fmt::format(fmt::runtime(tr({}, "tpa.log1")), player.getRealName(), sourcePlayer->getRealName()));
+        } else {
+            player.teleport(sourcePlayer->getPosition(), sourcePlayer->getDimensionId());
+
+            this->getLogger()->info(fmt::format(fmt::runtime(tr({}, "tpa.log1")), sourcePlayer->getRealName(), player.getRealName()));
+        }
+
+        return true;
+    }
+
+    bool TpaPlugin::rejectRequest(Player& player, const std::string& id) {
+        if (!this->isValid())
+            return false;
+
+        std::string mObject = player.getUuid().asString();
+
+        RequestEntry mEntry;
+        for (auto& it : this->mImpl->mRequestMap) {
+            std::vector<RequestEntry>& mEntries = it.second;
+            auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
+                return entry.id == id;
+            });
+
+            if (mIt == mEntries.end() || mIt->target != mObject)
+                continue;
+
+            mEntry = *mIt;
+
+            mEntries.erase(mIt);
+            break;
+        }
+
+        if (mEntry.id.empty())
+            return false;
+
+        if (Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mEntry.source)); sourcePlayer)
+            sourcePlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "tpa.no.tips")), player.getRealName()));
+
+        return true;
+    }
+
+    bool TpaPlugin::cancelRequest(Player& player, const std::string& id) {
+        if (!this->isValid())
+            return false;
+
+        std::string mObject = player.getUuid().asString();
+
+        std::vector<RequestEntry>& mEntries = this->mImpl->mRequestMap[mObject];
+        auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
+            return entry.id == id;
+        });
+
+        if (mIt == mEntries.end())
+            return false;
+
+        mEntries.erase(mIt);
+
+        return true;
+    }
+
+    void TpaPlugin::sendRequest(Player& player, Player& target, const std::string& id, TpaType type) {
+        if (!this->isValid())
+            return;
+
+        std::string mObject = player.getUuid().asString();
+        this->mImpl->mRequestMap[mObject].push_back({
+            id,
+            mObject,
+            target.getUuid().asString(),
+            type
+        });
+
+        ll::coro::keepThis([this, id, mObject]() -> ll::coro::CoroTask<> {
+            this->mImpl->mRequestTimers[id] = std::make_shared<ll::coro::InterruptableSleep>();
+
+            co_await this->mImpl->mRequestTimers[id]->sleepFor(std::chrono::seconds(this->mImpl->options.RequestTimeout));
+
+            std::vector<RequestEntry>& mEntries = this->mImpl->mRequestMap[mObject];
+            auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
+                return entry.id == id;
+            });
+
+            if (mIt == mEntries.end())
+                co_return;
+
+            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mIt->source)); mPlayer)
+                mPlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "tpa.tips4")), id));
+
+            mEntries.erase(std::remove_if(mEntries.begin(), mEntries.end(), [id](RequestEntry& entry) -> bool {
+                return entry.id == id;
+            }), mEntries.end());
+
+            this->mImpl->mRequestTimers.erase(id);
+        }).launch(ll::thread::ServerThreadExecutor::getDefault());
+
+        player.sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(player), "tpa.tips3")), id));
+
+        this->getLogger()->info(fmt::runtime(tr({}, "tpa.log4")), player.getRealName(), target.getRealName(), id);
     }
 
     std::vector<std::string> TpaPlugin::getBlacklist(Player& player) {

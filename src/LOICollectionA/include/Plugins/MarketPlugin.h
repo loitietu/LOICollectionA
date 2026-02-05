@@ -83,5 +83,6 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_API void blacklist(Player& player);
         LOICOLLECTION_A_API void sell(Player& player);
         LOICOLLECTION_A_API void buy(Player& player);
+        LOICOLLECTION_A_API void open(Player& player);
     };
 }

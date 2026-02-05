@@ -61,11 +61,13 @@ namespace Config {
     void SynchronousPluginConfigType(C_Config& config, const std::string& path) {
         JsonStorage mConfigObject(path);
 
+        nlohmann::ordered_json mConfigJson = mConfigObject.get();
         nlohmann::ordered_json mPatchJson = nlohmann::ordered_json::parse(
             ll::reflection::serialize<nlohmann::ordered_json>(config)->dump()
         );
-        MergePatch(const_cast<nlohmann::ordered_json&>(mConfigObject.get()), mPatchJson);
-
+        MergePatch(mConfigJson, mPatchJson);
+        
+        mConfigObject.write(mConfigJson);
         mConfigObject.save();
     }
 }

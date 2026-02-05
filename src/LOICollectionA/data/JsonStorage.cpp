@@ -27,6 +27,10 @@ JsonStorage::JsonStorage(std::filesystem::path path) : mPath(std::move(path)) {
 }
 JsonStorage::~JsonStorage() = default;
 
+void JsonStorage::write(const nlohmann::json& json) {
+    this->mJson = json;
+}
+
 void JsonStorage::remove(std::string_view key) {
     std::unique_lock lock(this->mMutex);
 
@@ -57,7 +61,7 @@ bool JsonStorage::has_ptr(std::string_view ptr) const {
     return this->mJson.contains(ptrs);
 }
 
-const nlohmann::ordered_json& JsonStorage::get() const {
+nlohmann::ordered_json JsonStorage::get() const {
     return this->mJson;
 }
 

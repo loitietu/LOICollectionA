@@ -11,6 +11,7 @@
 #include <ll/api/io/LoggerRegistry.h>
 
 #include <ll/api/coro/CoroTask.h>
+#include <ll/api/coro/InterruptableSleep.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
 
 #include <ll/api/form/SimpleForm.h>
@@ -62,19 +63,19 @@
 
 using I18nUtilsTools::tr;
 
-struct RedEnvelopeEntry {
-    std::string id;
-    std::string sender;
-
-    std::unordered_map<std::string, int> receivers;
-    std::unordered_map<std::string, std::string> names;
-
-    int count;
-    int capacity;
-    int people;
-};
-
 namespace LOICollection::Plugins {
+    struct WalletPlugin::RedEnvelopeEntry {
+        std::string id;
+        std::string sender;
+
+        std::unordered_map<std::string, int> receivers;
+        std::unordered_map<std::string, std::string> names;
+
+        int count;
+        int capacity;
+        int people;
+    };
+
     struct WalletPlugin::operation {
         CommandSelector<Player> Target;
         int Score = 0;
@@ -82,6 +83,7 @@ namespace LOICollection::Plugins {
 
     struct WalletPlugin::Impl {
         std::unordered_map<std::string, std::vector<RedEnvelopeEntry>> mRedEnvelopeMap;
+        std::unordered_map<std::string, std::shared_ptr<ll::coro::InterruptableSleep>> mRedEnvelopeTimers;
 
         std::atomic<bool> mRegistered{ false };
 
@@ -260,6 +262,31 @@ namespace LOICollection::Plugins {
     void WalletPlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("wallet", tr({}, "commands.wallet.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
+        command.overload<operation>().text("transfer").required("Target").required("Score").execute(
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
+                Actor* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error(tr({}, "commands.generic.target"));
+                Player& player = *static_cast<Player*>(entity);
+
+                CommandSelectorResults<Player> results = param.Target.results(origin);
+                if (results.empty())
+                    return output.error(tr({}, "commands.generic.target"));
+
+                std::string mScoreboard = this->mImpl->options.TargetScoreboard;
+
+                int mMoney = param.Score * static_cast<int>(results.size());
+                if (ScoreboardUtils::getScore(player, mScoreboard) < mMoney || param.Score < 0)
+                    return output.error(tr({}, "commands.wallet.error.score"));
+
+                ScoreboardUtils::reduceScore(player, mScoreboard, mMoney);
+
+                int mTargetMoney = static_cast<int>(param.Score * (1 - this->mImpl->options.ExchangeRate));
+                for (Player*& target : results)
+                    ScoreboardUtils::addScore(*target, mScoreboard, mTargetMoney);
+
+                output.success(fmt::runtime(tr({}, "commands.wallet.success.transfer")), param.Score, results.size());
+            });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
@@ -269,31 +296,6 @@ namespace LOICollection::Plugins {
             this->mGui->open(player);
 
             output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
-        });
-        command.overload<operation>().text("transfer").required("Target").required("Score").execute(
-            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
-            Player& player = *static_cast<Player*>(entity);
-
-            CommandSelectorResults<Player> results = param.Target.results(origin);
-            if (results.empty())
-                return output.error(tr({}, "commands.generic.target"));
-
-            std::string mScoreboard = this->mImpl->options.TargetScoreboard;
-
-            int mMoney = param.Score * static_cast<int>(results.size());
-            if (ScoreboardUtils::getScore(player, mScoreboard) < mMoney || param.Score < 0)
-                return output.error(tr({}, "commands.wallet.error.score"));
-
-            ScoreboardUtils::reduceScore(player, mScoreboard, mMoney);
-
-            int mTargetMoney = static_cast<int>(param.Score * (1 - this->mImpl->options.ExchangeRate));
-            for (Player*& target : results)
-                ScoreboardUtils::addScore(*target, mScoreboard, mTargetMoney);
-
-            output.success(fmt::runtime(tr({}, "commands.wallet.success.transfer")), param.Score, results.size());
         });
         command.overload().text("wealth").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
@@ -354,8 +356,10 @@ namespace LOICollection::Plugins {
                 ScoreboardUtils::addScore(event.self(), this->mImpl->options.TargetScoreboard, mTargetMoney);
 
                 std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "wallet.tips.redenvelope.receive"), event.self());
-                
-                TextPacket::createRawMessage(fmt::format(fmt::runtime(mMessage), mObject.id, mTargetMoney, (mObject.people + 1), mObject.count)).sendToClients();
+
+                TextPacket::createRawMessage(fmt::format(fmt::runtime(mMessage),
+                    mObject.id, mTargetMoney, (mObject.people + 1), mObject.count
+                )).sendToClients();
 
                 mObject.people++;
                 mObject.capacity -= mTargetMoney;
@@ -369,7 +373,9 @@ namespace LOICollection::Plugins {
 
                     std::string mMessageOver = LOICollectionAPI::APIUtils::getInstance().translate(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "wallet.tips.redenvelope.receive.over"), event.self());
                     
-                    TextPacket::createRawMessage(fmt::format(fmt::runtime(mMessageOver), mObject.id, mObject.names.at(mKingIt->first), mKingIt->second)).sendToClients();
+                    TextPacket::createRawMessage(fmt::format(fmt::runtime(mMessageOver),
+                        mObject.id, mObject.names.at(mKingIt->first), mKingIt->second
+                    )).sendToClients();
 
                     it->second.erase(std::remove_if(it->second.begin(), it->second.end(), [mObjectId = mObject.id](auto& mObject) -> bool {
                         return mObject.id == mObjectId;
@@ -385,6 +391,9 @@ namespace LOICollection::Plugins {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
         eventBus.removeListener(this->mImpl->PlayerChatEventListener);
+
+        for (auto& it : this->mImpl->mRedEnvelopeTimers)
+            it.second->interrupt();
     }
 
     std::string WalletPlugin::getPlayerInfo(const std::string& uuid) {
@@ -436,25 +445,29 @@ namespace LOICollection::Plugins {
         });
 
         ll::coro::keepThis([this, mObjectId, key]() -> ll::coro::CoroTask<> {
-            co_await std::chrono::seconds(this->mImpl->options.RedEnvelopeTimeout);
+            this->mImpl->mRedEnvelopeTimers[key] = std::make_shared<ll::coro::InterruptableSleep>();
+
+            co_await this->mImpl->mRedEnvelopeTimers[key]->sleepFor(std::chrono::seconds(this->mImpl->options.RedEnvelopeTimeout));
             
-            std::vector<RedEnvelopeEntry>& mObjects = this->mImpl->mRedEnvelopeMap[key];
-            for (RedEnvelopeEntry& mObject : mObjects) {
-                if (mObject.id != mObjectId)
-                    continue;
+            std::vector<RedEnvelopeEntry>& mEntries = this->mImpl->mRedEnvelopeMap[key];
+            auto mIt = std::find_if(mEntries.begin(), mEntries.end(), [mObjectId](RedEnvelopeEntry& entry) -> bool {
+                return entry.id  == mObjectId;
+            });
 
-                this->transfer(mObject.sender, mObject.capacity);
+            if (mIt == mEntries.end())
+                co_return;
 
-                TextPacket::createRawMessage(
-                    fmt::format(fmt::runtime(tr({}, "wallet.tips.redenvelope.timeout")), mObjectId)
-                ).sendToClients();
+            this->transfer(mIt->sender, mIt->capacity);
 
-                break;
-            };
+            TextPacket::createRawMessage(
+                fmt::format(fmt::runtime(tr({}, "wallet.tips.redenvelope.timeout")), mObjectId)
+            ).sendToClients();
 
-            mObjects.erase(std::remove_if(mObjects.begin(), mObjects.end(), [mObjectId](auto& mObject) -> bool {
-                return mObject.id  == mObjectId;
-            }), mObjects.end());
+            mEntries.erase(std::remove_if(mEntries.begin(), mEntries.end(), [mObjectId](RedEnvelopeEntry& entry) -> bool {
+                return entry.id  == mObjectId;
+            }), mEntries.end());
+
+            this->mImpl->mRedEnvelopeTimers.erase(key);
         }).launch(ll::thread::ServerThreadExecutor::getDefault());
 
         std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(tr(LanguagePlugin::getInstance().getLanguage(player), "wallet.tips.redenvelope.content"), player);

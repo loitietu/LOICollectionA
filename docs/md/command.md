@@ -137,20 +137,35 @@
 [Server] tpa:
 [Server] LOICollection -> 玩家互传
 [Server] Usage:
+[Server] - /tpa accept &ltId: string&gt
+[Server] - /tpa cancel &ltId: string&gt
 [Server] - /tpa gui
 [Server] - /tpa invite &lttpa|tphere&gt &ltTarget: target&gt
+[Server] - /tpa reject &ltId: string&gt
 [Server] - /tpa setting
 ```
 
 ?> 其中 `tpa` 为 Tpa 的顶层命令（权限等级: Any）。
+
+- `/tpa accept <Id: string>`
+  - 接受玩家的传送请求。
+  - 其中 `<Id: string>` 为传送请求ID。
+
+- `/tpa cancel <Id: string>`
+  - 取消自己的传送请求。
+  - 其中 `<Id: string>` 为传送请求ID。
+
+- `/tpa gui`
+  - 打开 Tpa GUI。
 
 - `tpa invite <tpa|tphere> <Target: target>`
   - 向目标发送传送请求。
   - 其中 `<tpa|tphere>` 为传送类型。
   - 其中 `<Target: target>` 为目标选择器。
 
-- `/tpa gui`
-  - 打开 Tpa GUI。
+- `/tpa reject <Id: string>`
+  - 拒绝玩家的传送请求。
+  - 其中 `<Id: string>` 为传送请求ID。
 
 - `/tpa setting`
   - 打开 Tpa 个人设置。
@@ -294,16 +309,12 @@
 [Server] LOICollection -> 玩家市场
 [Server] Usage:
 [Server] - /market gui
-[Server] - /market sell
 ```
 
 ?> 其中 `market` 为 Market 的顶层命令（权限等级: Any）。
 
 - `/market gui`
   - 打开玩家市场 GUI。
-
-- `/market sell`
-  - 打开玩家市场出售界面。
 
 ## BehaviourEvent
 

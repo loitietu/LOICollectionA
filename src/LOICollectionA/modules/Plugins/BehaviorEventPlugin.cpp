@@ -218,185 +218,185 @@ namespace LOICollection::Plugins {
         });
         command.overload<operation>().text("query").text("event").text("info").required("EventId").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Events", param.EventId);
-            
-            if (mEvent.empty())
-                return output.error(tr({}, "commands.behaviorevent.error.query"));
+                std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Events", param.EventId);
+                
+                if (mEvent.empty())
+                    return output.error(tr({}, "commands.behaviorevent.error.query"));
 
-            output.success(tr({}, "commands.behaviorevent.success.query.info"));
-            std::for_each(mEvent.begin(), mEvent.end(), [&output, id = param.EventId](const std::pair<std::string, std::string>& mPair) {
-                std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
+                output.success(tr({}, "commands.behaviorevent.success.query.info"));
+                std::for_each(mEvent.begin(), mEvent.end(), [&output, id = param.EventId](const std::pair<std::string, std::string>& mPair) {
+                    std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
 
-                output.success("{0}: {1}", mKey, mPair.second);
+                    output.success("{0}: {1}", mKey, mPair.second);
+                });
             });
-        });
         command.overload<operation>().text("query").text("event").text("name").required("EventName").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::vector<std::string> mResult = this->getEvents({{ "event_name", param.EventName }}, {}, param.Limit);
-            
-            if (mResult.empty())
-                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                std::vector<std::string> mResult = this->getEvents({{ "event_name", param.EventName }}, {}, param.Limit);
+                
+                if (mResult.empty())
+                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
-        });
+                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+            });
         command.overload<operation>().text("query").text("event").text("time").required("Time").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::vector<std::string> mResult = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
-                std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
-                return !SystemUtils::isPastOrPresent(mTime);
-            }, param.Limit);
-            
-            if (mResult.empty())
-                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                std::vector<std::string> mResult = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
+                    std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
+                    return !SystemUtils::isPastOrPresent(mTime);
+                }, param.Limit);
+                
+                if (mResult.empty())
+                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
-        });
+                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+            });
         command.overload<operation>().text("query").text("event").text("foundation").required("EventName").required("Time").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::vector<std::string> mNames = this->getEvents({{ "event_name", param.EventName }}, {}, param.Limit);
-            std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
-                std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
-                return !SystemUtils::isPastOrPresent(mTime);
-            }, param.Limit);
-            std::vector<std::string> mResult = SystemUtils::getIntersection({ mNames, mTimes });
-            
-            if (mResult.empty())
-                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                std::vector<std::string> mNames = this->getEvents({{ "event_name", param.EventName }}, {}, param.Limit);
+                std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
+                    std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
+                    return !SystemUtils::isPastOrPresent(mTime);
+                }, param.Limit);
+                std::vector<std::string> mResult = SystemUtils::getIntersection({ mNames, mTimes });
+                
+                if (mResult.empty())
+                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
-        });
+                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+            });
         command.overload<operation>().text("query").text("event").text("position").required("PositionOrigin").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
-            Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
+                Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
-            std::vector<std::string> mResult = this->getEvents({ 
-                { "position_x", std::to_string(static_cast<int>(mPosition.x)) },
-                { "position_y", std::to_string(static_cast<int>(mPosition.y)) },
-                { "position_z", std::to_string(static_cast<int>(mPosition.z)) }
-            }, {}, param.Limit);
-            
-            if (mResult.empty())
-                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                std::vector<std::string> mResult = this->getEvents({ 
+                    { "position_x", std::to_string(static_cast<int>(mPosition.x)) },
+                    { "position_y", std::to_string(static_cast<int>(mPosition.y)) },
+                    { "position_z", std::to_string(static_cast<int>(mPosition.z)) }
+                }, {}, param.Limit);
+                
+                if (mResult.empty())
+                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
-        });
+                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+            });
         command.overload<operation>().text("query").text("event").text("dimension").required("Dimension").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::vector<std::string> mResult = this->getEvents({{ "Position.dimension", std::to_string(param.Dimension) }}, {}, param.Limit);
+                std::vector<std::string> mResult = this->getEvents({{ "Position.dimension", std::to_string(param.Dimension) }}, {}, param.Limit);
 
-            if (mResult.empty())
-                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                if (mResult.empty())
+                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
-        });
+                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+            });
         command.overload<operation>().text("query").text("event").text("site").required("PositionOrigin").required("Dimension").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
-            Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
+                Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
-            std::vector<std::string> mPositions = this->getEvents({ 
-                { "position_x", std::to_string(static_cast<int>(mPosition.x)) },
-                { "position_y", std::to_string(static_cast<int>(mPosition.y)) },
-                { "position_z", std::to_string(static_cast<int>(mPosition.z)) }
-            }, {}, param.Limit);
-            std::vector<std::string> mDimensions = this->getEvents({{ "position_dimension", std::to_string(param.Dimension) }}, {}, param.Limit);
-            std::vector<std::string> mResult = SystemUtils::getIntersection({ mPositions, mDimensions });
+                std::vector<std::string> mPositions = this->getEvents({ 
+                    { "position_x", std::to_string(static_cast<int>(mPosition.x)) },
+                    { "position_y", std::to_string(static_cast<int>(mPosition.y)) },
+                    { "position_z", std::to_string(static_cast<int>(mPosition.z)) }
+                }, {}, param.Limit);
+                std::vector<std::string> mDimensions = this->getEvents({{ "position_dimension", std::to_string(param.Dimension) }}, {}, param.Limit);
+                std::vector<std::string> mResult = SystemUtils::getIntersection({ mPositions, mDimensions });
 
-            if (mResult.empty())
-                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                if (mResult.empty())
+                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
-        });
+                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+            });
         command.overload<operation>().text("query").text("event").text("custom").required("Target").required("Value").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::vector<std::string> mResult = this->getEvents({ { param.Target, param.Value } }, {}, param.Limit);
+                std::vector<std::string> mResult = this->getEvents({ { param.Target, param.Value } }, {}, param.Limit);
 
-            if (mResult.empty())
-                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                if (mResult.empty())
+                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
-        });
+                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+            });
         command.overload<operation>().text("query").text("action").text("range").required("PositionOrigin").required("Radius").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
-            Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
+                Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
-            std::vector<std::string> mResult = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPosition, radius = param.Radius](int x, int y, int z) -> bool {
-                return Vec3(x, y, z).distanceToSqr(mPosition) <= radius;
-            }, param.Limit);
+                std::vector<std::string> mResult = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPosition, radius = param.Radius](int x, int y, int z) -> bool {
+                    return Vec3(x, y, z).distanceToSqr(mPosition) <= radius;
+                }, param.Limit);
 
-            if (mResult.empty())
-                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                if (mResult.empty())
+                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
-        });
+                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+            });
         command.overload<operation>().text("query").text("action").text("position").required("PositionOrigin").required("PositionTarget").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
-            Vec3 mPositionOrigin = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
-            Vec3 mPositionTarget = param.PositionTarget.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
+                Vec3 mPositionOrigin = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
+                Vec3 mPositionTarget = param.PositionTarget.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
-            Vec3 mPositionMin(std::min(mPositionOrigin.x, mPositionTarget.x), std::min(mPositionOrigin.y, mPositionTarget.y), std::min(mPositionOrigin.z, mPositionTarget.z));
-            Vec3 mPositionMax(std::max(mPositionOrigin.x, mPositionTarget.x), std::max(mPositionOrigin.y, mPositionTarget.y), std::max(mPositionOrigin.z, mPositionTarget.z));
+                Vec3 mPositionMin(std::min(mPositionOrigin.x, mPositionTarget.x), std::min(mPositionOrigin.y, mPositionTarget.y), std::min(mPositionOrigin.z, mPositionTarget.z));
+                Vec3 mPositionMax(std::max(mPositionOrigin.x, mPositionTarget.x), std::max(mPositionOrigin.y, mPositionTarget.y), std::max(mPositionOrigin.z, mPositionTarget.z));
 
-            std::vector<std::string> mResult = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPositionMin, mPositionMax](int x, int y, int z) -> bool {
-                return x >= static_cast<double>(mPositionMin.x) && x <= static_cast<double>(mPositionMax.x) && y >= static_cast<double>(mPositionMin.y) && 
-                    y <= static_cast<double>(mPositionMax.y) && z >= static_cast<double>(mPositionMin.z) && z <= static_cast<double>(mPositionMax.z);
-            }, param.Limit);
+                std::vector<std::string> mResult = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPositionMin, mPositionMax](int x, int y, int z) -> bool {
+                    return x >= static_cast<double>(mPositionMin.x) && x <= static_cast<double>(mPositionMax.x) && y >= static_cast<double>(mPositionMin.y) && 
+                        y <= static_cast<double>(mPositionMax.y) && z >= static_cast<double>(mPositionMin.z) && z <= static_cast<double>(mPositionMax.z);
+                }, param.Limit);
 
-            if (mResult.empty())
-                return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                if (mResult.empty())
+                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
-        });
+                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+            });
         command.overload<operation>().text("back").text("range").required("PositionOrigin").required("Radius").required("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
-            Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
+                Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
-            std::vector<std::string> mAreas = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPosition, radius = (param.Radius * param.Radius)](int x, int y, int z) -> bool {
-                return Vec3(x, y, z).distanceToSqr(mPosition) <= radius;
+                std::vector<std::string> mAreas = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPosition, radius = (param.Radius * param.Radius)](int x, int y, int z) -> bool {
+                    return Vec3(x, y, z).distanceToSqr(mPosition) <= radius;
+                });
+                std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
+                    std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
+                    return !SystemUtils::isPastOrPresent(mTime);
+                });
+                std::vector<std::string> mTypes = this->getEvents({{ "event_type", "Operable" }});
+                std::vector<std::string> mResult = this->filter(
+                    SystemUtils::getIntersection({ mAreas, mTimes, mTypes })
+                );
+
+                if (mResult.empty())
+                    return output.error(tr({}, "commands.behaviorevent.error.back"));
+
+                this->back(mResult);
+
+                output.success(tr({}, "commands.behaviorevent.success.back"));
             });
-            std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
-                std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
-                return !SystemUtils::isPastOrPresent(mTime);
-            });
-            std::vector<std::string> mTypes = this->getEvents({{ "event_type", "Operable" }});
-            std::vector<std::string> mResult = this->filter(
-                SystemUtils::getIntersection({ mAreas, mTimes, mTypes })
-            );
-
-            if (mResult.empty())
-                return output.error(tr({}, "commands.behaviorevent.error.back"));
-
-            this->back(mResult);
-
-            output.success(tr({}, "commands.behaviorevent.success.back"));
-        });
         command.overload<operation>().text("back").text("position").required("PositionOrigin").required("PositionTarget").required("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
-            Vec3 mPositionOrigin = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
-            Vec3 mPositionTarget = param.PositionTarget.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
+                Vec3 mPositionOrigin = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
+                Vec3 mPositionTarget = param.PositionTarget.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
-            Vec3 mPositionMin(std::min(mPositionOrigin.x, mPositionTarget.x), std::min(mPositionOrigin.y, mPositionTarget.y), std::min(mPositionOrigin.z, mPositionTarget.z));
-            Vec3 mPositionMax(std::max(mPositionOrigin.x, mPositionTarget.x), std::max(mPositionOrigin.y, mPositionTarget.y), std::max(mPositionOrigin.z, mPositionTarget.z));
+                Vec3 mPositionMin(std::min(mPositionOrigin.x, mPositionTarget.x), std::min(mPositionOrigin.y, mPositionTarget.y), std::min(mPositionOrigin.z, mPositionTarget.z));
+                Vec3 mPositionMax(std::max(mPositionOrigin.x, mPositionTarget.x), std::max(mPositionOrigin.y, mPositionTarget.y), std::max(mPositionOrigin.z, mPositionTarget.z));
 
-            std::vector<std::string> mAreas = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPositionMin, mPositionMax](int x, int y, int z) -> bool {
-                return x >= static_cast<double>(mPositionMin.x) && x <= static_cast<double>(mPositionMax.x) && y >= static_cast<double>(mPositionMin.y) && 
-                    y <= static_cast<double>(mPositionMax.y) && z >= static_cast<double>(mPositionMin.z) && z <= static_cast<double>(mPositionMax.z);
+                std::vector<std::string> mAreas = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPositionMin, mPositionMax](int x, int y, int z) -> bool {
+                    return x >= static_cast<double>(mPositionMin.x) && x <= static_cast<double>(mPositionMax.x) && y >= static_cast<double>(mPositionMin.y) && 
+                        y <= static_cast<double>(mPositionMax.y) && z >= static_cast<double>(mPositionMin.z) && z <= static_cast<double>(mPositionMax.z);
+                });
+                std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
+                    std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
+                    return !SystemUtils::isPastOrPresent(mTime);
+                });
+                std::vector<std::string> mTypes = this->getEvents({{ "event_type", "Operable" }});
+                std::vector<std::string> mResult = this->filter(
+                    SystemUtils::getIntersection({ mAreas, mTimes, mTypes })
+                );
+
+                if (mResult.empty())
+                    return output.error(tr({}, "commands.behaviorevent.error.back"));
+
+                this->back(mResult);
+
+                output.success(tr({}, "commands.behaviorevent.success.back"));
             });
-            std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
-                std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
-                return !SystemUtils::isPastOrPresent(mTime);
-            });
-            std::vector<std::string> mTypes = this->getEvents({{ "event_type", "Operable" }});
-            std::vector<std::string> mResult = this->filter(
-                SystemUtils::getIntersection({ mAreas, mTimes, mTypes })
-            );
-
-            if (mResult.empty())
-                return output.error(tr({}, "commands.behaviorevent.error.back"));
-
-            this->back(mResult);
-
-            output.success(tr({}, "commands.behaviorevent.success.back"));
-        });
     }
 
     void BehaviorEventPlugin::listenEvent() {

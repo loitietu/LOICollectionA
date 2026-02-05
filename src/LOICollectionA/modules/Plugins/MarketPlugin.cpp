@@ -23,6 +23,8 @@
 #include <mc/nbt/Tag.h>
 #include <mc/nbt/CompoundTag.h>
 
+#include <mc/network/packet/TextPacket.h>
+
 #include <mc/world/level/Level.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/world/actor/player/PlayerInventory.h>
@@ -241,11 +243,10 @@ namespace LOICollection::Plugins {
     void MarketPlugin::gui::sellItemInventory(Player& player) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
-        std::vector<std::string> ProhibitedItems = this->mParent.mImpl->options.ProhibitedItems;
-
         std::vector<std::string> mItems;
         std::vector<int> mItemSlots;
 
+        std::vector<std::string> ProhibitedItems = this->mParent.mImpl->options.ProhibitedItems;
         for (int i = 0; i < player.mInventory->mInventory->getContainerSize(); i++) {
             ItemStack mItemStack = player.mInventory->mInventory->getItem(i);
             
@@ -430,7 +431,9 @@ namespace LOICollection::Plugins {
         form.appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist"), "textures/ui/icon_deals", "path", [this](Player& pl) -> void {
             this->blacklist(pl);
         });
-        form.sendTo(player);
+        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
+            if (id == -1) this->open(pl);
+        });
     }
 
     void MarketPlugin::gui::buy(Player& player) {
@@ -459,8 +462,24 @@ namespace LOICollection::Plugins {
         form->setCallback([this](Player& pl, const std::string& response) -> void {
             this->buyItem(pl, response);
         });
+        form->setCloseCallback([this](Player& pl) -> void {
+            this->open(pl);
+        });
 
         form->sendPage(player, 1);
+    }
+
+    void MarketPlugin::gui::open(Player& player) {
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
+        form.appendButton(tr(mObjectLanguage, "market.gui.buy"), "textures/ui/icon_blackfriday", "path", [this](Player& pl) -> void {
+            this->buy(pl);
+        });
+        form.appendButton(tr(mObjectLanguage, "market.gui.sell"), "textures/ui/icon_best3", "path", [this](Player& pl) -> void {
+            this->sell(pl);
+        });
+        form.sendTo(player);
     }
 
     void MarketPlugin::registeryCommand() {
@@ -472,17 +491,7 @@ namespace LOICollection::Plugins {
                 return output.error(tr({}, "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->buy(player);
-
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
-        });
-        command.overload().text("sell").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
-            Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
-            Player& player = *static_cast<Player*>(entity);
-
-            this->mGui->sell(player);
+            this->mGui->open(player);
 
             output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
         });

@@ -185,15 +185,15 @@ namespace LOICollection::Plugins {
         });
         command.overload<operation>().text("gui").required("Type").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
-            Player& player = *static_cast<Player*>(entity);
+                Actor* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error(tr({}, "commands.generic.target"));
+                Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player, param.Type);
+                this->mGui->open(player, param.Type);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
-        });
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            });
     }
 
     void StatisticsPlugin::listenEvent() {

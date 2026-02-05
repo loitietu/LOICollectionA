@@ -37,6 +37,12 @@ namespace LOICollection::Plugins {
         LOICOLLECTION_A_API   void addBlacklist(Player& player, Player& target);
         LOICOLLECTION_A_API   void delBlacklist(Player& player, const std::string& target);
 
+        LOICOLLECTION_A_API   bool acceptRequest(Player& player, const std::string& id);
+        LOICOLLECTION_A_API   bool rejectRequest(Player& player, const std::string& id);
+        LOICOLLECTION_A_API   bool cancelRequest(Player& player, const std::string& id);
+        
+        LOICOLLECTION_A_API   void sendRequest(Player& player, Player& target, const std::string& id, TpaType type);
+
         LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(Player& player);
 
         LOICOLLECTION_A_NDAPI bool hasBlacklist(Player& player, const std::string& uuid);
@@ -59,6 +65,8 @@ namespace LOICollection::Plugins {
         void registeryCommand();
         void listenEvent();
         void unlistenEvent();
+        
+        struct RequestEntry;
 
         struct operation;
 

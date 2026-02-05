@@ -129,7 +129,7 @@ if({player_ms.avg} <= 50)["§a" : if( {player_ms.avg} > 50 && {player_ms.avg} <=
 - **当判断条件满足 `{player_ms.avg} > 50 && {player_ms.avg} <= 250` 时，其会返回 "§e {player_ms.avg}§bms"**  
 - **当判断条件不满足以上条件时，其会返回 "§c {player_ms.avg}§bms"**
 
-## 运算符 - math
+## 运算符 - operator
 
 > 运算符通常是用于原始语句中进行更加方便快捷的处理工具，包括但不限于 `+`、`-`、`*`、`/` 等。
 

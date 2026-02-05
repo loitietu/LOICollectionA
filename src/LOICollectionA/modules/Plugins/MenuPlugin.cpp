@@ -258,6 +258,13 @@ namespace LOICollection::Plugins {
     void MenuPlugin::gui::editAwardSetting(Player& player, const std::string& id, MenuType type) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "menu.gui.error"));
+
+            this->edit(player);
+            return;
+        }
+
         ll::form::CustomForm form(tr(mObjectLanguage, "menu.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "menu.gui.label"));
         form.appendInput("Input2", tr(mObjectLanguage, "menu.gui.button1.input2"), tr(mObjectLanguage, "menu.gui.button1.input2.placeholder"), this->mParent.getDatabase()->get_ptr<std::string>("/" + id + "/title", ""));
@@ -318,6 +325,13 @@ namespace LOICollection::Plugins {
 
     void MenuPlugin::gui::editAwardNew(Player& player, const std::string& id, MenuType type) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "menu.gui.error"));
+
+            this->edit(player);
+            return;
+        }
 
         ll::form::CustomForm form(tr(mObjectLanguage, "menu.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "menu.gui.label"));
@@ -453,6 +467,13 @@ namespace LOICollection::Plugins {
 
     void MenuPlugin::gui::editAwardRemove(Player& player, const std::string& id, MenuType type) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "menu.gui.error"));
+
+            this->edit(player);
+            return;
+        }
         
         std::vector<std::string> mNames;
         for (nlohmann::ordered_json& item : this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/customize"))
@@ -479,6 +500,13 @@ namespace LOICollection::Plugins {
 
     void MenuPlugin::gui::editAwardCommand(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "menu.gui.error"));
+
+            this->edit(player);
+            return;
+        }
 
         ll::form::CustomForm form(tr(mObjectLanguage, "menu.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "menu.gui.label"));
@@ -818,17 +846,17 @@ namespace LOICollection::Plugins {
             .getOrCreateCommand("menu", tr({}, "commands.menu.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").optional("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
-            Player& player = *static_cast<Player*>(entity);
+                Actor* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error(tr({}, "commands.generic.target"));
+                Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player, param.Object.empty() ? 
-                this->mImpl->options.EntranceKey : std::string(param.Object)
-            );
-            
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
-        });
+                this->mGui->open(player, param.Object.empty() ? 
+                    this->mImpl->options.EntranceKey : std::string(param.Object)
+                );
+                
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            });
         command.overload().text("edit").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                 return output.error(tr({}, "commands.generic.permission"));

@@ -56,16 +56,16 @@ namespace LOICollection::ProtableTool {
             if (event.getPacket().getId() != MinecraftPacketIds::ShowModalForm)
                 return;
 
-            auto& packet = static_cast<ModalFormRequestPacket&>(const_cast<Packet&>(event.getPacket()));
+            auto& packet = static_cast<const ModalFormRequestPacket&>(event.getPacket());
 
             uint64_t mIdentifierHash = event.getNetworkIdentifier().getHash();
             if (!packet.mFormId || packet.mFormJSON.empty())
                 return;
+
             if (this->mImpl->mFormResponse.contains(mIdentifierHash)) {
                 this->mImpl->mFormLists[mIdentifierHash].insert({ packet.mFormId, packet.mFormJSON });
 
                 event.cancel();
-
                 return;
             }
 
@@ -75,14 +75,14 @@ namespace LOICollection::ProtableTool {
             if (event.getPacket().getId() != MinecraftPacketIds::ModalFormResponse)
                 return;
 
-            auto& packet = static_cast<ModalFormResponsePacket&>(const_cast<Packet&>(event.getPacket()));
+            auto& packet = static_cast<const ModalFormResponsePacket&>(event.getPacket());
 
             uint64_t mIdentifierHash = event.getNetworkIdentifier().getHash();
             if (!this->mImpl->mFormResponse.contains(mIdentifierHash))
                 return;
+
             if (packet.mFormId != this->mImpl->mFormResponse[mIdentifierHash]) {
                 event.cancel();
-
                 return;
             }
 
@@ -90,6 +90,7 @@ namespace LOICollection::ProtableTool {
 
             if (!this->mImpl->mFormLists.contains(mIdentifierHash))
                 return;
+
             if (this->mImpl->mFormLists[mIdentifierHash].empty()) {
                 this->mImpl->mFormLists.erase(mIdentifierHash);
 
@@ -107,6 +108,7 @@ namespace LOICollection::ProtableTool {
             uint64_t mIdentifierHash = event.self().getNetworkIdentifier().getHash();
             if (this->mImpl->mFormResponse.contains(mIdentifierHash))
                 this->mImpl->mFormResponse.erase(mIdentifierHash);
+
             if (this->mImpl->mFormLists.contains(mIdentifierHash))
                 this->mImpl->mFormLists.erase(mIdentifierHash);
         });

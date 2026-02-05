@@ -58,6 +58,8 @@ namespace LOICollection::Plugins {
         void listenEvent();
         void unlistenEvent();
 
+        struct RedEnvelopeEntry;
+
         struct operation;
 
         struct Impl;

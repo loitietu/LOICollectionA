@@ -104,8 +104,16 @@ namespace LOICollection::Plugins {
         form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
         form.appendInput("Input1", tr(mObjectLanguage, "chat.gui.manager.add.input1"), tr(mObjectLanguage, "chat.gui.manager.add.input1.placeholder"));
         form.appendInput("Input2", tr(mObjectLanguage, "chat.gui.manager.add.input2"), tr(mObjectLanguage, "chat.gui.manager.add.input2.placeholder"));
-        form.sendTo(player, [this, mObjectLanguage, &target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+        form.sendTo(player, [this, mObjectLanguage, target = target.getUuid()](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
             if (!dt) return this->add(pl);
+
+            Player* mTarget = ll::service::getLevel()->getPlayer(target);
+            if (!mTarget) {
+                pl.sendMessage(tr(mObjectLanguage, "chat.gui.error"));
+
+                this->add(pl);
+                return;
+            }
 
             std::string mTitle = std::get<std::string>(dt->at("Input1"));
 
@@ -116,7 +124,7 @@ namespace LOICollection::Plugins {
 
             int mTime = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
 
-            this->mParent.addTitle(target, mTitle, mTime);
+            this->mParent.addTitle(*mTarget, mTitle, mTime);
         });
     }
     
@@ -126,10 +134,18 @@ namespace LOICollection::Plugins {
         ll::form::CustomForm form(tr(mObjectLanguage, "chat.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "chat.gui.label"));
         form.appendDropdown("dropdown", tr(mObjectLanguage, "chat.gui.manager.remove.dropdown"), this->mParent.getTitles(target));
-        form.sendTo(player, [this, &target](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+        form.sendTo(player, [this, mObjectLanguage, target = target.getUuid()](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
             if (!dt) return this->remove(pl);
 
-            this->mParent.delTitle(target, std::get<std::string>(dt->at("dropdown")));
+            Player* mTarget = ll::service::getLevel()->getPlayer(target);
+            if (!mTarget) {
+                pl.sendMessage(tr(mObjectLanguage, "chat.gui.error"));
+
+                this->remove(pl);
+                return;
+            }
+
+            this->mParent.delTitle(*mTarget, std::get<std::string>(dt->at("dropdown")));
         });
     }
 
@@ -368,67 +384,67 @@ namespace LOICollection::Plugins {
             .getOrCreateCommand("chat", tr({}, "commands.chat.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("add").required("Target").required("Title").optional("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                return output.error(tr({}, "commands.generic.permission"));
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    return output.error(tr({}, "commands.generic.permission"));
 
-            CommandSelectorResults<Player> results = param.Target.results(origin);
-            if (results.empty())
-                return output.error(tr({}, "commands.generic.target"));
+                CommandSelectorResults<Player> results = param.Target.results(origin);
+                if (results.empty())
+                    return output.error(tr({}, "commands.generic.target"));
 
-            for (Player*& pl : results) {
-                this->addTitle(*pl, param.Title, param.Time);
+                for (Player*& pl : results) {
+                    this->addTitle(*pl, param.Title, param.Time);
 
-                output.success(fmt::runtime(tr({}, "commands.chat.success.add")), param.Title, pl->getRealName());
-            }
-        });
+                    output.success(fmt::runtime(tr({}, "commands.chat.success.add")), param.Title, pl->getRealName());
+                }
+            });
         command.overload<operation>().text("remove").required("Target").required("Title").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                return output.error(tr({}, "commands.generic.permission"));
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    return output.error(tr({}, "commands.generic.permission"));
 
-            CommandSelectorResults<Player> results = param.Target.results(origin);
-            if (results.empty())
-                return output.error(tr({}, "commands.generic.target"));
+                CommandSelectorResults<Player> results = param.Target.results(origin);
+                if (results.empty())
+                    return output.error(tr({}, "commands.generic.target"));
 
-            for (Player*& pl : results) {
-                this->delTitle(*pl, param.Title);
+                for (Player*& pl : results) {
+                    this->delTitle(*pl, param.Title);
 
-                output.success(fmt::runtime(tr({}, "commands.chat.success.remove")), pl->getRealName(), param.Title);
-            }
-        });
+                    output.success(fmt::runtime(tr({}, "commands.chat.success.remove")), pl->getRealName(), param.Title);
+                }
+            });
         command.overload<operation>().text("set").required("Target").required("Title").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                return output.error(tr({}, "commands.generic.permission"));
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    return output.error(tr({}, "commands.generic.permission"));
 
-            CommandSelectorResults<Player> results = param.Target.results(origin);
-            if (results.empty())
-                return output.error(tr({}, "commands.generic.target"));
+                CommandSelectorResults<Player> results = param.Target.results(origin);
+                if (results.empty())
+                    return output.error(tr({}, "commands.generic.target"));
 
-            for (Player*& pl : results) {
-                this->setTitle(*pl, param.Title);
+                for (Player*& pl : results) {
+                    this->setTitle(*pl, param.Title);
 
-                output.success(fmt::runtime(tr({}, "commands.chat.success.set")), pl->getRealName(), param.Title);
-            }
-        });
+                    output.success(fmt::runtime(tr({}, "commands.chat.success.set")), pl->getRealName(), param.Title);
+                }
+            });
         command.overload<operation>().text("list").required("Target").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                return output.error(tr({}, "commands.generic.permission"));
+                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                    return output.error(tr({}, "commands.generic.permission"));
 
-            CommandSelectorResults<Player> results = param.Target.results(origin);
-            if (results.empty())
-                return output.error(tr({}, "commands.generic.target"));
+                CommandSelectorResults<Player> results = param.Target.results(origin);
+                if (results.empty())
+                    return output.error(tr({}, "commands.generic.target"));
 
-            for (Player*& player : results) {
-                std::vector<std::string> mObjectList = this->getTitles(*player);
-                
-                if (mObjectList.empty())
-                    return output.success(fmt::runtime(tr({}, "commands.chat.success.list")), player->getRealName(), "None");
+                for (Player*& player : results) {
+                    std::vector<std::string> mObjectList = this->getTitles(*player);
+                    
+                    if (mObjectList.empty())
+                        return output.success(fmt::runtime(tr({}, "commands.chat.success.list")), player->getRealName(), "None");
 
-                output.success(fmt::runtime(tr({}, "commands.chat.success.list")), player->getRealName(), fmt::join(mObjectList, ", "));
-            }
-        });
+                    output.success(fmt::runtime(tr({}, "commands.chat.success.list")), player->getRealName(), fmt::join(mObjectList, ", "));
+                }
+            });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                 return output.error(tr({}, "commands.generic.permission"));

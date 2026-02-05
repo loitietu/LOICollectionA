@@ -20,6 +20,8 @@ namespace Config {
         std::string TargetScoreboard = "money";
         int BlacklistUpload = 10;
         int RequestRequired = 100;
+        int RequestTimeout = 60;
+        int RequestUpload = 5;
     };
 
     struct C_Monitor {

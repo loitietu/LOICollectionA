@@ -149,8 +149,16 @@ namespace LOICollection::Plugins {
         form.appendLabel(tr(mObjectLanguage, "blacklist.gui.label"));
         form.appendInput("Input1", tr(mObjectLanguage, "blacklist.gui.add.input1"), tr(mObjectLanguage, "blacklist.gui.add.input1.placeholder"));
         form.appendInput("Input2", tr(mObjectLanguage, "blacklist.gui.add.input2"), tr(mObjectLanguage, "blacklist.gui.add.input2.placeholder"));
-        form.sendTo(player, [this, &target, mObjectLanguage](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+        form.sendTo(player, [this, mObjectLanguage, target = target.getUuid()](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
             if (!dt) return this->add(pl);
+
+            Player* mTarget = ll::service::getLevel()->getPlayer(target);
+            if (!mTarget) {
+                pl.sendMessage(tr(mObjectLanguage, "blacklist.gui.error"));
+
+                this->add(pl);
+                return;
+            }
 
             std::string mCause = std::get<std::string>(dt->at("Input1"));
             
@@ -161,7 +169,7 @@ namespace LOICollection::Plugins {
 
             int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
             
-            this->mParent.addBlacklist(target, mCause, time);
+            this->mParent.addBlacklist(*mTarget, mCause, time);
         });
     }
 
@@ -249,53 +257,53 @@ namespace LOICollection::Plugins {
             .getOrCreateCommand("blacklist", tr({}, "commands.blacklist.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("add").required("Target").optional("Cause").optional("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            CommandSelectorResults<Player> results = param.Target.results(origin);
-            if (results.empty())
-                return output.error(tr({}, "commands.generic.target"));
+                CommandSelectorResults<Player> results = param.Target.results(origin);
+                if (results.empty())
+                    return output.error(tr({}, "commands.generic.target"));
 
-            for (Player*& pl : results) {
-                if (this->isBlacklist(*pl) || pl->getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || pl->isSimulatedPlayer()) {
-                    output.error(fmt::runtime(tr({}, "commands.blacklist.error.add")), pl->getRealName());
-                    continue;
+                for (Player*& pl : results) {
+                    if (this->isBlacklist(*pl) || pl->getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || pl->isSimulatedPlayer()) {
+                        output.error(fmt::runtime(tr({}, "commands.blacklist.error.add")), pl->getRealName());
+                        continue;
+                    }
+
+                    this->addBlacklist(*pl, param.Cause, param.Time);
+
+                    output.success(fmt::runtime(tr({}, "commands.blacklist.success.add")), pl->getRealName());
                 }
-
-                this->addBlacklist(*pl, param.Cause, param.Time);
-
-                output.success(fmt::runtime(tr({}, "commands.blacklist.success.add")), pl->getRealName());
-            }
-        });
+            });
         command.overload<operation>().text("remove").required("Object").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            if (!this->hasBlacklist(param.Object))
-                return output.error(fmt::runtime(tr({}, "commands.blacklist.error.remove")), param.Object);
-            
-            this->delBlacklist(param.Object);
+                if (!this->hasBlacklist(param.Object))
+                    return output.error(fmt::runtime(tr({}, "commands.blacklist.error.remove")), param.Object);
+                
+                this->delBlacklist(param.Object);
 
-            output.success(fmt::runtime(tr({}, "commands.blacklist.success.remove")), param.Object);
-        });
+                output.success(fmt::runtime(tr({}, "commands.blacklist.success.remove")), param.Object);
+            });
         command.overload<operation>().text("info").required("Object").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Blacklist", param.Object);
-            
-            if (mEvent.empty())
-                return output.error(tr({}, "commands.blacklist.error.info"));
+                std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Blacklist", param.Object);
+                
+                if (mEvent.empty())
+                    return output.error(tr({}, "commands.blacklist.error.info"));
 
-            output.success(tr({}, "commands.blacklist.success.info"));
-            std::for_each(mEvent.begin(), mEvent.end(), [&output](const std::pair<std::string, std::string>& mPair) {
-                std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
+                output.success(tr({}, "commands.blacklist.success.info"));
+                std::for_each(mEvent.begin(), mEvent.end(), [&output](const std::pair<std::string, std::string>& mPair) {
+                    std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
 
-                output.success("{0}: {1}", mKey, mPair.second);
+                    output.success("{0}: {1}", mKey, mPair.second);
+                });
             });
-        });
         command.overload<operation>().text("list").optional("Limit").execute(
             [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
-            std::vector<std::string> mObjectList = this->getBlacklists(param.Limit);
-            
-            if (mObjectList.empty())
-                return output.success(fmt::runtime(tr({}, "commands.blacklist.success.list")), param.Limit, "None");
+                std::vector<std::string> mObjectList = this->getBlacklists(param.Limit);
+                
+                if (mObjectList.empty())
+                    return output.success(fmt::runtime(tr({}, "commands.blacklist.success.list")), param.Limit, "None");
 
-            output.success(fmt::runtime(tr({}, "commands.blacklist.success.list")), param.Limit, fmt::join(mObjectList, ", "));
-        });
+                output.success(fmt::runtime(tr({}, "commands.blacklist.success.list")), param.Limit, fmt::join(mObjectList, ", "));
+            });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())

@@ -184,6 +184,13 @@ namespace LOICollection::Plugins {
     void ShopPlugin::gui::editRemoveInfo(Player& player, const std::string& id) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "shop.gui.error"));
+
+            this->edit(player);
+            return;
+        }
+
         ll::form::ModalForm form(tr(mObjectLanguage, "shop.gui.title"), 
             fmt::format(fmt::runtime(tr(mObjectLanguage, "shop.gui.button2.content")), id),
             tr(mObjectLanguage, "shop.gui.button2.yes"), tr(mObjectLanguage, "shop.gui.button2.no")
@@ -222,6 +229,13 @@ namespace LOICollection::Plugins {
 
     void ShopPlugin::gui::editAwardSetting(Player& player, const std::string& id, ShopType type) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "shop.gui.error"));
+
+            this->edit(player);
+            return;
+        }
 
         ll::form::CustomForm form(tr(mObjectLanguage, "shop.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "shop.gui.label"));
@@ -272,6 +286,13 @@ namespace LOICollection::Plugins {
 
     void ShopPlugin::gui::editAwardNewInfo(Player& player, const std::string& id, ShopType type, AwardType awardType) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "shop.gui.error"));
+
+            this->edit(player);
+            return;
+        }
 
         ll::form::CustomForm form(tr(mObjectLanguage, "shop.gui.title"));
         form.appendLabel(tr(mObjectLanguage, "shop.gui.label"));
@@ -430,6 +451,13 @@ namespace LOICollection::Plugins {
 
     void ShopPlugin::gui::editAwardRemove(Player& player, const std::string& id, ShopType type) {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+
+        if (!this->mParent.has(id)) {
+            player.sendMessage(tr(mObjectLanguage, "shop.gui.error"));
+
+            this->edit(player);
+            return;
+        }
 
         std::vector<std::string> mNames;
         for (nlohmann::ordered_json& item : this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/classiflcation"))
@@ -692,15 +720,15 @@ namespace LOICollection::Plugins {
             .getOrCreateCommand("shop", tr({}, "commands.shop.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").required("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-            Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
-            Player& player = *static_cast<Player*>(entity);
+                Actor* entity = origin.getEntity();
+                if (entity == nullptr || !entity->isPlayer())
+                    return output.error(tr({}, "commands.generic.target"));
+                Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player, param.Object);
+                this->mGui->open(player, param.Object);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
-        });
+                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            });
         command.overload().text("edit").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                 return output.error(tr({}, "commands.generic.permission"));
