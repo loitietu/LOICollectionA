@@ -373,7 +373,7 @@ namespace LOICollection::Plugins {
         std::unordered_map<std::string, std::string> mData = {
             { "name", player.getRealName() },
             { "cause", mCause },
-            { "time", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "0") : "0" },
+            { "time", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 60, "0") : "0" },
             { "subtime", SystemUtils::getNowTime("%Y%m%d%H%M%S") },
             { "data", player.getUuid().asString() }
         };

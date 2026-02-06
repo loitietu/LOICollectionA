@@ -26,7 +26,7 @@
   - 向黑名单中添加一个目标。
   - 其中 `<Target: target>` 为目标选择器。
   - 其中 `<Cause: string>` 为添加的原因。
-  - 其中 `<Time: int>` 为添加的时间（单位：小时）。
+  - 其中 `<Time: int>` 为添加的时间（单位：分钟）。
 
 - `/blacklist gui`
   - 打开黑名单 GUI。
@@ -63,7 +63,7 @@
   - 向禁言列表中添加一个目标。
   - 其中 `<Target: target>` 为目标选择器。
   - 其中 `<Cause: string>` 为添加的原因。
-  - 其中 `<Time: int>` 为添加的时间（单位：小时）。
+  - 其中 `<Time: int>` 为添加的时间（单位：分钟）。
 
 - `/mute gui`
   - 打开禁言 GUI。
@@ -256,7 +256,7 @@
   - 为目标添加指定称号（权限等级: GameDirectors）。
   - 其中 `<Target: target>` 为目标选择器。
   - 其中 `<Title: string>` 为称号名称。
-  - 其中 `[Time: int]` 为称号时间（单位：小时）。
+  - 其中 `[Time: int]` 为称号时间（单位：分钟）。
 
 - `/chat remove <Target: target> <Title: string>`
   - 为目标移除指定称号（权限等级: GameDirectors）。

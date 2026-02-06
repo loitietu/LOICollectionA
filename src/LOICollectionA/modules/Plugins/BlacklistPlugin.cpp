@@ -383,7 +383,7 @@ namespace LOICollection::Plugins {
         std::unordered_map<std::string, std::string> mData = {
             { "name", player.getRealName() },
             { "cause", mCause },
-            { "time", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "None") : "None" },
+            { "time", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 60, "None") : "None" },
             { "subtime", SystemUtils::getNowTime("%Y%m%d%H%M%S") },
             { "data_uuid", player.getUuid().asString() },
             { "data_ip", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':')) },

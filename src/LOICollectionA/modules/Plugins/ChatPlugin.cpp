@@ -531,7 +531,7 @@ namespace LOICollection::Plugins {
         std::unordered_map<std::string, std::string> mData = {
             { "title", text },
             { "author", mObject },
-            { "time", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 3600, "None") : "None" }
+            { "time", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 60, "None") : "None" }
         };
 
         this->getDatabase()->set("Titles", mTismestamp, mData);
