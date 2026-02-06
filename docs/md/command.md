@@ -408,5 +408,24 @@
   - 其中 `<Time: int>` 为事件发生时间。
   - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
+## Statistics
+
+```log
+[Server] statistics:
+[Server] LOICollection -> 玩家数据统计
+[Server] Usage：
+[Server] - /statistics gui
+[Server] - /statistics gui &ltType: LOICollection::Plugins::StatisticType&gt
+```
+
+?> 其中 `statistics` 为 Statistics 的顶层命令（权限等级: Any）。
+
+- `/statistics gui`
+  - 打开玩家数据统计 GUI。
+
+- `/statistics gui <Type: LOICollection::Plugins::StatisticType>`
+  - 打开指定类型的数据统计 GUI。
+  - 其中 `<Type: LOICollection::Plugins::StatisticType>` 为数据统计类型。
+
 > [!NOTE]
-> 以上内容均属于 LOICollectionA 1.9.0 版本的命令列表，对于后续版本的命令列表可能会有所不同。
+> 以上内容均属于 LOICollectionA 1.11.0 版本的命令列表，对于后续版本的命令列表可能会有所不同。

@@ -20,7 +20,7 @@ lip install github.com/loitietu/LOICollectionA
 - 对于安装指定版本的可以执行以下命令
 
 ```bash
-lip install github.com/loitietu/LOICollectionA@v1.8.1
+lip install github.com/loitietu/LOICollectionA@v1.11.0
 ```
 
 - 对于进行版本更新的可以执行以下命令
@@ -45,7 +45,7 @@ lip install --upgrade github.com/loitietu/LOICollectionA
 
 | 名称 | 版本 |
 | --- | --- |
-| LeviLamina | 1.6.x |
+| LeviLamina | 1.9.x |
 
 > 您需要手动下载对应版本的前置组件  
 > 在下载前置组件时，请确保您下载的版本与 LOICollectionA 的版本兼容  
