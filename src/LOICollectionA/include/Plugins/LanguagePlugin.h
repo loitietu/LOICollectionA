@@ -27,7 +27,6 @@ namespace LOICollection::Plugins {
 
         LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
 
-        LOICOLLECTION_A_NDAPI std::string getLanguageCode(Player& player);
         LOICOLLECTION_A_NDAPI std::string getLanguage(const std::string& mObject);
         LOICOLLECTION_A_NDAPI std::string getLanguage(Player& player);
 

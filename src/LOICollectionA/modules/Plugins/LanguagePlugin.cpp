@@ -88,12 +88,12 @@ namespace LOICollection::Plugins {
         command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
             this->mGui->open(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
     }
 
@@ -103,7 +103,7 @@ namespace LOICollection::Plugins {
             if (event.self().isSimulatedPlayer())
                 return;
 
-            std::string langcode = this->getLanguageCode(event.self());
+            std::string langcode = event.self().getLocaleCode();
             if (auto data = I18nUtils::getInstance()->data; data.find(langcode) == data.end())
                 langcode = I18nUtils::getInstance()->defaultLocale;
 
@@ -117,25 +117,11 @@ namespace LOICollection::Plugins {
         eventBus.removeListener(this->mImpl->PlayerConnectEventListener);
     }
 
-    std::string LanguagePlugin::getLanguageCode(Player& player) {
-        std::string defaultLocale = I18nUtils::getInstance()->defaultLocale;
-
-        if (player.isSimulatedPlayer())
-            return defaultLocale;
-        
-        if (const std::string& langcode = player.getLocaleCode(); !langcode.empty())
-            return langcode;
-
-        return defaultLocale;
-    }
-
     std::string LanguagePlugin::getLanguage(const std::string& mObject) {
-        std::string defaultLocale = I18nUtils::getInstance()->defaultLocale;
-
         if (this->mImpl->Cache.contains(mObject))
             return *this->mImpl->Cache.get(mObject).value();
         
-        std::string langcode = this->mImpl->db->get("Language", mObject, "value", defaultLocale);
+        std::string langcode = this->mImpl->db->get("Language", mObject, "value", I18nUtils::getInstance()->defaultLocale);
         
         this->mImpl->Cache.put(mObject, langcode);
         return langcode;

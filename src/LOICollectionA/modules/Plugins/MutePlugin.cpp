@@ -247,53 +247,53 @@ namespace LOICollection::Plugins {
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 for (Player*& pl : results) {
                     if (this->isMute(*pl) || pl->getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || pl->isSimulatedPlayer()) {
-                        output.error(fmt::runtime(tr({}, "commands.mute.error.add")), pl->getRealName());
+                        output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.error.add")), pl->getRealName());
                         continue;
                     }
 
                     this->addMute(*pl, param.Cause, param.Time);
 
-                    output.success(fmt::runtime(tr({}, "commands.mute.success.add")), pl->getRealName());
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.add")), pl->getRealName());
                 }
             });
         command.overload<operation>().text("remove").text("target").required("Target").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 
                 for (Player*& pl : results) {
                     if (!this->isMute(*pl)) {
-                        output.error(fmt::runtime(tr({}, "commands.mute.error.remove")), pl->getRealName());
+                        output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.error.remove")), pl->getRealName());
                         continue;
                     }
 
                     this->delMute(*pl);
 
-                    output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), pl->getRealName());
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.remove")), pl->getRealName());
                 }
             });
         command.overload<operation>().text("remove").text("id").required("Object").execute(
-            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 if (!this->hasMute(param.Object))
-                    return output.error(tr({}, "commands.mute.error.remove"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.mute.error.remove"));
 
                 this->delMute(param.Object);
 
-                output.success(fmt::runtime(tr({}, "commands.mute.success.remove")), param.Object);
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.remove")), param.Object);
             });
         command.overload<operation>().text("info").required("Object").execute(
-            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Mute", param.Object);
                 
                 if (mEvent.empty())
-                    return output.error(tr({}, "commands.mute.error.info"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.mute.error.info"));
 
-                output.success(tr({}, "commands.mute.success.info"));
+                output.success(tr(origin.getLocaleCode(), "commands.mute.success.info"));
                 std::for_each(mEvent.begin(), mEvent.end(), [&output](const std::pair<std::string, std::string>& mPair) {
                     std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
 
@@ -301,23 +301,23 @@ namespace LOICollection::Plugins {
                 });
             });
         command.overload<operation>().text("list").optional("Limit").execute(
-            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 std::vector<std::string> mObjectList = this->getMutes(param.Limit);
                 
                 if (mObjectList.empty())
-                    return output.success(fmt::runtime(tr({}, "commands.mute.success.list")), param.Limit, "None");
+                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.list")), param.Limit, "None");
 
-                output.success(fmt::runtime(tr({}, "commands.mute.success.list")), param.Limit, fmt::join(mObjectList, ", "));
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.list")), param.Limit, fmt::join(mObjectList, ", "));
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
             this->mGui->open(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
     }
 

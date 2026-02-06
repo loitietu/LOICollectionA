@@ -360,35 +360,35 @@ namespace LOICollection::Plugins {
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
                 this->convert(player, param.Id);
                 
-                output.success(fmt::runtime(tr({}, "commands.cdk.success.convert")), player.getRealName(), param.Id);
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.cdk.success.convert")), player.getRealName(), param.Id);
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
             this->mGui->convert(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
         command.overload().text("edit").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                return output.error(tr({}, "commands.generic.permission"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
             
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
             this->mGui->open(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
     }
 

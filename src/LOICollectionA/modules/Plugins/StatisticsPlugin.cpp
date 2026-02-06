@@ -176,23 +176,23 @@ namespace LOICollection::Plugins {
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
             this->mGui->open(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
         command.overload<operation>().text("gui").required("Type").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
                 this->mGui->open(player, param.Type);
 
-                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
             });
     }
 

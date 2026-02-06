@@ -259,36 +259,36 @@ namespace LOICollection::Plugins {
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 for (Player*& pl : results) {
                     if (this->isBlacklist(*pl) || pl->getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || pl->isSimulatedPlayer()) {
-                        output.error(fmt::runtime(tr({}, "commands.blacklist.error.add")), pl->getRealName());
+                        output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.error.add")), pl->getRealName());
                         continue;
                     }
 
                     this->addBlacklist(*pl, param.Cause, param.Time);
 
-                    output.success(fmt::runtime(tr({}, "commands.blacklist.success.add")), pl->getRealName());
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.success.add")), pl->getRealName());
                 }
             });
         command.overload<operation>().text("remove").required("Object").execute(
-            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 if (!this->hasBlacklist(param.Object))
-                    return output.error(fmt::runtime(tr({}, "commands.blacklist.error.remove")), param.Object);
+                    return output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.error.remove")), param.Object);
                 
                 this->delBlacklist(param.Object);
 
-                output.success(fmt::runtime(tr({}, "commands.blacklist.success.remove")), param.Object);
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.success.remove")), param.Object);
             });
         command.overload<operation>().text("info").required("Object").execute(
-            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Blacklist", param.Object);
                 
                 if (mEvent.empty())
-                    return output.error(tr({}, "commands.blacklist.error.info"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.blacklist.error.info"));
 
-                output.success(tr({}, "commands.blacklist.success.info"));
+                output.success(tr(origin.getLocaleCode(), "commands.blacklist.success.info"));
                 std::for_each(mEvent.begin(), mEvent.end(), [&output](const std::pair<std::string, std::string>& mPair) {
                     std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
 
@@ -296,23 +296,23 @@ namespace LOICollection::Plugins {
                 });
             });
         command.overload<operation>().text("list").optional("Limit").execute(
-            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 std::vector<std::string> mObjectList = this->getBlacklists(param.Limit);
                 
                 if (mObjectList.empty())
-                    return output.success(fmt::runtime(tr({}, "commands.blacklist.success.list")), param.Limit, "None");
+                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.success.list")), param.Limit, "None");
 
-                output.success(fmt::runtime(tr({}, "commands.blacklist.success.list")), param.Limit, fmt::join(mObjectList, ", "));
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.success.list")), param.Limit, fmt::join(mObjectList, ", "));
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
             this->mGui->open(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
     }
 

@@ -28,6 +28,8 @@ JsonStorage::JsonStorage(std::filesystem::path path) : mPath(std::move(path)) {
 JsonStorage::~JsonStorage() = default;
 
 void JsonStorage::write(const nlohmann::json& json) {
+    std::unique_lock lock(this->mMutex);
+    
     this->mJson = json;
 }
 

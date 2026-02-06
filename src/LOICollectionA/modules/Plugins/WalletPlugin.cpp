@@ -266,18 +266,18 @@ namespace LOICollection::Plugins {
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 std::string mScoreboard = this->mImpl->options.TargetScoreboard;
 
                 int mMoney = param.Score * static_cast<int>(results.size());
                 if (ScoreboardUtils::getScore(player, mScoreboard) < mMoney || param.Score < 0)
-                    return output.error(tr({}, "commands.wallet.error.score"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.wallet.error.score"));
 
                 ScoreboardUtils::reduceScore(player, mScoreboard, mMoney);
 
@@ -285,27 +285,27 @@ namespace LOICollection::Plugins {
                 for (Player*& target : results)
                     ScoreboardUtils::addScore(*target, mScoreboard, mTargetMoney);
 
-                output.success(fmt::runtime(tr({}, "commands.wallet.success.transfer")), param.Score, results.size());
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.wallet.success.transfer")), param.Score, results.size());
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
             this->mGui->open(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
         command.overload().text("wealth").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
             this->mGui->wealth(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
     }
 

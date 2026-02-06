@@ -385,88 +385,88 @@ namespace LOICollection::Plugins {
         command.overload<operation>().text("add").required("Target").required("Title").optional("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr({}, "commands.generic.permission"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
 
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 for (Player*& pl : results) {
                     this->addTitle(*pl, param.Title, param.Time);
 
-                    output.success(fmt::runtime(tr({}, "commands.chat.success.add")), param.Title, pl->getRealName());
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.chat.success.add")), param.Title, pl->getRealName());
                 }
             });
         command.overload<operation>().text("remove").required("Target").required("Title").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr({}, "commands.generic.permission"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
 
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 for (Player*& pl : results) {
                     this->delTitle(*pl, param.Title);
 
-                    output.success(fmt::runtime(tr({}, "commands.chat.success.remove")), pl->getRealName(), param.Title);
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.chat.success.remove")), pl->getRealName(), param.Title);
                 }
             });
         command.overload<operation>().text("set").required("Target").required("Title").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr({}, "commands.generic.permission"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
 
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 for (Player*& pl : results) {
                     this->setTitle(*pl, param.Title);
 
-                    output.success(fmt::runtime(tr({}, "commands.chat.success.set")), pl->getRealName(), param.Title);
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.chat.success.set")), pl->getRealName(), param.Title);
                 }
             });
         command.overload<operation>().text("list").required("Target").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr({}, "commands.generic.permission"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
 
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 for (Player*& player : results) {
                     std::vector<std::string> mObjectList = this->getTitles(*player);
                     
                     if (mObjectList.empty())
-                        return output.success(fmt::runtime(tr({}, "commands.chat.success.list")), player->getRealName(), "None");
+                        return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.chat.success.list")), player->getRealName(), "None");
 
-                    output.success(fmt::runtime(tr({}, "commands.chat.success.list")), player->getRealName(), fmt::join(mObjectList, ", "));
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.chat.success.list")), player->getRealName(), fmt::join(mObjectList, ", "));
                 }
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                return output.error(tr({}, "commands.generic.permission"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
 
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
             this->mGui->open(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
         command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
             this->mGui->setting(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
     }
 

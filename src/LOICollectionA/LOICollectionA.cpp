@@ -9,8 +9,10 @@
 #include <ll/api/Mod/NativeMod.h>
 #include <ll/api/Mod/RegisterHelper.h>
 
+#include <mc/locale/I18n.h>
+#include <mc/locale/Localization.h>
+
 #include "LOICollectionA/utils/I18nUtils.h"
-#include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
@@ -91,7 +93,7 @@ namespace LOICollection {
         std::filesystem::create_directory(langFilePath);
         I18nUtils::getInstance() = std::make_unique<I18nUtils>(langFilePath.string());
         I18nUtils::getInstance()->defaultLocale = this->config.ConsoleLanguage == "system" ?
-            SystemUtils::getSystemLocaleCode("zh_CN") : this->config.ConsoleLanguage;
+            getI18n().getCurrentLanguage()->mCode.get() : this->config.ConsoleLanguage;
         logger.info("Initialization of language completed.");
 
         logger.info("Initialization of plugins completed.");

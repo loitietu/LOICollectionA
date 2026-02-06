@@ -848,46 +848,46 @@ namespace LOICollection::Plugins {
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
                 this->mGui->open(player, param.Object.empty() ? 
                     this->mImpl->options.EntranceKey : std::string(param.Object)
                 );
                 
-                output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
             });
         command.overload().text("edit").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                return output.error(tr({}, "commands.generic.permission"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
             
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
             this->mGui->edit(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
         command.overload().text("clock").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
             auto itemStack = std::make_unique<ItemStack>();
             itemStack->reinit(this->mImpl->options.MenuItemId, 1, 0);
             
             if (!itemStack || itemStack->isNull())
-                return output.error(tr({}, "commands.menu.error.item.null"));
+                return output.error(tr(origin.getLocaleCode(), "commands.menu.error.item.null"));
             if (InventoryUtils::isItemInInventory(player, this->mImpl->options.MenuItemId, 1))
-                return output.error(fmt::runtime(tr({}, "commands.menu.error.item.give")), player.getRealName());
+                return output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.menu.error.item.give")), player.getRealName());
 
             InventoryUtils::giveItem(player, *itemStack, 1);
             player.refreshInventory();
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
     }
 

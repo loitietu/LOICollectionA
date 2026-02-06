@@ -211,19 +211,19 @@ namespace LOICollection::Plugins {
     void BehaviorEventPlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("behaviorevent", tr({}, "commands.behaviorevent.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
-        command.overload().text("clean").execute([this](CommandOrigin const&, CommandOutput& output) -> void {
+        command.overload().text("clean").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             this->clean(this->mImpl->options.OrganizeDatabaseInterval);
 
-            output.success(tr({}, "commands.behaviorevent.success.clean"));
+            output.success(tr(origin.getLocaleCode(), "commands.behaviorevent.success.clean"));
         });
         command.overload<operation>().text("query").text("event").text("info").required("EventId").execute(
-            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Events", param.EventId);
                 
                 if (mEvent.empty())
-                    return output.error(tr({}, "commands.behaviorevent.error.query"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.behaviorevent.error.query"));
 
-                output.success(tr({}, "commands.behaviorevent.success.query.info"));
+                output.success(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query.info"));
                 std::for_each(mEvent.begin(), mEvent.end(), [&output, id = param.EventId](const std::pair<std::string, std::string>& mPair) {
                     std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
 
@@ -231,28 +231,28 @@ namespace LOICollection::Plugins {
                 });
             });
         command.overload<operation>().text("query").text("event").text("name").required("EventName").optional("Limit").execute(
-            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 std::vector<std::string> mResult = this->getEvents({{ "event_name", param.EventName }}, {}, param.Limit);
                 
                 if (mResult.empty())
-                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
 
-                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
             });
         command.overload<operation>().text("query").text("event").text("time").required("Time").optional("Limit").execute(
-            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 std::vector<std::string> mResult = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
                     std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
                     return !SystemUtils::isPastOrPresent(mTime);
                 }, param.Limit);
                 
                 if (mResult.empty())
-                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
 
-                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
             });
         command.overload<operation>().text("query").text("event").text("foundation").required("EventName").required("Time").optional("Limit").execute(
-            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 std::vector<std::string> mNames = this->getEvents({{ "event_name", param.EventName }}, {}, param.Limit);
                 std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
                     std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
@@ -261,9 +261,9 @@ namespace LOICollection::Plugins {
                 std::vector<std::string> mResult = SystemUtils::getIntersection({ mNames, mTimes });
                 
                 if (mResult.empty())
-                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
 
-                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
             });
         command.overload<operation>().text("query").text("event").text("position").required("PositionOrigin").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
@@ -276,18 +276,18 @@ namespace LOICollection::Plugins {
                 }, {}, param.Limit);
                 
                 if (mResult.empty())
-                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
 
-                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
             });
         command.overload<operation>().text("query").text("event").text("dimension").required("Dimension").optional("Limit").execute(
-            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 std::vector<std::string> mResult = this->getEvents({{ "Position.dimension", std::to_string(param.Dimension) }}, {}, param.Limit);
 
                 if (mResult.empty())
-                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
 
-                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
             });
         command.overload<operation>().text("query").text("event").text("site").required("PositionOrigin").required("Dimension").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
@@ -302,18 +302,18 @@ namespace LOICollection::Plugins {
                 std::vector<std::string> mResult = SystemUtils::getIntersection({ mPositions, mDimensions });
 
                 if (mResult.empty())
-                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
 
-                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
             });
         command.overload<operation>().text("query").text("event").text("custom").required("Target").required("Value").optional("Limit").execute(
-            [this](CommandOrigin const&, CommandOutput& output, operation const& param) -> void {
+            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 std::vector<std::string> mResult = this->getEvents({ { param.Target, param.Value } }, {}, param.Limit);
 
                 if (mResult.empty())
-                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
 
-                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
             });
         command.overload<operation>().text("query").text("action").text("range").required("PositionOrigin").required("Radius").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
@@ -324,9 +324,9 @@ namespace LOICollection::Plugins {
                 }, param.Limit);
 
                 if (mResult.empty())
-                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
 
-                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
             });
         command.overload<operation>().text("query").text("action").text("position").required("PositionOrigin").required("PositionTarget").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
@@ -342,9 +342,9 @@ namespace LOICollection::Plugins {
                 }, param.Limit);
 
                 if (mResult.empty())
-                    return output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, "None");
+                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
 
-                output.success(fmt::runtime(tr({}, "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
             });
         command.overload<operation>().text("back").text("range").required("PositionOrigin").required("Radius").required("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
@@ -363,11 +363,11 @@ namespace LOICollection::Plugins {
                 );
 
                 if (mResult.empty())
-                    return output.error(tr({}, "commands.behaviorevent.error.back"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.behaviorevent.error.back"));
 
                 this->back(mResult);
 
-                output.success(tr({}, "commands.behaviorevent.success.back"));
+                output.success(tr(origin.getLocaleCode(), "commands.behaviorevent.success.back"));
             });
         command.overload<operation>().text("back").text("position").required("PositionOrigin").required("PositionTarget").required("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
@@ -391,11 +391,11 @@ namespace LOICollection::Plugins {
                 );
 
                 if (mResult.empty())
-                    return output.error(tr({}, "commands.behaviorevent.error.back"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.behaviorevent.error.back"));
 
                 this->back(mResult);
 
-                output.success(tr({}, "commands.behaviorevent.success.back"));
+                output.success(tr(origin.getLocaleCode(), "commands.behaviorevent.success.back"));
             });
     }
 

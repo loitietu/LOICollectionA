@@ -5,30 +5,9 @@
 #include <algorithm>
 #include <unordered_set>
 
-#include <Windows.h>
-
 #include "LOICollectionA/utils/core/SystemUtils.h"
 
 namespace SystemUtils {
-    std::string getSystemLocaleCode(const std::string& defaultValue) {
-        wchar_t localeName[LOCALE_NAME_MAX_LENGTH]{};
-        if (!GetUserDefaultLocaleName(localeName, LOCALE_NAME_MAX_LENGTH))
-            return defaultValue;
-        
-        if (const int size = WideCharToMultiByte(CP_UTF8, 0, localeName, -1, nullptr, 0, nullptr, nullptr); size > 0) {
-            std::string result(size, '\0');
-            if (!WideCharToMultiByte(CP_UTF8, 0, localeName, -1, result.data(), size, nullptr, nullptr))
-                return defaultValue;
-
-            result.resize(size - 1);
-            std::replace(result.begin(), result.end(), '-', '_');
-            
-            return result;
-        }
-
-        return defaultValue;
-    }
-
     std::string getCurrentTimestamp() {
         auto mTimeNow = std::chrono::system_clock::now();
         return std::to_string(std::chrono::duration_cast<std::chrono::nanoseconds>(mTimeNow.time_since_epoch()).count());

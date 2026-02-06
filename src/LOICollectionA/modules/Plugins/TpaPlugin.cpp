@@ -359,12 +359,12 @@ namespace LOICollection::Plugins {
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 std::string mObject = player.getUuid().asString();
                 auto mResults = results | std::views::filter([this, mObject](Player*& mTarget) -> bool {
@@ -374,13 +374,13 @@ namespace LOICollection::Plugins {
 
                 int mResultSize = static_cast<int>(std::ranges::distance(mResults));
                 if (this->mImpl->options.RequestUpload > 0 && mResultSize > this->mImpl->options.RequestUpload) {
-                    output.error(fmt::runtime(tr({}, "commands.tpa.error.invite.request")), this->mImpl->options.RequestUpload);
+                    output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.tpa.error.invite.request")), this->mImpl->options.RequestUpload);
                     return;
                 }
 
                 int mMoney = this->mImpl->options.RequestRequired * mResultSize;
                 if (ScoreboardUtils::getScore(player, this->mImpl->options.TargetScoreboard) < mMoney) {
-                    output.error(fmt::runtime(tr({}, "commands.tpa.error.invite")), mMoney);
+                    output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.tpa.error.invite")), mMoney);
                     return;
                 }
 
@@ -391,70 +391,70 @@ namespace LOICollection::Plugins {
                         ? TpaType::tpa : TpaType::tphere
                     );
 
-                    output.success(fmt::runtime(tr({}, "commands.tpa.success.invite")), pl->getRealName());
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.tpa.success.invite")), pl->getRealName());
                 }
             });
         command.overload<operation>().text("accept").required("Id").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
                 if (!this->acceptRequest(player, param.Id)) {
-                    output.error(fmt::runtime(tr({}, "commands.tpa.error.accept")), param.Id);
+                    output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.tpa.error.accept")), param.Id);
                     return;
                 }
 
-                output.success(fmt::runtime(tr({}, "commands.tpa.success.accept")), param.Id);
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.tpa.success.accept")), param.Id);
             });
         command.overload<operation>().text("reject").required("Id").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
                 if (!this->rejectRequest(player, param.Id)) {
-                    output.error(fmt::runtime(tr({}, "commands.tpa.error.reject")), param.Id);
+                    output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.tpa.error.reject")), param.Id);
                     return;
                 }
 
-                output.success(fmt::runtime(tr({}, "commands.tpa.success.reject")), param.Id);
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.tpa.success.reject")), param.Id);
             });
         command.overload<operation>().text("cancel").required("Id").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isPlayer())
-                    return output.error(tr({}, "commands.generic.target"));
+                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
                 if (!this->cancelRequest(player, param.Id)) {
-                    output.error(fmt::runtime(tr({}, "commands.tpa.error.cancel")), param.Id);
+                    output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.tpa.error.cancel")), param.Id);
                     return;
                 }
 
-                output.success(fmt::runtime(tr({}, "commands.tpa.success.cancel")), param.Id);
+                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.tpa.success.cancel")), param.Id);
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
             this->mGui->open(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
         command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
-                return output.error(tr({}, "commands.generic.target"));
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
             this->mGui->setting(player);
 
-            output.success(fmt::runtime(tr({}, "commands.generic.ui")), player.getRealName());
+            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
     }
 

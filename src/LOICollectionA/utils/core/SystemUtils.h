@@ -4,7 +4,6 @@
 #include <vector>
 
 namespace SystemUtils {
-    std::string getSystemLocaleCode(const std::string& defaultValue = "");
     std::string getCurrentTimestamp();
     std::string getNowTime(const std::string& format = "%Y-%m-%d %H:%M:%S");
     std::string getTimeSpan(const std::string& str, const std::string& target, const std::string& defaultValue = "");
