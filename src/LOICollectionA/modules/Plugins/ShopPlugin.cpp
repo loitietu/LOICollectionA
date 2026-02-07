@@ -563,9 +563,7 @@ namespace LOICollection::Plugins {
         std::vector<std::pair<std::string, std::string>> mItems;
         std::vector<nlohmann::ordered_json> mItemIds;
 
-        for (size_t i = 0; i < data.value("classiflcation", nlohmann::ordered_json::array()).size(); ++i) {
-            nlohmann::ordered_json& item = data.at("classiflcation")[i];
-
+        for (auto& item : data.value("classiflcation", nlohmann::ordered_json::array())) {
             mItems.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(item.value("title", ""), player), item.value("image", ""));
             mItemIds.emplace_back(item);
         }
@@ -639,7 +637,7 @@ namespace LOICollection::Plugins {
 
             if (InventoryUtils::isItemInInventory(pl, data.value("id", ""), mNumber)) {
                 nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json());
-                for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
+                for (auto it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
                     ScoreboardUtils::addScore(pl, it.key(), (it.value().get<int>() * mNumber));
 
                 InventoryUtils::clearItem(pl, data.value("id", ""), mNumber);
@@ -677,7 +675,7 @@ namespace LOICollection::Plugins {
 
                 if (ChatPlugin::getInstance().isTitle(pl, id)) {
                     nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json());
-                    for (nlohmann::ordered_json::iterator it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
+                    for (auto it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
                         ScoreboardUtils::addScore(pl, it.key(), it.value().get<int>());
 
                     return ChatPlugin::getInstance().delTitle(pl, id);
@@ -803,12 +801,12 @@ namespace LOICollection::Plugins {
         if (!this->isValid() || !data.contains("scores"))
             return true;
 
-        for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it) {
+        for (auto it = data["scores"].begin(); it != data["scores"].end(); ++it) {
             if ((it.value().get<int>() * number) > ScoreboardUtils::getScore(player, it.key()))
                 return false;
         }
 
-        for (nlohmann::ordered_json::iterator it = data["scores"].begin(); it != data["scores"].end(); ++it)
+        for (auto it = data["scores"].begin(); it != data["scores"].end(); ++it)
             ScoreboardUtils::reduceScore(player, it.key(), (it.value().get<int>() * number));
         
         return true;

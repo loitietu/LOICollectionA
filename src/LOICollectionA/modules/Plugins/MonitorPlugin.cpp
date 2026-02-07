@@ -191,11 +191,8 @@ namespace LOICollection::Plugins {
 
                         std::vector<std::pair<std::string, int>> data;
 
-                        size_t index = option.Pages[mPageIndex].size();
-                        for (const std::string& page : option.Pages[mPageIndex]) {
+                        for (const auto& [index, page] : std::views::enumerate(option.Pages[mPageIndex]))
                             data.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(page, mTarget), static_cast<int>(index));
-                            --index;
-                        }
 
                         std::string mTitle = LOICollectionAPI::APIUtils::getInstance().translate(option.Titles[mTitleIndex], mTarget);
 

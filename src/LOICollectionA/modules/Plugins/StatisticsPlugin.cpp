@@ -128,11 +128,10 @@ namespace LOICollection::Plugins {
         ll::form::CustomForm form(tr(mObjectLanguage, "statistics.gui.title"));
         form.appendLabel(fmt::format(fmt::runtime(mObjectLabel), this->mParent.getStatisticName(type), this->mParent.mImpl->options.RankingPlayerCount));
         
-        size_t index = 1;
-        for (auto& pair : this->mParent.getRankingList(type, this->mParent.mImpl->options.RankingPlayerCount)) {
+        for (const auto& [index, pair] : std::views::enumerate(this->mParent.getRankingList(type, this->mParent.mImpl->options.RankingPlayerCount))) {
             form.appendLabel(fmt::format(
                 fmt::runtime(tr(mObjectLanguage, "statistics.gui.specific.line")), 
-                index++,
+                index + 1,
                 this->mParent.getPlayerInfo(pair.first),
                 pair.second
             ));

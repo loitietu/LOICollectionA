@@ -32,10 +32,6 @@
 
 #include "LOICollectionA/include/ProtableTool/RedStone.h"
 
-BlockSource& getBlockSource(int mDimensionId) {
-    return ll::service::getLevel()->getOrCreateDimension(mDimensionId).lock()->getBlockSourceFromMainChunkSource();
-}
-
 namespace LOICollection::ProtableTool {
     struct RedStone::Impl {
         std::unordered_map<int, std::unordered_map<BlockPos, int>> mRedStoneMap;
@@ -79,7 +75,12 @@ namespace LOICollection::ProtableTool {
                 for (auto& it : this->mImpl->mRedStoneMap) {
                     for (auto it2 = it.second.begin(); it2 != it.second.end(); ++it2) {
                         if (it2->second >= this->mImpl->mRedStoneTick) {
-                            ll::service::getLevel()->destroyBlock(getBlockSource(it.first), it2->first, true, BlockChangeContext(false));
+                            ll::service::getLevel()->destroyBlock(
+                                ll::service::getLevel()->getOrCreateDimension(it.first).lock()->getBlockSourceFromMainChunkSource(),
+                                it2->first,
+                                true,
+                                BlockChangeContext(false)
+                            );
                             
                             this->getLogger()->info("RedStone: {}({})", it2->first.toString(), it.first);
                         }

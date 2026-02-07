@@ -1,5 +1,6 @@
 #include <atomic>
 #include <memory>
+#include <ranges>
 #include <vector>
 #include <string>
 #include <filesystem>
@@ -514,10 +515,8 @@ namespace LOICollection::Plugins {
         std::string mObjectLine = tr(mObjectLanguage, "menu.gui.button3.command.line");
 
         auto content = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/run");
-        for (int i = 0; i < static_cast<int>(content.size()); i++) {
-            std::string mLine = fmt::format(fmt::runtime(mObjectLine), i + 1);
-            form.appendInput("Content" + std::to_string(i), mLine, "", content.at(i));
-        }
+        for (const auto& [index, line] : std::views::enumerate(content))
+            form.appendInput("Content" + std::to_string(index), fmt::format(fmt::runtime(mObjectLine), index + 1), "", line);
 
         form.appendStepSlider("StepSlider", tr(mObjectLanguage, "menu.gui.button3.command.operation"), { "no", "add", "remove" });
         form.sendTo(player, [this, id](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) mutable -> void {
@@ -532,8 +531,8 @@ namespace LOICollection::Plugins {
                     content.erase(content.end() - 1);
                     break;
                 default:
-                    for (int i = 0; i < static_cast<int>(content.size()); i++)
-                        content.at(i) = std::get<std::string>(dt->at("Content" + std::to_string(i)));
+                    for (auto&& [index, line] : std::views::enumerate(content))
+                        line = std::get<std::string>(dt->at("Content" + std::to_string(index)));
             }
 
             this->mParent.getDatabase()->set_ptr("/" + id + "/run", content);
@@ -743,6 +742,7 @@ namespace LOICollection::Plugins {
                     if (!result.empty())
                         mCustom[item.key()] = result;
                 }
+
                 if (item.value().is_boolean()) mCustom[item.key()] = std::get<uint64>(dt->at(item.key())) ? "true" : "false";
                 if (item.value().is_number_integer()) mCustom[item.key()] = std::to_string(static_cast<int>(std::get<double>(dt->at(item.key()))));
             }
@@ -752,8 +752,10 @@ namespace LOICollection::Plugins {
                 for (auto& item : mCustom.items()) {
                     if (result.find("{" + item.key() + "}") == std::string::npos)
                         continue;
+
                     ll::string_utils::replaceAll(result, "{" + item.key() + "}", item.value().get<std::string>());
                 }
+
                 this->mParent.executeCommand(pl, result);
             }
         });

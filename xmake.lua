@@ -10,14 +10,8 @@ option("shared")
     set_description("Build shared library")
 option_end()
 
-option("target_type")
-    set_default("server")
-    set_showmenu(true)
-    set_values("server", "client")
-option_end()
-
 add_requires("sqlitecpp 3.3.3", {configs = {shared = get_config("shared")}})
-add_requires("levilamina 1.9.2", {configs = {target_type = "server"}})
+add_requires("levilamina 1.9.4", {configs = {target_type = "server"}})
 add_requires(
     "levibuildscript",
     "preloader 1.15.7",

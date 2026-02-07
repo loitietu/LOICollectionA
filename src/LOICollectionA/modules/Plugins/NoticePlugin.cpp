@@ -1,5 +1,6 @@
 #include <atomic>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <vector>
 #include <filesystem>
@@ -126,10 +127,8 @@ namespace LOICollection::Plugins {
         std::string mObjectLine = tr(mObjectLanguage, "notice.gui.edit.line");
 
         auto content = this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/content");
-        for (int i = 0; i < static_cast<int>(content.size()); i++) {
-            std::string mLine = fmt::format(fmt::runtime(mObjectLine), i + 1);
-            form.appendInput("Content" + std::to_string(i), mLine, "", content.at(i));
-        }
+        for (const auto& [index, line] : std::views::enumerate(content))
+            form.appendInput("Content" + std::to_string(index), fmt::format(fmt::runtime(mObjectLine), index + 1), "", line);
 
         form.appendToggle("Toggle", tr(mObjectLanguage, "notice.gui.edit.show"), this->mParent.getDatabase()->get_ptr<bool>("/" + id + "/poiontout", false));
         form.appendStepSlider("StepSlider", tr(mObjectLanguage, "notice.gui.edit.operation"), { "no", "add", "remove" });
@@ -148,8 +147,8 @@ namespace LOICollection::Plugins {
                     content.erase(content.end() - 1);
                     break;
                 default:
-                    for (int i = 0; i < static_cast<int>(content.size()); i++)
-                        content.at(i) = std::get<std::string>(dt->at("Content" + std::to_string(i)));
+                    for (auto&& [index, line] : std::views::enumerate(content))
+                        line = std::get<std::string>(dt->at("Content" + std::to_string(index)));
             }
 
             this->mParent.getDatabase()->set_ptr("/" + id + "/content", content);
@@ -261,6 +260,7 @@ namespace LOICollection::Plugins {
         for (auto it = data.begin(); it != data.end(); ++it) {
             if (!it.value().value("poiontout", false))
                 continue;
+
             mContent.emplace_back(it.key(), it.value().value("priority", 0));
         }
 
@@ -274,6 +274,7 @@ namespace LOICollection::Plugins {
             ll::form::CustomForm form(LOICollectionAPI::APIUtils::getInstance().translate(mObject.value("title", ""), player));
             for (const auto& line : mObject.value("content", nlohmann::ordered_json::array()))
                 form.appendLabel(LOICollectionAPI::APIUtils::getInstance().translate(line, player));
+
             form.sendTo(player);
         }
     }
@@ -290,6 +291,7 @@ namespace LOICollection::Plugins {
         ll::form::CustomForm form(LOICollectionAPI::APIUtils::getInstance().translate(this->mParent.getDatabase()->get_ptr<std::string>("/" + id + "/title", ""), player));
         for (const auto& line : this->mParent.getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/content"))
             form.appendLabel(LOICollectionAPI::APIUtils::getInstance().translate(line, player));
+        
         form.sendTo(player);
     }
 

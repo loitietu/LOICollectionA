@@ -96,15 +96,13 @@ namespace LOICollection::Form {
             this->mImpl->mContent
         );
 
-        for (int i = 0; i < static_cast<int>(page.elements.size()); ++i) {
-            auto element = page.elements.at(i);
-
-            page.form->appendButton(element.first, element.second, "path", [self = shared_from_this(), element = element.first, page = page.page, i](Player& pl) -> void {
+        for (const auto& [index, element] : std::views::enumerate(page.elements)) {
+            page.form->appendButton(element.first, element.second, "path", [self = shared_from_this(), element = element.first, page = page.page, index](Player& pl) -> void {
                 if (self->mImpl->mCallback)
                     self->mImpl->mCallback(pl, element);
 
                 if (self->mImpl->mCallbackIndex)
-                    self->mImpl->mCallbackIndex(pl, (page - 1) * self->mImpl->mNumElementPerPage + i);
+                    self->mImpl->mCallbackIndex(pl, (page - 1) * self->mImpl->mNumElementPerPage + static_cast<int>(index));
             });
         }
 

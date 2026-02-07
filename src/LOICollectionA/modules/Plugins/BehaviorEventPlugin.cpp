@@ -882,13 +882,10 @@ namespace LOICollection::Plugins {
             | std::ranges::to<std::vector<std::vector<std::string>>>();
 
         ll::coro::keepThis([this, chunks]() -> ll::coro::CoroTask<> {
-            int index = 0;
-            
-            while (index < static_cast<int>(chunks.size())) {
+            for (auto& chunk : chunks) {
                 co_await ll::chrono::ticks(1);
 
-                const std::vector<std::string>& mIds = chunks.at(index);
-                for (auto& [id, data] : this->getDatabase()->get("Events", mIds)) {
+                for (auto& [id, data] : this->getDatabase()->get("Events", chunk)) {
                     BlockPos mPosition(
                         SystemUtils::toInt(data.at("position_x"), 0),
                         SystemUtils::toInt(data.at("position_y"), 0),
@@ -907,9 +904,7 @@ namespace LOICollection::Plugins {
                     }
                 }
 
-                this->getDatabase()->del("Events", mIds);
-
-                ++index;
+                this->getDatabase()->del("Events", chunk);
             }
 
             co_return;
