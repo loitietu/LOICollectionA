@@ -625,10 +625,19 @@ namespace LOICollection::Plugins {
         std::string mObject = player.getUuid().asString();
 
         std::string mTitle = this->mImpl->db2->get("Chat", mObject, "title", "None");
-        if (SystemUtils::isPastOrPresent(this->getDatabase()->get("Titles", mObject + "." + mTitle, "None"))) {
+        std::string mId = this->getDatabase()->find("Titles", {
+            { "title", mTitle },
+            { "author", mObject }
+        }, "", SQLiteStorage::FindCondition::AND);
+
+        if (mId.empty())
+            return "None";
+
+        std::unordered_map<std::string, std::string> mData = this->getDatabase()->get("Titles", mId);
+        if (SystemUtils::isPastOrPresent(mData.at("time"))) {
             this->setTitle(player, "None");
 
-            this->getDatabase()->del("Titles", mObject + "." + mTitle);
+            this->getDatabase()->del("Titles", mId);
             return "None";
         }
 

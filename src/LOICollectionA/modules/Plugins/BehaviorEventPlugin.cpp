@@ -12,6 +12,7 @@
 #include <unordered_map>
 
 #include <fmt/core.h>
+#include <concurrentqueue.h>
 #include <magic_enum/magic_enum.hpp>
 
 #include <ll/api/io/Logger.h>
@@ -22,7 +23,6 @@
 #include <ll/api/chrono/GameChrono.h>
 #include <ll/api/thread/ThreadPoolExecutor.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
-#include <ll/api/base/Containers.h>
 
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>

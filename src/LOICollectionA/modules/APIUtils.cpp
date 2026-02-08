@@ -328,28 +328,36 @@ namespace LOICollection::LOICollectionAPI {
     std::string APIUtils::getValueForVariable(const std::string& name) try {
         auto it = this->mImpl->mVariableCommonMap.find(name);
         return it != this->mImpl->mVariableCommonMap.end() ? it->second() : "None";
-    } catch (...) {
+    } catch (const std::exception& e) {
+        this->mImpl->logger->error("APIUtils: {}", e.what());
+
         return "None";
     }
 
     std::string APIUtils::getValueForVariable(const std::string& name, Player& player) try {
         auto it = this->mImpl->mVariableMap.find(name);
         return it != this->mImpl->mVariableMap.end() ? it->second(player) : this->getValueForVariable(name);
-    } catch (...) {
+    } catch (const std::exception& e) {
+        this->mImpl->logger->error("APIUtils: {}", e.what());
+
         return "None";
     }
 
     std::string APIUtils::getValueForVariable(const std::string& name, const std::vector<std::string>& parameter) try {
         auto it = this->mImpl->mVariableCommonMapParameter.find(name);
         return it != this->mImpl->mVariableCommonMapParameter.end() ? it->second(parameter) : "None";
-    } catch (...) {
+    } catch (const std::exception& e) {
+        this->mImpl->logger->error("APIUtils: {}", e.what());
+
         return "None";
     }
 
     std::string APIUtils::getValueForVariable(const std::string& name, Player& player, const std::vector<std::string>& parameter) try {
         auto it = this->mImpl->mVariableMapParameter.find(name);
         return it != this->mImpl->mVariableMapParameter.end() ? it->second(player, parameter) : this->getValueForVariable(name, parameter);
-    } catch (...) {
+    } catch (const std::exception& e) {
+        this->mImpl->logger->error("APIUtils: {}", e.what());
+
         return "None";
     }
 
@@ -378,7 +386,7 @@ namespace LOICollection::LOICollectionAPI {
     } catch (const std::exception& e) {
         this->mImpl->logger->error("APIUtils: {}", e.what());
         
-        return "None";
+        return str;
     }
 
     std::string APIUtils::translate(const std::string& str) try {
@@ -406,6 +414,6 @@ namespace LOICollection::LOICollectionAPI {
     } catch (const std::exception& e) {
         this->mImpl->logger->error("APIUtils: {}", e.what());
 
-        return "None";
+        return str;
     }
 }
