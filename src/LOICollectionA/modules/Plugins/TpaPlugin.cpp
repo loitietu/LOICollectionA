@@ -15,6 +15,7 @@
 #include <ll/api/coro/CoroTask.h>
 #include <ll/api/coro/InterruptableSleep.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
+#include <ll/api/base/Containers.h>
 
 #include <ll/api/form/ModalForm.h>
 #include <ll/api/form/SimpleForm.h>
@@ -60,6 +61,23 @@
 
 #include "LOICollectionA/include/Plugins/TpaPlugin.h"
 
+template <typename T>
+struct Allocator : public std::allocator<T> {
+    using std::allocator<T>::allocator;
+
+    using is_always_equal = typename std::allocator_traits<std::allocator<T>>::is_always_equal;
+};
+
+template <
+    class Key,
+    class Value,
+    class Hash  = phmap::priv::hash_default_hash<Key>,
+    class Eq    = phmap::priv::hash_default_eq<Key>,
+    class Alloc = Allocator<::std::pair<Key const, Value>>,
+    size_t N    = 4,
+    class Mutex = std::shared_mutex>
+using ConcurrentDenseMap = phmap::parallel_flat_hash_map<Key, Value, Hash, Eq, Alloc, N, Mutex>;
+
 using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
@@ -71,7 +89,7 @@ namespace LOICollection::Plugins {
         TpaType type = TpaType::tpa;
     };
 
-    enum SelectorType : int {
+    enum class SelectorType : int {
         tpa = 0,
         tphere = 1
     };
@@ -83,8 +101,9 @@ namespace LOICollection::Plugins {
     };
 
     struct TpaPlugin::Impl {
-        std::unordered_map<std::string, std::vector<RequestEntry>> mRequestMap;
-        std::unordered_map<std::string, std::shared_ptr<ll::coro::InterruptableSleep>> mRequestTimers;
+        std::unordered_map<std::string, std::shared_ptr<ll::coro::InterruptableSleep>> mTimers;
+
+        ConcurrentDenseMap<std::string, std::vector<RequestEntry>> mRequestMap;
 
         LRUKCache<std::string, std::vector<std::string>> BlacklistCache;
         LRUKCache<std::string, bool> InviteCache;
@@ -251,18 +270,17 @@ namespace LOICollection::Plugins {
     }
 
     void TpaPlugin::gui::tpa(Player& player, Player& target, TpaType type) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(target);
-
         int mRequestUpload = this->mParent.mImpl->options.RequestUpload;
         if (static_cast<int>(this->mParent.mImpl->mRequestMap[player.getUuid().asString()].size()) >= mRequestUpload) {
-            player.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "tpa.tips5")), mRequestUpload));
+            player.sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(player), "tpa.tips5")), mRequestUpload));
             
             return;
         }
 
         std::string mId = SystemUtils::getCurrentTimestamp();
-
         this->mParent.sendRequest(player, target, mId, type);
+
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(target);
 
         ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"),
             LOICollectionAPI::APIUtils::getInstance().translate(tr(mObjectLanguage, (type == TpaType::tpa) ? "tpa.there" : "tpa.here"), player),
@@ -271,7 +289,8 @@ namespace LOICollection::Plugins {
         );
         form.sendTo(target, [this, mObjectLanguage, mId](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
             if (result == ll::form::ModalFormSelectedButton::Upper) {
-                this->mParent.acceptRequest(pl, mId);
+                if (!this->mParent.acceptRequest(pl, mId)) 
+                    pl.sendMessage(tr(mObjectLanguage, "tpa.gui.error"));
 
                 return;
             }
@@ -481,8 +500,10 @@ namespace LOICollection::Plugins {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
 
-        for (auto& it : this->mImpl->mRequestTimers)
+        for (auto& it : this->mImpl->mTimers)
             it.second->interrupt();
+
+        this->mImpl->mTimers.clear();
     }
 
     void TpaPlugin::addBlacklist(Player& player, Player& target) {
@@ -541,36 +562,23 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return false;
 
-        std::string mObject = player.getUuid().asString();
+        std::vector<RequestEntry>& mEntries = this->mImpl->mRequestMap[player.getUuid().asString()];
+        auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
+            return entry.id == id;
+        });
 
-        RequestEntry mEntry;
-        for (auto& it : this->mImpl->mRequestMap) {
-            std::vector<RequestEntry>& mEntries = it.second;
-            auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
-                return entry.id == id;
-            });
-
-            if (mIt == mEntries.end() || mIt->target != mObject)
-                continue;
-
-            mEntry = *mIt;
-
-            mEntries.erase(mIt);
-            break;
-        }
-
-        if (mEntry.id.empty())
+        if (mIt == mEntries.end())
             return false;
 
-        Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mEntry.source));
+        Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mIt->source));
         if (!sourcePlayer) {
             player.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(player), "tpa.gui.error"));
             return false;
         }
 
-        sourcePlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "tpa.yes.tips")), player.getRealName(), mEntry.id));
+        sourcePlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "tpa.yes.tips")), player.getRealName(), mIt->id));
 
-        if (mEntry.type == TpaType::tpa) {
+        if (mIt->type == TpaType::tpa) {
             sourcePlayer->teleport(player.getPosition(), player.getDimensionId());
 
             this->getLogger()->info(fmt::format(fmt::runtime(tr({}, "tpa.log1")), player.getRealName(), sourcePlayer->getRealName()));
@@ -580,6 +588,15 @@ namespace LOICollection::Plugins {
             this->getLogger()->info(fmt::format(fmt::runtime(tr({}, "tpa.log1")), sourcePlayer->getRealName(), player.getRealName()));
         }
 
+        mEntries.erase(mIt);
+
+        std::erase_if(this->mImpl->mRequestMap[mIt->source], [id](RequestEntry& entry) -> bool {
+            return entry.id == id;
+        });
+
+        this->mImpl->mTimers[mIt->id]->interrupt();
+        this->mImpl->mTimers.erase(mIt->id);
+
         return true;
     }
 
@@ -587,30 +604,26 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return false;
 
-        std::string mObject = player.getUuid().asString();
+        std::vector<RequestEntry>& mEntries = this->mImpl->mRequestMap[player.getUuid().asString()];
+        auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
+            return entry.id == id;
+        });
 
-        RequestEntry mEntry;
-        for (auto& it : this->mImpl->mRequestMap) {
-            std::vector<RequestEntry>& mEntries = it.second;
-            auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
-                return entry.id == id;
-            });
-
-            if (mIt == mEntries.end() || mIt->target != mObject)
-                continue;
-
-            mEntry = *mIt;
-
-            mEntries.erase(mIt);
-            break;
-        }
-
-        if (mEntry.id.empty())
+        if (mIt == mEntries.end())
             return false;
 
-        if (Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mEntry.source)); sourcePlayer)
+        if (Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mIt->source)); sourcePlayer)
             sourcePlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "tpa.no.tips")), player.getRealName()));
 
+        mEntries.erase(mIt);
+
+        std::erase_if(this->mImpl->mRequestMap[mIt->source], [id](RequestEntry& entry) -> bool {
+            return entry.id == id;
+        });
+
+        this->mImpl->mTimers[mIt->id]->interrupt();
+        this->mImpl->mTimers.erase(mIt->id);
+        
         return true;
     }
 
@@ -618,9 +631,7 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return false;
 
-        std::string mObject = player.getUuid().asString();
-
-        std::vector<RequestEntry>& mEntries = this->mImpl->mRequestMap[mObject];
+        std::vector<RequestEntry>& mEntries = this->mImpl->mRequestMap[player.getUuid().asString()];
         auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
             return entry.id == id;
         });
@@ -630,6 +641,13 @@ namespace LOICollection::Plugins {
 
         mEntries.erase(mIt);
 
+        std::erase_if(this->mImpl->mRequestMap[mIt->target], [id](RequestEntry& entry) -> bool {
+            return entry.id == id;
+        });
+        
+        this->mImpl->mTimers[mIt->id]->interrupt();
+        this->mImpl->mTimers.erase(mIt->id);
+
         return true;
     }
 
@@ -638,17 +656,16 @@ namespace LOICollection::Plugins {
             return;
 
         std::string mObject = player.getUuid().asString();
-        this->mImpl->mRequestMap[mObject].push_back({
-            id,
-            mObject,
-            target.getUuid().asString(),
-            type
-        });
+        std::string mTargetObject = target.getUuid().asString();
 
-        ll::coro::keepThis([this, id, mObject]() -> ll::coro::CoroTask<> {
-            this->mImpl->mRequestTimers[id] = std::make_shared<ll::coro::InterruptableSleep>();
+        RequestEntry mEntry{ id, mObject, mTargetObject, type };
+        this->mImpl->mRequestMap[mObject].push_back(mEntry);
+        this->mImpl->mRequestMap[mTargetObject].push_back(mEntry);
 
-            co_await this->mImpl->mRequestTimers[id]->sleepFor(std::chrono::seconds(this->mImpl->options.RequestTimeout));
+        ll::coro::keepThis([this, id, mObject, mTargetObject]() -> ll::coro::CoroTask<> {
+            this->mImpl->mTimers[id] = std::make_shared<ll::coro::InterruptableSleep>();
+
+            co_await this->mImpl->mTimers[id]->sleepFor(std::chrono::seconds(this->mImpl->options.RequestTimeout));
 
             std::vector<RequestEntry>& mEntries = this->mImpl->mRequestMap[mObject];
             auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
@@ -658,14 +675,18 @@ namespace LOICollection::Plugins {
             if (mIt == mEntries.end())
                 co_return;
 
-            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mIt->source)); mPlayer)
+            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer)
+                mPlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "tpa.tips4")), id));
+            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mTargetObject)); mPlayer)
                 mPlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "tpa.tips4")), id));
 
-            mEntries.erase(std::remove_if(mEntries.begin(), mEntries.end(), [id](RequestEntry& entry) -> bool {
+            mEntries.erase(mIt);
+            
+            std::erase_if(this->mImpl->mRequestMap[mTargetObject], [id](RequestEntry& entry) -> bool {
                 return entry.id == id;
-            }), mEntries.end());
+            });
 
-            this->mImpl->mRequestTimers.erase(id);
+            this->mImpl->mTimers.erase(id);
         }).launch(ll::thread::ServerThreadExecutor::getDefault());
 
         player.sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(player), "tpa.tips3")), id));

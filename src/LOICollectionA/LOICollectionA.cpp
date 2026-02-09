@@ -92,8 +92,6 @@ namespace LOICollection {
         
         std::filesystem::create_directory(langFilePath);
         I18nUtils::getInstance() = std::make_unique<I18nUtils>(langFilePath.string());
-        I18nUtils::getInstance()->defaultLocale = this->config.ConsoleLanguage == "system" ?
-            getI18n().getCurrentLanguage()->mCode.get() : this->config.ConsoleLanguage;
         logger.info("Initialization of language completed.");
 
         logger.info("Initialization of plugins completed.");
@@ -121,6 +119,9 @@ namespace LOICollection {
 
     bool A::enable() {
         ll::io::Logger& logger = this->mSelf.getLogger();
+
+        I18nUtils::getInstance()->defaultLocale = this->config.ConsoleLanguage == "system" ?
+            getI18n().getCurrentLanguage()->mCode.get() : this->config.ConsoleLanguage;
 
         std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
         std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {

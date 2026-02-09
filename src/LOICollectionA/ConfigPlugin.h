@@ -94,6 +94,8 @@ namespace Config {
         std::string TargetScoreboard = "money";
         int MaximumUpload = 20;
         int BlacklistUpload = 10;
+        int TradeRequestTimeout = 60;
+        int TradeTimeout = 90;
         std::vector<std::string> ProhibitedItems{};
     };
 

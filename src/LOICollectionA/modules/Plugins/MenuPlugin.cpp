@@ -806,6 +806,7 @@ namespace LOICollection::Plugins {
         form.sendTo(player, [this, data, mConfirmButton, mCancelButton](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
             if (result == ll::form::ModalFormSelectedButton::Upper) 
                 return this->mParent.handleAction(pl, mConfirmButton, data);
+            
             this->mParent.handleAction(pl, mCancelButton, data);
         });
     }

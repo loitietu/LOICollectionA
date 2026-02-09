@@ -106,6 +106,8 @@
             "TargetScoreboard": "money", // 玩家市场指定使用 Score 对象
             "MaximumUpload": 20, // 玩家市场最大上传数量
             "BlacklistUpload": 10, // 玩家黑名单目标最大上传数量
+            "TradeRequestTimeout": 60, // 玩家交易请求超时时间（单位为秒）
+            "TradeTimeout": 90, // 玩家交易超时时间（单位为秒）
             "ProhibitedItems": [] // 玩家市场禁止上传的物品
         },
         "BehaviorEvent": { // 行为事件配置

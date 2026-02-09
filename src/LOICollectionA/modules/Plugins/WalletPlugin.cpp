@@ -13,6 +13,7 @@
 #include <ll/api/coro/CoroTask.h>
 #include <ll/api/coro/InterruptableSleep.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
+#include <ll/api/base/Containers.h>
 
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/form/CustomForm.h>
@@ -61,6 +62,23 @@
 
 #include "LOICollectionA/include/Plugins/WalletPlugin.h"
 
+template <typename T>
+struct Allocator : public std::allocator<T> {
+    using std::allocator<T>::allocator;
+
+    using is_always_equal = typename std::allocator_traits<std::allocator<T>>::is_always_equal;
+};
+
+template <
+    class Key,
+    class Value,
+    class Hash  = phmap::priv::hash_default_hash<Key>,
+    class Eq    = phmap::priv::hash_default_eq<Key>,
+    class Alloc = Allocator<::std::pair<Key const, Value>>,
+    size_t N    = 4,
+    class Mutex = std::shared_mutex>
+using ConcurrentDenseMap = phmap::parallel_flat_hash_map<Key, Value, Hash, Eq, Alloc, N, Mutex>;
+
 using I18nUtilsTools::tr;
 
 namespace LOICollection::Plugins {
@@ -82,8 +100,9 @@ namespace LOICollection::Plugins {
     };
 
     struct WalletPlugin::Impl {
-        std::unordered_map<std::string, std::vector<RedEnvelopeEntry>> mRedEnvelopeMap;
-        std::unordered_map<std::string, std::shared_ptr<ll::coro::InterruptableSleep>> mRedEnvelopeTimers;
+        std::unordered_map<std::string, std::shared_ptr<ll::coro::InterruptableSleep>> mTimers;
+
+        ConcurrentDenseMap<std::string, std::vector<RedEnvelopeEntry>> mRedEnvelopeMap;
 
         std::atomic<bool> mRegistered{ false };
 
@@ -392,8 +411,10 @@ namespace LOICollection::Plugins {
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
         eventBus.removeListener(this->mImpl->PlayerChatEventListener);
 
-        for (auto& it : this->mImpl->mRedEnvelopeTimers)
+        for (auto& it : this->mImpl->mTimers)
             it.second->interrupt();
+
+        this->mImpl->mTimers.clear();
     }
 
     std::string WalletPlugin::getPlayerInfo(const std::string& uuid) {
@@ -445,9 +466,9 @@ namespace LOICollection::Plugins {
         });
 
         ll::coro::keepThis([this, mObjectId, key]() -> ll::coro::CoroTask<> {
-            this->mImpl->mRedEnvelopeTimers[key] = std::make_shared<ll::coro::InterruptableSleep>();
+            this->mImpl->mTimers[key] = std::make_shared<ll::coro::InterruptableSleep>();
 
-            co_await this->mImpl->mRedEnvelopeTimers[key]->sleepFor(std::chrono::seconds(this->mImpl->options.RedEnvelopeTimeout));
+            co_await this->mImpl->mTimers[key]->sleepFor(std::chrono::seconds(this->mImpl->options.RedEnvelopeTimeout));
             
             std::vector<RedEnvelopeEntry>& mEntries = this->mImpl->mRedEnvelopeMap[key];
             auto mIt = std::find_if(mEntries.begin(), mEntries.end(), [mObjectId](RedEnvelopeEntry& entry) -> bool {
@@ -467,7 +488,7 @@ namespace LOICollection::Plugins {
                 return entry.id  == mObjectId;
             }), mEntries.end());
 
-            this->mImpl->mRedEnvelopeTimers.erase(key);
+            this->mImpl->mTimers.erase(key);
         }).launch(ll::thread::ServerThreadExecutor::getDefault());
 
         std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(tr(LanguagePlugin::getInstance().getLanguage(player), "wallet.tips.redenvelope.content"), player);
