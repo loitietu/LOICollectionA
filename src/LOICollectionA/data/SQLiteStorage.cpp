@@ -158,16 +158,13 @@ void SQLiteStorage::set(std::shared_ptr<ConnectionContext> context, std::string_
         | std::views::keys
         | std::ranges::to<std::vector<std::string>>();
 
-    std::string columns = std::ranges::fold_left((data | std::views::drop(1)), data.front(), [](std::string acc, const std::string& s) -> std::string {
-        return std::move(acc) + ", " + s;
-    });
+    std::string columns = data
+        | std::views::join_with(std::string_view(", "))
+        | std::ranges::to<std::string>();
 
-    std::vector<std::string> placeholders(data.size());
-    std::ranges::fill(placeholders, "?");
-
-    std::string placeholder = std::ranges::fold_left(std::views::drop(placeholders, 1), placeholders.front(), [](std::string acc, const std::string& s) -> std::string {
-        return std::move(acc) + ", " + s;
-    });
+    std::string placeholder = std::views::repeat(std::string_view("?"), data.size())
+        | std::views::join_with(std::string_view(", "))
+        | std::ranges::to<std::string>();
     
     auto& stmt = this->getCachedStatement(*context, std::format(
         "INSERT OR REPLACE INTO {} (key, {}, updated_at) VALUES (?, {}, CURRENT_TIMESTAMP);",
@@ -205,12 +202,9 @@ void SQLiteStorage::del(std::shared_ptr<ConnectionContext> context, std::string_
 
     auto chunks = std::views::chunk(keys, 500);
     for (auto chunk : chunks) {
-        std::vector<std::string> placeholders(chunk.size());
-        std::ranges::fill(placeholders, "?");
-
-        std::string placeholder = std::ranges::fold_left(std::views::drop(placeholders, 1), placeholders.front(), [](std::string acc, const std::string& s) -> std::string {
-            return std::move(acc) + ", " + s;
-        });
+        std::string placeholder = std::views::repeat(std::string_view("?"), chunk.size())
+            | std::views::join_with(std::string_view(", "))
+            | std::ranges::to<std::string>();
         
         auto& stmt = this->getCachedStatement(*context, std::format(
             "DELETE FROM {} WHERE key IN ({})",
@@ -262,9 +256,9 @@ std::unordered_map<std::string, std::string> SQLiteStorage::get(std::shared_ptr<
     if (data.empty())
         return {};
 
-    std::string sql = std::ranges::fold_left(std::views::drop(data, 1), data.front(), [](std::string acc, const std::string& s) -> std::string {
-        return std::move(acc) + ", " + s;
-    });
+    std::string sql = data
+        | std::views::join_with(std::string_view(", "))
+        | std::ranges::to<std::string>();
 
     auto& stmt = this->getCachedStatement(*context,
         std::format("SELECT {} FROM {} WHERE key = ?;", sql, table)
@@ -301,20 +295,17 @@ std::unordered_map<std::string, std::unordered_map<std::string, std::string>> SQ
     if (data.empty())
         return {};
 
-    std::string sql = std::ranges::fold_left((data | std::views::drop(1)), data.front(), [](std::string acc, const std::string& s) -> std::string {
-        return std::move(acc) + ", " + s;
-    });
+    std::string sql = data
+        | std::views::join_with(std::string_view(", "))
+        | std::ranges::to<std::string>();
 
     std::unordered_map<std::string, std::unordered_map<std::string, std::string>> result;
     
     auto chunks = std::views::chunk(keys, 500);
     for (auto chunk : chunks) {
-        std::vector<std::string> placeholders(chunk.size());
-        std::ranges::fill(placeholders, "?");
-
-        std::string placeholder = std::ranges::fold_left(std::views::drop(placeholders, 1), placeholders.front(), [](std::string acc, const std::string& s) -> std::string {
-            return std::move(acc) + ", " + s;
-        });
+        std::string placeholder = std::views::repeat(std::string_view("?"), chunk.size())
+            | std::views::join_with(std::string_view(", "))
+            | std::ranges::to<std::string>();
         
         auto& stmt = this->getCachedStatement(*context, std::format(
             "SELECT key, {} FROM {} WHERE key IN ({})",
@@ -369,13 +360,12 @@ std::string SQLiteStorage::find(std::shared_ptr<ConnectionContext> context, std:
     if (conditions.empty())
         return std::string(defaultValue);
 
-    auto transformed = conditions
+    std::string where = conditions
         | std::views::transform([](const std::pair<std::string, std::string>& p) -> std::string {
             return p.first + " = ?";
-        });
-    std::string where = std::ranges::fold_left(std::views::drop(transformed, 1), transformed.front(), [match](std::string acc, const std::string& s) -> std::string {
-        return std::move(acc) + (match == FindCondition::AND ? " AND " : " OR ") + s;
-    });
+        })
+        | std::views::join_with(std::string_view(match == FindCondition::AND ? " AND " : " OR "))
+        | std::ranges::to<std::string>();
 
     auto& stmt = this->getCachedStatement(*context,
         std::format("SELECT key FROM {} WHERE {} LIMIT 1;", table, where)
@@ -398,13 +388,12 @@ std::vector<std::string> SQLiteStorage::find(std::shared_ptr<ConnectionContext> 
     if (conditions.empty())
         return {};
     
-    auto transformed = conditions
+    std::string where = conditions
         | std::views::transform([](const std::pair<std::string, std::string>& p) -> std::string {
             return p.first + " = ?";
-        });
-    std::string where = std::ranges::fold_left(std::views::drop(transformed, 1), transformed.front(), [match](std::string acc, const std::string& s) -> std::string {
-        return std::move(acc) + (match == FindCondition::AND ? " AND " : " OR ") + s;
-    });
+        })
+        | std::views::join_with(std::string_view(match == FindCondition::AND ? " AND " : " OR "))
+        | std::ranges::to<std::string>();
 
     auto& stmt = this->getCachedStatement(*context,
         std::format("SELECT DISTINCT key FROM {} WHERE {};", table, where)
@@ -428,13 +417,12 @@ std::vector<std::string> SQLiteStorage::find(std::shared_ptr<ConnectionContext> 
     if (conditions.empty())
         return {};
     
-    auto transformed = conditions
+    std::string where = conditions
         | std::views::transform([](const std::pair<std::string, std::string>& p) -> std::string {
             return p.first + " = ?";
-        });
-    std::string where = std::ranges::fold_left(std::views::drop(transformed, 1), transformed.front(), [match](std::string acc, const std::string& s) -> std::string {
-        return std::move(acc) + (match == FindCondition::AND ? " AND " : " OR ") + s;
-    });
+        })
+        | std::views::join_with(std::string_view(match == FindCondition::AND ? " AND " : " OR "))
+        | std::ranges::to<std::string>();
 
     auto& stmt = this->getCachedStatement(*context,
         std::format("SELECT DISTINCT {} FROM {} WHERE {};", column, table, where)
