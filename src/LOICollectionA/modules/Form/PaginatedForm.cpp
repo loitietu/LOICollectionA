@@ -236,9 +236,7 @@ namespace LOICollection::Form {
         form.sendTo(player, [self = shared_from_this()](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
             if (!dt) return self->sendPage(pl, 1);
 
-            int mPage = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
-
-            self->sendPage(pl, mPage);
+            self->sendPage(pl, SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0));
         });
     }
 }

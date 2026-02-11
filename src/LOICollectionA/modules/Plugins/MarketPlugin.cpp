@@ -158,7 +158,9 @@ namespace LOICollection::Plugins {
             std::string mScoreboard = this->mParent.mImpl->options.TargetScoreboard;
             if (ScoreboardUtils::getScore(pl, mScoreboard) < mScore) {
                 pl.sendMessage(tr(mObjectLanguage, "market.gui.sell.sellItem.tips3"));
-                return this->buy(pl);
+
+                this->buy(pl);
+                return;
             }
 
             ScoreboardUtils::reduceScore(pl, mScoreboard, mScore);
