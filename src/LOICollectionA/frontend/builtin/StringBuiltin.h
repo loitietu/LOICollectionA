@@ -1,15 +1,16 @@
 #pragma once
 
 #include <string>
-#include <vector>
+
+#include "LOICollectionA/frontend/Callback.h"
 
 namespace StringBuiltin {
     void registerFunctions(const std::string& namespaces);
 
-    std::string length(const std::vector<std::string>& args);
-    std::string upper(const std::vector<std::string>& args);
-    std::string lower(const std::vector<std::string>& args);
-    std::string substr(const std::vector<std::string>& args);
-    std::string trim(const std::vector<std::string>& args);
-    std::string replace(const std::vector<std::string>& args);
+    std::string length(const LOICollection::frontend::CallbackTypeValues& args);
+    std::string upper(const LOICollection::frontend::CallbackTypeValues& args);
+    std::string lower(const LOICollection::frontend::CallbackTypeValues& args);
+    std::string substr(const LOICollection::frontend::CallbackTypeValues& args);
+    std::string trim(const LOICollection::frontend::CallbackTypeValues& args);
+    std::string replace(const LOICollection::frontend::CallbackTypeValues& args);
 }

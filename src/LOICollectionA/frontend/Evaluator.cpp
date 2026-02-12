@@ -15,12 +15,13 @@
 
 namespace LOICollection::frontend {
     std::string Evaluator::evaluate(const ASTNode& root, const Context& ctx) {
-        return evalNode(root, ctx);
+        return valueToString(evalNode(root, ctx));
     }
 
     Evaluator::Value Evaluator::evalExpr(const ExprNode& expr, const Context& ctx) {
         switch (expr.getType()) {
             case ASTNode::Type::Value: return static_cast<const ValueNode&>(expr).value;
+            case ASTNode::Type::Function: return stringToValue(evalFunction(static_cast<const FunctionNode&>(expr), ctx));
             case ASTNode::Type::Macro: return stringToValue(evalMacro(static_cast<const MacroNode&>(expr), ctx));
             case ASTNode::Type::Compare: {
                 const auto& cmp = static_cast<const CompareNode&>(expr);
@@ -65,14 +66,15 @@ namespace LOICollection::frontend {
         return valueToBool(evalExpr(expr, ctx));
     }
 
-    std::string Evaluator::evalTemplate(const TemplateNode& tpl, const Context& ctx) {
+    Evaluator::Value Evaluator::evalTemplate(const TemplateNode& tpl, const Context& ctx) {
         std::string result;
         for (const auto& part : tpl.parts)
-            result.append(evalNode(*part, ctx));
+            result.append(valueToString(evalNode(*part, ctx)));
+        
         return result;
     }
 
-    std::string Evaluator::evalIf(const IfNode& ifNode, const Context& ctx) {
+    Evaluator::Value Evaluator::evalIf(const IfNode& ifNode, const Context& ctx) {
         return evalCondition(*ifNode.condition, ctx) ? 
             evalNode(*ifNode.trueBranch, ctx) :
             evalNode(*ifNode.falseBranch, ctx);
@@ -81,7 +83,7 @@ namespace LOICollection::frontend {
     std::string Evaluator::evalFunction(const FunctionNode& func, const Context& ctx) {
         const auto& args = static_cast<const TemplateNode&>(*func.args);
 
-        std::vector<std::string> values;
+        std::vector<Value> values;
 
         if (func.args && !args.parts.empty()) {
             values.reserve(args.parts.size());
@@ -95,7 +97,7 @@ namespace LOICollection::frontend {
     std::string Evaluator::evalMacro(const MacroNode& macro, const Context& ctx) {
         const auto& args = static_cast<const TemplateNode&>(*macro.args);
 
-        std::vector<std::string> values;
+        std::vector<Value> values;
 
         if (macro.args && !args.parts.empty()) {
             values.reserve(args.parts.size());
@@ -106,7 +108,7 @@ namespace LOICollection::frontend {
         return MacroCall::getInstance().callMacro(macro.name, values, ctx.params);
     }
 
-    std::string Evaluator::evalNode(const ASTNode& node, const Context& ctx) {
+    Evaluator::Value Evaluator::evalNode(const ASTNode& node, const Context& ctx) {
         switch (node.getType()) {
             case ASTNode::Type::Value: return valueToString(static_cast<const ValueNode&>(node).value);
             case ASTNode::Type::If: return evalIf(static_cast<const IfNode&>(node), ctx);

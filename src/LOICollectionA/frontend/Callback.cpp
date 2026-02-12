@@ -1,16 +1,37 @@
 #include <string>
 #include <memory>
-#include <charconv>
+#include <vector>
 #include <stdexcept>
 #include <unordered_map>
 
 #include "LOICollectionA/frontend/Callback.h"
 
 namespace LOICollection::frontend {
+    std::vector<ParamType> valuesToTypes(const CallbackTypeValues& values) {
+        std::vector<ParamType> argTypes;
+        for (const auto& arg : values) {
+            std::visit([&argTypes](auto&& arg) {
+                using T = std::decay_t<decltype(arg)>;
+
+                if constexpr (std::is_same_v<T, int>)
+                    argTypes.push_back(ParamType::INT);
+                else if constexpr (std::is_same_v<T, float>)               
+                    argTypes.push_back(ParamType::FLOAT);
+                else if constexpr (std::is_same_v<T, std::string>)
+                    argTypes.push_back(ParamType::STRING);
+                else if constexpr (std::is_same_v<T, bool>)
+                    argTypes.push_back(ParamType::BOOL);
+                else
+                    throw std::runtime_error("Unsupported argument type");
+            }, arg);
+        }
+
+        return argTypes;
+    }
+
     struct FunctionCall::Impl {
-        std::unordered_map<std::string, std::unordered_map<std::string, CallbackFunc>> mFunctions;
-        std::unordered_map<std::string, std::unordered_map<std::string, CallbackFuncCombination>> mFunctionCombinations;
-        std::unordered_map<std::string, std::unordered_map<std::string, size_t>> mFunctionArgs;
+        std::unordered_map<std::string, std::unordered_map<Signature, CallbackFunc, SignatureHasher>> mFunctions;
+        std::unordered_map<std::string, std::unordered_map<Signature, CallbackFuncCombination, SignatureHasher>> mFunctionCombinations;
     };
 
     FunctionCall::FunctionCall() : mImpl(std::make_unique<Impl>()) {}
@@ -21,81 +42,49 @@ namespace LOICollection::frontend {
         return instance;
     }
 
-    void FunctionCall::registerFunction(const std::string& namespaces, const std::string& function, CallbackFunc callback, size_t argsCount) {
-        if (this->isRegistered(namespaces, function))
+    void FunctionCall::registerFunction(const std::string& namespaces, const std::string& function, CallbackFunc callback, CallbackTypeArgs args) {
+        if (this->isRegistered(namespaces, function, args))
             throw std::runtime_error("Function already registered");
 
-        this->mImpl->mFunctions[namespaces][function] = callback;
-        this->mImpl->mFunctionArgs[namespaces][function] = argsCount;
+        Signature sig{ function, args.size(), std::move(args), false };
+
+        this->mImpl->mFunctions[namespaces][sig] = std::move(callback);
     }
 
-    void FunctionCall::registerFunction(const std::string& namespaces, const std::string& function, CallbackFuncCombination callback, size_t argsCount) {
-        if (this->isRegistered(namespaces, function))
+    void FunctionCall::registerFunction(const std::string& namespaces, const std::string& function, CallbackFuncCombination callback, CallbackTypeArgs args) {
+        if (this->isRegistered(namespaces, function, args))
             throw std::runtime_error("Function already registered");
 
-        this->mImpl->mFunctionCombinations[namespaces][function] = callback;
-        this->mImpl->mFunctionArgs[namespaces][function] = argsCount;
+        Signature sig{ function, args.size(), std::move(args), true };
+
+        this->mImpl->mFunctionCombinations[namespaces][sig] = std::move(callback);
     }
 
-    bool FunctionCall::isRegistered(const std::string& namespaces, const std::string& function) const {
-        return this->mImpl->mFunctions[namespaces].find(function) != this->mImpl->mFunctions[namespaces].end() ||
-            this->mImpl->mFunctionCombinations[namespaces].find(function) != this->mImpl->mFunctionCombinations[namespaces].end();
+    bool FunctionCall::isRegistered(const std::string& namespaces, const std::string& function, CallbackTypeArgs args) const {
+        Signature sig{ function, args.size(), std::move(args), false };
+        bool result = this->mImpl->mFunctions[namespaces].find(sig) != this->mImpl->mFunctions[namespaces].end();
+
+        sig.isCombination = true;
+        return result || this->mImpl->mFunctionCombinations[namespaces].find(sig) != this->mImpl->mFunctionCombinations[namespaces].end();
     }
 
-    std::string FunctionCall::callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeArgs& args, const CallbackTypePlaces& placeholders)  {
-        if (!this->isRegistered(namespaces, function))
+    std::string FunctionCall::callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders)  {
+        std::vector<ParamType> argTypes = valuesToTypes(args);
+
+        if (!this->isRegistered(namespaces, function, argTypes))
             throw std::runtime_error("Function not registered");
 
-        size_t expectedArgs = this->mImpl->mFunctionArgs[namespaces][function];
-        if (args.size() != expectedArgs)
-            throw std::runtime_error("Invalid number of arguments");
+        Signature sig{ function, argTypes.size(), std::move(argTypes), false };
+        if (this->mImpl->mFunctions[namespaces].find(sig) != this->mImpl->mFunctions[namespaces].end())
+            return this->mImpl->mFunctions[namespaces][sig](args);
 
-        if (this->mImpl->mFunctions[namespaces].find(function) != this->mImpl->mFunctions[namespaces].end())
-            return this->mImpl->mFunctions[namespaces][function](args);
-
-        return this->mImpl->mFunctionCombinations[namespaces][function](args, placeholders);
-    }
-
-    bool FunctionCall::isInteger(const std::string& str) const {
-        if (str.empty())
-            return false;
-
-        for (char c : str) {
-            if (c == '.' || c == 'e' || c == 'E')
-                return false;
-        }
-
-        int result;
-        auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
-
-        return ec == std::errc() && ptr == str.data() + str.size();
-    }
-
-    bool FunctionCall::isFloat(const std::string& str) const {
-        if (str.empty())
-            return false;
-        
-        for (char c : str) {
-            if (c == 'e' || c == 'E')
-                return false;
-        }
-
-        double result;
-        auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
-
-        return ec == std::errc() && ptr == str.data() + str.size();
-    }
-
-    bool FunctionCall::isString(const std::string& str) const {
-        if (str.empty())
-            return false;
-
-        return !isInteger(str) && !isFloat(str);
+        sig.isCombination = true;
+        return this->mImpl->mFunctionCombinations[namespaces][sig](args, placeholders);
     }
     
     struct MacroCall::Impl {
-        std::unordered_map<std::string, CallbackFunc> mMacros;
-        std::unordered_map<std::string, CallbackFuncCombination> mMacroCombinations;
+        std::unordered_map<Signature, CallbackFunc, SignatureHasher> mMacros;
+        std::unordered_map<Signature, CallbackFuncCombination, SignatureHasher> mMacroCombinations;
     };
 
     MacroCall::MacroCall() : mImpl(std::make_unique<Impl>()) {}
@@ -106,32 +95,43 @@ namespace LOICollection::frontend {
         return instance;
     }
 
-    void MacroCall::registerMacro(const std::string& name, CallbackFunc callback) {
-        if (this->isRegistered(name))
+    void MacroCall::registerMacro(const std::string& name, CallbackFunc callback, CallbackTypeArgs args) {
+        if (this->isRegistered(name, args))
             throw std::runtime_error("Macro already registered");
 
-        this->mImpl->mMacros[name] = callback;
+        Signature sig{ name, args.size(), std::move(args), false };
+
+        this->mImpl->mMacros[sig] = callback;
     }
 
-    void MacroCall::registerMacro(const std::string& name, CallbackFuncCombination callback) {
-        if (this->isRegistered(name))
+    void MacroCall::registerMacro(const std::string& name, CallbackFuncCombination callback, CallbackTypeArgs args) {
+        if (this->isRegistered(name, args))
             throw std::runtime_error("Macro already registered");
 
-        this->mImpl->mMacroCombinations[name] = callback;
+        Signature sig{ name, args.size(), std::move(args), true };
+
+        this->mImpl->mMacroCombinations[sig] = callback;
     }
 
-    bool MacroCall::isRegistered(const std::string& name) const {
-        return this->mImpl->mMacros.find(name) != this->mImpl->mMacros.end() ||
-            this->mImpl->mMacroCombinations.find(name) != this->mImpl->mMacroCombinations.end();
+    bool MacroCall::isRegistered(const std::string& name, CallbackTypeArgs args) const {
+        Signature sig{ name, args.size(), std::move(args), false };
+        bool result = this->mImpl->mMacros.find(sig) != this->mImpl->mMacros.end();
+
+        sig.isCombination = true;
+        return result || this->mImpl->mMacroCombinations.find(sig) != this->mImpl->mMacroCombinations.end();
     }
 
-    std::string MacroCall::callMacro(const std::string& name, const CallbackTypeArgs& args, const CallbackTypePlaces& placeholders) {
-        if (!this->isRegistered(name))
+    std::string MacroCall::callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders) {
+        std::vector<ParamType> argTypes = valuesToTypes(args);
+
+        if (!this->isRegistered(name, argTypes))
             throw std::runtime_error("Macro not registered");
+        
+        Signature sig{ name, argTypes.size(), std::move(argTypes), false };
+        if (this->mImpl->mMacros.find(sig) != this->mImpl->mMacros.end())
+            return this->mImpl->mMacros[sig](args);
 
-        if (this->mImpl->mMacros.find(name) != this->mImpl->mMacros.end())
-            return this->mImpl->mMacros[name](args);
-
-        return this->mImpl->mMacroCombinations[name](args, placeholders);
+        sig.isCombination = true;
+        return this->mImpl->mMacroCombinations[sig](args, placeholders);
     }
 }

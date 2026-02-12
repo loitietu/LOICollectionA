@@ -1,7 +1,7 @@
 # LOICollectionAPI
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.10.0 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
+> 以下内容取自 LOICollectionA 1.11.1 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
 
 ## 默认变量
 
@@ -68,6 +68,7 @@
 | {server_entity} | 当前服务器实体数量 | int |
 | {score(ScoreboardName)} | 玩家的计分板分数 | int |
 | {tr(languageId)} | 获取玩家当前语言指定ID的翻译文本 | string |
+| {tr(langcode, languageId)} | 获取指定语言指定ID的翻译文本 | string |
 | {entity(typeid)} | 获取指定ID的实体数量 | int |
 
 > [!TIP]
@@ -191,23 +192,24 @@ namespaces::function_name(parameter1, parameter2,...)
 ### 数学函数 - math
 
 > [!TIP]
-> 以下内容中 `number` 代表的是 `int` 或 `float` 类型的数据
+> 以下内容中 `number` 代表的是 `int` 或 `float` 类型的数据  
+> 每个类型之后为该参数的备注
 
 | 函数名 | 说明 | 参数类型 | 函数名 | 说明 | 参数类型 |
 | --- | --- | --- | --- | --- | --- |
-| abs | 取绝对值 | number | min | 取最小值 | number, number |
-| max | 取最大值 | number, number | sqrt | 开平方 | number |
-| pow | 求次方 | number, number | log | 取对数 | number |
-| sin | 正弦 | number | cos | 余弦 | number |
-| random | 随机数 | number, number | ... | ... | ... |
+| abs | 取绝对值 | number: num | min | 取最小值 | number: num1, number: num2 |
+| max | 取最大值 | number: num1, number: num2 | sqrt | 开平方 | number: num |
+| pow | 求次方 | number: base, number: exponent | log | 取对数 | number: num |
+| sin | 正弦 | number: num | cos | 余弦 | number: num |
+| random | 随机数 | number: min, number: max | ... | ... | ... |
 
 ### 字符串函数 - string
 
 | 函数名 | 说明 | 参数类型 | 函数名 | 说明 | 参数类型 |
 | --- | --- | --- | --- | --- | --- |
-| length | 字符串长度 | string | upper | 转大写 | string |
-| lower | 转小写 | string | substr | 取子串 | string, start, int |
-| trim | 去除首尾空格 | string | replace | 替换字符串 | string, string, string |
+| length | 字符串长度 | string: str | upper | 转大写 | string: str |
+| lower | 转小写 | string: str | substr | 取子串 | string: str, int: start, int: length |
+| trim | 去除首尾空格 | string: str | replace | 替换字符串 | string: str, string: old, string: new |
 
 ### **函数具体使用实例**
 

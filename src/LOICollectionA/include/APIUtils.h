@@ -2,8 +2,9 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 #include <functional>
+
+#include "LOICollectionA/frontend/Callback.h"
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -16,13 +17,13 @@ namespace LOICollection::LOICollectionAPI {
 
         LOICOLLECTION_A_API   void registerVariable(const std::string& name, std::function<std::string()> callback);
         LOICOLLECTION_A_API   void registerVariable(const std::string& name, std::function<std::string(Player&)> callback);
-        LOICOLLECTION_A_API   void registerVariable(const std::string& name, std::function<std::string(const std::vector<std::string>&)> callback);
-        LOICOLLECTION_A_API   void registerVariable(const std::string& name, std::function<std::string(Player&, const std::vector<std::string>&)> callback);
+        LOICOLLECTION_A_API   void registerVariable(const std::string& name, std::function<std::string(const frontend::CallbackTypeValues&)> callback, frontend::CallbackTypeArgs args);
+        LOICOLLECTION_A_API   void registerVariable(const std::string& name, std::function<std::string(Player&, const frontend::CallbackTypeValues&)> callback, frontend::CallbackTypeArgs args);
 
         LOICOLLECTION_A_NDAPI std::string getValueForVariable(const std::string& name);
         LOICOLLECTION_A_NDAPI std::string getValueForVariable(const std::string& name, Player& player);
-        LOICOLLECTION_A_NDAPI std::string getValueForVariable(const std::string& name, const std::vector<std::string>& parameter);
-        LOICOLLECTION_A_NDAPI std::string getValueForVariable(const std::string& name, Player& player, const std::vector<std::string>& parameter);
+        LOICOLLECTION_A_NDAPI std::string getValueForVariable(const std::string& name, const frontend::CallbackTypeValues& parameter);
+        LOICOLLECTION_A_NDAPI std::string getValueForVariable(const std::string& name, Player& player, const frontend::CallbackTypeValues& parameter);
 
         LOICOLLECTION_A_API   std::string translate(const std::string& str, Player& player);
         LOICOLLECTION_A_API   std::string translate(const std::string& str);

@@ -37,12 +37,13 @@ namespace LOICollection::frontend {
 
         bool evalCondition(const ExprNode& expr, const Context& ctx);
 
-        std::string evalTemplate(const TemplateNode& tpl, const Context& ctx);
-        std::string evalIf(const IfNode& ifNode, const Context& ctx);
+        Value evalTemplate(const TemplateNode& tpl, const Context& ctx);
+        Value evalIf(const IfNode& ifNode, const Context& ctx);
+        
         std::string evalFunction(const FunctionNode& func, const Context& ctx);
         std::string evalMacro(const MacroNode& macro, const Context& ctx);
 
-        std::string evalNode(const ASTNode& node, const Context& ctx);
+        Value evalNode(const ASTNode& node, const Context& ctx);
         
         std::string valueToString(const Value& val);
 

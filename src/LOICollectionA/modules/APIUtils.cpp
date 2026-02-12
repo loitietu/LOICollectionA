@@ -56,8 +56,8 @@ namespace LOICollection::LOICollectionAPI {
 
         std::unordered_map<std::string, std::function<std::string()>> mVariableCommonMap;
         std::unordered_map<std::string, std::function<std::string(Player&)>> mVariableMap;
-        std::unordered_map<std::string, std::function<std::string(const std::vector<std::string>&)>> mVariableCommonMapParameter;
-        std::unordered_map<std::string, std::function<std::string(Player&, const std::vector<std::string>&)>> mVariableMapParameter;
+        std::unordered_map<std::string, std::function<std::string(const frontend::CallbackTypeValues&)>> mVariableCommonMapParameter;
+        std::unordered_map<std::string, std::function<std::string(Player&, const frontend::CallbackTypeValues&)>> mVariableMapParameter;
 
         Impl() : mAstCache(100, 200, 5) {}
     };
@@ -265,18 +265,24 @@ namespace LOICollection::LOICollectionAPI {
         this->registerVariable("server_entity", []() -> std::string {
             return std::to_string(ll::service::getLevel()->getRuntimeActorList().size());
         });
-        this->registerVariable("score", [](Player& player, const std::vector<std::string>& args) -> std::string {
-            std::string name = args.empty() ? "None" : args[0];
+        this->registerVariable("score", [](Player& player, const frontend::CallbackTypeValues& args) -> std::string {
+            std::string name = std::get<std::string>(args[0]);
 
             return std::to_string(ScoreboardUtils::getScore(player, name));
-        });
-        this->registerVariable("tr", [](Player& player, const std::vector<std::string>& args) -> std::string {
-            std::string name = args.empty() ? "None" : args[0];
+        }, { frontend::ParamType::STRING });
+        this->registerVariable("tr", [](Player& player, const frontend::CallbackTypeValues& args) -> std::string {
+            std::string name = std::get<std::string>(args[0]);
 
             return I18nUtils::getInstance()->get(Plugins::LanguagePlugin::getInstance().getLanguage(player), name);
-        });
-        this->registerVariable("entity", [](const std::vector<std::string>& args) -> std::string {
-            std::string name = args.empty() ? "None" : args[0];
+        }, { frontend::ParamType::STRING });
+        this->registerVariable("tr", [](const frontend::CallbackTypeValues& args) -> std::string {
+            std::string langcode = std::get<std::string>(args[0]);
+            std::string name = std::get<std::string>(args[1]);
+
+            return I18nUtils::getInstance()->get(langcode, name);
+        }, { frontend::ParamType::STRING, frontend::ParamType::STRING });
+        this->registerVariable("entity", [](const frontend::CallbackTypeValues& args) -> std::string {
+            std::string name = std::get<std::string>(args[0]);
 
             std::vector<Actor*> mRuntimeActorList = ll::service::getLevel()->getRuntimeActorList();
             int count = static_cast<int>(std::count_if(mRuntimeActorList.begin(), mRuntimeActorList.end(), [name](Actor* actor) -> bool {
@@ -284,7 +290,7 @@ namespace LOICollection::LOICollectionAPI {
             }));
             
             return std::to_string(count);
-        });
+        }, { frontend::ParamType::STRING });
     }
     APIUtils::~APIUtils() = default;
 
@@ -296,33 +302,33 @@ namespace LOICollection::LOICollectionAPI {
     void APIUtils::registerVariable(const std::string& name, std::function<std::string()> callback) {
         this->mImpl->mVariableCommonMap.emplace(name, std::move(callback));
 
-        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeArgs&) -> std::string {
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues&) -> std::string {
             return this->getValueForVariable(name);
-        });
+        }, {});
     }
 
     void APIUtils::registerVariable(const std::string& name, std::function<std::string(Player&)> callback) {
         this->mImpl->mVariableMap.emplace(name, std::move(callback));
 
-        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeArgs&, const frontend::CallbackTypePlaces& placeholders) -> std::string {
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues&, const frontend::CallbackTypePlaces& placeholders) -> std::string {
             return this->getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0)));
-        });
+        }, {});
     }
 
-    void APIUtils::registerVariable(const std::string& name, std::function<std::string(const std::vector<std::string>&)> callback) {
+    void APIUtils::registerVariable(const std::string& name, std::function<std::string(const frontend::CallbackTypeValues&)> callback, frontend::CallbackTypeArgs args) {
         this->mImpl->mVariableCommonMapParameter.emplace(name, std::move(callback));
 
-        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeArgs& args) -> std::string {
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues& args) -> std::string {
             return this->getValueForVariable(name, args);
-        });
+        }, args);
     }
 
-    void APIUtils::registerVariable(const std::string& name, std::function<std::string(Player&, const std::vector<std::string>&)> callback) {
+    void APIUtils::registerVariable(const std::string& name, std::function<std::string(Player&, const frontend::CallbackTypeValues&)> callback, frontend::CallbackTypeArgs args) {
         this->mImpl->mVariableMapParameter.emplace(name, std::move(callback));
 
-        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeArgs& args, const frontend::CallbackTypePlaces& placeholders) -> std::string {
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues& args, const frontend::CallbackTypePlaces& placeholders) -> std::string {
             return this->getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0)), args);
-        });
+        }, args);
     }
 
     std::string APIUtils::getValueForVariable(const std::string& name) try {
@@ -343,7 +349,7 @@ namespace LOICollection::LOICollectionAPI {
         return "None";
     }
 
-    std::string APIUtils::getValueForVariable(const std::string& name, const std::vector<std::string>& parameter) try {
+    std::string APIUtils::getValueForVariable(const std::string& name, const frontend::CallbackTypeValues& parameter) try {
         auto it = this->mImpl->mVariableCommonMapParameter.find(name);
         return it != this->mImpl->mVariableCommonMapParameter.end() ? it->second(parameter) : "None";
     } catch (const std::exception& e) {
@@ -352,7 +358,7 @@ namespace LOICollection::LOICollectionAPI {
         return "None";
     }
 
-    std::string APIUtils::getValueForVariable(const std::string& name, Player& player, const std::vector<std::string>& parameter) try {
+    std::string APIUtils::getValueForVariable(const std::string& name, Player& player, const frontend::CallbackTypeValues& parameter) try {
         auto it = this->mImpl->mVariableMapParameter.find(name);
         return it != this->mImpl->mVariableMapParameter.end() ? it->second(player, parameter) : this->getValueForVariable(name, parameter);
     } catch (const std::exception& e) {
