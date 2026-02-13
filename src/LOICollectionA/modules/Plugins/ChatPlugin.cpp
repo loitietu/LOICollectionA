@@ -381,12 +381,9 @@ namespace LOICollection::Plugins {
 
     void ChatPlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
-            .getOrCreateCommand("chat", tr({}, "commands.chat.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
+            .getOrCreateCommand("chat", tr({}, "commands.chat.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("add").required("Target").required("Title").optional("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
-
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
@@ -399,9 +396,6 @@ namespace LOICollection::Plugins {
             });
         command.overload<operation>().text("remove").required("Target").required("Title").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
-
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
@@ -414,9 +408,6 @@ namespace LOICollection::Plugins {
             });
         command.overload<operation>().text("set").required("Target").required("Title").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
-
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
@@ -429,9 +420,6 @@ namespace LOICollection::Plugins {
             });
         command.overload<operation>().text("list").required("Target").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                    return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
-
                 CommandSelectorResults<Player> results = param.Target.results(origin);
                 if (results.empty())
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
@@ -446,9 +434,6 @@ namespace LOICollection::Plugins {
                 }
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
-            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
-                return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
-
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
@@ -458,7 +443,10 @@ namespace LOICollection::Plugins {
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
-        command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+
+        ll::command::CommandHandle& settings = ll::command::CommandRegistrar::getInstance(false)
+            .getOrCreateCommand("settings", tr({}, "commands.settings.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
+        settings.overload().text("chat").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));

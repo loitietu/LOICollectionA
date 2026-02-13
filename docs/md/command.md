@@ -6,6 +6,33 @@
 > [!TIP]
 > 在命令提示中的 `<>` 为必填参数，`[]` 为可选参数。
 
+## Settings
+
+```log
+[Server] settings:
+[Server] LOICollection -> 个人设置
+[Server] 使用：
+[Server] - /settings chat
+[Server] - /settings language
+[Server] - /settings notice
+[Server] - /settings tpa
+```
+
+> [!TIP|style:callout]
+> 其中 `settings` 为 Settings 的顶层命令（权限等级: Any）。
+
+- `/settings chat`
+  - 打开称号设置界面。
+
+- `/settings language`
+  - 打开语言设置界面。
+
+- `/settings notice`
+  - 打开公告设置界面。
+
+- `/settings tpa`
+  - 打开 Tpa 设置界面。
+
 ## Blacklist
 
 ```log
@@ -57,7 +84,8 @@
 [Server] - /mute remove target &ltTarget: target&gt
 ```
 
-?> 其中 `mute` 为 Mute 的顶层命令（权限等级: GameDirectors）。
+> [!TIP|style:callout]
+> 其中 `mute` 为 Mute 的顶层命令（权限等级: GameDirectors）。
 
 - `/mute add <Target: target> [Cause: string] [Time: int]`
   - 向禁言列表中添加一个目标。
@@ -95,7 +123,8 @@
 [Server] - /cdk gui
 ```
 
-?> 其中 `cdk` 为 Cdk 的顶层命令（权限等级: Any）。
+> [!TIP|style:callout]
+> 其中 `cdk` 为 Cdk 的顶层命令（权限等级: Any）。
 
 - `/cdk convert <Id: string>`
   - 总换CDK。
@@ -119,7 +148,8 @@
 [Server] - /menu gui [Id: string]
 ```
 
-?> 其中 `menu` 为 Menu 的顶层命令（权限等级: Any）。
+> [!TIP|style:callout]
+> 其中 `menu` 为 Menu 的顶层命令（权限等级: Any）。
 
 - `/menu clock`
   - 获取便携打开菜单物品。
@@ -142,10 +172,10 @@
 [Server] - /tpa gui
 [Server] - /tpa invite &lttpa|tphere&gt &ltTarget: target&gt
 [Server] - /tpa reject &ltId: string&gt
-[Server] - /tpa setting
 ```
 
-?> 其中 `tpa` 为 Tpa 的顶层命令（权限等级: Any）。
+> [!TIP|style:callout]
+> 其中 `tpa` 为 Tpa 的顶层命令（权限等级: Any）。
 
 - `/tpa accept <Id: string>`
   - 接受玩家的传送请求。
@@ -167,9 +197,6 @@
   - 拒绝玩家的传送请求。
   - 其中 `<Id: string>` 为传送请求ID。
 
-- `/tpa setting`
-  - 打开 Tpa 个人设置。
-
 ## Shop
 
 ```log
@@ -180,7 +207,8 @@
 [Server] - /shop gui &ltId: string&gt
 ```
 
-?> 其中 `shop` 为 Shop 的顶层命令（权限等级: Any）。
+> [!TIP|style:callout]
+> 其中 `shop` 为 Shop 的顶层命令（权限等级: Any）。
 
 - `/shop edit`
   - 打开商店编辑界面（权限等级: GameDirectors）。
@@ -200,7 +228,8 @@
 [Server] - /pvp on
 ```
 
-?> 其中 `pvp` 为 Pvp 的顶层命令（权限等级: Any）。
+> [!TIP|style:callout]
+> 其中 `pvp` 为 Pvp 的顶层命令（权限等级: Any）。
 
 - `/pvp gui`
   - 打开 Pvp GUI。
@@ -223,7 +252,8 @@
 [Server] - /wallet wealth
 ```
 
-?> 其中 `wallet` 为 Wallet 的顶层命令（权限等级: Any）。
+> [!TIP|style:callout]
+> 其中 `wallet` 为 Wallet 的顶层命令（权限等级: Any）。
 
 - `/wallet gui`
   - 打开个人钱包 GUI。
@@ -247,37 +277,34 @@
 [Server] - /chat list &ltTarget: target&gt
 [Server] - /chat remove &ltTarget: target&gt &ltTitle: string&gt
 [Server] - /chat set &ltTarget: target&gt &ltTitle: string&gt
-[Server] - /chat setting
 ```
 
-?> 其中 `chat` 为 Chat 的顶层命令（权限等级: Any）。
+> [!TIP|style:callout]
+> 其中 `chat` 为 Chat 的顶层命令（权限等级: GameDirectors）。
 
 - `/chat add <Target: target> <Title: string> [Time: int]`
-  - 为目标添加指定称号（权限等级: GameDirectors）。
+  - 为目标添加指定称号。
   - 其中 `<Target: target>` 为目标选择器。
   - 其中 `<Title: string>` 为称号名称。
   - 其中 `[Time: int]` 为称号时间（单位：分钟）。
 
 - `/chat remove <Target: target> <Title: string>`
-  - 为目标移除指定称号（权限等级: GameDirectors）。
+  - 为目标移除指定称号。
   - 其中 `<Target: target>` 为目标选择器。
   - 其中 `<Title: string>` 为称号名称。
 
 - `/chat set <Target: target> <Title: string>`
-  - 为目标设置指定称号（权限等级: GameDirectors）。
+  - 为目标设置指定称号。
   - 其中 `<Target: target>` 为目标选择器。
   - 其中 `<Title: string>` 为称号名称。
   - 注: 无法设置未拥有的称号。
 
 - `/chat list <Target: target>`
-  - 查看目标的所有称号（权限等级: GameDirectors）。
+  - 查看目标的所有称号。
   - 其中 `<Target: target>` 为目标选择器。
 
 - `/chat gui`
-  - 打开管理称号 GUI（权限等级: GameDirectors）。
-
-- `/chat setting`
-  - 打开个人称号设置。
+  - 打开管理称号 GUI。
 
 ## Notice
 
@@ -287,10 +314,10 @@
 [Server] Usage:
 [Server] - /notice edit
 [Server] - /notice gui [Id: string]
-[Server] - /notice setting
 ```
 
-?> 其中 `notice` 为 notice 的顶层命令（权限等级: Any）。
+> [!TIP|style:callout]
+> 其中 `notice` 为 notice 的顶层命令（权限等级: Any）。
 
 - `/notice edit`
   - 打开公告编辑界面（权限等级: GameDirectors）。
@@ -298,9 +325,6 @@
 - `/notice gui [Id: string]`
   - 打开公告 GUI。
   - 其中 `[Id: string]` 为公告ID。
-
-- `/notice setting`
-  - 打开公告个人设置。
 
 ## Market
 
@@ -311,7 +335,8 @@
 [Server] - /market gui
 ```
 
-?> 其中 `market` 为 Market 的顶层命令（权限等级: Any）。
+> [!TIP|style:callout]
+> 其中 `market` 为 Market 的顶层命令（权限等级: Any）。
 
 - `/market gui`
   - 打开玩家市场 GUI。
@@ -337,7 +362,8 @@
 [Server] - /behaviorevent query event time &ltTime: int&gt [Limit: int]
 ```
 
-?> 其中 `behaviorevent` 为 BehaviourEvent 的顶层命令（权限等级: GameDirectors）。
+> [!TIP|style:callout]
+> 其中 `behaviorevent` 为 BehaviourEvent 的顶层命令（权限等级: GameDirectors）。
 
 - `/behaviorevent back position <PositionOrigin: x y z> <PositionTarget: x y z> <Time: int>`
   - 向指定区域内执行行为事件回溯。
@@ -418,7 +444,8 @@
 [Server] - /statistics gui &ltType: LOICollection::Plugins::StatisticType&gt
 ```
 
-?> 其中 `statistics` 为 Statistics 的顶层命令（权限等级: Any）。
+> [!TIP|style:callout]
+> 其中 `statistics` 为 Statistics 的顶层命令（权限等级: Any）。
 
 - `/statistics gui`
   - 打开玩家数据统计 GUI。
@@ -428,4 +455,4 @@
   - 其中 `<Type: LOICollection::Plugins::StatisticType>` 为数据统计类型。
 
 > [!NOTE]
-> 以上内容均属于 LOICollectionA 1.11.0 版本的命令列表，对于后续版本的命令列表可能会有所不同。
+> 以上内容均属于 LOICollectionA 1.11.2 版本的命令列表，对于后续版本的命令列表可能会有所不同。

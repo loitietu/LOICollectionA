@@ -465,7 +465,10 @@ namespace LOICollection::Plugins {
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
-        command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+
+        ll::command::CommandHandle& settings = ll::command::CommandRegistrar::getInstance(false)
+            .getOrCreateCommand("settings", tr({}, "commands.settings.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
+        settings.overload().text("tpa").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));

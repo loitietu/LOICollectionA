@@ -5,7 +5,7 @@
     "commands.generic.target": "没有与选择器匹配的目标",
     "commands.generic.ui": "已将 UI 打开给玩家 {0}",
     "commands.generic.permission": "您没有权限执行此命令",
-    "commands.language.description": "§e§lLOICollection -> §a语言设置",
+    "commands.settings.description": "§e§lLOICollection -> §a个人设置",
     "commands.blacklist.description": "§e§lLOICollection -> §b服务器黑名单",
     "commands.blacklist.error.add": "玩家 {0} 无法被添加至黑名单",
     "commands.blacklist.error.remove": "对象 {0} 不在黑名单中",
