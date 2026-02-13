@@ -16,7 +16,7 @@ public:
     LOICOLLECTION_A_API   explicit JsonStorage(std::filesystem::path path);
     LOICOLLECTION_A_API   ~JsonStorage();
 
-    LOICOLLECTION_A_API   void write(const nlohmann::json& json);
+    LOICOLLECTION_A_API   void write(const nlohmann::ordered_json& json);
 
     LOICOLLECTION_A_API   void remove(std::string_view key);
     LOICOLLECTION_A_API   void remove_ptr(std::string_view ptr);

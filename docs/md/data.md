@@ -12,11 +12,11 @@
 
 ```json
 {
-    "version": 88422308, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
+    "version": 56354508, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "Plugins": { // 内置插件配置
         "Blacklist": {
-            "ModuleEnabled": true, // 是否启用黑名单
+            "ModuleEnabled": false, // 是否启用黑名单
             "BroadcastMessage": true // 是否启用黑名单内容广播
         },
         "Mute": false,   // 是否启用禁言
@@ -83,7 +83,7 @@
             }
         },
         "Pvp": {
-            "ModuleEnabled": true, // 是否启用 PVP
+            "ModuleEnabled": false, // 是否启用 PVP
             "ExtraListener": {
                 "onActorHurt": true, // 是否启用玩家伤害侦听器
                 "onSplashPotion": true, // 是否启用药水效果侦听器
@@ -191,7 +191,7 @@
             }
         },
         "Statistics": {
-            "ModuleEnabled": true, // 是否启用统计
+            "ModuleEnabled": false, // 是否启用统计
             "RefreshIntervalInMinutes": 1, // 统计刷新间隔（单位为分钟）
             "RankingPlayerCount": 100, // 排行榜显示数量
             "DatabaseInfo": { // 统计数据库信息（每次退出后记录）
@@ -217,7 +217,7 @@
 ```
 
 > [!NOTE]
-> 以上内容取自 LOICollectionA 1.11.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以上内容取自 LOICollectionA 1.11.2 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 
 ## 模块数据文件
 
