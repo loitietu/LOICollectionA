@@ -84,8 +84,8 @@ namespace LOICollection::Plugins {
 
     void LanguagePlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
-            .getOrCreateCommand("settings", tr({}, "commands.settings.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
-        command.overload().text("language").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            .getOrCreateCommand("language", tr({}, "commands.language.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
+        command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isPlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
