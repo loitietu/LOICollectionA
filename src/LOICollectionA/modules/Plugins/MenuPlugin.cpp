@@ -25,7 +25,6 @@
 #include <ll/api/utils/StringUtils.h>
 #include <ll/api/utils/HashUtils.h>
 
-#include <mc/world/Minecraft.h>
 #include <mc/world/item/ItemStack.h>
 #include <mc/world/actor/player/Player.h>
 
@@ -34,10 +33,7 @@
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandVersion.h>
-#include <mc/server/commands/CurrentCmdVersion.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
-#include <mc/server/commands/ServerCommandOrigin.h>
-#include <mc/server/commands/MinecraftCommands.h>
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
@@ -49,6 +45,7 @@
 #include "LOICollectionA/include/ServerEvents/modules/MenuEvent.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
+#include "LOICollectionA/utils/mc/CommandUtils.h"
 #include "LOICollectionA/utils/mc/InventoryUtils.h"
 #include "LOICollectionA/utils/mc/ScoreboardUtils.h"
 #include "LOICollectionA/utils/core/SystemUtils.h"
@@ -732,8 +729,8 @@ namespace LOICollection::Plugins {
         if (data.contains("submit"))
             form.setSubmitButton(LOICollectionAPI::APIUtils::getInstance().translate(data.value("submit", ""), player));
 
-        form.sendTo(player, [this, mCustomData, data](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-            if (!dt) return this->mParent.executeCommand(pl, data.value("info", nlohmann::ordered_json{}).value("exit", ""));
+        form.sendTo(player, [mCustomData, data](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+            if (!dt) return CommandUtils::executeCommand(pl, data.value("info", nlohmann::ordered_json{}).value("exit", ""));
 
             nlohmann::ordered_json mCustom;
             for (auto& item : mCustomData.items()) {
@@ -756,7 +753,7 @@ namespace LOICollection::Plugins {
                     ll::string_utils::replaceAll(result, "{" + item.key() + "}", item.value().get<std::string>());
                 }
 
-                this->mParent.executeCommand(pl, result);
+                CommandUtils::executeCommand(pl, result);
             }
         });
     }
@@ -784,8 +781,8 @@ namespace LOICollection::Plugins {
                     break;
             }
         }
-        form.sendTo(player, [this, data](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) return this->mParent.executeCommand(pl, data.value("info", nlohmann::ordered_json{}).value("exit", ""));
+        form.sendTo(player, [data](Player& pl, int id, ll::form::FormCancelReason) -> void {
+            if (id == -1) return CommandUtils::executeCommand(pl, data.value("info", nlohmann::ordered_json{}).value("exit", ""));
         });
     }
 
@@ -818,7 +815,7 @@ namespace LOICollection::Plugins {
             if (data.empty()) return;
             if (data.contains("permission")) {
                 if (static_cast<int>(player.getCommandPermissionLevel()) < data.value("permission", 0))
-                    return this->mParent.executeCommand(player, data.value("info", nlohmann::ordered_json{}).value("permission", ""));
+                    return CommandUtils::executeCommand(player, data.value("info", nlohmann::ordered_json{}).value("permission", ""));
             }
             
             switch (ll::hash_utils::doHash(data.value("type", ""))) {
@@ -951,40 +948,19 @@ namespace LOICollection::Plugins {
         this->getDatabase()->save();
     }
 
-    void MenuPlugin::executeCommand(Player& player, std::string cmd) {
-        if (!this->isValid())
-            return;
-
-        ll::string_utils::replaceAll(cmd, "${player}", std::string(player.mName));
-
-        ServerCommandOrigin origin = ServerCommandOrigin(
-            "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, player.getDimensionId()
-        );
-        Command* command = ll::service::getMinecraft()->mCommands->compileCommand(
-            HashedString(cmd), origin, static_cast<CurrentCmdVersion>(CommandVersion::CurrentVersion()),
-            [this](std::string const& message) -> void {
-                this->getLogger()->error("Command error: {}", message);
-            }
-        );
-        if (command) {
-            CommandOutput output(CommandOutputType::AllOutput);
-            command->run(origin, output);
-        }
-    }
-
     void MenuPlugin::handleAction(Player& player, const nlohmann::ordered_json& action, const nlohmann::ordered_json& original) {
         if (!this->isValid() || action.empty())
             return;
 
         if (action.contains("permission")) {
             if (static_cast<int>(player.getCommandPermissionLevel()) < action["permission"])
-                return this->executeCommand(player, original.value("info", nlohmann::ordered_json{}).value("permission", ""));
+                return CommandUtils::executeCommand(player, original.value("info", nlohmann::ordered_json{}).value("permission", ""));
         }
 
         if (action.contains("scores")) {
             for (const auto& [key, value] : action["scores"].items()) {
                 if (value.get<int>() > ScoreboardUtils::getScore(player, key))
-                    return this->executeCommand(player, original.value("info", nlohmann::ordered_json{}).value("score", ""));
+                    return CommandUtils::executeCommand(player, original.value("info", nlohmann::ordered_json{}).value("score", ""));
             }
             for (const auto& [key, value] : action["scores"].items())
                 ScoreboardUtils::reduceScore(player, key, value.get<int>());
@@ -992,10 +968,10 @@ namespace LOICollection::Plugins {
 
         if (action.value("type", "") == "button") {
             if (action["run"].is_string())
-                return this->executeCommand(player, action["run"].get<std::string>());
+                return CommandUtils::executeCommand(player, action["run"].get<std::string>());
             
             for (const auto& cmd : action["run"])
-                this->executeCommand(player, cmd.get<std::string>());
+                CommandUtils::executeCommand(player, cmd.get<std::string>());
             
             return;
         }

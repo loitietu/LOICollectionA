@@ -23,7 +23,6 @@
 #include <mc/nbt/Tag.h>
 #include <mc/nbt/CompoundTag.h>
 
-#include <mc/world/Minecraft.h>
 #include <mc/world/item/ItemStack.h>
 #include <mc/world/actor/player/Player.h>
 
@@ -32,10 +31,7 @@
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandVersion.h>
-#include <mc/server/commands/CurrentCmdVersion.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
-#include <mc/server/commands/ServerCommandOrigin.h>
-#include <mc/server/commands/MinecraftCommands.h>
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
@@ -48,6 +44,7 @@
 #include "LOICollectionA/include/ServerEvents/modules/ShopEvent.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
+#include "LOICollectionA/utils/mc/CommandUtils.h"
 #include "LOICollectionA/utils/mc/InventoryUtils.h"
 #include "LOICollectionA/utils/mc/ScoreboardUtils.h"
 #include "LOICollectionA/utils/core/SystemUtils.h"
@@ -597,8 +594,8 @@ namespace LOICollection::Plugins {
                     break;
             };
         });
-        form->setCloseCallback([this, data](Player& pl) -> void {
-            this->mParent.executeCommand(pl, data.value("info", nlohmann::ordered_json()).value("exit", ""));
+        form->setCloseCallback([data](Player& pl) -> void {
+            CommandUtils::executeCommand(pl, data.value("info", nlohmann::ordered_json()).value("exit", ""));
         });
 
         form->sendPage(player, 1);
@@ -612,7 +609,7 @@ namespace LOICollection::Plugins {
         form.appendLabel(LOICollectionAPI::APIUtils::getInstance().translate(data.value("introduce", ""), player));
         form.appendInput("Input", LOICollectionAPI::APIUtils::getInstance().translate(data.value("number", ""), player), "", "1");
         form.sendTo(player, [this, original, data, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-            if (!dt) return this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("exit", ""));
+            if (!dt) return CommandUtils::executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("exit", ""));
 
             int mNumber = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
             if (mNumber > 2304 || mNumber <= 0)
@@ -632,7 +629,7 @@ namespace LOICollection::Plugins {
                     return;
                 }
 
-                return this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("score", ""));
+                return CommandUtils::executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("score", ""));
             }
 
             if (InventoryUtils::isItemInInventory(pl, data.value("id", ""), mNumber)) {
@@ -645,7 +642,7 @@ namespace LOICollection::Plugins {
                 return;
             }
             
-            this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("item", ""));
+            CommandUtils::executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("item", ""));
         });
     }
 
@@ -670,7 +667,7 @@ namespace LOICollection::Plugins {
 
                         return ChatPlugin::getInstance().addTitle(pl, id, 0);
                     }
-                    return this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("sScore", ""));
+                    return CommandUtils::executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("sScore", ""));
                 }
 
                 if (ChatPlugin::getInstance().isTitle(pl, id)) {
@@ -681,7 +678,7 @@ namespace LOICollection::Plugins {
                     return ChatPlugin::getInstance().delTitle(pl, id);
                 }
 
-                this->mParent.executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("title", ""));
+                CommandUtils::executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("title", ""));
             }
         });
     }
@@ -774,27 +771,6 @@ namespace LOICollection::Plugins {
 
         this->getDatabase()->remove(id);
         this->getDatabase()->save();
-    }
-    
-    void ShopPlugin::executeCommand(Player& player, std::string cmd) {
-        if (!this->isValid())
-            return;
-
-        ll::string_utils::replaceAll(cmd, "${player}", std::string(player.mName));
-
-        ServerCommandOrigin origin = ServerCommandOrigin(
-            "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, player.getDimensionId()
-        );
-        Command* command = ll::service::getMinecraft()->mCommands->compileCommand(
-            HashedString(cmd), origin, static_cast<CurrentCmdVersion>(CommandVersion::CurrentVersion()),
-            [this](std::string const& message) -> void {
-                this->getLogger()->error("Command error: {}", message);
-            }
-        );
-        if (command) {
-            CommandOutput output(CommandOutputType::AllOutput);
-            command->run(origin, output);
-        }
     }
 
     bool ShopPlugin::checkModifiedData(Player& player, nlohmann::ordered_json data, int number) {
