@@ -321,8 +321,12 @@ namespace LOICollection::Plugins {
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
         std::vector<std::pair<std::string, std::string>> mItems;
-        for (auto& item : this->mParent.getDatabase()->get("Item", this->mParent.getItems(player)))
+        std::vector<std::string> mItemIds;
+
+        for (auto& item : this->mParent.getDatabase()->get("Item", this->mParent.getItems(player))) {
             mItems.emplace_back(item.second.at("name"), item.second.at("icon"));
+            mItemIds.push_back(item.first);
+        }
 
         std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
             tr(mObjectLanguage, "market.gui.title"),
@@ -333,8 +337,8 @@ namespace LOICollection::Plugins {
         form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
         form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
         form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this](Player& pl, const std::string& response) -> void {
-            this->itemContent(pl, response);
+        form->setCallback([this, mItemIds = std::move(mItemIds)](Player& pl, int index) -> void {
+            this->itemContent(pl, mItemIds.at(index));
         });
         form->setCloseCallback([this](Player& pl) -> void {
             this->personal(pl);
@@ -691,12 +695,15 @@ namespace LOICollection::Plugins {
         std::string mUuid = player.getUuid().asString();
         
         std::vector<std::pair<std::string, std::string>> mItems;
+        std::vector<std::string> mItemIds;
+
         for (auto& item : this->mParent.getDatabase()->get("Item", this->mParent.getItems())) {
             std::vector<std::string> mList = this->mParent.getBlacklist(item.second.at("player_uuid"));
             if (std::find(mList.begin(), mList.end(), mUuid) != mList.end())
                 continue;
 
             mItems.emplace_back(item.second.at("name"), item.second.at("icon"));
+            mItemIds.push_back(item.first);
         }
 
         std::shared_ptr<Form::PaginatedForm> form = std::make_shared<Form::PaginatedForm>(
@@ -708,8 +715,8 @@ namespace LOICollection::Plugins {
         form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
         form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
         form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this](Player& pl, const std::string& response) -> void {
-            this->buyItem(pl, response);
+        form->setCallback([this, mItemIds = std::move(mItemIds)](Player& pl, int index) -> void {
+            this->buyItem(pl, mItemIds.at(index));
         });
         form->setCloseCallback([this](Player& pl) -> void {
             this->open(pl);
@@ -1131,9 +1138,7 @@ namespace LOICollection::Plugins {
         if (!this->isValid())
             return false;
 
-        return !this->getDatabase()->find("Item", {
-            { "name", id }
-        }, "", SQLiteStorage::FindCondition::AND).empty();
+        return this->getDatabase()->has("Item", id);
     }
 
     bool MarketPlugin::hasBlacklist(Player& player, const std::string& uuid) {
