@@ -340,7 +340,7 @@ namespace LOICollection::Plugins {
 
         ll::service::getLevel()->forEachPlayer([this, &player, &mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
             std::vector<std::string> mList = this->mParent.getBlacklist(mTarget);
-            if (mTarget.isSimulatedPlayer() || std::find(mList.begin(), mList.end(), player.getUuid().asString()) != mList.end() || this->mParent.isInvite(mTarget))
+            if (mTarget.isSimulatedPlayer() || std::find(mList.begin(), mList.end(), player.getUuid().asString()) != mList.end() || this->mParent.isInvite(mTarget) || mTarget.getUuid() == player.getUuid())
                 return true;
 
             mPlayers.push_back(mTarget.getRealName());
@@ -388,7 +388,7 @@ namespace LOICollection::Plugins {
                 std::string mObject = player.getUuid().asString();
                 auto mResults = results | std::views::filter([this, mObject](Player*& mTarget) -> bool {
                     std::vector<std::string> mList = this->getBlacklist(*mTarget);
-                    return !mTarget->isSimulatedPlayer() && std::find(mList.begin(), mList.end(), mObject) == mList.end() && !this->isInvite(*mTarget); 
+                    return !mTarget->isSimulatedPlayer() && std::find(mList.begin(), mList.end(), mObject) == mList.end() && !this->isInvite(*mTarget) && mTarget->getUuid().asString() != mObject;
                 });
 
                 int mResultSize = static_cast<int>(std::ranges::distance(mResults));
@@ -588,14 +588,15 @@ namespace LOICollection::Plugins {
             this->getLogger()->info(fmt::format(fmt::runtime(tr({}, "tpa.log1")), sourcePlayer->getRealName(), player.getRealName()));
         }
 
-        mEntries.erase(mIt);
+        if (auto timer = this->mImpl->mTimers[mIt->id])
+            timer->interrupt();
+        this->mImpl->mTimers.erase(mIt->id);
 
         std::erase_if(this->mImpl->mRequestMap[mIt->source], [id](RequestEntry& entry) -> bool {
             return entry.id == id;
         });
 
-        this->mImpl->mTimers[mIt->id]->interrupt();
-        this->mImpl->mTimers.erase(mIt->id);
+        mEntries.erase(mIt);
 
         return true;
     }
@@ -615,14 +616,15 @@ namespace LOICollection::Plugins {
         if (Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mIt->source)); sourcePlayer)
             sourcePlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "tpa.no.tips")), player.getRealName()));
 
-        mEntries.erase(mIt);
+        if (auto timer = this->mImpl->mTimers[mIt->id])
+            timer->interrupt();
+        this->mImpl->mTimers.erase(mIt->id);
 
         std::erase_if(this->mImpl->mRequestMap[mIt->source], [id](RequestEntry& entry) -> bool {
             return entry.id == id;
         });
 
-        this->mImpl->mTimers[mIt->id]->interrupt();
-        this->mImpl->mTimers.erase(mIt->id);
+        mEntries.erase(mIt);
         
         return true;
     }
@@ -639,14 +641,15 @@ namespace LOICollection::Plugins {
         if (mIt == mEntries.end())
             return false;
 
-        mEntries.erase(mIt);
+        if (auto timer = this->mImpl->mTimers[mIt->id])
+            timer->interrupt();
+        this->mImpl->mTimers.erase(mIt->id);
 
         std::erase_if(this->mImpl->mRequestMap[mIt->target], [id](RequestEntry& entry) -> bool {
             return entry.id == id;
         });
-        
-        this->mImpl->mTimers[mIt->id]->interrupt();
-        this->mImpl->mTimers.erase(mIt->id);
+
+        mEntries.erase(mIt);
 
         return true;
     }
