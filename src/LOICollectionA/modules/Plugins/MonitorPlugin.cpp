@@ -287,7 +287,7 @@ namespace LOICollection::Plugins {
                 event.cancel();
 
                 Actor* entity = event.commandContext().mOrigin->getEntity();
-                if (entity == nullptr || !entity->isPlayer())
+                if (entity == nullptr || !entity->isRemotePlayer())
                     return;
                 
                 auto player = static_cast<Player*>(entity);

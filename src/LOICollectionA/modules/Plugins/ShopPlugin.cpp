@@ -20,13 +20,13 @@
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/utils/HashUtils.h>
 
-#include <mc/nbt/Tag.h>
-#include <mc/nbt/CompoundTag.h>
+#include <mc/deps/nbt/Tag.h>
+#include <mc/deps/nbt/CompoundTag.h>
+
+#include <mc/deps/core/string/HashedString.h>
 
 #include <mc/world/item/ItemStack.h>
 #include <mc/world/actor/player/Player.h>
-
-#include <mc/deps/core/string/HashedString.h>
 
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
@@ -716,7 +716,7 @@ namespace LOICollection::Plugins {
         command.overload<operation>().text("gui").required("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isPlayer())
+                if (entity == nullptr || !entity->isRemotePlayer())
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
@@ -729,7 +729,7 @@ namespace LOICollection::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
             
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
+            if (entity == nullptr || !entity->isRemotePlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             

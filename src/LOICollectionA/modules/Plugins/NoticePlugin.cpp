@@ -340,7 +340,7 @@ namespace LOICollection::Plugins {
         command.overload<operation>().text("gui").optional("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isPlayer())
+                if (entity == nullptr || !entity->isRemotePlayer())
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
@@ -353,7 +353,7 @@ namespace LOICollection::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
 
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
+            if (entity == nullptr || !entity->isRemotePlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
@@ -363,7 +363,7 @@ namespace LOICollection::Plugins {
         });
         command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
+            if (entity == nullptr || !entity->isRemotePlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 

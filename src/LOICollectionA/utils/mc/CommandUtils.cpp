@@ -9,7 +9,7 @@
 #include <mc/server/commands/Command.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandContext.h>
-#include <mc/server/commands/CommandVersion.h>
+#include <mc/server/commands/CurrentCmdVersion.h>
 #include <mc/server/commands/MinecraftCommands.h>
 #include <mc/server/commands/ServerCommandOrigin.h>
 #include <mc/server/commands/PlayerCommandOrigin.h>
@@ -23,11 +23,11 @@
 namespace CommandUtils {
     void executeCommand(Player& player, const std::string& command) {
         if (command.find("${player}") == std::string::npos) {
-            CommandContext context = CommandContext(
+            CommandContext context = CommandContext{
                 command,
                 std::make_unique<PlayerCommandOrigin>(ll::service::getLevel(), player.getOrCreateUniqueID()),
-                CommandVersion::CurrentVersion()
-            );
+                static_cast<int>(CurrentCmdVersion::Latest)
+            };
 
             ll::service::getMinecraft()->mCommands->executeCommand(context, false);
 
@@ -42,10 +42,8 @@ namespace CommandUtils {
             "Server", ll::service::getLevel()->asServer(), CommandPermissionLevel::Internal, player.getDimensionId()
         );
         Command* mCommandObject = ll::service::getMinecraft()->mCommands->compileCommand(
-            HashedString(mCommand), origin, static_cast<CurrentCmdVersion>(CommandVersion::CurrentVersion()),
-            [](std::string const&) -> void {
-                
-            }
+            HashedString(mCommand), origin, CurrentCmdVersion::Latest,
+            [](std::string const&) -> void {}
         );
 
         if (mCommandObject) {

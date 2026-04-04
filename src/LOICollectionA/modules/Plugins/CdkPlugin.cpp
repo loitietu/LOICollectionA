@@ -17,8 +17,8 @@
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
 
-#include <mc/nbt/Tag.h>
-#include <mc/nbt/CompoundTag.h>
+#include <mc/deps/nbt/Tag.h>
+#include <mc/deps/nbt/CompoundTag.h>
 
 #include <mc/world/item/ItemStack.h>
 #include <mc/world/item/SaveContext.h>
@@ -517,7 +517,7 @@ namespace LOICollection::Plugins {
         command.overload<operation>().text("convert").required("Id").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isPlayer())
+                if (entity == nullptr || !entity->isRemotePlayer())
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
@@ -527,7 +527,7 @@ namespace LOICollection::Plugins {
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
+            if (entity == nullptr || !entity->isRemotePlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
@@ -540,7 +540,7 @@ namespace LOICollection::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
             
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
+            if (entity == nullptr || !entity->isRemotePlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 

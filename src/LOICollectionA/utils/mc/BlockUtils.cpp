@@ -2,7 +2,7 @@
 
 #include <ll/api/service/Bedrock.h>
 
-#include <mc/nbt/CompoundTag.h>
+#include <mc/deps/nbt/CompoundTag.h>
 
 #include <mc/world/level/Level.h>
 #include <mc/world/level/BlockPos.h>
@@ -66,7 +66,7 @@ namespace BlockUtils {
         auto mDimension = ll::service::getLevel()->getDimension(dimension).lock();
         BlockSource& mBlockSource = mDimension->getBlockSourceFromMainChunkSource();
         if (auto mBlock = Block::tryGetFromRegistry(nbt); mBlock.has_value()) 
-            mBlockSource.setBlock(pos, mBlock.value(), 3, nullptr, nullptr, BlockChangeContext(false));
+            mBlockSource.setBlock(pos, mBlock.value(), 3, nullptr, nullptr, BlockChangeContext::structureChange());
     }
 
     void setBlockEntity(const BlockPos& pos, int dimension, const CompoundTag& nbt) {

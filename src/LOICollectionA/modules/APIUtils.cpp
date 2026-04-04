@@ -16,9 +16,10 @@
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 
-#include <mc/util/ProfilerLite.h>
 #include <mc/deps/core/math/Vec2.h>
 #include <mc/deps/core/math/Vec3.h>
+
+#include <mc/profile/ProfilerLite.h>
 
 #include <mc/world/level/Level.h>
 #include <mc/world/level/BlockPos.h>
@@ -148,7 +149,7 @@ namespace LOICollection::LOICollectionAPI {
             return player.hasRespawnPosition() ? std::to_string(static_cast<int>(player.getExpectedSpawnPosition().z)) : "None";
         });
         this->registerVariable("player_pos_block", [](Player& player) -> std::string {
-            return player.getEyePos().toString();
+            return player.getFeetBlockPos().toString();
         });
         this->registerVariable("player_pos_lastdeath", [](Player& player) -> std::string {
             return player.getLastDeathPos() ? player.getLastDeathPos()->toString() : "None";
@@ -202,7 +203,7 @@ namespace LOICollection::LOICollectionAPI {
             return std::to_string(player.getSpeed());
         });
         this->registerVariable("player_direction", [](Player& player) -> std::string {
-            return player.mBuiltInComponents->mActorRotationComponent->mRotationDegree->toString();
+            return player.mBuiltInComponents->mActorRotationComponent->mRot->toString();
         });
         this->registerVariable("player_dimension", [](Player& player) -> std::string {
             return std::to_string(player.getDimensionId());

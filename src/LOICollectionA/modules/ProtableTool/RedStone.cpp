@@ -79,7 +79,7 @@ namespace LOICollection::ProtableTool {
                                 ll::service::getLevel()->getOrCreateDimension(it.first).lock()->getBlockSourceFromMainChunkSource(),
                                 it2->first,
                                 true,
-                                BlockChangeContext(false)
+                                BlockChangeContext::structureChange()
                             );
                             
                             this->getLogger()->info("RedStone: {}({})", it2->first.toString(), it.first);

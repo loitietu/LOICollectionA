@@ -11,7 +11,7 @@ option("shared")
 option_end()
 
 add_requires("sqlitecpp 3.3.3", {configs = {shared = get_config("shared")}})
-add_requires("levilamina 1.9.4", {configs = {target_type = "server"}})
+add_requires("levilamina main", {configs = {target_type = "server"}})
 add_requires(
     "levibuildscript",
     "preloader 1.15.7",
@@ -22,7 +22,7 @@ if not has_config("vs_runtime") then
     set_runtimes("MD")
 end
 
-set_version("1.11.2")
+set_version("1.12.0")
 
 includes("scripts/modpacker.lua")
 

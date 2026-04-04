@@ -44,12 +44,12 @@
 #include <ll/api/event/player/PlayerRespawnEvent.h>
 #include <ll/api/event/player/PlayerUseItemEvent.h>
 
+#include <mc/deps/nbt/Tag.h>
+#include <mc/deps/nbt/CompoundTag.h>
+
 #include <mc/deps/core/math/Vec3.h>
 #include <mc/deps/core/string/HashedString.h>
 #include <mc/deps/shared_types/legacy/actor/ActorDamageCause.h>
-
-#include <mc/nbt/Tag.h>
-#include <mc/nbt/CompoundTag.h>
 
 #include <mc/world/level/BlockPos.h>
 #include <mc/world/level/block/Block.h>

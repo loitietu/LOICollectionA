@@ -289,7 +289,7 @@ namespace LOICollection::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.blacklist.error.info"));
 
                 output.success(tr(origin.getLocaleCode(), "commands.blacklist.success.info"));
-                std::for_each(mEvent.begin(), mEvent.end(), [&output](const std::pair<std::string, std::string>& mPair) {
+                std::for_each(mEvent.begin(), mEvent.end(), [&output](const std::pair<std::string, std::string>& mPair) -> void {
                     std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
 
                     output.success("{0}: {1}", mKey, mPair.second);
@@ -306,7 +306,7 @@ namespace LOICollection::Plugins {
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
+            if (entity == nullptr || !entity->isRemotePlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             

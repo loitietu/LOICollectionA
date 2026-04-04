@@ -174,7 +174,7 @@ namespace LOICollection::Plugins {
             .getOrCreateCommand("statistics", tr({}, "commands.statistics.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
+            if (entity == nullptr || !entity->isRemotePlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
@@ -185,7 +185,7 @@ namespace LOICollection::Plugins {
         command.overload<operation>().text("gui").required("Type").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isPlayer())
+                if (entity == nullptr || !entity->isRemotePlayer())
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
@@ -248,11 +248,11 @@ namespace LOICollection::Plugins {
                     event.source().isChildEntitySource() ? event.source().getEntityUniqueID() : event.source().getDamagingEntityUniqueID(), false
                 );
 
-                if (mSource && mSource->isPlayer() && event.self().isPlayer())
+                if (mSource && mSource->isRemotePlayer() && event.self().isRemotePlayer())
                     this->addStatistic(*static_cast<Player*>(mSource), StatisticType::kills, 1);
             }
 
-            if (event.self().isPlayer() && option.Death)
+            if (event.self().isRemotePlayer() && option.Death)
                 this->addStatistic(static_cast<Player&>(event.self()), StatisticType::deaths, 1);
         }));
 

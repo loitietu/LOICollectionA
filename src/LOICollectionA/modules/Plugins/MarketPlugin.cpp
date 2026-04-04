@@ -27,8 +27,8 @@
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerJoinEvent.h>
 
-#include <mc/nbt/Tag.h>
-#include <mc/nbt/CompoundTag.h>
+#include <mc/deps/nbt/Tag.h>
+#include <mc/deps/nbt/CompoundTag.h>
 
 #include <mc/network/packet/TextPacket.h>
 
@@ -746,7 +746,7 @@ namespace LOICollection::Plugins {
             .getOrCreateCommand("market", tr({}, "commands.market.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isPlayer())
+            if (entity == nullptr || !entity->isRemotePlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 

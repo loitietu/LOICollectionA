@@ -103,25 +103,7 @@ namespace LOICollection::ServerEvents {
     }
 
     LL_TYPE_INSTANCE_HOOK(
-        NetworkBroadcastPacketEventHook1,
-        HookPriority::Normal,
-        LoopbackPacketSender,
-        &LoopbackPacketSender::$sendBroadcast,
-        void,
-        NetworkIdentifier const& exceptId,
-        SubClientId exceptSubid,
-        Packet const& packet
-    ) {
-        NetworkBroadcastPacketEvent event(packet);
-        ll::event::EventBus::getInstance().publish(event);
-        if (event.isCancelled())
-            return;
-
-        origin(exceptId, exceptSubid, packet);
-    }
-
-    LL_TYPE_INSTANCE_HOOK(
-        NetworkBroadcastPacketEventHook2,
+        NetworkBroadcastPacketEventHook,
         HookPriority::Normal,
         LoopbackPacketSender,
         &LoopbackPacketSender::$sendBroadcast,
@@ -147,7 +129,7 @@ namespace LOICollection::ServerEvents {
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactory2();
     class NetworkBroadcastPacketEventEmitter : public ll::event::Emitter<emitterFactory2, NetworkBroadcastPacketEvent> {
-        ll::memory::HookRegistrar<NetworkBroadcastPacketEventHook1, NetworkBroadcastPacketEventHook2> hook;
+        ll::memory::HookRegistrar<NetworkBroadcastPacketEventHook> hook;
     };
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactory2() {

@@ -10,6 +10,7 @@
 
 #include <mc/world/actor/Mob.h>
 #include <mc/world/actor/Actor.h>
+#include <mc/world/actor/ActorHurtResult.h>
 #include <mc/world/actor/ActorDamageSource.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/components_json_legacy/ProjectileComponent.h>
@@ -44,13 +45,13 @@ namespace LOICollection::ServerEvents {
         HookPriority::Normal,
         Mob,
         &Mob::hurt,
-        bool,
+        ActorHurtResult,
         ActorDamageSource const& source,
         float damage,
         bool knock,
         bool ignite
     ) {
-        if (!this->isPlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
+        if (!this->isRemotePlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
             return origin(source, damage, knock, ignite);
 
         Actor* mSource = ll::service::getLevel()->fetchEntity(
@@ -61,8 +62,8 @@ namespace LOICollection::ServerEvents {
 
         PlayerHurtEvent event(*reinterpret_cast<Player*>(this), *mSource, static_cast<int>(damage), knock, ignite, PlayerHurtReason::Hurt);
         ll::event::EventBus::getInstance().publish(event);
-        if (event.isCancelled()) 
-            return false;
+        if (event.isCancelled())
+            return { false, false };
 
         return origin(source, damage, knock, ignite);
     };
@@ -78,7 +79,7 @@ namespace LOICollection::ServerEvents {
         bool knock,
         bool ignite
     ) {
-        if (!this->isPlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
+        if (!this->isRemotePlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
             return origin(source, damage, knock, ignite);
 
         Actor* mSource = ll::service::getLevel()->fetchEntity(
@@ -104,7 +105,7 @@ namespace LOICollection::ServerEvents {
         ActorDamageSource const& source,
         float damage
     ) {
-        if (!this->isPlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
+        if (!this->isRemotePlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
             return origin(source, damage);
         
         Actor* mSource = ll::service::getLevel()->fetchEntity(
@@ -133,7 +134,7 @@ namespace LOICollection::ServerEvents {
         Actor* mHitEntity = hitResult.getEntity();
         Player* mOwner = owner.getPlayerOwner();
 
-        if ((!mHitEntity || !mOwner) || !mOwner->isPlayer() || !mHitEntity->isPlayer() || owner.getOrCreateUniqueID().rawID == mHitEntity->getOrCreateUniqueID().rawID)
+        if ((!mHitEntity || !mOwner) || !mOwner->isRemotePlayer() || !mHitEntity->isRemotePlayer() || owner.getOrCreateUniqueID().rawID == mHitEntity->getOrCreateUniqueID().rawID)
             return origin(owner, hitResult);
 
         PlayerHurtEvent event(*reinterpret_cast<Player*>(mHitEntity), *mOwner, 0, false, false, PlayerHurtReason::Projectile);
