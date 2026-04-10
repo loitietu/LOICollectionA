@@ -32,9 +32,9 @@ jobs:
 
         runs-on: windows-latest
         steps:
-            - uses: actions/checkout@v5
+            - uses: actions/checkout@v6
             - uses: xmake-io/github-action-setup-xmake@v1
-            - uses: actions/cache@v4
+            - uses: actions/cache@v5
               with:
                 path: |
                     ~/AppData/Local/.xmake
@@ -51,9 +51,9 @@ jobs:
             - run: |
                 xmake -v -y
             
-            - uses: actions/upload-artifact@v5
+            - uses: actions/upload-artifact@v7
               with:
                 name: ${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}${{ matrix.target_type }}-${{ matrix.mode }}-windows-x64-${{ github.sha }}
                 path: |
-                    build/bin/
+                    build/bin-${{ matrix.target_type }}/
             
