@@ -23,6 +23,9 @@ jobs:
                 shared:
                     - true
                     - false
+                target_type:
+                    - server
+                    - client
                 mode:
                     - debug
                     - release
@@ -43,14 +46,14 @@ jobs:
                 xmake repo -u
             
             - run: |
-                xmake f -a x64 -m ${{ matrix.mode }} -p windows -v -y --shared=${{ matrix.shared }}
+                xmake f -a x64 -m ${{ matrix.mode }} -p windows -v -y --shared=${{ matrix.shared }} --target_type=${{ matrix.target_type }}
             
             - run: |
                 xmake -v -y
             
             - uses: actions/upload-artifact@v5
               with:
-                name: ${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}${{ matrix.mode }}-windows-x64-${{ github.sha }}
+                name: ${{ github.event.repository.name }}-${{ matrix.shared == false && 'ES-' || '' }}${{ matrix.target_type }}-${{ matrix.mode }}-windows-x64-${{ github.sha }}
                 path: |
                     build/bin/
             
