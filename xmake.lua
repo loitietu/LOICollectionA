@@ -4,14 +4,22 @@ add_repositories("liteldev-repo https://github.com/LiteLDev/xmake-repo.git")
 
 set_xmakever("3.0.0")
 
+local is_server = is_config("target_type", "server")
+
 option("shared")
     set_default(true)
     set_showmenu(true)
     set_description("Build shared library")
 option_end()
 
+option("target_type")
+    set_default("server")
+    set_showmenu(true)
+    set_values("server", "client")
+option_end()
+
 add_requires("sqlitecpp 3.3.3", {configs = {shared = get_config("shared")}})
-add_requires("levilamina main", {configs = {target_type = "server"}})
+add_requires("levilamina 26.10.4", {configs = {target_type = get_config("target_type")}})
 add_requires(
     "levibuildscript",
     "preloader 1.15.7",
@@ -57,8 +65,18 @@ target("LOICollectionA")
         add_files("assets/resources/**.rc")
     end
 
-    add_files("src/LOICollectionA/**.cpp")
     add_includedirs("src", "$(builddir)/config")
+
+    if is_server then
+        add_files("src/LOICollectionA/**.cpp|modules/client/**.cpp")
+        remove_headerfiles("src/LOICollectionA/include/(client/**.h)")
+        add_defines("LL_PLAT_S")
+    else
+        add_files("src/LOICollectionA/**.cpp|modules/server/**.cpp|utils/*-server/**.cpp")
+        remove_headerfiles("src/LOICollectionA/include/(server/**.h)")
+        add_defines("LL_PLAT_C")
+    end
+
     set_pcxxheader("src/LOICollectionA/include/Global.h")
 
     add_headerfiles("src/(LOICollectionA/**.h)")
@@ -79,8 +97,6 @@ target("LOICollectionA")
     set_kind("shared")
     set_languages("cxx20")
     set_symbols("debug")
-
-    add_defines("LL_PLAT_S")
 
     if is_mode("debug") then
         add_defines("DEBUG")

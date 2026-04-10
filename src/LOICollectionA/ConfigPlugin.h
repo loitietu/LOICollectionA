@@ -197,7 +197,7 @@ namespace Config {
         } DatabaseInfo;
     };
 
-    struct C_Plugins {
+    struct C_ServerPlugins {
         C_Blacklist Blacklist;
 
         bool Mute = false;
@@ -225,19 +225,23 @@ namespace Config {
         std::string FakeSeed = "$random";
     };
 
-    struct C_ProtableTool {
+    struct C_ServerProtableTool {
         C_BasicHook BasicHook;
 
         int RedStone = 0;
         bool OrderedUI = false;
     };
 
+    struct C_ServerConfig {
+        C_ServerPlugins Plugins;
+        C_ServerProtableTool ProtableTool;
+    };
+
     struct C_Config {
         int version = 0;
         std::string ConsoleLanguage = "system";
         
-        C_Plugins Plugins;
-        C_ProtableTool ProtableTool;
+        C_ServerConfig ServerConfig;
     };
     
     std::string GetVersion();

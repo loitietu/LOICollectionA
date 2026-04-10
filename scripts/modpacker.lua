@@ -46,8 +46,10 @@ after_build(function(target)
 
         local manifest_path = find_file("scripts/manifest.json", os.projectdir())
         if manifest_path then
+            local binname = path.basename("bin-" .. (mod_define.modPlatform == "server" and "server" or "client"))
+
             local manifest = io.readfile(manifest_path)
-            local bindir = path.join(os.projectdir(), "build/bin")
+            local bindir = path.join(os.projectdir(), "build/" .. binname)
             local outputdir = path.join(bindir, mod_define.modName)
             local targetfile = path.join(outputdir, mod_define.modFile)
             local pdbfile = path.join(outputdir, path.basename(mod_define.modFile) .. ".pdb")
