@@ -3,8 +3,11 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "LOICollectionA/base/Macro.h"
+
+#include "LOICollectionA/include/server/Plugins/gui/MuteGui.h"
 
 class Player;
 class SQLiteStorage;
@@ -36,6 +39,8 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_NDAPI std::string getMute(Player& player);
         
         LOICOLLECTION_A_NDAPI std::vector<std::string> getMutes(int limit = -1);
+
+        LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::string> getMuteData(const std::string& id);
         
         LOICOLLECTION_A_NDAPI bool hasMute(const std::string& id);
         LOICOLLECTION_A_NDAPI bool isMute(Player& player);
@@ -46,10 +51,6 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_API bool unload();
         LOICOLLECTION_A_API bool registry();
         LOICOLLECTION_A_API bool unregistry();
-
-    public:
-        class gui;
-        friend class gui;
 
     private:
         MutePlugin();
@@ -62,20 +63,6 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<gui> mGui;
-    };
-
-    class MutePlugin::gui {
-    private:
-        MutePlugin& mParent;
-
-    public:
-        gui(MutePlugin& plugin) : mParent(plugin) {}
-
-        LOICOLLECTION_A_API void info(Player& player, const std::string& id);
-        LOICOLLECTION_A_API void content(Player& player, Player& target);
-        LOICOLLECTION_A_API void add(Player& player);
-        LOICOLLECTION_A_API void remove(Player& player);
-        LOICOLLECTION_A_API void open(Player& player);
+        std::unique_ptr<MuteGui> mGui;
     };
 }

@@ -6,12 +6,9 @@
 #include <unordered_map>
 
 #include <fmt/format.h>
-#include <magic_enum/magic_enum.hpp>
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
-#include <ll/api/form/CustomForm.h>
-#include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
@@ -104,7 +101,7 @@ namespace LOICollection::server::Plugins {
         std::atomic<bool> WriteDatabaseTaskRunning{ true };
     };
 
-    StatisticsPlugin::StatisticsPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {}
+    StatisticsPlugin::StatisticsPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<StatisticsGui>(*this)) {}
     StatisticsPlugin::~StatisticsPlugin() = default;
 
     StatisticsPlugin& StatisticsPlugin::getInstance() {
@@ -118,55 +115,6 @@ namespace LOICollection::server::Plugins {
 
     std::shared_ptr<ll::io::Logger> StatisticsPlugin::getLogger() {
         return this->mImpl->logger;
-    }
-
-    void StatisticsPlugin::gui::open(Player& player, StatisticType type) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        std::string mObjectLabel = tr(mObjectLanguage, "statistics.gui.specific.label");
-
-        ll::form::CustomForm form(tr(mObjectLanguage, "statistics.gui.title"));
-        form.appendLabel(fmt::format(fmt::runtime(mObjectLabel), this->mParent.getStatisticName(type), this->mParent.mImpl->options.RankingPlayerCount));
-        
-        for (const auto& [index, pair] : std::views::enumerate(this->mParent.getRankingList(type, this->mParent.mImpl->options.RankingPlayerCount))) {
-            form.appendLabel(fmt::format(
-                fmt::runtime(tr(mObjectLanguage, "statistics.gui.specific.line")), 
-                index + 1,
-                this->mParent.getPlayerInfo(pair.first),
-                pair.second
-            ));
-        }
-
-        form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-            if (!dt) return this->open(pl);
-        });
-    }
-
-    void StatisticsPlugin::gui::open(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        std::vector<std::string> mStatisticNames;
-        std::vector<StatisticType> mStatisticTypes;
-
-        for (auto type : magic_enum::enum_entries<StatisticType>()) {
-            mStatisticNames.push_back(this->mParent.getStatisticName(type.first));
-            mStatisticTypes.push_back(type.first);
-        }
-
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "statistics.gui.title"),
-            tr(mObjectLanguage, "statistics.gui.label"),
-            mStatisticNames
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this, mStatisticTypes = std::move(mStatisticTypes)](Player& pl, int index) -> void {
-            this->open(pl, mStatisticTypes.at(index));
-        });
-
-        form->sendPage(player, 1);
     }
 
     void StatisticsPlugin::registeryCommand() {
@@ -387,6 +335,13 @@ namespace LOICollection::server::Plugins {
 
     bool StatisticsPlugin::isValid() {
         return this->getLogger() != nullptr && this->getDatabase() != nullptr;
+    }
+
+    int StatisticsPlugin::getRankingPlayerCount() {
+        if (!this->isValid())
+            return 0;
+
+        return this->mImpl->options.RankingPlayerCount;
     }
 
     bool StatisticsPlugin::load() {

@@ -1,6 +1,5 @@
 #include <atomic>
 #include <memory>
-#include <ranges>
 #include <string>
 #include <unordered_map>
 
@@ -8,8 +7,6 @@
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
-#include <ll/api/form/CustomForm.h>
-#include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
 #include <ll/api/command/CommandRegistrar.h>
@@ -18,13 +15,12 @@
 #include <ll/api/event/player/PlayerConnectEvent.h>
 
 #include <mc/world/actor/player/Player.h>
+
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
 #include "LOICollectionA/include/RegistryHelper.h"
-
-#include "LOICollectionA/include/server/APIUtils.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
 
@@ -51,7 +47,7 @@ namespace LOICollection::server::Plugins {
         Impl() : Cache(100, 100) {}
     }; 
 
-    LanguagePlugin::LanguagePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
+    LanguagePlugin::LanguagePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<LanguageGui>(*this)) {};
     LanguagePlugin::~LanguagePlugin() = default;
 
     LanguagePlugin& LanguagePlugin::getInstance() {
@@ -61,25 +57,6 @@ namespace LOICollection::server::Plugins {
 
     std::shared_ptr<ll::io::Logger> LanguagePlugin::getLogger() {
         return this->mImpl->logger;
-    }
-
-    void LanguagePlugin::gui::open(Player& player) {
-        std::string mObjectLanguage = this->mParent.getLanguage(player);
-
-        std::vector<std::string> keys = std::views::keys(I18nUtils::getInstance()->data)
-            | std::ranges::to<std::vector<std::string>>();
-        
-        ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
-        form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
-        form.appendLabel(fmt::format(fmt::runtime(tr(mObjectLanguage, "language.gui.lang")), tr(mObjectLanguage, "name")));
-        form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys);
-        form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) mutable -> void {
-            if (!dt) return;
-
-            this->mParent.set(pl, std::get<std::string>(dt->at("dropdown")));
-            
-            this->mParent.getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "language.log"), pl));
-        });
     }
 
     void LanguagePlugin::registeryCommand() {

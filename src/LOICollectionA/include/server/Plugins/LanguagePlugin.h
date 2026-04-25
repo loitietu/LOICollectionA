@@ -5,6 +5,8 @@
 
 #include "LOICollectionA/base/Macro.h"
 
+#include "LOICollectionA/include/server/Plugins/gui/LanguageGui.h"
+
 class Player;
 class SQLiteStorage;
 
@@ -38,10 +40,6 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_API bool registry();
         LOICOLLECTION_A_API bool unregistry();
 
-    public:
-        class gui;
-        friend class gui;
-
     private:
         LanguagePlugin();
 
@@ -51,16 +49,6 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<gui> mGui;
-    };
-
-    class LanguagePlugin::gui {
-    private:
-        LanguagePlugin& mParent;
-
-    public:
-        gui(LanguagePlugin& plugin) : mParent(plugin) {}
-
-        LOICOLLECTION_A_API void open(Player& player);
+        std::unique_ptr<LanguageGui> mGui;
     };
 }

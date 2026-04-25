@@ -3,8 +3,11 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "LOICollectionA/base/Macro.h"
+
+#include "LOICollectionA/include/server/Plugins/gui/ChatGui.h"
 
 class Player;
 class SQLiteStorage;
@@ -41,6 +44,8 @@ namespace LOICollection::server::Plugins {
 
         LOICOLLECTION_A_NDAPI std::vector<std::string> getTitles(Player& player);
         LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(Player& player);
+
+        LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::string> getBlacklistData(const std::string& target);
         
         LOICOLLECTION_A_NDAPI bool hasTitle(Player& player, const std::string& text);
         LOICOLLECTION_A_NDAPI bool hasBlacklist(Player& player, const std::string& uuid);
@@ -49,14 +54,13 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_NDAPI bool isValid();
 
     public:
+        LOICOLLECTION_A_NDAPI int getBlacklistUpload();
+
+    public:
         LOICOLLECTION_A_API bool load();
         LOICOLLECTION_A_API bool unload();
         LOICOLLECTION_A_API bool registry();
         LOICOLLECTION_A_API bool unregistry();
-
-    public:
-        class gui;
-        friend class gui;
 
     private:
         ChatPlugin();
@@ -69,25 +73,6 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<gui> mGui;
-    };
-
-    class ChatPlugin::gui {
-    private:
-        ChatPlugin& mParent;
-
-    public:
-        gui(ChatPlugin& plugin) : mParent(plugin) {}
-
-        LOICOLLECTION_A_API void contentAdd(Player& player, Player& target);
-        LOICOLLECTION_A_API void contentRemove(Player& player, Player& target);
-        LOICOLLECTION_A_API void add(Player& player);
-        LOICOLLECTION_A_API void remove(Player& player);
-        LOICOLLECTION_A_API void title(Player& player);
-        LOICOLLECTION_A_API void blacklistSet(Player& player, const std::string& target);
-        LOICOLLECTION_A_API void blacklistAdd(Player& player);
-        LOICOLLECTION_A_API void blacklist(Player& player);
-        LOICOLLECTION_A_API void setting(Player& player);
-        LOICOLLECTION_A_API void open(Player& player);
+        std::unique_ptr<ChatGui> mGui;
     };
 }

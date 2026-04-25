@@ -6,7 +6,6 @@
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
-#include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
@@ -64,7 +63,7 @@ namespace LOICollection::server::Plugins {
         Impl() : PvpCache(100, 100), mThrottle(std::chrono::seconds(1)) {}
     };
 
-    PvpPlugin::PvpPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
+    PvpPlugin::PvpPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<PvpGui>(*this)) {};
     PvpPlugin::~PvpPlugin() = default;
 
     PvpPlugin& PvpPlugin::getInstance() {
@@ -74,19 +73,6 @@ namespace LOICollection::server::Plugins {
 
     std::shared_ptr<ll::io::Logger> PvpPlugin::getLogger() {
         return this->mImpl->logger;
-    }
-
-    void PvpPlugin::gui::open(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-        
-        ll::form::SimpleForm form(tr(mObjectLanguage, "pvp.gui.title"), tr(mObjectLanguage, "pvp.gui.label"));
-        form.appendButton(tr(mObjectLanguage, "pvp.gui.on"), "textures/ui/book_addtextpage_default", "path", [this](Player& pl) -> void {
-            this->mParent.enable(pl, true);
-        });
-        form.appendButton(tr(mObjectLanguage, "pvp.gui.off"), "textures/ui/cancel", "path", [this](Player& pl) -> void {
-            this->mParent.enable(pl, false);
-        });
-        form.sendTo(player);
     }
 
     void PvpPlugin::registeryCommand() {

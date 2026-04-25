@@ -6,6 +6,9 @@
 
 #include "LOICollectionA/base/Macro.h"
 
+#include "LOICollectionA/include/server/Plugins/gui/StatisticsGui.h"
+#include "LOICollectionA/include/server/Plugins/types/StatisticType.h"
+
 class Player;
 class SQLiteStorage;
 
@@ -14,16 +17,6 @@ namespace ll::io {
 }
 
 namespace LOICollection::server::Plugins {
-    enum class StatisticType {
-        onlinetime,
-        kills,
-        deaths,
-        place,
-        destroy,
-        respawn,
-        join
-    };
-
     class StatisticsPlugin {
     public:
         ~StatisticsPlugin();
@@ -53,14 +46,13 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_NDAPI bool isValid();
 
     public:
+        LOICOLLECTION_A_NDAPI int getRankingPlayerCount();
+
+    public:
         LOICOLLECTION_A_API bool load();
         LOICOLLECTION_A_API bool unload();
         LOICOLLECTION_A_API bool registry();
         LOICOLLECTION_A_API bool unregistry();
-
-    public:
-        class gui;
-        friend class gui;
 
     private:
         StatisticsPlugin();
@@ -73,17 +65,6 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<gui> mGui;
-    };
-
-    class StatisticsPlugin::gui {
-    private:
-        StatisticsPlugin& mParent;
-
-    public:
-        gui(StatisticsPlugin& plugin) : mParent(plugin) {}
-
-        LOICOLLECTION_A_API void open(Player& player, StatisticType type);
-        LOICOLLECTION_A_API void open(Player& player);
+        std::unique_ptr<StatisticsGui> mGui;
     };
 }

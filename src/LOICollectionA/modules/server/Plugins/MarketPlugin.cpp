@@ -16,9 +16,6 @@
 #include <ll/api/thread/ServerThreadExecutor.h>
 #include <ll/api/base/Containers.h>
 
-#include <ll/api/form/ModalForm.h>
-#include <ll/api/form/CustomForm.h>
-#include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
@@ -91,7 +88,7 @@ namespace LOICollection::server::Plugins {
         std::string source;
         std::string target;
 
-        TradeType type = TradeType::sell;
+        MarketTradeType type = MarketTradeType::sell;
     };
 
     struct MarketPlugin::Impl {
@@ -115,7 +112,7 @@ namespace LOICollection::server::Plugins {
         Impl() : BlacklistCache(100, 100) {}
     };
 
-    MarketPlugin::MarketPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
+    MarketPlugin::MarketPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<MarketGui>(*this)) {};
     MarketPlugin::~MarketPlugin() = default;
 
     MarketPlugin& MarketPlugin::getInstance() {
@@ -129,616 +126,6 @@ namespace LOICollection::server::Plugins {
 
     std::shared_ptr<ll::io::Logger> MarketPlugin::getLogger() {
         return this->mImpl->logger;
-    }
-
-    void MarketPlugin::gui::buyItem(Player& player, const std::string& id) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        if (!this->mParent.hasItem(id)) {
-            player.sendMessage(tr(mObjectLanguage, "market.gui.error"));
-
-            this->buy(player);
-            return;
-        }
-        
-        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->get("Item", id);
-
-        std::string mIntroduce = tr(mObjectLanguage, "market.gui.item.introduce");
-        ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), 
-            fmt::format(fmt::runtime(mIntroduce), 
-                mData.at("introduce"),
-                mData.at("score"),
-                mData.at("data"),
-                mData.at("player_name")
-            )
-        );
-        form.appendButton(tr(mObjectLanguage, "market.gui.sell.item.button1"), [this, id, mObjectLanguage, mData](Player& pl) mutable -> void {
-            int mScore = SystemUtils::toInt(mData.at("score"), 0);
-
-            std::string mScoreboard = this->mParent.mImpl->options.TargetScoreboard;
-            if (ScoreboardUtils::getScore(pl, mScoreboard) < mScore) {
-                pl.sendMessage(tr(mObjectLanguage, "market.gui.sell.sellItem.tips3"));
-
-                this->buy(pl);
-                return;
-            }
-
-            ScoreboardUtils::reduceScore(pl, mScoreboard, mScore);
-
-            ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at("data"))->mTags);
-            InventoryUtils::giveItem(pl, mItemStack, static_cast<int>(mItemStack.mCount));
-
-            pl.refreshInventory();
-
-            std::string mObject = mData.at("player_uuid");
-            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer) {
-                mPlayer->sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips1")), mData.at("name")));
-
-                ScoreboardUtils::addScore(*mPlayer, mScoreboard, mScore);
-            } else {
-                int mMarketScore = SystemUtils::toInt(this->mParent.mImpl->db2->get("Market", mObject, "Score", "0"), 0);
-
-                this->mParent.mImpl->db2->set("Market", mObject, "Score", std::to_string(mMarketScore + mScore));
-            }
-
-            this->mParent.delItem(id);
-
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), pl)), mData.at("name"));
-        });
-        if (player.getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors) {
-            form.appendButton(tr(mObjectLanguage, "market.gui.sell.item.button2"), [this, id, mObjectLanguage, mData](Player& pl) -> void {
-                pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips2")), mData.at("name")));
-                
-                this->mParent.delItem(id);
-
-                this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log3"), pl)), mData.at("name"));
-            });
-        }
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->buy(pl);
-        });
-    }
-
-    void MarketPlugin::gui::itemContent(Player& player, const std::string& id) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        if (!this->mParent.hasItem(id)) {
-            player.sendMessage(tr(mObjectLanguage, "market.gui.error"));
-
-            this->sellItemContent(player);
-            return;
-        }
-
-        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->get("Item", id);
-
-        std::string mIntroduce = tr(mObjectLanguage, "market.gui.item.introduce");
-        ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), 
-            fmt::format(fmt::runtime(mIntroduce),
-                mData.at("introduce"),
-                mData.at("score"),
-                mData.at("data"),
-                mData.at("player_name")
-            )
-        );
-        form.appendButton(tr(mObjectLanguage, "market.gui.sell.item.button2"), [this, id, mObjectLanguage, mData](Player& pl) -> void {
-            pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips2")), mData.at("name")));
-            
-            ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at("data"))->mTags);
-            InventoryUtils::giveItem(pl, mItemStack, static_cast<int>(mItemStack.mCount));
-
-            pl.refreshInventory();
-
-            this->mParent.delItem(id);
-
-            this->mParent.getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log3"), pl)), mData.at("name"));
-        });
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->sellItemContent(pl);
-        });
-    }
-
-    void MarketPlugin::gui::sellItem(Player& player, int mSlot) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        ll::form::CustomForm form(tr(mObjectLanguage, "market.gui.title"));
-        form.appendLabel(tr(mObjectLanguage, "market.gui.label"));
-        form.appendInput("Input1", tr(mObjectLanguage, "market.gui.sell.sellItem.input1"), tr(mObjectLanguage, "market.gui.sell.sellItem.input1.placeholder"));
-        form.appendInput("Input2", tr(mObjectLanguage, "market.gui.sell.sellItem.input2"), tr(mObjectLanguage, "market.gui.sell.sellItem.input2.placeholder"));
-        form.appendInput("Input3", tr(mObjectLanguage, "market.gui.sell.sellItem.input3"), tr(mObjectLanguage, "market.gui.sell.sellItem.input3.placeholder"));
-        form.appendInput("Input4", tr(mObjectLanguage, "market.gui.sell.sellItem.input4"), tr(mObjectLanguage, "market.gui.sell.sellItem.input4.placeholder"));
-        form.sendTo(player, [this, mSlot, mObjectLanguage](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-            if (!dt) return this->sellItemInventory(pl);
-
-            std::string mItemName = std::get<std::string>(dt->at("Input1"));
-            std::string mItemIcon = std::get<std::string>(dt->at("Input2"));
-            std::string mItemIntroduce = std::get<std::string>(dt->at("Input3"));
-
-            if (mItemName.empty() || mItemIcon.empty() || mItemIntroduce.empty()) {
-                pl.sendMessage(tr(mObjectLanguage, "generic.tips.noinput"));
-
-                this->sellItemInventory(pl);
-                return;
-            }
-
-            int mItemScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input4")), 0);
-
-            ItemStack mItemStack = pl.mInventory->mInventory->getItem(mSlot);
-            if (!mItemStack || mItemStack.isNull()) {
-                pl.sendMessage(tr(mObjectLanguage, "market.gui.error"));
-                
-                this->sellItemInventory(pl);
-                return;
-            }
-
-            this->mParent.addItem(pl, mItemStack, mItemName, mItemIcon, mItemIntroduce, mItemScore);
-
-            pl.mInventory->mInventory->removeItem(mSlot, 64);
-            pl.refreshInventory();
-        });
-    }
-
-    void MarketPlugin::gui::sellItemInventory(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        std::vector<std::string> mItems;
-        std::vector<int> mItemSlots;
-
-        std::vector<std::string> ProhibitedItems = this->mParent.mImpl->options.ProhibitedItems;
-        for (int i = 0; i < player.mInventory->mInventory->getContainerSize(); i++) {
-            ItemStack mItemStack = player.mInventory->mInventory->getItem(i);
-            
-            if (!mItemStack || mItemStack.isNull() || std::find(ProhibitedItems.begin(), ProhibitedItems.end(), mItemStack.getTypeName()) != ProhibitedItems.end())
-                continue;
-
-            std::string mItemName = fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.item.text")), 
-                mItemStack.getName(), std::to_string(mItemStack.mCount)
-            );
-
-            mItems.push_back(mItemName);
-            mItemSlots.push_back(i);
-        }
-
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "market.gui.title"),
-            tr(mObjectLanguage, "market.gui.sell.item.dropdown"),
-            mItems
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this, mObjectLanguage, mItemSlots = std::move(mItemSlots)](Player& pl, int index) -> void {
-            this->sellItem(pl, mItemSlots.at(index));
-        });
-        form->setCloseCallback([this](Player& pl) -> void {
-            this->personal(pl);
-        });
-
-        form->sendPage(player, 1);
-    }
-
-    void MarketPlugin::gui::sellItemContent(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        std::vector<std::pair<std::string, std::string>> mItems;
-        std::vector<std::string> mItemIds;
-
-        for (auto& item : this->mParent.getDatabase()->get("Item", this->mParent.getItems(player))) {
-            mItems.emplace_back(item.second.at("name"), item.second.at("icon"));
-            mItemIds.push_back(item.first);
-        }
-
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "market.gui.title"),
-            tr(mObjectLanguage, "market.gui.label"),
-            mItems
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this, mItemIds = std::move(mItemIds)](Player& pl, int index) -> void {
-            this->itemContent(pl, mItemIds.at(index));
-        });
-        form->setCloseCallback([this](Player& pl) -> void {
-            this->personal(pl);
-        });
-
-        form->sendPage(player, 1);
-    }
-
-    void MarketPlugin::gui::blacklistSet(Player& player, const std::string& target) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        if (!this->mParent.hasBlacklist(player, target)) {
-            player.sendMessage(tr(mObjectLanguage, "market.gui.error"));
-
-            this->blacklist(player);
-            return;
-        }
-
-        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->get("Blacklist", target);
-
-        std::string mObjectLabel = tr(mObjectLanguage, "market.gui.sell.blacklist.set.label");
-        ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), 
-            fmt::format(fmt::runtime(mObjectLabel),
-                mData.at("target"),
-                mData.at("name"),
-                SystemUtils::toFormatTime(mData.at("time"), "None")
-            )
-        );
-        form.appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist.set.remove"), [this, target](Player& pl) -> void {
-            this->mParent.delBlacklist(pl, target);
-        });
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->blacklist(pl);
-        });
-    }
-
-    void MarketPlugin::gui::blacklistAdd(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-        
-        std::vector<std::string> mPlayers;
-        std::vector<mce::UUID> mPlayerUuids;
-
-        ll::service::getLevel()->forEachPlayer([&player, &mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
-            if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
-                return true;
-
-            mPlayers.push_back(mTarget.getRealName());
-            mPlayerUuids.push_back(mTarget.getUuid());
-            return true;
-        });
-
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "market.gui.title"),
-            tr(mObjectLanguage, "market.gui.sell.blacklist.add.label"),
-            mPlayers
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this, mObjectLanguage, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
-            Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
-            if (!mPlayer) {
-                pl.sendMessage(tr(mObjectLanguage, "market.gui.error"));
-
-                this->blacklist(pl);
-                return;
-            }
-
-            this->mParent.addBlacklist(pl, *mPlayer);
-        });
-        form->setCloseCallback([this](Player& pl) -> void {
-            this->blacklist(pl);
-        });
-
-        form->sendPage(player, 1);
-    }
-
-    void MarketPlugin::gui::blacklist(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "market.gui.title"),
-            tr(mObjectLanguage, "market.gui.label"),
-            this->mParent.getBlacklist(player)
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this](Player& pl, const std::string& response) -> void {
-            this->blacklistSet(pl, response);
-        });
-        form->setCloseCallback([this](Player& pl) -> void {
-            this->personal(pl);
-        });
-
-        form->appendDivider();
-        form->appendButton(tr(mObjectLanguage, "market.gui.sell.blacklist.add"), "textures/ui/editIcon", [this, mObjectLanguage](Player& pl) -> void {
-            int mBlacklistCount = this->mParent.mImpl->options.BlacklistUpload;
-            if (static_cast<int>(this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
-                pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips5")), mBlacklistCount));
-                
-                this->personal(pl);
-                return;
-            }
-
-            this->blacklistAdd(pl);
-        });
-
-        form->sendPage(player, 1);
-    }
-
-    void MarketPlugin::gui::tradeConfirm(Player& player, Player& target, int mSlot, int score) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        ItemStack mItemStack = player.mInventory->mInventory->getItem(mSlot);
-        if (!mItemStack || mItemStack.isNull()) {
-            this->mParent.cancelTrade(target);
-
-            return;
-        }
-
-        ll::form::ModalForm form(tr(mObjectLanguage, "market.gui.title"), 
-            fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.trade.confirm.introduce")),
-                target.getRealName(),
-                mItemStack.getName(),
-                mItemStack.mCount,
-                mItemStack.save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0),
-                score
-            ),
-            tr(mObjectLanguage, "market.yes"),
-            tr(mObjectLanguage, "market.no")
-        );
-        form.sendTo(player, [this, mObjectLanguage, mSlot, score](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
-            if (result == ll::form::ModalFormSelectedButton::Upper) {
-                if (!this->mParent.acceptTrade(pl, mSlot, score))
-                    pl.sendMessage(tr(mObjectLanguage, "market.gui.error"));
-
-                return;
-            }
-            
-            this->mParent.cancelTrade(pl);
-        });
-    }
-
-    void MarketPlugin::gui::tradeItem(Player& player, Player& target, int mSlot) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(target);
-
-        ItemStack mItemStack = player.mInventory->mInventory->getItem(mSlot);
-        if (!mItemStack || mItemStack.isNull()) {
-            this->mParent.cancelTrade(player);
-
-            return;
-        }
-
-        ll::form::CustomForm form(tr(mObjectLanguage, "market.gui.title"));
-        form.appendLabel(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.trade.introduce")), 
-            player.getRealName(),
-            mItemStack.getName(),
-            mItemStack.mCount,
-            mItemStack.save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0)
-        ));
-        form.appendInput("Input", tr(mObjectLanguage, "market.gui.trade.input"), tr(mObjectLanguage, "market.gui.trade.input.placeholder"));
-        form.sendTo(target, [this, mSlot, player = player.getUuid()](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-            if (!dt) {
-                this->mParent.cancelTrade(pl);
-
-                return;
-            }
-
-            Player* mPlayer = ll::service::getLevel()->getPlayer(player);
-            if (!mPlayer) {
-                this->mParent.cancelTrade(pl);
-
-                return;
-            }
-
-            int mScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
-
-            this->tradeConfirm(*mPlayer, pl, mSlot, mScore);
-        });
-    }
-
-    void MarketPlugin::gui::tradeContent(Player& player, Player& target) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        std::vector<std::string> mItems;
-        std::vector<int> mItemSlots;
-
-        std::vector<std::string> ProhibitedItems = this->mParent.mImpl->options.ProhibitedItems;
-        for (int i = 0; i < player.mInventory->mInventory->getContainerSize(); i++) {
-            ItemStack mItemStack = player.mInventory->mInventory->getItem(i);
-            
-            if (!mItemStack || mItemStack.isNull() || std::find(ProhibitedItems.begin(), ProhibitedItems.end(), mItemStack.getTypeName()) != ProhibitedItems.end())
-                continue;
-
-            std::string mItemName = fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.item.text")), 
-                mItemStack.getName(), std::to_string(mItemStack.mCount)
-            );
-
-            mItems.push_back(mItemName);
-            mItemSlots.push_back(i);
-        }
-
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "market.gui.title"),
-            tr(mObjectLanguage, "market.gui.sell.item.dropdown"),
-            mItems
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this, mObjectLanguage, target = target.getUuid(),  mItemSlots = std::move(mItemSlots)](Player& pl, int index) -> void {
-            Player* mPlayer = ll::service::getLevel()->getPlayer(target);
-            if (!mPlayer) {
-                pl.sendMessage(tr(mObjectLanguage, "market.gui.error"));
-
-                this->mParent.cancelTrade(pl);
-                return;
-            }
-
-            this->tradeItem(pl, *mPlayer, mItemSlots.at(index));
-        });
-        form->setCloseCallback([this](Player& pl) -> void {
-            this->mParent.cancelTrade(pl);
-        });
-
-        form->sendPage(player, 1);
-    }
-
-    void MarketPlugin::gui::tradeRequest(Player& player, Player& target, TradeType type) {
-        if (this->mParent.mImpl->mTradeRequestMap.contains(player.getUuid().asString()) || this->mParent.mImpl->mTradeMap.contains(player.getUuid().asString())) {
-            player.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(player), "market.tips3"));
-
-            return;
-        }
-
-        this->mParent.sendRequest(player, target, type);
-
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(target);
-
-        ll::form::ModalForm form(tr(mObjectLanguage, "market.gui.title"),
-            LOICollectionAPI::APIUtils::getInstance().translate(tr(mObjectLanguage, (type == TradeType::buy) ? "market.buy" : "market.sell"), player),
-            tr(mObjectLanguage, "market.yes"),
-            tr(mObjectLanguage, "market.no")
-        );
-        form.sendTo(target, [this, mObjectLanguage](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
-            if (result == ll::form::ModalFormSelectedButton::Upper) {
-                if (!this->mParent.acceptRequest(pl))
-                    pl.sendMessage(tr(mObjectLanguage, "market.gui.error"));
-
-                return;
-            }
-            
-            this->mParent.rejectRequest(pl);
-        });
-    }
-
-    void MarketPlugin::gui::tradeType(Player& player, Player& target) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        ll::form::CustomForm form(tr(mObjectLanguage, "market.gui.title"));
-        form.appendLabel(tr(mObjectLanguage, "market.gui.label"));
-        form.appendDropdown("dropdown", tr(mObjectLanguage, "market.gui.trade.dropdown"), { "sell", "buy" });
-        form.sendTo(player, [this, mObjectLanguage, target = target.getUuid()](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-            if (!dt) return this->open(pl);
-
-            Player* mTarget = ll::service::getLevel()->getPlayer(target);
-            if (!mTarget) {
-                pl.sendMessage(tr(mObjectLanguage, "market.gui.error"));
-
-                this->open(pl);
-                return;
-            }
-
-            this->tradeRequest(pl, *mTarget,
-                std::get<std::string>(dt->at("dropdown")) == "sell" ? TradeType::sell : TradeType::buy
-            );
-        });
-    }
-
-    void MarketPlugin::gui::trade(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        std::vector<std::string> mPlayers;
-        std::vector<mce::UUID> mPlayerUuids;
-
-        ll::service::getLevel()->forEachPlayer([&player, &mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
-            if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
-                return true;
-
-            mPlayers.push_back(mTarget.getRealName());
-            mPlayerUuids.push_back(mTarget.getUuid());
-            return true;
-        });
-
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "market.gui.title"),
-            tr(mObjectLanguage, "market.gui.trade.label"),
-            mPlayers
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this, mObjectLanguage, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
-            Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
-            if (!mPlayer) {
-                pl.sendMessage(tr(mObjectLanguage, "market.gui.error"));
-
-                this->open(pl);
-                return;
-            }
-
-            this->tradeType(pl, *mPlayer);
-        });
-        form->setCloseCallback([this](Player& pl) -> void {
-            this->open(pl);
-        });
-
-        form->sendPage(player, 1);
-    }
-
-    void MarketPlugin::gui::personal(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
-        form.appendButton(tr(mObjectLanguage, "market.gui.personal.sellItem"), "textures/ui/icon_blackfriday", "path", [this](Player& pl) -> void {
-            this->sellItemInventory(pl);
-        });
-        form.appendButton(tr(mObjectLanguage, "market.gui.personal.sellItemContent"), "textures/ui/creative_icon", "path", [this, mObjectLanguage](Player& pl) -> void {
-            int mItemCount = this->mParent.mImpl->options.MaximumUpload;
-            if (static_cast<int>(this->mParent.getItems(pl).size()) >= mItemCount) {
-                pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips4")), mItemCount));
-
-                return;
-            }
-            
-            this->sellItemContent(pl);
-        });
-        form.appendButton(tr(mObjectLanguage, "market.gui.personal.blacklist"), "textures/ui/icon_deals", "path", [this](Player& pl) -> void {
-            this->blacklist(pl);
-        });
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->open(pl);
-        });
-    }
-
-    void MarketPlugin::gui::buy(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        std::string mUuid = player.getUuid().asString();
-        
-        std::vector<std::pair<std::string, std::string>> mItems;
-        std::vector<std::string> mItemIds;
-
-        for (auto& item : this->mParent.getDatabase()->get("Item", this->mParent.getItems())) {
-            std::vector<std::string> mList = this->mParent.getBlacklist(item.second.at("player_uuid"));
-            if (std::find(mList.begin(), mList.end(), mUuid) != mList.end())
-                continue;
-
-            mItems.emplace_back(item.second.at("name"), item.second.at("icon"));
-            mItemIds.push_back(item.first);
-        }
-
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "market.gui.title"),
-            tr(mObjectLanguage, "market.gui.label"),
-            mItems
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this, mItemIds = std::move(mItemIds)](Player& pl, int index) -> void {
-            this->buyItem(pl, mItemIds.at(index));
-        });
-        form->setCloseCallback([this](Player& pl) -> void {
-            this->open(pl);
-        });
-
-        form->sendPage(player, 1);
-    }
-
-    void MarketPlugin::gui::open(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        ll::form::SimpleForm form(tr(mObjectLanguage, "market.gui.title"), tr(mObjectLanguage, "market.gui.label"));
-        form.appendButton(tr(mObjectLanguage, "market.gui.worldbuy"), "textures/ui/world_glyph_color", "path", [this](Player& pl) -> void {
-            this->buy(pl);
-        });
-        form.appendButton(tr(mObjectLanguage, "market.gui.trade"), "textures/ui/trade_icon", "path", [this](Player& pl) -> void {
-            this->trade(pl);
-        });
-        form.appendButton(tr(mObjectLanguage, "market.gui.personal"), "textures/ui/icon_best3", "path", [this](Player& pl) -> void {
-            this->personal(pl);
-        });
-        form.sendTo(player);
     }
 
     void MarketPlugin::registeryCommand() {
@@ -789,6 +176,81 @@ namespace LOICollection::server::Plugins {
             it.second->interrupt();
 
         this->mImpl->mTimers.clear();
+    }
+
+    bool MarketPlugin::buyItem(Player& player, const std::string& id) {
+        if (!this->isValid())
+            return false;
+
+        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+        std::string mScoreboard = this->mImpl->options.TargetScoreboard;
+
+        std::unordered_map<std::string, std::string> mData = this->getItemData(id);
+
+        int mScore = SystemUtils::toInt(mData.at("score"), 0);
+        if (ScoreboardUtils::getScore(player, mScoreboard) < mScore) {
+            player.sendMessage(tr(mObjectLanguage, "market.gui.sell.sellItem.tips3"));
+
+            return false;
+        }
+
+        ScoreboardUtils::reduceScore(player, mScoreboard, mScore);
+
+        ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at("data"))->mTags);
+        InventoryUtils::giveItem(player, mItemStack, static_cast<int>(mItemStack.mCount));
+
+        player.refreshInventory();
+
+        std::string mObject = mData.at("player_uuid");
+        if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer) {
+            mPlayer->sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips1")), mData.at("name")));
+
+            ScoreboardUtils::addScore(*mPlayer, mScoreboard, mScore);
+        } else {
+            int mMarketScore = SystemUtils::toInt(this->mImpl->db2->get("Market", mObject, "Score", "0"), 0);
+
+            this->mImpl->db2->set("Market", mObject, "Score", std::to_string(mMarketScore + mScore));
+        }
+
+        this->delItem(id);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), player)), mData.at("name"));
+    
+        return true;
+    }
+
+    bool MarketPlugin::offshelfItem(Player& player, const std::string& id, bool returnItem) {
+        if (!this->isValid())
+            return false;
+
+        std::unordered_map<std::string, std::string> mData = this->getItemData(id);
+
+        if (returnItem) {
+            ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at("data"))->mTags);
+            InventoryUtils::giveItem(player, mItemStack, static_cast<int>(mItemStack.mCount));
+        }
+
+        player.sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(player), "market.gui.sell.sellItem.tips2")), mData.at("name")));
+
+        this->delItem(id);
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log3"), player)), mData.at("name"));
+
+        return true;
+    }
+    
+    bool MarketPlugin::sellItem(Player& player, int slot, const std::string& name, const std::string& icon, const std::string& intr, int score) {
+        if (!this->isValid())
+            return false;
+
+        ItemStack mItemStack = player.mInventory->mInventory->getItem(slot);
+        if (!mItemStack || mItemStack.isNull())
+            return false;
+
+        this->addItem(player, mItemStack, name, icon, intr, score);
+
+        player.mInventory->mInventory->removeItem(slot, 64);
+        player.refreshInventory();
+
+        return true;
     }
 
     void MarketPlugin::addBlacklist(Player& player, Player& target) {
@@ -896,7 +358,7 @@ namespace LOICollection::server::Plugins {
 
         sourcePlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "market.yes.tips"));
 
-        if (mEntry.type == TradeType::sell) {
+        if (mEntry.type == MarketTradeType::sell) {
             player.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(player), "market.tips4"));
 
             this->mGui->tradeContent(*sourcePlayer, player);
@@ -1028,7 +490,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    void MarketPlugin::sendRequest(Player& player, Player& target, TradeType type) {
+    void MarketPlugin::sendRequest(Player& player, Player& target, MarketTradeType type) {
         if (!this->isValid())
             return;
 
@@ -1063,7 +525,7 @@ namespace LOICollection::server::Plugins {
         this->getLogger()->info(fmt::runtime(tr({}, "market.log6")), player.getRealName(), target.getRealName());
     }
 
-    void MarketPlugin::sendTrade(Player& player, Player& target, TradeType type) {
+    void MarketPlugin::sendTrade(Player& player, Player& target, MarketTradeType type) {
         if (!this->isValid())
             return;
 
@@ -1094,6 +556,13 @@ namespace LOICollection::server::Plugins {
         }).launch(ll::thread::ServerThreadExecutor::getDefault());
 
         this->getLogger()->info(fmt::runtime(tr({}, "market.log7")), player.getRealName(), target.getRealName());
+    }
+
+    bool MarketPlugin::hasTrade(Player& player) {
+        if (!this->isValid())
+            return false;
+
+        return this->mImpl->mTradeRequestMap.contains(player.getUuid().asString()) || this->mImpl->mTradeMap.contains(player.getUuid().asString());
     }
 
     std::vector<std::string> MarketPlugin::getBlacklist(Player& player) {
@@ -1134,6 +603,27 @@ namespace LOICollection::server::Plugins {
         }, SQLiteStorage::FindCondition::AND);
     }
 
+    std::unordered_map<std::string, std::string> MarketPlugin::getItemData(const std::string& id) {
+        if (!this->isValid())
+            return {};
+
+        return this->getDatabase()->get("Item", id);
+    }
+
+    std::unordered_map<std::string, std::string> MarketPlugin::getBlacklistData(const std::string& id) {
+        if (!this->isValid())
+            return {};
+
+        return this->getDatabase()->get("Blacklist", id);
+    }
+
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> MarketPlugin::getItemsData(const std::vector<std::string>& ids) {
+        if (!this->isValid())
+            return {};
+
+        return this->getDatabase()->get("Item", ids);
+    }
+
     bool MarketPlugin::hasItem(const std::string& id) {
         if (!this->isValid())
             return false;
@@ -1161,6 +651,27 @@ namespace LOICollection::server::Plugins {
 
     bool MarketPlugin::isValid() {
         return this->getLogger() != nullptr && this->getDatabase() != nullptr && this->mImpl->db2 != nullptr;
+    }
+
+    std::vector<std::string> MarketPlugin::getProhibitedItems() {
+        if (!this->isValid())
+            return {};
+
+        return this->mImpl->options.ProhibitedItems;
+    }
+
+    int MarketPlugin::getBlacklistUpload() {
+        if (!this->isValid())
+            return 0;
+
+        return this->mImpl->options.BlacklistUpload;
+    }
+
+    int MarketPlugin::getMaximumUpload() {
+        if (!this->isValid())
+            return 0;
+
+        return this->mImpl->options.MaximumUpload;
     }
 
     bool MarketPlugin::load() {

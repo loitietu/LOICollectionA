@@ -4,6 +4,8 @@
 
 #include "LOICollectionA/base/Macro.h"
 
+#include "LOICollectionA/include/server/Plugins/gui/PvpGui.h"
+
 class Player;
 
 namespace ll::io {
@@ -49,16 +51,6 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<gui> mGui;
-    };
-
-    class PvpPlugin::gui {
-    private:
-        PvpPlugin& mParent;
-
-    public:
-        gui(PvpPlugin& plugin) : mParent(plugin) {}
-
-        LOICOLLECTION_A_API void open(Player& player);
+        std::unique_ptr<PvpGui> mGui;
     };
 }

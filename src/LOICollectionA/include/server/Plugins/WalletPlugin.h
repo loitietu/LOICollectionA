@@ -6,6 +6,8 @@
 
 #include "LOICollectionA/base/Macro.h"
 
+#include "LOICollectionA/include/server/Plugins/gui/WalletGui.h"
+
 class Player;
 
 namespace ll::io {
@@ -13,11 +15,6 @@ namespace ll::io {
 }
 
 namespace LOICollection::server::Plugins {
-    enum class TransferType {
-        online,
-        offline
-    };
-
     class WalletPlugin {
     public:
         ~WalletPlugin();
@@ -36,10 +33,18 @@ namespace LOICollection::server::Plugins {
 
         LOICOLLECTION_A_NDAPI std::vector<std::pair<std::string, std::string>> getPlayerInfo();
 
+        LOICOLLECTION_A_API   bool forTransfer(Player& player, const std::string& target, const std::string& name, int score);
+
         LOICOLLECTION_A_API   void transfer(const std::string& target, int score);
+        LOICOLLECTION_A_API   void wealth(Player& player);
         LOICOLLECTION_A_API   void redenvelope(Player& player, const std::string& key, int score, int count);
 
         LOICOLLECTION_A_NDAPI bool isValid();
+
+    public:
+        LOICOLLECTION_A_NDAPI std::string getTargetScoreboard();
+
+        LOICOLLECTION_A_NDAPI double getExchangeRate();
 
     public:
         LOICOLLECTION_A_API bool load();
@@ -64,20 +69,6 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<gui> mGui;
-    };
-
-    class WalletPlugin::gui {
-    private:
-        WalletPlugin& mParent;
-
-    public:
-        gui(WalletPlugin& plugin) : mParent(plugin) {}
-
-        LOICOLLECTION_A_API void content(Player& player, const std::string& target, TransferType type);
-        LOICOLLECTION_A_API void transfer(Player& player, TransferType type);
-        LOICOLLECTION_A_API void redenvelope(Player& player);
-        LOICOLLECTION_A_API void wealth(Player& player);
-        LOICOLLECTION_A_API void open(Player& player);
+        std::unique_ptr<WalletGui> mGui;
     };
 }

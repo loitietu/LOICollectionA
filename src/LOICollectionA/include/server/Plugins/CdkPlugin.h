@@ -2,8 +2,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "LOICollectionA/base/Macro.h"
+
+#include "LOICollectionA/include/server/Plugins/gui/CdkGui.h"
 
 class Player;
 class JsonStorage;
@@ -33,6 +36,8 @@ namespace LOICollection::server::Plugins {
 
         LOICOLLECTION_A_API   void convert(Player& player, const std::string& id);
 
+        LOICOLLECTION_A_NDAPI std::vector<std::string> getCdks();
+
         LOICOLLECTION_A_NDAPI bool has(const std::string& id);
         LOICOLLECTION_A_NDAPI bool isValid();
 
@@ -41,10 +46,6 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_API bool unload();
         LOICOLLECTION_A_API bool registry();
         LOICOLLECTION_A_API bool unregistry();
-
-    public:
-        class gui;
-        friend class gui;
 
     private:
         CdkPlugin();
@@ -55,29 +56,6 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<gui> mGui;
-    };
-
-    class CdkPlugin::gui {
-    private:
-        CdkPlugin& mParent;
-
-    public:
-        gui(CdkPlugin& plugin) : mParent(plugin) {}
-
-        LOICOLLECTION_A_API void convert(Player& player);
-        LOICOLLECTION_A_API void cdkNew(Player& player);
-        LOICOLLECTION_A_API void cdkRemoveInfo(Player& player, const std::string& id);
-        LOICOLLECTION_A_API void cdkRemove(Player& player);
-        LOICOLLECTION_A_API void cdkAwardScore(Player& player, const std::string& id);
-        LOICOLLECTION_A_API void cdkAwardItemCommon(Player& player, const std::string& id, const std::string& type);
-        LOICOLLECTION_A_API void cdkAwardItemType(Player& player, const std::string& id);
-        LOICOLLECTION_A_API void cdkAwardInventoryConfirm(Player& player, const std::string& id, int slot);
-        LOICOLLECTION_A_API void cdkAwardInventory(Player& player, const std::string& id);
-        LOICOLLECTION_A_API void cdkAwardItem(Player& player, const std::string& id);
-        LOICOLLECTION_A_API void cdkAwardTitle(Player& player, const std::string& id);
-        LOICOLLECTION_A_API void cdkAwardInfo(Player& player, const std::string& id);
-        LOICOLLECTION_A_API void cdkAward(Player& player);
-        LOICOLLECTION_A_API void open(Player& player);
+        std::unique_ptr<CdkGui> mGui;
     };
 }

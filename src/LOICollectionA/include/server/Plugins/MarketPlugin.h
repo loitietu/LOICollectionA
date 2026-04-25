@@ -3,8 +3,12 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "LOICollectionA/base/Macro.h"
+
+#include "LOICollectionA/include/server/Plugins/gui/MarketGui.h"
+#include "LOICollectionA/include/server/Plugins/types/MarketType.h"
 
 class Player;
 class ItemStack;
@@ -15,11 +19,6 @@ namespace ll::io {
 }
 
 namespace LOICollection::server::Plugins {
-    enum class TradeType {
-        sell,
-        buy
-    };
-
     class MarketPlugin {
     public:
         ~MarketPlugin();
@@ -35,6 +34,10 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_NDAPI std::shared_ptr<SQLiteStorage> getDatabase();
         LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
 
+        LOICOLLECTION_A_API   bool buyItem(Player& player, const std::string& id);
+        LOICOLLECTION_A_API   bool offshelfItem(Player& player, const std::string& id, bool returnItem = false);
+        LOICOLLECTION_A_API   bool sellItem(Player& player, int slot, const std::string& name, const std::string& icon, const std::string& intr, int score);
+
         LOICOLLECTION_A_API   void addBlacklist(Player& player, Player& target);
         LOICOLLECTION_A_API   void addItem(Player& player, ItemStack& item, const std::string& name, const std::string& icon, const std::string& intr, int score);
         LOICOLLECTION_A_API   void delBlacklist(Player& player, const std::string& target);
@@ -47,27 +50,35 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_API   bool acceptTrade(Player& player, int slot, int score);
         LOICOLLECTION_A_API   bool cancelTrade(Player& player);
 
-        LOICOLLECTION_A_API   void sendRequest(Player& player, Player& target, TradeType type);
-        LOICOLLECTION_A_API   void sendTrade(Player& player, Player& target, TradeType type);
+        LOICOLLECTION_A_API   void sendRequest(Player& player, Player& target, MarketTradeType type);
+        LOICOLLECTION_A_API   void sendTrade(Player& player, Player& target, MarketTradeType type);
+
+        LOICOLLECTION_A_NDAPI bool hasTrade(Player& player);
 
         LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(Player& player);
         LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(const std::string& target);
         LOICOLLECTION_A_NDAPI std::vector<std::string> getItems();
         LOICOLLECTION_A_NDAPI std::vector<std::string> getItems(Player& player);
 
+        LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::string> getItemData(const std::string& id);
+        LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::string> getBlacklistData(const std::string& id);
+        LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::unordered_map<std::string, std::string>> getItemsData(const std::vector<std::string>& ids);
+
         LOICOLLECTION_A_NDAPI bool hasItem(const std::string& id);
         LOICOLLECTION_A_NDAPI bool hasBlacklist(Player& player, const std::string& uuid);
         LOICOLLECTION_A_NDAPI bool isValid();
+
+    public:
+        LOICOLLECTION_A_NDAPI std::vector<std::string> getProhibitedItems();
+
+        LOICOLLECTION_A_NDAPI int getBlacklistUpload();
+        LOICOLLECTION_A_NDAPI int getMaximumUpload();
 
     public:
         LOICOLLECTION_A_API bool load();
         LOICOLLECTION_A_API bool unload();
         LOICOLLECTION_A_API bool registry();
         LOICOLLECTION_A_API bool unregistry();
-
-    public:
-        class gui;
-        friend class gui;
 
     private:
         MarketPlugin();
@@ -80,32 +91,6 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<gui> mGui;
-    };
-
-    class MarketPlugin::gui {
-    private:
-        MarketPlugin& mParent;
-
-    public:
-        gui(MarketPlugin& plugin) : mParent(plugin) {}
-
-        LOICOLLECTION_A_API void buyItem(Player& player, const std::string& id);
-        LOICOLLECTION_A_API void itemContent(Player& player, const std::string& id);
-        LOICOLLECTION_A_API void sellItem(Player& player, int mSlot);
-        LOICOLLECTION_A_API void sellItemInventory(Player& player);
-        LOICOLLECTION_A_API void sellItemContent(Player& player);
-        LOICOLLECTION_A_API void blacklistSet(Player& player, const std::string& target);
-        LOICOLLECTION_A_API void blacklistAdd(Player& player);
-        LOICOLLECTION_A_API void blacklist(Player& player);
-        LOICOLLECTION_A_API void tradeConfirm(Player& player, Player& target, int mSlot, int score);
-        LOICOLLECTION_A_API void tradeItem(Player& player, Player& target, int mSlot);
-        LOICOLLECTION_A_API void tradeContent(Player& player, Player& target);
-        LOICOLLECTION_A_API void tradeRequest(Player& player, Player& target, TradeType type);
-        LOICOLLECTION_A_API void tradeType(Player& player, Player& target);
-        LOICOLLECTION_A_API void trade(Player& player);
-        LOICOLLECTION_A_API void personal(Player& player);
-        LOICOLLECTION_A_API void buy(Player& player);
-        LOICOLLECTION_A_API void open(Player& player);
+        std::unique_ptr<MarketGui> mGui;
     };
 }

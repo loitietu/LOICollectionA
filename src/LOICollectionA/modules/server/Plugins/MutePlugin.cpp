@@ -11,8 +11,6 @@
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
-#include <ll/api/form/CustomForm.h>
-#include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
@@ -85,7 +83,7 @@ namespace LOICollection::server::Plugins {
         ll::event::ListenerPtr MuteRemoveEventListener;
     };
 
-    MutePlugin::MutePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<gui>(*this)) {};
+    MutePlugin::MutePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<MuteGui>(*this)) {};
     MutePlugin::~MutePlugin() = default;
 
     MutePlugin& MutePlugin::getInstance() {
@@ -99,143 +97,6 @@ namespace LOICollection::server::Plugins {
 
     std::shared_ptr<ll::io::Logger> MutePlugin::getLogger() {
         return this->mImpl->logger;
-    }
-
-    void MutePlugin::gui::info(Player& player, const std::string& id) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        if (!this->mParent.hasMute(id)) {
-            player.sendMessage(tr(mObjectLanguage, "mute.gui.error"));
-
-            this->remove(player);
-            return;
-        }
-        
-        std::unordered_map<std::string, std::string> mData = this->mParent.getDatabase()->get("Mute", id);
-
-        std::string mObjectLabel = tr(mObjectLanguage, "mute.gui.info.label");
-        ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.remove.title"), 
-            fmt::format(fmt::runtime(mObjectLabel), id,
-                mData.at("name"),
-                mData.at("cause"),
-                SystemUtils::toFormatTime(mData.at("subtime"), "None"),
-                SystemUtils::toFormatTime(mData.at("time"), "None")
-            )
-        );
-        form.appendButton(tr(mObjectLanguage, "mute.gui.info.remove"), [this, id](Player&) -> void {
-            this->mParent.delMute(id);
-        });
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->remove(pl);
-        });
-    }
-
-    void MutePlugin::gui::content(Player& player, Player& target) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        ll::form::CustomForm form(tr(mObjectLanguage, "mute.gui.add.title"));
-        form.appendLabel(tr(mObjectLanguage, "mute.gui.label"));
-        form.appendInput("Input1", tr(mObjectLanguage, "mute.gui.add.input1"), tr(mObjectLanguage, "mute.gui.add.input1.placeholder"));
-        form.appendInput("Input2", tr(mObjectLanguage, "mute.gui.add.input2"), tr(mObjectLanguage, "mute.gui.add.input2.placeholder"));
-        form.sendTo(player, [this, mObjectLanguage, target = target.getUuid()](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-            if (!dt) return this->add(pl);
-
-            Player* mTarget = ll::service::getLevel()->getPlayer(target);
-            if (!mTarget) {
-                pl.sendMessage(tr(mObjectLanguage, "mute.gui.error"));
-
-                this->add(pl);
-                return;
-            }
-
-            std::string mCause = std::get<std::string>(dt->at("Input1"));
-
-            if (mCause.empty()) {
-                pl.sendMessage(tr(mObjectLanguage, "generic.tips.noinput"));
-                return this->add(pl);
-            }
-
-            int time = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
-
-            this->mParent.addMute(*mTarget, mCause, time);
-        });
-    }
-
-    void MutePlugin::gui::add(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        std::vector<std::string> mPlayers;
-        std::vector<mce::UUID> mPlayerUuids;
-
-        ll::service::getLevel()->forEachPlayer([&mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
-            if (mTarget.isSimulatedPlayer())
-                return true;
-
-            mPlayers.push_back(mTarget.getRealName());
-            mPlayerUuids.push_back(mTarget.getUuid());
-            return true;
-        });
-
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "mute.gui.add.title"),
-            tr(mObjectLanguage, "mute.gui.add.label"),
-            mPlayers
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this, mObjectLanguage, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
-            Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
-            if (!mPlayer) {
-                pl.sendMessage(tr(mObjectLanguage, "mute.gui.error"));
-
-                this->open(pl);
-                return;
-            }
-
-            this->content(pl, *mPlayer);
-        });
-        form->setCloseCallback([this](Player& pl) -> void {
-            this->open(pl);
-        });
-
-        form->sendPage(player, 1);
-    }
-
-    void MutePlugin::gui::remove(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "mute.gui.remove.title"),
-            tr(mObjectLanguage, "mute.gui.remove.label"),
-            this->mParent.getMutes()
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this](Player& pl, const std::string& response) -> void {
-            this->info(pl, response);
-        });
-        form->setCloseCallback([this](Player& pl) -> void {
-            this->open(pl);
-        });
-
-        form->sendPage(player, 1);
-    }
-
-    void MutePlugin::gui::open(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        ll::form::SimpleForm form(tr(mObjectLanguage, "mute.gui.title"), tr(mObjectLanguage, "mute.gui.label"));
-        form.appendButton(tr(mObjectLanguage, "mute.gui.addMute"), "textures/ui/backup_replace", "path", [this](Player& pl) -> void {
-            this->add(pl);
-        });
-        form.appendButton(tr(mObjectLanguage, "mute.gui.removeMute"), "textures/ui/free_download_symbol", "path", [this](Player& pl) -> void {
-            this->remove(pl);
-        });
-        form.sendTo(player);
     }
 
     void MutePlugin::registeryCommand() {
@@ -423,6 +284,13 @@ namespace LOICollection::server::Plugins {
         return mKeys
             | std::views::take(limit > 0 ? limit : static_cast<int>(mKeys.size()))
             | std::ranges::to<std::vector<std::string>>();
+    }
+
+    std::unordered_map<std::string, std::string> MutePlugin::getMuteData(const std::string& id) {
+        if (!this->isValid())
+            return {};
+
+        return this->getDatabase()->get("Mute", id);
     }
 
     bool MutePlugin::hasMute(const std::string& id) {

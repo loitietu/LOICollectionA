@@ -23,7 +23,8 @@ add_requires("levilamina 26.10.4", {configs = {target_type = get_config("target_
 add_requires(
     "levibuildscript",
     "preloader 1.15.7",
-    "nlohmann_json 3.12.0"
+    "nlohmann_json 3.12.0",
+    "gtest v1.17.0"
 )
  
 if not has_config("vs_runtime") then
