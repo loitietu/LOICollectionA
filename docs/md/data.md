@@ -12,212 +12,214 @@
 
 ```json
 {
-    "version": 56354508, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
+    "version": 48591986, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
-    "Plugins": { // 内置插件配置
-        "Blacklist": {
-            "ModuleEnabled": false, // 是否启用黑名单
-            "BroadcastMessage": true // 是否启用黑名单内容广播
-        },
-        "Mute": false,   // 是否启用禁言
-        "Cdk": false, // 是否启用 CDK
-        "Menu": { // 菜单配置
-            "ModuleEnabled": false, // 是否启用菜单
-            "MenuItemId": "minecraft:clock",  // 打开菜单物品 ID
-            "EntranceKey": "main" // 菜单入口
-        },
-        "Tpa": { // TPA 配置
-            "ModuleEnabled": false, // 是否启用 TPA
-            "TargetScoreboard": "money", // TPA 请求目标使用 Score 对象
-            "BlacklistUpload": 10, // 玩家黑名单目标最大上传数量
-            "RequestRequired": 100, // TPA 请求所需 Score 数量
-            "RequestTimeout": 60, // TPA 请求超时时间（单位为秒）
-            "RequestUpload": 5 // 玩家传送请求最大上传数量
-        },
-        "Shop": false, // 是否启用商店
-        "Monitor": { // 消息强化配置
-            "ModuleEnabled": false, // 是否启用消息强化
-            "BelowName": {
-                "ModuleEnabled": true, // 是否启用玩家名称显示
-                "RefreshInterval": 20, // 刷新间隔，单位为 tick（20 tick = 1 秒）
-                "RefreshDisplayInterval": 100, // 刷新显示间隔，单位为 tick
-                "Pages": [
-                    [
-                        "{player}" // 每行显示内容
+    "ServerConfig": { // 服务端配置
+        "Plugins": { // 内置插件配置
+            "Blacklist": {
+                "ModuleEnabled": false, // 是否启用黑名单
+                "BroadcastMessage": true // 是否启用黑名单内容广播
+            },
+            "Mute": false,   // 是否启用禁言
+            "Cdk": false, // 是否启用 CDK
+            "Menu": { // 菜单配置
+                "ModuleEnabled": false, // 是否启用菜单
+                "MenuItemId": "minecraft:clock",  // 打开菜单物品 ID
+                "EntranceKey": "main" // 菜单入口
+            },
+            "Tpa": { // TPA 配置
+                "ModuleEnabled": false, // 是否启用 TPA
+                "TargetScoreboard": "money", // TPA 请求目标使用 Score 对象
+                "BlacklistUpload": 10, // 玩家黑名单目标最大上传数量
+                "RequestRequired": 100, // TPA 请求所需 Score 数量
+                "RequestTimeout": 60, // TPA 请求超时时间（单位为秒）
+                "RequestUpload": 5 // 玩家传送请求最大上传数量
+            },
+            "Shop": false, // 是否启用商店
+            "Monitor": { // 消息强化配置
+                "ModuleEnabled": false, // 是否启用消息强化
+                "BelowName": {
+                    "ModuleEnabled": true, // 是否启用玩家名称显示
+                    "RefreshInterval": 20, // 刷新间隔，单位为 tick（20 tick = 1 秒）
+                    "RefreshDisplayInterval": 100, // 刷新显示间隔，单位为 tick
+                    "Pages": [
+                        [
+                            "{player}" // 每行显示内容
+                        ]
+                    ] // 玩家名称显示格式，支持 LOICollectionA API 变量
+                },
+                "ServerToast": {
+                    "ModuleEnabled": true, // 是否启用服务器提示
+                    "Messager": {
+                        "join": true, // 是否启用玩家加入服务器提示
+                        "leave": true // 是否启用玩家退出服务器提示
+                    }
+                },
+                "ChangeScore": {
+                    "ModuleEnabled": true, // 是否启用 Score 变化检测
+                    "ScoreboardLists": [] // 检测 Score 变化的对象（为空时会检测所有 Score 的变更）
+                },
+                "DisableCommand": {
+                    "ModuleEnabled": true, // 是否启用指令禁用检测
+                    "CommandLists": [] // 被禁用的指令列表
+                },
+                "DynamicMotd": {
+                    "ModuleEnabled": true, // 是否启用动态服务器 MOTD
+                    "RefreshInterval": 200, // 刷新间隔，单位为 tick（20 tick = 1 秒）
+                    "Pages": [
+                        "'Players: '{server.player.online}'/'{server.player.max}" // 每行显示内容，支持 LOICollectionA API 变量
                     ]
-                ] // 玩家名称显示格式，支持 LOICollectionA API 变量
-            },
-            "ServerToast": {
-                "ModuleEnabled": true, // 是否启用服务器提示
-                "Messager": {
-                    "join": true, // 是否启用玩家加入服务器提示
-                    "leave": true // 是否启用玩家退出服务器提示
+                },
+                "Sidebar": {
+                    "ModuleEnabled": true, // 是否启用侧边栏
+                    "RefreshInterval": 20, // 刷新间隔，单位为 tick（20 tick = 1 秒）
+                    "Titles": [ // 侧边栏标题，每一行是对应一页的标题
+                        "'Title'" // 标题，支持 LOICollectionA API 变量
+                    ],
+                    "Pages": [
+                        [
+                            "'Content'" // 每行显示内容，支持 LOICollectionA API 变量
+                        ] // 每页内容
+                    ]
                 }
             },
-            "ChangeScore": {
-                "ModuleEnabled": true, // 是否启用 Score 变化检测
-                "ScoreboardLists": [] // 检测 Score 变化的对象（为空时会检测所有 Score 的变更）
+            "Pvp": {
+                "ModuleEnabled": false, // 是否启用 PVP
+                "ExtraListener": {
+                    "onActorHurt": true, // 是否启用玩家伤害侦听器
+                    "onSplashPotion": true, // 是否启用药水效果侦听器
+                    "onProjectileHit": true // 是否启用射击侦听器
+                }
             },
-            "DisableCommand": {
-                "ModuleEnabled": true, // 是否启用指令禁用检测
-                "CommandLists": [] // 被禁用的指令列表
+            "Wallet": { // 钱包配置
+                "ModuleEnabled": false, // 是否启用钱包
+                "TargetScoreboard": "money", // 钱包指定使用 Score 对象
+                "ExchangeRate": 0.1  // 钱包汇率
             },
-            "DynamicMotd": {
-                "ModuleEnabled": true, // 是否启用动态服务器 MOTD
-                "RefreshInterval": 200, // 刷新间隔，单位为 tick（20 tick = 1 秒）
-                "Pages": [
-                    "'Players: '{server.player.online}'/'{server.player.max}" // 每行显示内容，支持 LOICollectionA API 变量
-                ]
+            "Chat": { // 聊天强化配置
+                "ModuleEnabled": false, // 是否启用聊天强化
+                "FormatText": "<{player}> ${chat}", // 聊天消息格式，支持 LOICollectionA API 变量
+                "BlacklistUpload": 10 // 黑名单目标最大上传数量
             },
-            "Sidebar": {
-                "ModuleEnabled": true, // 是否启用侧边栏
-                "RefreshInterval": 20, // 刷新间隔，单位为 tick（20 tick = 1 秒）
-                "Titles": [ // 侧边栏标题，每一行是对应一页的标题
-                    "'Title'" // 标题，支持 LOICollectionA API 变量
-                ],
-                "Pages": [
-                    [
-                        "'Content'" // 每行显示内容，支持 LOICollectionA API 变量
-                    ] // 每页内容
-                ]
-            }
-        },
-        "Pvp": {
-            "ModuleEnabled": false, // 是否启用 PVP
-            "ExtraListener": {
-                "onActorHurt": true, // 是否启用玩家伤害侦听器
-                "onSplashPotion": true, // 是否启用药水效果侦听器
-                "onProjectileHit": true // 是否启用射击侦听器
-            }
-        },
-        "Wallet": { // 钱包配置
-            "ModuleEnabled": false, // 是否启用钱包
-            "TargetScoreboard": "money", // 钱包指定使用 Score 对象
-            "ExchangeRate": 0.1  // 钱包汇率
-        },
-        "Chat": { // 聊天强化配置
-            "ModuleEnabled": false, // 是否启用聊天强化
-            "FormatText": "<{player}> ${chat}", // 聊天消息格式，支持 LOICollectionA API 变量
-            "BlacklistUpload": 10 // 黑名单目标最大上传数量
-        },
-        "Notice": false, // 是否启用公告栏
-        "Market": { // 玩家市场配置
-            "ModuleEnabled": false, // 是否启用玩家市场
-            "TargetScoreboard": "money", // 玩家市场指定使用 Score 对象
-            "MaximumUpload": 20, // 玩家市场最大上传数量
-            "BlacklistUpload": 10, // 玩家黑名单目标最大上传数量
-            "TradeRequestTimeout": 60, // 玩家交易请求超时时间（单位为秒）
-            "TradeTimeout": 90, // 玩家交易超时时间（单位为秒）
-            "ProhibitedItems": [] // 玩家市场禁止上传的物品
-        },
-        "BehaviorEvent": { // 行为事件配置
-            "ModuleEnabled": false, // 是否启用行为事件
-            "OrganizeDatabaseInterval": 144, // 行为事件数据库清理阈值（单位为小时）
-            "CleanThresholdEvent": 10000, // 行为事件清理阈值
-            "CleanDatabaseInterval": 1, // 数据库自动清理间隔（单位为小时）
-            "RefreshIntervalInMinutes": 5, // 行为事件记录间隔（单位为分钟）
-            "SingleBacktrackingQuantity": 2000, // 单次回溯事件数量（注：数量越大，单 tick 内处理的事件就越多，可能会导致服务器滞留直至完成处理）
-            "Events": { // 行为事件配置
-                "onPlayerConnect": { // 玩家连接事件
-                    "ModuleEnabled": true, // 是否启用该事件
-                    "RecordDatabase": true, // 是否记录到数据库
-                    "OutputConsole": true // 是否输出到控制台
-                },
-                "onPlayerDisconnect": { // 玩家断开连接事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
-                "onPlayerChat": { // 玩家聊天事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
-                "onPlayerAddExperience": { // 玩家获得经验事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
-                "onPlayerAttack": { // 玩家攻击事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
-                "onPlayerChangePerm": { // 玩家权限改变事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
-                "onPlayerDestroyBlock": { // 玩家破坏方块事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
-                "onPlayerPlaceBlock": { // 玩家放置方块事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
-                "onPlayerDie": { // 玩家死亡事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
-                "onPlayerPickUpItem": { // 玩家捡起物品事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
-                "onPlayerRespawn": { // 玩家重生事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
-                "onPlayerUseItem": { // 玩家使用物品事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
-                "onPlayerContainerInteract": { // 玩家容器交互事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
-                },
-                "onBlockExplode": { // 方块爆炸事件
-                    "ModuleEnabled": true,
-                    "RecordDatabase": true,
-                    "OutputConsole": true
+            "Notice": false, // 是否启用公告栏
+            "Market": { // 玩家市场配置
+                "ModuleEnabled": false, // 是否启用玩家市场
+                "TargetScoreboard": "money", // 玩家市场指定使用 Score 对象
+                "MaximumUpload": 20, // 玩家市场最大上传数量
+                "BlacklistUpload": 10, // 玩家黑名单目标最大上传数量
+                "TradeRequestTimeout": 60, // 玩家交易请求超时时间（单位为秒）
+                "TradeTimeout": 90, // 玩家交易超时时间（单位为秒）
+                "ProhibitedItems": [] // 玩家市场禁止上传的物品
+            },
+            "BehaviorEvent": { // 行为事件配置
+                "ModuleEnabled": false, // 是否启用行为事件
+                "OrganizeDatabaseInterval": 144, // 行为事件数据库清理阈值（单位为小时）
+                "CleanThresholdEvent": 10000, // 行为事件清理阈值
+                "CleanDatabaseInterval": 1, // 数据库自动清理间隔（单位为小时）
+                "RefreshIntervalInMinutes": 5, // 行为事件记录间隔（单位为分钟）
+                "SingleBacktrackingQuantity": 2000, // 单次回溯事件数量（注：数量越大，单 tick 内处理的事件就越多，可能会导致服务器滞留直至完成处理）
+                "Events": { // 行为事件配置
+                    "onPlayerConnect": { // 玩家连接事件
+                        "ModuleEnabled": true, // 是否启用该事件
+                        "RecordDatabase": true, // 是否记录到数据库
+                        "OutputConsole": true // 是否输出到控制台
+                    },
+                    "onPlayerDisconnect": { // 玩家断开连接事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    },
+                    "onPlayerChat": { // 玩家聊天事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    },
+                    "onPlayerAddExperience": { // 玩家获得经验事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    },
+                    "onPlayerAttack": { // 玩家攻击事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    },
+                    "onPlayerChangePerm": { // 玩家权限改变事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    },
+                    "onPlayerDestroyBlock": { // 玩家破坏方块事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    },
+                    "onPlayerPlaceBlock": { // 玩家放置方块事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    },
+                    "onPlayerDie": { // 玩家死亡事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    },
+                    "onPlayerPickUpItem": { // 玩家捡起物品事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    },
+                    "onPlayerRespawn": { // 玩家重生事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    },
+                    "onPlayerUseItem": { // 玩家使用物品事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    },
+                    "onPlayerContainerInteract": { // 玩家容器交互事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    },
+                    "onBlockExplode": { // 方块爆炸事件
+                        "ModuleEnabled": true,
+                        "RecordDatabase": true,
+                        "OutputConsole": true
+                    }
+                }
+            },
+            "Statistics": {
+                "ModuleEnabled": false, // 是否启用统计
+                "RefreshIntervalInMinutes": 1, // 统计刷新间隔（单位为分钟）
+                "RankingPlayerCount": 100, // 排行榜显示数量
+                "DatabaseInfo": { // 统计数据库信息（每次退出后记录）
+                    "OnlineTime": true, // 是否启用在线时间统计
+                    "Kill": true, // 是否启用击杀生物统计
+                    "Death": true, // 是否启用死亡统计
+                    "Place": true, // 是否启用放置方块统计
+                    "Destroy": true, // 是否启用破坏方块统计
+                    "Respawn": true, // 是否启用重生统计
+                    "Join": true // 是否启用加入服务器统计
                 }
             }
         },
-        "Statistics": {
-            "ModuleEnabled": false, // 是否启用统计
-            "RefreshIntervalInMinutes": 1, // 统计刷新间隔（单位为分钟）
-            "RankingPlayerCount": 100, // 排行榜显示数量
-            "DatabaseInfo": { // 统计数据库信息（每次退出后记录）
-                "OnlineTime": true, // 是否启用在线时间统计
-                "Kill": true, // 是否启用击杀生物统计
-                "Death": true, // 是否启用死亡统计
-                "Place": true, // 是否启用放置方块统计
-                "Destroy": true, // 是否启用破坏方块统计
-                "Respawn": true, // 是否启用重生统计
-                "Join": true // 是否启用加入服务器统计
-            }
+        "ProtableTool": { // 便携工具配置
+            "BasicHook": { // 基础功能配置
+                "ModuleEnabled": false, // 是否启用基础功能
+                "FakeSeed": "$random" // 假种子配置
+            },
+            "RedStone": 0, // 红石高频检测，其中为每秒频率（为 0 时不启用）
+            "OrderedUI": false // 是否启用有序 UI
         }
-    },
-    "ProtableTool": { // 便携工具配置
-        "BasicHook": { // 基础功能配置
-            "ModuleEnabled": false, // 是否启用基础功能
-            "FakeSeed": "$random" // 假种子配置
-        },
-        "RedStone": 0, // 红石高频检测，其中为每秒频率（为 0 时不启用）
-        "OrderedUI": false // 是否启用有序 UI
     }
 }
 ```
 
 > [!NOTE]
-> 以上内容取自 LOICollectionA 1.11.2 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以上内容取自 LOICollectionA 1.12.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 
 ## 模块数据文件
 

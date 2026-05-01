@@ -19,7 +19,7 @@ option("target_type")
 option_end()
 
 add_requires("sqlitecpp 3.3.3", {configs = {shared = get_config("shared")}})
-add_requires("levilamina 26.10.4", {configs = {target_type = get_config("target_type")}})
+add_requires("levilamina 26.10.9", {configs = {target_type = get_config("target_type")}})
 add_requires(
     "levibuildscript",
     "preloader 1.15.7",

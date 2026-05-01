@@ -20,7 +20,7 @@ lip install github.com/loitietu/LOICollectionA
 - 对于安装指定版本的可以执行以下命令
 
 ```bash
-lip install github.com/loitietu/LOICollectionA@v1.11.1
+lip install github.com/loitietu/LOICollectionA@v1.12.0
 ```
 
 - 对于进行版本更新的可以执行以下命令
@@ -45,7 +45,7 @@ lip install --upgrade github.com/loitietu/LOICollectionA
 
 | 名称 | 版本 |
 | --- | --- |
-| LeviLamina | 1.9.x |
+| LeviLamina | 26.10.x |
 
 > 您需要手动下载对应版本的前置组件  
 > 在下载前置组件时，请确保您下载的版本与 LOICollectionA 的版本兼容  
@@ -63,3 +63,34 @@ lip install --upgrade github.com/loitietu/LOICollectionA
 
 - **无法启用: unknown error when make exception string**
   - 对于这个问题，可以尝试前往 Github Release 手动安装 `LOICollectionA-ES-windows-x64.zip` 版本
+
+## 安装 LOICollectionA-Expand
+
+> [!NOTE]
+> 以下内容与上面所提到的大致相似，这里只提供 `lip安装` 部分的详细说明
+
+### 安装说明
+
+> [!WARNING]
+> 在安装之前请确保已正常安装 `lip` 并配置好服务端
+
+- 请在服务端根目录下执行以下命令安装 LOICollectionA
+
+```bash
+lip install github.com/loitietu/LOICollectionA-Expand
+```
+
+- 对于安装指定版本的可以执行以下命令
+
+```bash
+lip install github.com/loitietu/LOICollectionA-Expand@v1.0.1
+```
+
+- 对于进行版本更新的可以执行以下命令
+
+```bash
+lip install --upgrade github.com/loitietu/LOICollectionA-Expand
+```
+
+> [!TIP]
+> 话说这真的有人看吗 qwq
