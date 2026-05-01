@@ -43,7 +43,7 @@ jobs:
               shell: pwsh
               run: |
                 $repoName = "${{ github.repository }}".Split('/')[1]
-                $manifestPath = "${{ github.workspace }}\build\bin\$repoName\manifest.json"
+                $manifestPath = "${{ github.workspace }}\build\bin-${{ matrix.target_type }}\$repoName\manifest.json"
                 if (Test-Path $manifestPath) {
                     $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
                     
@@ -64,8 +64,8 @@ jobs:
                 }
 
             - run: |
-                copy "${{ github.workspace }}\*.md" "${{ github.workspace }}\build\bin\"
-                copy "${{ github.workspace }}\LICENSE" "${{ github.workspace }}\build\bin\"
+                copy "${{ github.workspace }}\*.md" "${{ github.workspace }}\build\bin-${{ matrix.target_type }}\"
+                copy "${{ github.workspace }}\LICENSE" "${{ github.workspace }}\build\bin-${{ matrix.target_type }}\"
 
             - uses: actions/upload-artifact@v7
               with:
