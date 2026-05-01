@@ -29,6 +29,17 @@ namespace ScoreboardUtils {
         return !obj ? 0 : obj->getPlayerScore(identity).mValue;
     }
 
+    void create(const std::string& name) {
+        auto level = ll::service::getLevel();
+
+        if (hasScoreboard(name))
+            return;
+
+        level->getScoreboard().addObjective(
+            name, name, *level->getScoreboard().getCriteria("dummy")
+        );
+    }
+
     void modifyScore(ScoreboardId& identity, const std::string& name, int score, ScoreType action) {
         auto level = ll::service::getLevel();
 

@@ -75,7 +75,7 @@ namespace BlockUtils {
         
         auto mDimension = ll::service::getLevel()->getDimension(dimension).lock();
         BlockSource& mBlockSource = mDimension->getBlockSourceFromMainChunkSource();
-        if (auto mBlockActor = mBlockSource.getBlockEntity(pos); !mBlockActor)
+        if (auto mBlockActor = mBlockSource.getBlockEntity(pos); mBlockActor)
             mBlockActor->load(*ll::service::getLevel(), nbt, mDataLoadHelper);
     }
 }

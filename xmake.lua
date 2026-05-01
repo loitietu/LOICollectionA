@@ -68,14 +68,33 @@ target("LOICollectionA")
 
     add_includedirs("src", "$(builddir)/config")
 
+    if is_mode("debug") then
+        add_defines("DEBUG")
+
+        add_packages("gtest")
+        
+        add_files("tests/**.cpp")
+        add_includedirs("tests")
+    elseif is_mode("release") then
+        add_defines("NDEBUG")
+    end
+
     if is_server then
         add_files("src/LOICollectionA/**.cpp|modules/client/**.cpp")
         remove_headerfiles("src/LOICollectionA/include/(client/**.h)")
         add_defines("LL_PLAT_S")
+
+        if is_mode("debug") then
+            remove_files("tests/client/**.cpp")
+        end
     else
         add_files("src/LOICollectionA/**.cpp|modules/server/**.cpp|utils/*-server/**.cpp")
         remove_headerfiles("src/LOICollectionA/include/(server/**.h)")
         add_defines("LL_PLAT_C")
+
+        if is_mode("debug") then
+            remove_files("tests/server/**.cpp")
+        end
     end
 
     set_pcxxheader("src/LOICollectionA/include/Global.h")
@@ -98,12 +117,6 @@ target("LOICollectionA")
     set_kind("shared")
     set_languages("cxx20")
     set_symbols("debug")
-
-    if is_mode("debug") then
-        add_defines("DEBUG")
-    elseif is_mode("release") then
-        add_defines("NDEBUG")
-    end
 
     on_load(function (target)
         import("core.base.json")

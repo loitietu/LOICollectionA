@@ -43,18 +43,12 @@ namespace LOICollection::frontend {
     }
 
     void FunctionCall::registerFunction(const std::string& namespaces, const std::string& function, CallbackFunc callback, CallbackTypeArgs args) {
-        if (this->isRegistered(namespaces, function, args))
-            throw std::runtime_error("Function already registered");
-
         Signature sig{ function, args.size(), std::move(args), false };
 
         this->mImpl->mFunctions[namespaces][sig] = std::move(callback);
     }
 
     void FunctionCall::registerFunction(const std::string& namespaces, const std::string& function, CallbackFuncCombination callback, CallbackTypeArgs args) {
-        if (this->isRegistered(namespaces, function, args))
-            throw std::runtime_error("Function already registered");
-
         Signature sig{ function, args.size(), std::move(args), true };
 
         this->mImpl->mFunctionCombinations[namespaces][sig] = std::move(callback);
@@ -96,18 +90,12 @@ namespace LOICollection::frontend {
     }
 
     void MacroCall::registerMacro(const std::string& name, CallbackFunc callback, CallbackTypeArgs args) {
-        if (this->isRegistered(name, args))
-            throw std::runtime_error("Macro already registered");
-
         Signature sig{ name, args.size(), std::move(args), false };
 
         this->mImpl->mMacros[sig] = callback;
     }
 
     void MacroCall::registerMacro(const std::string& name, CallbackFuncCombination callback, CallbackTypeArgs args) {
-        if (this->isRegistered(name, args))
-            throw std::runtime_error("Macro already registered");
-
         Signature sig{ name, args.size(), std::move(args), true };
 
         this->mImpl->mMacroCombinations[sig] = callback;

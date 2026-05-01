@@ -21,6 +21,7 @@ namespace LOICollection::frontend {
     Evaluator::Value Evaluator::evalExpr(const ExprNode& expr, const Context& ctx) {
         switch (expr.getType()) {
             case ASTNode::Type::Value: return static_cast<const ValueNode&>(expr).value;
+            case ASTNode::Type::If: return evalIf(static_cast<const IfNode&>(expr), ctx);
             case ASTNode::Type::Function: return stringToValue(evalFunction(static_cast<const FunctionNode&>(expr), ctx));
             case ASTNode::Type::Macro: return stringToValue(evalMacro(static_cast<const MacroNode&>(expr), ctx));
             case ASTNode::Type::Compare: {
@@ -67,6 +68,9 @@ namespace LOICollection::frontend {
     }
 
     Evaluator::Value Evaluator::evalTemplate(const TemplateNode& tpl, const Context& ctx) {
+        if (tpl.parts.size() == 1)
+            return evalNode(*tpl.parts[0], ctx);
+
         std::string result;
         for (const auto& part : tpl.parts)
             result.append(valueToString(evalNode(*part, ctx)));
@@ -110,11 +114,17 @@ namespace LOICollection::frontend {
 
     Evaluator::Value Evaluator::evalNode(const ASTNode& node, const Context& ctx) {
         switch (node.getType()) {
-            case ASTNode::Type::Value: return valueToString(static_cast<const ValueNode&>(node).value);
-            case ASTNode::Type::If: return evalIf(static_cast<const IfNode&>(node), ctx);
-            case ASTNode::Type::Function: return evalFunction(static_cast<const FunctionNode&>(node), ctx);
-            case ASTNode::Type::Macro: return evalMacro(static_cast<const MacroNode&>(node), ctx);
             case ASTNode::Type::Template: return evalTemplate(static_cast<const TemplateNode&>(node), ctx);
+            
+            case ASTNode::Type::Value:
+            case ASTNode::Type::If:
+            case ASTNode::Type::Function:
+            case ASTNode::Type::Macro:
+            case ASTNode::Type::Compare:
+            case ASTNode::Type::Logical:
+            case ASTNode::Type::Arithmetic:
+            case ASTNode::Type::Unary:
+                return evalExpr(static_cast<const ExprNode&>(node), ctx);
             default:
                 throw std::runtime_error("Unsupported AST node type");
         }

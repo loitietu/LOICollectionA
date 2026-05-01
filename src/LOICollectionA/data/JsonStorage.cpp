@@ -64,6 +64,8 @@ bool JsonStorage::has_ptr(std::string_view ptr) const {
 }
 
 nlohmann::ordered_json JsonStorage::get() const {
+    std::shared_lock lock(this->mMutex);
+
     return this->mJson;
 }
 

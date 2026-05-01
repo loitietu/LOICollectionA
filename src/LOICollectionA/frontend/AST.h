@@ -22,7 +22,7 @@ namespace LOICollection::frontend {
         }
     };
 
-    struct IfNode : ASTNode {
+    struct IfNode : ExprNode {
         std::unique_ptr<ExprNode> condition;
         std::unique_ptr<ASTNode> trueBranch;
         std::unique_ptr<ASTNode> falseBranch;

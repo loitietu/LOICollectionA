@@ -20,20 +20,13 @@ namespace LOICollection::frontend {
             if (tpl->parts.size() >= 100)
                 throw std::runtime_error("Too many parts in template");
 
-            switch (currentToken.type) {
-                case TokenType::TOKEN_IF:
-                    tpl->addPart(parseIfStatement());
-                    break;
-                default:
-                    tpl->addPart(parseBaseExpression());
-                    break;
-            };
+            tpl->addPart(parseBaseExpression());
         }
 
         return tpl;
     }
 
-    std::unique_ptr<IfNode> Parser::parseIfStatement(TokenType falsePartToken) {
+    std::unique_ptr<IfNode> Parser::parseIfStatement() {
         eat(TokenType::TOKEN_IF);
         eat(TokenType::TOKEN_LPAREN);
 
@@ -42,11 +35,11 @@ namespace LOICollection::frontend {
         eat(TokenType::TOKEN_RPAREN);
         eat(TokenType::TOKEN_LBRCKET);
         
-        auto truePart = parseResult(TokenType::TOKEN_COLON);
+        auto truePart = parseTemplateUntil(TokenType::TOKEN_COLON, true);
 
         eat(TokenType::TOKEN_COLON);
 
-        auto falsePart = parseResult(falsePartToken);
+        auto falsePart = parseTemplateUntil(TokenType::TOKEN_RBRCKET, false);
 
         eat(TokenType::TOKEN_RBRCKET);
         
@@ -101,6 +94,45 @@ namespace LOICollection::frontend {
             std::move(args),
             std::move(name)
         );
+    }
+
+    std::unique_ptr<ASTNode> Parser::parseTemplateUntil(TokenType stopToken, bool stopOnColon) {
+        auto tpl = std::make_unique<TemplateNode>();
+
+        int bracketDepth = 0;
+        while (currentToken.type != TokenType::TOKEN_EOF) {
+            if (currentToken.type == TokenType::TOKEN_LBRCKET) {
+                bracketDepth++;
+            } else if (currentToken.type == TokenType::TOKEN_RBRCKET) {
+                if (bracketDepth == 0 && stopToken == TokenType::TOKEN_RBRCKET && !stopOnColon)
+                    break;
+                
+                bracketDepth--;
+            }
+
+            if (bracketDepth == 0) {
+                if (stopOnColon && currentToken.type == TokenType::TOKEN_COLON)
+                    break;
+
+                if (!stopOnColon && currentToken.type == stopToken)
+                    break;
+            }
+
+            if (currentToken.type == TokenType::TOKEN_IF) {
+                tpl->addPart(parseIfStatement()); 
+                continue;
+            }
+
+            tpl->addPart(parseBaseExpression());
+        }
+
+        if (tpl->parts.size() == 1) {
+            auto& only = tpl->parts[0];
+            if (dynamic_cast<ExprNode*>(only.get()))
+                return std::move(only);
+        }
+
+        return tpl;
     }
 
     std::unique_ptr<ValueNode> Parser::parseTranspile(TokenType stopToken) {
@@ -264,6 +296,8 @@ namespace LOICollection::frontend {
 
     std::unique_ptr<ExprNode> Parser::parsePrimary() {
         switch (currentToken.type) {
+            case TokenType::TOKEN_IF:
+                return parseIfStatement();
             case TokenType::TOKEN_LPAREN: {
                 eat(TokenType::TOKEN_LPAREN);
                 
@@ -324,24 +358,6 @@ namespace LOICollection::frontend {
             default:
                 throw std::runtime_error("Unexpected value type: " + currentToken.value);
         }
-    }
-
-    std::unique_ptr<ASTNode> Parser::parseResult(TokenType stopToken) {
-        auto tpl = std::make_unique<TemplateNode>();
-
-        while (currentToken.type != stopToken && currentToken.type != TokenType::TOKEN_EOF) {
-            if (tpl->parts.size() >= 100)
-                throw std::runtime_error("Too many parts in template");
-
-            if (currentToken.type == TokenType::TOKEN_IF) {
-                tpl->addPart(parseIfStatement(stopToken));
-                continue;
-            }
-
-            tpl->addPart(parseBaseExpression());
-        }
-        
-        return tpl;
     }
 
     TokenType Parser::peek() {

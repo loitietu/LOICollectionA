@@ -18,9 +18,11 @@ namespace LOICollection::frontend {
 
         LOICOLLECTION_A_NDAPI std::unique_ptr<ASTNode> parse();
     private:
-        std::unique_ptr<IfNode> parseIfStatement(TokenType falsePartToken = TokenType::TOKEN_RBRCKET);
+        std::unique_ptr<IfNode> parseIfStatement();
         std::unique_ptr<FunctionNode> parseFunction();
         std::unique_ptr<MacroNode> parseMacro();
+
+        std::unique_ptr<ASTNode> parseTemplateUntil(TokenType stopToken, bool stopOnColon = false);
 
         std::unique_ptr<ValueNode> parseTranspile(TokenType stopToken = TokenType::TOKEN_RBRACE);
         std::unique_ptr<TemplateNode> parseArgs(TokenType delimiterToken = TokenType::TOKEN_COMMA, TokenType stopToken = TokenType::TOKEN_RPAREN);
@@ -39,8 +41,6 @@ namespace LOICollection::frontend {
         std::unique_ptr<ExprNode> parsePrimary();
 
         std::unique_ptr<ValueNode> parseValue();
-
-        std::unique_ptr<ASTNode> parseResult(TokenType stopToken = TokenType::TOKEN_EOF); 
 
         TokenType peek();
 

@@ -169,6 +169,9 @@ namespace LOICollection::server::Plugins {
 
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         this->mImpl->mListeners.emplace("PlayerConnect", eventBus.emplaceListener<ll::event::PlayerConnectEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerConnectEvent& event) mutable -> void {
+            if (event.self().isSimulatedPlayer())
+                return;
+            
             if (option.OnlineTime)
                 this->mImpl->mOnilneTime.emplace(event.self().getUuid().asString(), SystemUtils::getNowTime());
             
@@ -177,6 +180,9 @@ namespace LOICollection::server::Plugins {
         }));
 
         this->mImpl->mListeners.emplace("PlayerDisconnect", eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerDisconnectEvent& event) mutable -> void {
+            if (event.self().isSimulatedPlayer())
+                return;
+            
             std::string mUuid = event.self().getUuid().asString();
             
             if (option.OnlineTime) {
@@ -205,16 +211,25 @@ namespace LOICollection::server::Plugins {
         }));
 
         this->mImpl->mListeners.emplace("PlayerPlaceBlock", eventBus.emplaceListener<ll::event::PlayerPlacedBlockEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerPlacedBlockEvent& event) mutable -> void {
+            if (event.self().isSimulatedPlayer())
+                return;
+            
             if (option.Place)
                 this->addStatistic(event.self(), StatisticType::place, 1);
         }));
 
         this->mImpl->mListeners.emplace("PlayerDestroyBlock", eventBus.emplaceListener<ll::event::PlayerDestroyBlockEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerDestroyBlockEvent& event) mutable -> void {
+            if (event.self().isSimulatedPlayer())
+                return;
+            
             if (option.Destroy)
                 this->addStatistic(event.self(), StatisticType::destroy, 1);
         }));
 
         this->mImpl->mListeners.emplace("PlayerRespawn", eventBus.emplaceListener<ll::event::PlayerRespawnEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerRespawnEvent& event) mutable -> void {
+            if (event.self().isSimulatedPlayer())
+                return;
+            
             if (option.Respawn)
                 this->addStatistic(event.self(), StatisticType::respawn, 1);
         }));
