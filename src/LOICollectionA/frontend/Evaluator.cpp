@@ -85,28 +85,32 @@ namespace LOICollection::frontend {
     }
 
     std::string Evaluator::evalFunction(const FunctionNode& func, const Context& ctx) {
-        const auto& args = static_cast<const TemplateNode&>(*func.args);
-
         std::vector<Value> values;
 
-        if (func.args && !args.parts.empty()) {
-            values.reserve(args.parts.size());
-            for (const auto& arg : args.parts)
-                values.push_back(evalNode(*arg, ctx));
+        if (func.args) {
+            const auto& args = static_cast<const TemplateNode&>(*func.args);
+
+            if (!args.parts.empty()) {
+                values.reserve(args.parts.size());
+                for (const auto& arg : args.parts)
+                    values.push_back(evalNode(*arg, ctx));
+            }
         }
 
         return FunctionCall::getInstance().callFunction(func.namespaces, func.name, values, ctx.params);
     }
 
     std::string Evaluator::evalMacro(const MacroNode& macro, const Context& ctx) {
-        const auto& args = static_cast<const TemplateNode&>(*macro.args);
-
         std::vector<Value> values;
 
-        if (macro.args && !args.parts.empty()) {
-            values.reserve(args.parts.size());
-            for (const auto& arg : args.parts)
-                values.push_back(evalNode(*arg, ctx));
+        if (macro.args) {
+            const auto& args = static_cast<const TemplateNode&>(*macro.args);
+
+            if (!args.parts.empty()) {
+                values.reserve(args.parts.size());
+                for (const auto& arg : args.parts)
+                    values.push_back(evalNode(*arg, ctx));
+            }
         }
 
         return MacroCall::getInstance().callMacro(macro.name, values, ctx.params);
@@ -178,29 +182,29 @@ namespace LOICollection::frontend {
             using T = std::decay_t<decltype(l)>;
             using U = std::decay_t<decltype(r)>;
             
-            if constexpr (!std::is_same_v<T, U>)
-                throw std::runtime_error("Type mismatch in arithmetic operation");
-            else {
+            if constexpr (std::is_arithmetic_v<T> && std::is_arithmetic_v<U>) {
+                auto dl = static_cast<double>(l);
+                auto dr = static_cast<double>(r);
+
+                if (op == "+") return static_cast<float>(dl + dr);
+                if (op == "-") return static_cast<float>(dl - dr);
+                if (op == "*") return static_cast<float>(dl * dr);
+                if (op == "/") return static_cast<float>(dl / dr);
+                if (op == "^") return static_cast<float>(MathUtils::pow(dl, dr));
+                if (op == "%") {
+                    if constexpr (std::is_integral_v<T> && std::is_integral_v<U>)
+                        return l % r;
+
+                    throw std::runtime_error("Modulo operator is not supported for non-integral types");
+                }
+
+                throw std::runtime_error("Unsupported arithmetic operator: " + op);
+            } else if constexpr (std::is_same_v<T, U>) {
                 if (op == "+") return l + r;
 
-                if constexpr (
-                    (std::is_same_v<std::remove_cv_t<T>, int> && std::is_same_v<std::remove_cv_t<U>, int>) ||
-                    (std::is_same_v<std::remove_cv_t<T>, float> && std::is_same_v<std::remove_cv_t<U>, float>)
-                ) {
-                    if (op == "-") return l - r;
-                    if (op == "*") return l * r;
-                    if (op == "/") return l / r;
-                }
-
-                if constexpr (std::is_same_v<std::remove_cv_t<T>, int> && std::is_same_v<std::remove_cv_t<U>, int>) {
-                    if (op == "%") return l % r;
-                    if (op == "^") return MathUtils::pow(l, r);
-                }
-
-                if constexpr (std::is_same_v<std::remove_cv_t<T>, float> && std::is_same_v<std::remove_cv_t<U>, float>)
-                    if (op == "^") return std::pow(l, r);
-                
-                throw std::runtime_error("Unsupported arithmetic operator: " + op);
+                throw std::runtime_error("Unsupported string operator: " + op);
+            } else {
+                throw std::runtime_error("Type mismatch in arithmetic operation");
             }
         }, left, right);
     }
@@ -240,10 +244,8 @@ namespace LOICollection::frontend {
             using T = std::decay_t<decltype(l)>;
             using U = std::decay_t<decltype(r)>;
             
-            if constexpr (!std::is_same_v<T, U>)
-                throw std::runtime_error("Type mismatch in comparison");
-            else {
-                auto cmp = l <=> r;
+            if constexpr (std::is_arithmetic_v<T> && std::is_arithmetic_v<U>) {
+                auto cmp = static_cast<double>(l) <=> static_cast<double>(r);
 
                 if (op == "==") return cmp == 0;
                 if (op == "!=") return cmp != 0;
@@ -253,6 +255,19 @@ namespace LOICollection::frontend {
                 if (op == "<=") return cmp <= 0;
                 
                 throw std::runtime_error("Unsupported comparison operator: " + op);
+            } else if constexpr (std::is_same_v<T, U>) {
+                auto cmp = l <=> r;
+
+                if (op == "==") return cmp == 0;
+                if (op == "!=") return cmp != 0;
+                if (op == ">") return cmp > 0;
+                if (op == "<") return cmp < 0;
+                if (op == ">=") return cmp >= 0;
+                if (op == "<=") return cmp <= 0;
+
+                throw std::runtime_error("Unsupported comparison operator: " + op);
+            } else {
+                throw std::runtime_error("Type mismatch in comparison");
             }
         }, left, right);
     }

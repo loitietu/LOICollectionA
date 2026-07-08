@@ -19,6 +19,7 @@
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 
+#include <mc/deps/certificates/WebToken.h>
 #include <mc/deps/core/string/HashedString.h>
 
 #include <mc/world/level/Level.h>
@@ -181,11 +182,9 @@ namespace LOICollection::server::Plugins {
             if (event.getPacket().getId() != MinecraftPacketIds::Login)
                 return;
 
-            auto packet = static_cast<LoginPacket const&>(event.getPacket());
-
-            std::string mUuid = packet.mConnectionRequest->mCertificateData->mRawToken.mDataInfo.get("extraData", {}).get("identity", "None").asString("None");
+            std::string mUuid = static_cast<LoginPacket const&>(event.getPacket()).mConnectionRequest->mRawToken->mDataInfo.get("extraData", {}).get("identity", "None").asString("None");
             std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find_last_of(':'));
-            std::string mClientId = packet.mConnectionRequest->getDeviceId();
+            std::string mClientId = static_cast<LoginPacket const&>(event.getPacket()).mConnectionRequest->getDeviceId();
 
             std::string mId = this->getDatabase()->find("Blacklist", {
                 { "data_uuid", mUuid },
@@ -207,7 +206,7 @@ namespace LOICollection::server::Plugins {
                 fmt::format(fmt::runtime(mObjectTips),
                     SystemUtils::toFormatTime(mData.at("time"), "None"), mData.at("cause")
                 ),
-                std::nullopt, false
+                std::nullopt
             );
         });
 
@@ -258,7 +257,7 @@ namespace LOICollection::server::Plugins {
                 SystemUtils::toFormatTime(this->getDatabase()->get("Blacklist", mTismestamp, "time"), "None"),
                 mCause
             ),
-            std::nullopt, false
+            std::nullopt
         );
 
         if (this->mImpl->options.BroadcastMessage) {

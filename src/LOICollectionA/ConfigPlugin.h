@@ -55,7 +55,7 @@ namespace Config {
         struct C_DynamicMotd {
             bool ModuleEnabled = true;
             int RefreshInterval = 200;
-            std::vector<std::string> Pages{ "'Players: '{server.player.online}'/'{server.player.max}" };
+            std::vector<std::string> Pages{ "'Players: '{server_player_online}'/'{server_player_max}" };
         } DynamicMotd;
 
         struct C_Sidebar {

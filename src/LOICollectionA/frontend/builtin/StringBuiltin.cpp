@@ -63,25 +63,30 @@ namespace StringBuiltin {
             using T2 = std::decay_t<decltype(arg2)>;
             using T3 = std::decay_t<decltype(arg3)>;
 
-            if constexpr (std::is_same_v<T1, std::string> && std::is_same_v<T2, int> && std::is_same_v<T3, int>)
-                return arg1.substr(arg2, arg3);
-            else
-                return {};
+            if constexpr (std::is_same_v<T1, std::string> && std::is_same_v<T2, int> && std::is_same_v<T3, int>) {
+                if (arg2 < 0 || static_cast<size_t>(arg2) >= arg1.size())
+                    return std::string{};
+
+                size_t count = (arg3 < 0) ? 0 : static_cast<size_t>(arg3);
+                return arg1.substr(arg2, count);
+            }
+            return {};
         }, args[0], args[1], args[2]);
     }
 
     std::string trim(const LOICollection::frontend::CallbackTypeValues& args) {
         return std::visit([](auto&& arg) -> std::string {
             using T = std::decay_t<decltype(arg)>;
-
             if constexpr (std::is_same_v<T, std::string>) {
-                std::string result = arg;
-                result.erase(0, result.find_first_not_of(" \t\n\r"));
-                result.erase(result.find_last_not_of(" \t\n\r") + 1);
-                return result;
-            } else {
-                return {};
+                auto first = arg.find_first_not_of(" \t\n\r");
+                if (first == std::string::npos)
+                    return std::string{};
+
+                auto last = arg.find_last_not_of(" \t\n\r");
+                return arg.substr(first, last - first + 1);
             }
+            
+            return {};
         }, args[0]);
     }
 
@@ -92,6 +97,9 @@ namespace StringBuiltin {
             using T3 = std::decay_t<decltype(arg3)>;
 
             if constexpr (std::is_same_v<T1, std::string> && std::is_same_v<T2, std::string> && std::is_same_v<T3, std::string>) {
+                if (arg2.empty())
+                    return arg1;
+
                 std::string result = arg1;
                 size_t pos = 0;
                 while ((pos = result.find(arg2, pos)) != std::string::npos) {

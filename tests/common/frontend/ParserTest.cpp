@@ -15,9 +15,10 @@ TEST(ParserEvalTest, LiteralValues) {
 TEST(ParserEvalTest, Arithmetic) {
     EXPECT_EQ(eval("1+2"), "3");
     EXPECT_EQ(eval("2*3+1"), "7");
-    EXPECT_EQ(eval("10/3"), "3");
+    EXPECT_EQ(eval("10/3"), std::to_string(static_cast<float>(10.0 / 3.0)));
     EXPECT_EQ(eval("2^3"), "8");
     EXPECT_EQ(eval("10%3"), "1");
+    EXPECT_EQ(eval("5^3^2"), std::to_string(static_cast<int>(std::pow(5, std::pow(3, 2)))));
 }
 
 TEST(ParserEvalTest, Unary) {

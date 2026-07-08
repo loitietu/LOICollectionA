@@ -236,10 +236,10 @@ namespace LOICollection::server::LOICollectionAPI {
             return player.getOffhandSlot().getName();
         });
         this->registerVariable("player_ms", [](Player& player) -> std::string {
-            return std::to_string(player.getNetworkStatus()->mAveragePing);
+            return std::to_string(std::min(player.getNetworkStatus()->mAveragePing->count(), static_cast<long long>(300000)));
         });
         this->registerVariable("player_ms_avg", [](Player& player) -> std::string {
-            return std::to_string(player.getNetworkStatus()->mCurrentPing);
+            return std::to_string(std::min(player.getNetworkStatus()->mCurrentPing->count(), static_cast<long long>(300000)));
         });
         this->registerVariable("player_packet", [](Player& player) -> std::string {
             return std::to_string(player.getNetworkStatus()->mAveragePacketLoss);

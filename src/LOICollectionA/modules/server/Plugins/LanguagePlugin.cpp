@@ -29,7 +29,7 @@
 #include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/ServiceProvider.h"
 
-#include "LOICollectionA/Include/server/Plugins/LanguagePlugin.h"
+#include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 
 using I18nUtilsTools::tr;
 

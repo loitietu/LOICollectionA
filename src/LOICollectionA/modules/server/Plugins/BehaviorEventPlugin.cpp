@@ -461,7 +461,7 @@ namespace LOICollection::server::Plugins {
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerConnectEvent&>(event);
             
-            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().mValue,
                 sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z);
         });
 
@@ -480,7 +480,7 @@ namespace LOICollection::server::Plugins {
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerDisconnectEvent&>(event);
             
-            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().mValue,
                 sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z);
         });
 
@@ -588,7 +588,7 @@ namespace LOICollection::server::Plugins {
             if (auto mBlock = BlockUtils::getBlock(sevent.pos(), sevent.self().getDimensionId()); mBlock.has_value())
                 mBlockType = mBlock.value()->getTypeName();
             
-            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().mValue,
                 sevent.pos().x, sevent.pos().y, sevent.pos().z, mBlockType.empty() ? "Unknown" : mBlockType);
         });
 
@@ -612,7 +612,7 @@ namespace LOICollection::server::Plugins {
 
             BlockPos mPosition = sevent.pos();
             
-            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().mValue,
                 mPosition.x, mPosition.y, mPosition.z, sevent.self().getCarriedItem().getTypeName());
         });
 
@@ -633,7 +633,7 @@ namespace LOICollection::server::Plugins {
             auto& sevent = static_cast<ll::event::PlayerDieEvent&>(event);
             
             return fmt::format(fmt::runtime(message), sevent.self().getRealName(), magic_enum::enum_name(sevent.source().mCause).data(),
-                sevent.self().getDimensionId().id, sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z);
+                sevent.self().getDimensionId().mValue, sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z);
         });
 
         this->registeryEvent<ll::event::PlayerPickUpItemEvent>("PlayerPickUpItem", "Normal", "behaviorevent.event.playerpickupitem", [this](BehaviorEventConfig config) -> bool {
@@ -654,7 +654,7 @@ namespace LOICollection::server::Plugins {
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerPickUpItemEvent&>(event);
 
-            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().mValue,
                 sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z, sevent.itemActor().item().getTypeName());
         });
 
@@ -673,7 +673,7 @@ namespace LOICollection::server::Plugins {
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerRespawnEvent&>(event);
             
-            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().mValue,
                 sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z);
         });
         
@@ -693,7 +693,7 @@ namespace LOICollection::server::Plugins {
         }, [](std::string message, ll::event::Event& event) -> std::string {
             auto& sevent = static_cast<ll::event::PlayerUseItemEvent&>(event);
 
-            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().id,
+            return fmt::format(fmt::runtime(message), sevent.self().getRealName(), sevent.self().getDimensionId().mValue,
                 sevent.self().getPosition().x, sevent.self().getPosition().y, sevent.self().getPosition().z, sevent.item().getTypeName());
         });
 

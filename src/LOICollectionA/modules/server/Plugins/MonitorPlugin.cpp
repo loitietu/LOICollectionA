@@ -63,11 +63,8 @@
 
 #include "LOICollectionA/include/server/Plugins/MonitorPlugin.h"
 
-SetDisplayObjectivePacket::SetDisplayObjectivePacket() : mSerializationMode() {};
-SetDisplayObjectivePacketPayload::SetDisplayObjectivePacketPayload() : mSortOrder()  {};
-RemoveObjectivePacket::RemoveObjectivePacket() : mSerializationMode() {};
-RemoveObjectivePacketPayload::RemoveObjectivePacketPayload() = default;
-SetScorePacket::SetScorePacket() : mType() {};
+SetScorePacket::SetScorePacket() { mType = ScorePacketType::Change; }
+SetDisplayObjectivePacketPayload::SetDisplayObjectivePacketPayload() { mSortOrder = ObjectiveSortOrder::Ascending; }
 
 using I18nUtilsTools::tr;
 

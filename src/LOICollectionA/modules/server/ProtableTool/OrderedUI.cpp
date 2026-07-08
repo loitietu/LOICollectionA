@@ -98,7 +98,12 @@ namespace LOICollection::server::ProtableTool {
             }
             
             auto it = std::prev(this->mImpl->mFormLists[mIdentifierHash].end());
-            ModalFormRequestPacket(it->first, it->second).sendToClient(event.getNetworkIdentifier(), event.getSubClientId());
+
+            ModalFormRequestPacket request;
+            request.mFormId = it->first;
+            request.mFormJSON = it->second;
+            request.sendToClient(event.getNetworkIdentifier(), event.getSubClientId());
+            
             this->mImpl->mFormLists[mIdentifierHash].erase(it);
         });
         this->mImpl->PlayerDisconnectEventListener = eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([this](ll::event::PlayerDisconnectEvent& event) mutable -> void {

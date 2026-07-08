@@ -25,7 +25,7 @@
 
 #include "LOICollectionA/include/RegistryHelper.h"
 
-#include "LOICollectionA/include/Form/PaginatedForm.h"
+#include "LOICollectionA/include/form/PaginatedForm.h"
 
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 #include "LOICollectionA/include/server/Events/modules/NoticeEvent.h"

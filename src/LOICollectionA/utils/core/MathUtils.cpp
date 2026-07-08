@@ -1,14 +1,20 @@
 #include "MathUtils.h"
 
 namespace MathUtils {
-    int pow(int base, int exponent) {
-        int result = 1;
-        while (exponent > 0) {
-            if (exponent & 1)
+    double pow(double base, double exponent) {
+        auto exp = static_cast<long long>(exponent);
+        if (exp < 0) {
+            base = 1.0 / base;
+            exp = -exp;
+        }
+
+        double result = 1.0;
+        while (exp > 0) {
+            if (exp & 1)
                 result *= base;
             
             base *= base;
-            exponent >>= 1;
+            exp >>= 1;
         }
 
         return result;

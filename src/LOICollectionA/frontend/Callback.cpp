@@ -42,20 +42,20 @@ namespace LOICollection::frontend {
         return instance;
     }
 
-    void FunctionCall::registerFunction(const std::string& namespaces, const std::string& function, CallbackFunc callback, CallbackTypeArgs args) {
-        Signature sig{ function, args.size(), std::move(args), false };
+    void FunctionCall::registerFunction(const std::string& namespaces, const std::string& function, CallbackFunc callback, const CallbackTypeArgs& args) {
+        Signature sig{ function, args.size(), args, false };
 
         this->mImpl->mFunctions[namespaces][sig] = std::move(callback);
     }
 
-    void FunctionCall::registerFunction(const std::string& namespaces, const std::string& function, CallbackFuncCombination callback, CallbackTypeArgs args) {
-        Signature sig{ function, args.size(), std::move(args), true };
+    void FunctionCall::registerFunction(const std::string& namespaces, const std::string& function, CallbackFuncCombination callback, const CallbackTypeArgs& args) {
+        Signature sig{ function, args.size(), args, true };
 
         this->mImpl->mFunctionCombinations[namespaces][sig] = std::move(callback);
     }
 
-    bool FunctionCall::isRegistered(const std::string& namespaces, const std::string& function, CallbackTypeArgs args) const {
-        Signature sig{ function, args.size(), std::move(args), false };
+    bool FunctionCall::isRegistered(const std::string& namespaces, const std::string& function, const CallbackTypeArgs& args) const {
+        Signature sig{ function, args.size(), args, false };
         bool result = this->mImpl->mFunctions[namespaces].find(sig) != this->mImpl->mFunctions[namespaces].end();
 
         sig.isCombination = true;
@@ -89,20 +89,20 @@ namespace LOICollection::frontend {
         return instance;
     }
 
-    void MacroCall::registerMacro(const std::string& name, CallbackFunc callback, CallbackTypeArgs args) {
-        Signature sig{ name, args.size(), std::move(args), false };
+    void MacroCall::registerMacro(const std::string& name, CallbackFunc callback, const CallbackTypeArgs& args) {
+        Signature sig{ name, args.size(), args, false };
 
         this->mImpl->mMacros[sig] = callback;
     }
 
-    void MacroCall::registerMacro(const std::string& name, CallbackFuncCombination callback, CallbackTypeArgs args) {
-        Signature sig{ name, args.size(), std::move(args), true };
+    void MacroCall::registerMacro(const std::string& name, CallbackFuncCombination callback, const CallbackTypeArgs& args) {
+        Signature sig{ name, args.size(), args, true };
 
         this->mImpl->mMacroCombinations[sig] = callback;
     }
 
-    bool MacroCall::isRegistered(const std::string& name, CallbackTypeArgs args) const {
-        Signature sig{ name, args.size(), std::move(args), false };
+    bool MacroCall::isRegistered(const std::string& name, const CallbackTypeArgs& args) const {
+        Signature sig{ name, args.size(), args, false };
         bool result = this->mImpl->mMacros.find(sig) != this->mImpl->mMacros.end();
 
         sig.isCombination = true;

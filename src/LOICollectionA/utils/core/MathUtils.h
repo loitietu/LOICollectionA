@@ -1,5 +1,5 @@
 #pragma once
 
 namespace MathUtils {
-    int pow(int base, int exponent);
+    double pow(double base, double exponent);
 }

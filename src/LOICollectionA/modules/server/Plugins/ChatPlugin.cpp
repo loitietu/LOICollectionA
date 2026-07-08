@@ -211,13 +211,13 @@ namespace LOICollection::server::Plugins {
 
             std::string mChat = LOICollectionAPI::APIUtils::getInstance().translate(this->mImpl->options.FormatText, event.self());
             
-            TextPacket packet = TextPacket::createChat("", 
+            TextPacket packet = TextPacket::createChat({}, 
                 fmt::format(fmt::runtime(mChat), event.message()), 
-                "", event.self().getXuid(), ""
+                {}, event.self().getXuid(), {}
             );
 
             ll::service::getLevel()->forEachPlayer([this, packet, &player = event.self()](Player& mTarget) -> bool {
-                if (!mTarget.isSimulatedPlayer() && !this->getBlacklist(mTarget, player).empty())
+                if (!mTarget.isSimulatedPlayer() && this->getBlacklist(mTarget, player).empty())
                     packet.sendTo(mTarget);
                 
                 return true;

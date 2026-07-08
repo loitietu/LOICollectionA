@@ -12,6 +12,7 @@
 #include <mc/world/actor/Actor.h>
 #include <mc/world/actor/ActorHurtResult.h>
 #include <mc/world/actor/ActorDamageSource.h>
+#include <mc/world/actor/HurtEffectsSettings.h>
 #include <mc/world/actor/player/Player.h>
 #include <mc/entity/components_json_legacy/ProjectileComponent.h>
 
@@ -76,24 +77,29 @@ namespace LOICollection::server::Events {
         void,
         ActorDamageSource const& source,
         float damage,
-        bool knock,
-        bool ignite
+        HurtEffectsSettings const& settings
     ) {
         if (!this->isRemotePlayer() || !source.isEntitySource() || this->getOrCreateUniqueID().rawID == source.getEntityUniqueID().rawID)
-            return origin(source, damage, knock, ignite);
+            return origin(source, damage, settings);
 
         Actor* mSource = ll::service::getLevel()->fetchEntity(
             source.isChildEntitySource() ? source.getEntityUniqueID() : source.getDamagingEntityUniqueID(), false
         );
         if (!mSource)
-            return origin(source, damage, knock, ignite);
+            return origin(source, damage, settings);
 
-        PlayerHurtEvent event(*reinterpret_cast<Player*>(this), *mSource, static_cast<int>(damage), knock, ignite, PlayerHurtReason::Effect);
+        PlayerHurtEvent event(
+            *reinterpret_cast<Player*>(this),
+            *mSource, static_cast<int>(damage),
+            (settings.mKnockback == HurtEffectsSettings::ApplyKnockback::Yes ? true : false),
+            (settings.mIgnition == HurtEffectsSettings::Ignite::Yes ? true : false),
+            PlayerHurtReason::Effect
+        );
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled()) 
             return;
 
-        origin(source, damage, knock, ignite);
+        origin(source, damage, settings);
     };
 
     LL_TYPE_INSTANCE_HOOK(

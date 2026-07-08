@@ -268,7 +268,7 @@ namespace LOICollection::frontend {
 
             eat(TokenType::TOKEN_POWER);
 
-            auto right = parseUnaryExpression();
+            auto right = parsePowerExpression();
             left = std::make_unique<ArithmeticNode>(std::move(left), std::move(right), op);
         }
         

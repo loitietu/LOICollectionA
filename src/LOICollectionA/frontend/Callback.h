@@ -56,10 +56,10 @@ namespace LOICollection::frontend {
     public:
         LOICOLLECTION_A_NDAPI static FunctionCall& getInstance();
 
-        LOICOLLECTION_A_API   void registerFunction(const std::string& namespaces, const std::string& function, CallbackFunc callback, CallbackTypeArgs args);
-        LOICOLLECTION_A_API   void registerFunction(const std::string& namespaces, const std::string& function, CallbackFuncCombination callback, CallbackTypeArgs args);
+        LOICOLLECTION_A_API   void registerFunction(const std::string& namespaces, const std::string& function, CallbackFunc callback, const CallbackTypeArgs& args);
+        LOICOLLECTION_A_API   void registerFunction(const std::string& namespaces, const std::string& function, CallbackFuncCombination callback, const CallbackTypeArgs& args);
         
-        LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& namespaces, const std::string& function, CallbackTypeArgs args) const;
+        LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& namespaces, const std::string& function, const CallbackTypeArgs& args) const;
 
         LOICOLLECTION_A_NDAPI std::string callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders = {});
 
@@ -75,10 +75,10 @@ namespace LOICollection::frontend {
     public:
         LOICOLLECTION_A_NDAPI static MacroCall& getInstance();
 
-        LOICOLLECTION_A_API   void registerMacro(const std::string& name, CallbackFunc callback, CallbackTypeArgs args);
-        LOICOLLECTION_A_API   void registerMacro(const std::string& name, CallbackFuncCombination callback, CallbackTypeArgs args);
+        LOICOLLECTION_A_API   void registerMacro(const std::string& name, CallbackFunc callback, const CallbackTypeArgs& args);
+        LOICOLLECTION_A_API   void registerMacro(const std::string& name, CallbackFuncCombination callback, const CallbackTypeArgs& args);
 
-        LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& name, CallbackTypeArgs args) const;
+        LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& name, const CallbackTypeArgs& args) const;
 
         LOICOLLECTION_A_NDAPI std::string callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders = {});
 

@@ -12,7 +12,7 @@
 
 ```json
 {
-    "version": 48591986, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
+    "version": 31578616, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "ServerConfig": { // 服务端配置
         "Plugins": { // 内置插件配置
@@ -67,7 +67,7 @@
                     "ModuleEnabled": true, // 是否启用动态服务器 MOTD
                     "RefreshInterval": 200, // 刷新间隔，单位为 tick（20 tick = 1 秒）
                     "Pages": [
-                        "'Players: '{server.player.online}'/'{server.player.max}" // 每行显示内容，支持 LOICollectionA API 变量
+                        "'Players: '{server_player_online}'/'{server_player_max}" // 每行显示内容，支持 LOICollectionA API 变量
                     ]
                 },
                 "Sidebar": {
@@ -219,7 +219,7 @@
 ```
 
 > [!NOTE]
-> 以上内容取自 LOICollectionA 1.12.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以上内容取自 LOICollectionA 1.13.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 
 ## 模块数据文件
 

@@ -38,7 +38,7 @@
 #include "LOICollectionA/base/Throttle.h"
 #include "LOICollectionA/base/ServiceProvider.h"
 
-#include "LOICollectionA/ConfigPLugin.h"
+#include "LOICollectionA/ConfigPlugin.h"
 
 #include "LOICollectionA/include/server/Plugins/PvpPlugin.h"
 

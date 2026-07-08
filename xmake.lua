@@ -19,13 +19,15 @@ option("target_type")
 option_end()
 
 add_requires("sqlitecpp 3.3.3", {configs = {shared = get_config("shared")}})
-add_requires("levilamina 26.10.14", {configs = {target_type = get_config("target_type")}})
+add_requires("levilamina 26.20.0", {configs = {target_type = get_config("target_type")}})
 add_requires(
     "levibuildscript",
     "preloader 1.15.7",
     "nlohmann_json 3.12.0",
     "gtest v1.17.0"
 )
+
+set_toolchains("clang-cl")
  
 if not has_config("vs_runtime") then
     set_runtimes("MD")
