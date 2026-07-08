@@ -99,7 +99,7 @@ namespace LOICollection::server::Plugins {
         command.overload<operation>().text("gui").required("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isRemotePlayer())
+                if (entity == nullptr || !entity->isType(ActorType::Player))
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
@@ -112,7 +112,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
             
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isRemotePlayer())
+            if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
@@ -174,12 +174,8 @@ namespace LOICollection::server::Plugins {
 
                 return true;
             }
-
-            return false;
-        }
-
-        if (InventoryUtils::isItemInInventory(player, data.value("id", ""), number)) {
-            nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json());
+        } else if (InventoryUtils::isItemInInventory(player, data.value("id", ""), number)) {
+            nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json{});
             for (auto it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
                 ScoreboardUtils::addScore(player, it.key(), (it.value().get<int>() * number));
 
@@ -208,12 +204,8 @@ namespace LOICollection::server::Plugins {
                 ChatPlugin::getInstance().addTitle(player, id, 0);
                 return true;
             }
-
-            return false;
-        }
-
-        if (ChatPlugin::getInstance().isTitle(player, id)) {
-            nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json());
+        } else if (ChatPlugin::getInstance().hasTitle(player, id)) {
+            nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json{});
             for (auto it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
                 ScoreboardUtils::addScore(player, it.key(), it.value().get<int>());
 

@@ -6,15 +6,15 @@
 #include <algorithm>
 #include <filesystem>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <fmt/core.h>
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 
-#include <ll/api/coro/CoroTask.h>
-#include <ll/api/coro/InterruptableSleep.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
+
 #include <ll/api/base/Containers.h>
 
 #include <ll/api/service/Bedrock.h>
@@ -43,6 +43,8 @@
 
 #include "LOICollectionA/include/server/APIUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
+
+#include "LOICollectionA/coro/TimerManager.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/mc-server/ScoreboardUtils.h"
@@ -86,6 +88,11 @@ namespace LOICollection::server::Plugins {
         TpaType type = TpaType::tpa;
     };
 
+    struct TpaPlugin::PlayerRequestSetEntry {
+        std::unordered_set<std::string> sent;
+        std::unordered_set<std::string> received;
+    };
+
     enum class SelectorType : int {
         tpa = 0,
         tphere = 1
@@ -98,9 +105,11 @@ namespace LOICollection::server::Plugins {
     };
 
     struct TpaPlugin::Impl {
-        std::unordered_map<std::string, std::shared_ptr<ll::coro::InterruptableSleep>> mTimers;
+        std::unique_ptr<TimerManager> mTimerManager;
 
-        ConcurrentDenseMap<std::string, std::vector<RequestEntry>> mRequestMap;
+        ConcurrentDenseMap<std::string, RequestEntry> mRequests;
+        ConcurrentDenseMap<std::string, PlayerRequestSetEntry> mActiveRequest;
+        ConcurrentDenseMap<std::pair<std::string, std::string>, std::string> mRequestPending;
 
         LRUKCache<std::string, std::vector<std::string>> BlacklistCache;
         LRUKCache<std::string, bool> InviteCache;
@@ -115,7 +124,8 @@ namespace LOICollection::server::Plugins {
         
         ll::event::ListenerPtr PlayerJoinEventListener;
 
-        Impl() : BlacklistCache(100, 100), InviteCache(100, 100) {}
+        Impl() : mTimerManager(std::make_unique<TimerManager>(ll::thread::ServerThreadExecutor::getDefault())),
+            BlacklistCache(100, 100), InviteCache(100, 100) {}
     };
 
     TpaPlugin::TpaPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<TpaGui>(*this)) {};
@@ -140,7 +150,7 @@ namespace LOICollection::server::Plugins {
         command.overload<operation>().text("invite").required("Type").required("Target").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isRemotePlayer())
+                if (entity == nullptr || !entity->isType(ActorType::Player))
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
@@ -150,7 +160,7 @@ namespace LOICollection::server::Plugins {
 
                 std::string mObject = player.getUuid().asString();
                 auto mResults = results | std::views::filter([this, mObject](Player*& mTarget) -> bool {
-                    std::vector<std::string> mList = this->getBlacklist(*mTarget);
+                    std::vector<std::string> mList = this->getBlacklistFromTarget(this->getBlacklist(*mTarget));
                     return !mTarget->isSimulatedPlayer() && std::find(mList.begin(), mList.end(), mObject) == mList.end() && !this->isInvite(*mTarget) && mTarget->getUuid().asString() != mObject;
                 });
 
@@ -179,7 +189,7 @@ namespace LOICollection::server::Plugins {
         command.overload<operation>().text("accept").required("Id").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isRemotePlayer())
+                if (entity == nullptr || !entity->isType(ActorType::Player))
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
@@ -193,7 +203,7 @@ namespace LOICollection::server::Plugins {
         command.overload<operation>().text("reject").required("Id").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isRemotePlayer())
+                if (entity == nullptr || !entity->isType(ActorType::Player))
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
@@ -206,12 +216,7 @@ namespace LOICollection::server::Plugins {
             });
         command.overload<operation>().text("cancel").required("Id").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isRemotePlayer())
-                    return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
-                Player& player = *static_cast<Player*>(entity);
-
-                if (!this->cancelRequest(player, param.Id)) {
+                if (!this->cancelRequest(param.Id)) {
                     output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.tpa.error.cancel")), param.Id);
                     return;
                 }
@@ -220,7 +225,7 @@ namespace LOICollection::server::Plugins {
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isRemotePlayer())
+            if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
@@ -230,7 +235,7 @@ namespace LOICollection::server::Plugins {
         });
         command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isRemotePlayer())
+            if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
@@ -263,10 +268,7 @@ namespace LOICollection::server::Plugins {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
 
-        for (auto& it : this->mImpl->mTimers)
-            it.second->interrupt();
-
-        this->mImpl->mTimers.clear();
+        this->mImpl->mTimerManager->cancelAll();
     }
 
     void TpaPlugin::setInvite(Player& player, bool invite) {
@@ -296,78 +298,68 @@ namespace LOICollection::server::Plugins {
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "tpa.log2"), player)), mTargetObject);
 
         if (this->mImpl->BlacklistCache.contains(mObject))
-            this->mImpl->BlacklistCache.update(mObject, [mTargetObject](std::shared_ptr<std::vector<std::string>> mList) -> void {
-                mList->push_back(mTargetObject);
+            this->mImpl->BlacklistCache.update(mObject, [mTismestamp](std::shared_ptr<std::vector<std::string>> mList) -> void {
+                mList->push_back(mTismestamp);
             });
     }
 
-    void TpaPlugin::delBlacklist(Player& player, const std::string& target) {
+    void TpaPlugin::delBlacklist(Player& player, const std::string& id) {
         if (!this->isValid()) 
             return;
 
-        if (!this->hasBlacklist(player, target)) {
+        if (!this->hasBlacklist(player, id)) {
             this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "TpaPlugin");
 
             return;
         }
-        
-        std::string mId = this->getDatabase()->find("Blacklist", {
-            { "name", target },
-            { "author", player.getUuid().asString() }
-        }, "", SQLiteStorage::FindCondition::AND);
 
-        if (mId.empty())
+        this->getDatabase()->del("Blacklist", id);
+
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "tpa.log3"), player)), id);
+
+        this->mImpl->BlacklistCache.update(player.getUuid().asString(), [id](std::shared_ptr<std::vector<std::string>> mList) -> void {
+            mList->erase(std::remove(mList->begin(), mList->end(), id), mList->end());
+        });
+    }
+
+    void TpaPlugin::setExecutor(const ll::coro::Executor& executor) {
+        if (!this->isValid())
             return;
 
-        this->getDatabase()->del("Blacklist", mId);
-
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "tpa.log3"), player)), target);
-
-        this->mImpl->BlacklistCache.update(player.getUuid().asString(), [target](std::shared_ptr<std::vector<std::string>> mList) -> void {
-            mList->erase(std::remove(mList->begin(), mList->end(), target), mList->end());
-        });
+        this->mImpl->mTimerManager->setExecutor(executor);
     }
 
     bool TpaPlugin::acceptRequest(Player& player, const std::string& id) {
         if (!this->isValid())
             return false;
 
-        std::vector<RequestEntry>& mEntries = this->mImpl->mRequestMap[player.getUuid().asString()];
-        auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
-            return entry.id == id;
-        });
-
-        if (mIt == mEntries.end())
+        auto it = this->mImpl->mRequests.find(id);
+        if (it == this->mImpl->mRequests.end())
             return false;
 
-        Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mIt->source));
-        if (!sourcePlayer) {
+        Player* origin = ll::service::getLevel()->getPlayer(mce::UUID::fromString(it->second.source));
+        if (!origin) {
             player.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(player), "tpa.gui.error"));
             return false;
         }
 
-        sourcePlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "tpa.yes.tips")), player.getRealName(), mIt->id));
-
-        if (mIt->type == TpaType::tpa) {
-            sourcePlayer->teleport(player.getPosition(), player.getDimensionId());
-
-            this->getLogger()->info(fmt::format(fmt::runtime(tr({}, "tpa.log1")), player.getRealName(), sourcePlayer->getRealName()));
-        } else {
-            player.teleport(sourcePlayer->getPosition(), sourcePlayer->getDimensionId());
-
-            this->getLogger()->info(fmt::format(fmt::runtime(tr({}, "tpa.log1")), sourcePlayer->getRealName(), player.getRealName()));
+        if (!this->forTpaContent(*origin)) {
+            origin->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*origin), "tpa.tips1"));
+            return false;
         }
 
-        if (auto timer = this->mImpl->mTimers[mIt->id])
-            timer->interrupt();
-        this->mImpl->mTimers.erase(mIt->id);
+        origin->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*origin), "tpa.yes.tips")), player.getRealName(), id));
+    
+        auto& mover = (it->second.type == TpaType::tpa) ? *origin : player;
+        auto& dest  = (it->second.type == TpaType::tpa) ? player : *origin;
 
-        std::erase_if(this->mImpl->mRequestMap[mIt->source], [id](RequestEntry& entry) -> bool {
-            return entry.id == id;
-        });
+        mover.teleport(dest.getPosition(), dest.getDimensionId());
+        
+        this->getLogger()->info(fmt::format(fmt::runtime(tr({}, "tpa.log1")), dest.getRealName(), mover.getRealName()));
 
-        mEntries.erase(mIt);
-
+        this->mImpl->mTimerManager->cancel(id);
+        
+        this->clearRequest(id);
         return true;
     }
 
@@ -375,96 +367,99 @@ namespace LOICollection::server::Plugins {
         if (!this->isValid())
             return false;
 
-        std::vector<RequestEntry>& mEntries = this->mImpl->mRequestMap[player.getUuid().asString()];
-        auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
-            return entry.id == id;
-        });
-
-        if (mIt == mEntries.end())
+        auto it = this->mImpl->mRequests.find(id);
+        if (it == this->mImpl->mRequests.end())
             return false;
 
-        if (Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mIt->source)); sourcePlayer)
-            sourcePlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "tpa.no.tips")), player.getRealName()));
+        if (Player* origin = ll::service::getLevel()->getPlayer(mce::UUID::fromString(it->second.source)); origin)
+            origin->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*origin), "tpa.no.tips")), player.getRealName()));
 
-        if (auto timer = this->mImpl->mTimers[mIt->id])
-            timer->interrupt();
-        this->mImpl->mTimers.erase(mIt->id);
-
-        std::erase_if(this->mImpl->mRequestMap[mIt->source], [id](RequestEntry& entry) -> bool {
-            return entry.id == id;
-        });
-
-        mEntries.erase(mIt);
+        this->mImpl->mTimerManager->cancel(id);
         
+        this->clearRequest(id);
         return true;
     }
 
-    bool TpaPlugin::cancelRequest(Player& player, const std::string& id) {
+    bool TpaPlugin::cancelRequest(const std::string& id) {
         if (!this->isValid())
             return false;
 
-        std::vector<RequestEntry>& mEntries = this->mImpl->mRequestMap[player.getUuid().asString()];
-        auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
-            return entry.id == id;
-        });
-
-        if (mIt == mEntries.end())
+        auto it = this->mImpl->mRequests.find(id);
+        if (it == this->mImpl->mRequests.end())
             return false;
 
-        if (auto timer = this->mImpl->mTimers[mIt->id])
-            timer->interrupt();
-        this->mImpl->mTimers.erase(mIt->id);
-
-        std::erase_if(this->mImpl->mRequestMap[mIt->target], [id](RequestEntry& entry) -> bool {
-            return entry.id == id;
-        });
-
-        mEntries.erase(mIt);
-
+        this->mImpl->mTimerManager->cancel(id);
+        
+        this->clearRequest(id);
         return true;
+    }
+
+    bool TpaPlugin::hasRequest(const std::string& origin, const std::string& target) {
+        if (!this->isValid())
+            return false;
+
+        return this->mImpl->mRequestPending.contains({ origin, target });
+    }
+
+    void TpaPlugin::clearRequest(const std::string& id){
+        if (!this->isValid())
+            return;
+
+        auto it = this->mImpl->mRequests.find(id);
+        if (it == this->mImpl->mRequests.end())
+            return;
+
+        this->mImpl->mActiveRequest[it->second.source].sent.erase(id);
+        this->mImpl->mActiveRequest[it->second.target].received.erase(id);
+
+        this->mImpl->mRequestPending.erase({ it->second.source, it->second.target });
+
+        this->mImpl->mRequests.erase(id);
     }
 
     void TpaPlugin::sendRequest(Player& player, Player& target, const std::string& id, TpaType type) {
         if (!this->isValid())
             return;
 
-        std::string mObject = player.getUuid().asString();
-        std::string mTargetObject = target.getUuid().asString();
+        std::string originId = player.getUuid().asString();
+        std::string targetId = target.getUuid().asString();
+        if (this->hasRequest(originId, targetId))
+            return;
 
-        RequestEntry mEntry{ id, mObject, mTargetObject, type };
-        this->mImpl->mRequestMap[mObject].push_back(mEntry);
-        this->mImpl->mRequestMap[mTargetObject].push_back(mEntry);
+        RequestEntry mEntry{ id, originId, targetId, type };
 
-        ll::coro::keepThis([this, id, mObject, mTargetObject]() -> ll::coro::CoroTask<> {
-            this->mImpl->mTimers[id] = std::make_shared<ll::coro::InterruptableSleep>();
+        this->mImpl->mRequests[id] = std::move(mEntry);
 
-            co_await this->mImpl->mTimers[id]->sleepFor(std::chrono::seconds(this->mImpl->options.RequestTimeout));
+        this->mImpl->mActiveRequest[originId].sent.insert(id);
+        this->mImpl->mActiveRequest[targetId].received.insert(id);
 
-            std::vector<RequestEntry>& mEntries = this->mImpl->mRequestMap[mObject];
-            auto mIt = std::ranges::find_if(mEntries, [id](RequestEntry& entry) -> bool {
-                return entry.id == id;
-            });
+        this->mImpl->mRequestPending[{ originId, targetId }] = id;
 
-            if (mIt == mEntries.end())
-                co_return;
+        this->mImpl->mTimerManager->schedule(id, std::chrono::seconds(this->mImpl->options.RequestTimeout), [this, id, originId, targetId]() -> void {
+            if (!this->hasRequest(originId, targetId))
+                return;
 
-            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer)
+            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(originId)); mPlayer)
                 mPlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "tpa.tips4")), id));
-            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mTargetObject)); mPlayer)
+            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(targetId)); mPlayer)
                 mPlayer->sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "tpa.tips4")), id));
-
-            mEntries.erase(mIt);
-            
-            std::erase_if(this->mImpl->mRequestMap[mTargetObject], [id](RequestEntry& entry) -> bool {
-                return entry.id == id;
-            });
-
-            this->mImpl->mTimers.erase(id);
-        }).launch(ll::thread::ServerThreadExecutor::getDefault());
+        
+            this->clearRequest(id);
+        });
 
         player.sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(player), "tpa.tips3")), id));
 
         this->getLogger()->info(fmt::runtime(tr({}, "tpa.log4")), player.getRealName(), target.getRealName(), id);
+    }
+
+    std::string TpaPlugin::getBlacklist(Player& player, Player& target) {
+        if (!this->isValid())
+            return {};
+
+        return this->getDatabase()->find("Blacklist", {
+            { "target", target.getUuid().asString() },
+            { "author", player.getUuid().asString() }
+        }, "", SQLiteStorage::FindCondition::AND);
     }
 
     std::vector<std::string> TpaPlugin::getBlacklist(Player& player) {
@@ -472,7 +467,6 @@ namespace LOICollection::server::Plugins {
             return {};
 
         std::string mObject = player.getUuid().asString();
-
         if (this->mImpl->BlacklistCache.contains(mObject))
             return *this->mImpl->BlacklistCache.get(mObject).value();
 
@@ -484,6 +478,18 @@ namespace LOICollection::server::Plugins {
         return mKeys;
     }
 
+    std::vector<std::string> TpaPlugin::getBlacklistFromTarget(const std::vector<std::string>& ids) {
+        if (!this->isValid())
+            return {};
+
+        return this->getDatabase()->get("Blacklist", ids)
+            | std::views::values
+            | std::views::transform([](const std::unordered_map<std::string, std::string>& mEntry) -> std::string {
+                return mEntry.at("target");
+            })
+            | std::ranges::to<std::vector<std::string>>();
+    }
+
     std::unordered_map<std::string, std::string> TpaPlugin::getBlacklistData(const std::string& id) {
         if (!this->isValid())
             return {};
@@ -491,14 +497,17 @@ namespace LOICollection::server::Plugins {
         return this->getDatabase()->get("Blacklist", id);
     }
 
-    bool TpaPlugin::hasBlacklist(Player& player, const std::string& uuid) {
+    bool TpaPlugin::hasBlacklist(Player& player, const std::string& id) {
         if (!this->isValid())
             return false;
 
-        return !this->getDatabase()->find("Blacklist", {
-            { "target", uuid },
-            { "author", player.getUuid().asString() }
-        }, "", SQLiteStorage::FindCondition::AND).empty();
+        std::string mObject = player.getUuid().asString();
+        if (this->mImpl->BlacklistCache.contains(mObject)) {
+            auto mKeys = this->mImpl->BlacklistCache.get(mObject).value();
+            return std::find(mKeys->begin(), mKeys->end(), id) != mKeys->end();
+        }
+
+        return this->getDatabase()->has("Blacklist", id);
     }
 
     bool TpaPlugin::forTpaContent(Player& player) {
@@ -553,7 +562,10 @@ namespace LOICollection::server::Plugins {
         if (!this->isValid())
             return 0;
 
-        return static_cast<int>(this->mImpl->mRequestMap[player.getUuid().asString()].size());
+        std::string originId = player.getUuid().asString();
+
+        return static_cast<int>(this->mImpl->mActiveRequest[originId].sent.size()
+            + this->mImpl->mActiveRequest[originId].received.size());
     }
 
     bool TpaPlugin::load() {

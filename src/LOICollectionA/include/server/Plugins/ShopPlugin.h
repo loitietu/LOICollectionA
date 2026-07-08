@@ -38,8 +38,6 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_API   bool commodity(Player& player, int number, const nlohmann::ordered_json& data, ShopType type);
         LOICOLLECTION_A_API   bool title(Player& player, const nlohmann::ordered_json& data, ShopType type);
 
-        LOICOLLECTION_A_API   void executeCommand(Player& player, std::string cmd);
-
         LOICOLLECTION_A_NDAPI bool checkModifiedData(Player& player, nlohmann::ordered_json data, int number);
         
         LOICOLLECTION_A_NDAPI bool has(const std::string& id);

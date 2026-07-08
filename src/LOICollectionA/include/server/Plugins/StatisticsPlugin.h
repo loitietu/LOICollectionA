@@ -12,8 +12,14 @@
 class Player;
 class SQLiteStorage;
 
-namespace ll::io {
-    class Logger;
+namespace ll {
+    namespace io {
+        class Logger;
+    }
+
+    namespace coro {
+        class Executor;
+    }
 }
 
 namespace LOICollection::server::Plugins {
@@ -31,7 +37,9 @@ namespace LOICollection::server::Plugins {
 
         LOICOLLECTION_A_NDAPI std::shared_ptr<SQLiteStorage> getDatabase();
         LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
-
+        
+        LOICOLLECTION_A_API   void setExecutor(const ll::coro::Executor& executor);
+        
         LOICOLLECTION_A_NDAPI std::string getStatisticName(StatisticType type);
         LOICOLLECTION_A_NDAPI std::string getPlayerInfo(const std::string& uuid);
 
@@ -56,6 +64,8 @@ namespace LOICollection::server::Plugins {
 
     private:
         StatisticsPlugin();
+
+        void startWirteDatabaseTask();
         
         void registeryCommand();
         void listenEvent();

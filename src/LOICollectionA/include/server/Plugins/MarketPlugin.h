@@ -14,8 +14,14 @@ class Player;
 class ItemStack;
 class SQLiteStorage;
 
-namespace ll::io {
-    class Logger;
+namespace ll {
+    namespace io {
+        class Logger;
+    }
+
+    namespace coro {
+        class Executor;
+    }
 }
 
 namespace LOICollection::server::Plugins {
@@ -40,8 +46,10 @@ namespace LOICollection::server::Plugins {
 
         LOICOLLECTION_A_API   void addBlacklist(Player& player, Player& target);
         LOICOLLECTION_A_API   void addItem(Player& player, ItemStack& item, const std::string& name, const std::string& icon, const std::string& intr, int score);
-        LOICOLLECTION_A_API   void delBlacklist(Player& player, const std::string& target);
+        LOICOLLECTION_A_API   void delBlacklist(Player& player, const std::string& id);
         LOICOLLECTION_A_API   void delItem(const std::string& id);
+
+        LOICOLLECTION_A_API   void setExecutor(const ll::coro::Executor& executor);
 
         LOICOLLECTION_A_API   bool acceptRequest(Player& player);
         LOICOLLECTION_A_API   bool rejectRequest(Player& player);
@@ -55,6 +63,8 @@ namespace LOICollection::server::Plugins {
 
         LOICOLLECTION_A_NDAPI bool hasTrade(Player& player);
 
+        LOICOLLECTION_A_NDAPI std::string getBlacklist(Player& player, Player& target);
+
         LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(Player& player);
         LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(const std::string& target);
         LOICOLLECTION_A_NDAPI std::vector<std::string> getItems();
@@ -65,7 +75,8 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::unordered_map<std::string, std::string>> getItemsData(const std::vector<std::string>& ids);
 
         LOICOLLECTION_A_NDAPI bool hasItem(const std::string& id);
-        LOICOLLECTION_A_NDAPI bool hasBlacklist(Player& player, const std::string& uuid);
+        LOICOLLECTION_A_NDAPI bool hasBlacklist(Player& player, const std::string& id);
+
         LOICOLLECTION_A_NDAPI bool isValid();
 
     public:

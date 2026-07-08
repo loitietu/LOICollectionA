@@ -659,7 +659,7 @@ namespace LOICollection::server::Plugins {
         if (data.contains("submit"))
             form.setSubmitButton(LOICollectionAPI::APIUtils::getInstance().translate(data.value("submit", ""), player));
 
-        form.sendTo(player, [mCustomData, data](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+        form.sendTo(player, [mCustomData = std::move(mCustomData), data = std::move(data)](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
             if (!dt) return CommandUtils::executeCommand(pl, data.value("info", nlohmann::ordered_json{}).value("exit", ""));
 
             nlohmann::ordered_json mCustom;
@@ -711,7 +711,7 @@ namespace LOICollection::server::Plugins {
                     break;
             }
         }
-        form.sendTo(player, [data](Player& pl, int id, ll::form::FormCancelReason) -> void {
+        form.sendTo(player, [data = std::move(data)](Player& pl, int id, ll::form::FormCancelReason) -> void {
             if (id == -1) return CommandUtils::executeCommand(pl, data.value("info", nlohmann::ordered_json{}).value("exit", ""));
         });
     }
@@ -730,7 +730,7 @@ namespace LOICollection::server::Plugins {
             LOICollectionAPI::APIUtils::getInstance().translate(mConfirmButton.value("title", ""), player),
             LOICollectionAPI::APIUtils::getInstance().translate(mCancelButton.value("title", ""), player)
         );
-        form.sendTo(player, [this, data, mConfirmButton, mCancelButton](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
+        form.sendTo(player, [this, data = std::move(data), mConfirmButton = std::move(mConfirmButton), mCancelButton = std::move(mCancelButton)](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
             if (result == ll::form::ModalFormSelectedButton::Upper) 
                 return this->mParent.handleAction(pl, mConfirmButton, data);
             

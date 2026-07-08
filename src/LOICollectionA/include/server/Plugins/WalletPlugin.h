@@ -10,8 +10,14 @@
 
 class Player;
 
-namespace ll::io {
-    class Logger;
+namespace ll {
+    namespace io {
+        class Logger;
+    }
+
+    namespace coro {
+        class Executor;
+    }
 }
 
 namespace LOICollection::server::Plugins {
@@ -34,6 +40,10 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_NDAPI std::vector<std::pair<std::string, std::string>> getPlayerInfo();
 
         LOICOLLECTION_A_API   bool forTransfer(Player& player, const std::string& target, const std::string& name, int score);
+
+        LOICOLLECTION_A_API   void setExecutor(const ll::coro::Executor& executor);
+
+        LOICOLLECTION_A_API   void tryGrabRedEnvelope(Player& player, const std::string& message);
 
         LOICOLLECTION_A_API   void transfer(const std::string& target, int score);
         LOICOLLECTION_A_API   void wealth(Player& player);

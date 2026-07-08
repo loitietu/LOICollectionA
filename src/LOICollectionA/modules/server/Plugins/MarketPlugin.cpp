@@ -11,8 +11,6 @@
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 
-#include <ll/api/coro/CoroTask.h>
-#include <ll/api/coro/InterruptableSleep.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
 #include <ll/api/base/Containers.h>
 
@@ -48,6 +46,8 @@
 
 #include "LOICollectionA/include/server/APIUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
+
+#include "LOICollectionA/coro/TimerManager.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/mc-server/InventoryUtils.h"
@@ -92,10 +92,10 @@ namespace LOICollection::server::Plugins {
     };
 
     struct MarketPlugin::Impl {
-        std::unordered_map<std::string, std::shared_ptr<ll::coro::InterruptableSleep>> mTimers;
+        std::unique_ptr<TimerManager> mTimerManager;
 
-        ConcurrentDenseMap<std::string, TradeEntry> mTradeMap;
-        ConcurrentDenseMap<std::string, TradeEntry> mTradeRequestMap;
+        ConcurrentDenseMap<std::string, TradeEntry> mTrades;
+        ConcurrentDenseMap<std::string, TradeEntry> mTradeRequests;
 
         LRUKCache<std::string, std::vector<std::string>> BlacklistCache;
 
@@ -109,7 +109,8 @@ namespace LOICollection::server::Plugins {
         
         ll::event::ListenerPtr PlayerJoinEventListener;
 
-        Impl() : BlacklistCache(100, 100) {}
+        Impl() : mTimerManager(std::make_unique<TimerManager>(ll::thread::ServerThreadExecutor::getDefault())),
+            BlacklistCache(100, 100) {}
     };
 
     MarketPlugin::MarketPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<MarketGui>(*this)) {};
@@ -133,7 +134,7 @@ namespace LOICollection::server::Plugins {
             .getOrCreateCommand("market", tr({}, "commands.market.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isRemotePlayer())
+            if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
@@ -172,10 +173,7 @@ namespace LOICollection::server::Plugins {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         eventBus.removeListener(this->mImpl->PlayerJoinEventListener);
 
-        for (auto& it : this->mImpl->mTimers)
-            it.second->interrupt();
-
-        this->mImpl->mTimers.clear();
+        this->mImpl->mTimerManager->cancelAll();
     }
 
     bool MarketPlugin::buyItem(Player& player, const std::string& id) {
@@ -273,8 +271,8 @@ namespace LOICollection::server::Plugins {
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log4"), player)), mTargetObject);
 
         if (this->mImpl->BlacklistCache.contains(mObject))
-            this->mImpl->BlacklistCache.update(mObject, [mTargetObject](std::shared_ptr<std::vector<std::string>> mList) -> void {
-                mList->push_back(mTargetObject);
+            this->mImpl->BlacklistCache.update(mObject, [mTimestamp](std::shared_ptr<std::vector<std::string>> mList) -> void {
+                mList->push_back(mTimestamp);
             });
     }
 
@@ -299,30 +297,22 @@ namespace LOICollection::server::Plugins {
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), player)), name);
     }
 
-    void MarketPlugin::delBlacklist(Player& player, const std::string& target) {
+    void MarketPlugin::delBlacklist(Player& player, const std::string& id) {
         if (!this->isValid())
             return;
 
-        if (!this->hasBlacklist(player, target)) {
+        if (!this->hasBlacklist(player, id)) {
             this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "MarketPlugin");
 
             return;
         }
 
-        std::string mId = this->getDatabase()->find("Blacklist", {
-            { "target", target },
-            { "author", player.getUuid().asString() }
-        }, "", SQLiteStorage::FindCondition::AND);
+        this->getDatabase()->del("Blacklist", id);
 
-        if (mId.empty())
-            return;
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log5"), player)), id);
 
-        this->getDatabase()->del("Blacklist", mId);
-
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log5"), player)), target);
-
-        this->mImpl->BlacklistCache.update(player.getUuid().asString(), [target](std::shared_ptr<std::vector<std::string>> mList) -> void {
-            mList->erase(std::remove(mList->begin(), mList->end(), target), mList->end());
+        this->mImpl->BlacklistCache.update(player.getUuid().asString(), [id](std::shared_ptr<std::vector<std::string>> mList) -> void {
+            mList->erase(std::remove(mList->begin(), mList->end(), id), mList->end());
         });
     }
 
@@ -339,15 +329,22 @@ namespace LOICollection::server::Plugins {
         this->getDatabase()->del("Item", id);
     }
 
+    void MarketPlugin::setExecutor(const ll::coro::Executor& executor) {
+        if (!this->isValid())
+            return;
+
+        this->mImpl->mTimerManager->setExecutor(executor);
+    }
+
     bool MarketPlugin::acceptRequest(Player& player) {
         if (!this->isValid())
             return false;
 
         std::string mObject = player.getUuid().asString();
-        if (!this->mImpl->mTradeRequestMap.contains(mObject))
+        if (!this->mImpl->mTradeRequests.contains(mObject))
             return false;
 
-        TradeEntry mEntry = this->mImpl->mTradeRequestMap.at(mObject);
+        TradeEntry mEntry = this->mImpl->mTradeRequests.at(mObject);
 
         Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mEntry.source));
         if (!sourcePlayer) {
@@ -358,25 +355,22 @@ namespace LOICollection::server::Plugins {
 
         sourcePlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "market.yes.tips"));
 
-        if (mEntry.type == MarketTradeType::sell) {
-            player.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(player), "market.tips4"));
+        auto& mover = (mEntry.type == MarketTradeType::sell) ? player : *sourcePlayer;
+        auto& dest  = (mEntry.type == MarketTradeType::sell) ? *sourcePlayer : player;
 
-            this->mGui->tradeContent(*sourcePlayer, player);
-        } else {
-            sourcePlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "market.tips4"));
+        mover.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(mover), "market.tips4"));
 
-            this->mGui->tradeContent(player, *sourcePlayer);
-        }
+        this->mGui->tradeContent(dest, mover);
 
         this->sendTrade(*sourcePlayer, player, mEntry.type);
 
-        this->mImpl->mTradeRequestMap.erase(mObject);
-        this->mImpl->mTradeRequestMap.erase(mEntry.source);
+        this->mImpl->mTradeRequests.erase(mObject);
+        this->mImpl->mTradeRequests.erase(mEntry.source);
 
-        this->mImpl->mTimers[mEntry.source]->interrupt();
-        this->mImpl->mTimers.erase(mEntry.source);
+        this->mImpl->mTimerManager->cancel(mEntry.source);
 
         return true;
+
     }
 
     bool MarketPlugin::rejectRequest(Player& player) {
@@ -384,19 +378,18 @@ namespace LOICollection::server::Plugins {
             return false;
 
         std::string mObject = player.getUuid().asString();
-        if (!this->mImpl->mTradeRequestMap.contains(mObject))
+        if (!this->mImpl->mTradeRequests.contains(mObject))
             return false;
 
-        TradeEntry mEntry = this->mImpl->mTradeRequestMap.at(mObject);
+        TradeEntry mEntry = this->mImpl->mTradeRequests.at(mObject);
 
         if (Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mEntry.source)); sourcePlayer)
             sourcePlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "market.no.tips"));
         
-        this->mImpl->mTradeRequestMap.erase(mObject);
-        this->mImpl->mTradeRequestMap.erase(mEntry.source);
+        this->mImpl->mTradeRequests.erase(mObject);
+        this->mImpl->mTradeRequests.erase(mEntry.source);
 
-        this->mImpl->mTimers[mEntry.source]->interrupt();
-        this->mImpl->mTimers.erase(mEntry.source);
+        this->mImpl->mTimerManager->cancel(mEntry.source);
 
         return true;
     }
@@ -406,16 +399,15 @@ namespace LOICollection::server::Plugins {
             return false;
 
         std::string mObject = player.getUuid().asString();
-        if (!this->mImpl->mTradeRequestMap.contains(mObject))
+        if (!this->mImpl->mTradeRequests.contains(mObject))
             return false;
 
-        TradeEntry mEntry = this->mImpl->mTradeRequestMap.at(mObject);
+        TradeEntry mEntry = this->mImpl->mTradeRequests.at(mObject);
         
-        this->mImpl->mTradeRequestMap.erase(mObject);
-        this->mImpl->mTradeRequestMap.erase(mEntry.target);
+        this->mImpl->mTradeRequests.erase(mObject);
+        this->mImpl->mTradeRequests.erase(mEntry.target);
 
-        this->mImpl->mTimers[mEntry.source]->interrupt();
-        this->mImpl->mTimers.erase(mEntry.source);
+        this->mImpl->mTimerManager->cancel(mEntry.source);
 
         return true;
     }
@@ -425,10 +417,10 @@ namespace LOICollection::server::Plugins {
             return false;
 
         std::string mObject = player.getUuid().asString();
-        if (!this->mImpl->mTradeMap.contains(mObject))
+        if (!this->mImpl->mTrades.contains(mObject))
             return false;
 
-        TradeEntry mEntry = this->mImpl->mTradeMap.at(mObject);
+        TradeEntry mEntry = this->mImpl->mTrades.at(mObject);
 
         ItemStack mItemStack = player.getInventory().getItem(slot);
         if (!mItemStack || mItemStack.isNull())
@@ -453,11 +445,10 @@ namespace LOICollection::server::Plugins {
         ScoreboardUtils::addScore(player, this->mImpl->options.TargetScoreboard, score);
         ScoreboardUtils::reduceScore(*mPlayer, this->mImpl->options.TargetScoreboard, score);
 
-        this->mImpl->mTradeMap.erase(mObject);
-        this->mImpl->mTradeMap.erase(mEntry.target);
+        this->mImpl->mTrades.erase(mObject);
+        this->mImpl->mTrades.erase(mEntry.target);
 
-        this->mImpl->mTimers[mEntry.source + "_trade"]->interrupt();
-        this->mImpl->mTimers.erase(mEntry.source + "_trade");
+        this->mImpl->mTimerManager->cancel(mEntry.source + "_trade");
 
         return true;
     }
@@ -467,10 +458,10 @@ namespace LOICollection::server::Plugins {
             return false;
 
         std::string mObject = player.getUuid().asString();
-        if (!this->mImpl->mTradeMap.contains(mObject))
+        if (!this->mImpl->mTrades.contains(mObject))
             return false;
 
-        TradeEntry mEntry = this->mImpl->mTradeMap.at(mObject);
+        TradeEntry mEntry = this->mImpl->mTrades.at(mObject);
 
         Player* mPlayer = (mEntry.source == mObject) ?
             ll::service::getLevel()->getPlayer(mce::UUID::fromString(mEntry.target)) :
@@ -479,11 +470,10 @@ namespace LOICollection::server::Plugins {
         if (mPlayer)
             mPlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "market.tips6"));
 
-        this->mImpl->mTradeMap.erase(mEntry.source);
-        this->mImpl->mTradeMap.erase(mEntry.target);
+        this->mImpl->mTrades.erase(mEntry.source);
+        this->mImpl->mTrades.erase(mEntry.target);
 
-        this->mImpl->mTimers[mEntry.source + "_trade"]->interrupt();
-        this->mImpl->mTimers.erase(mEntry.source + "_trade");
+        this->mImpl->mTimerManager->cancel(mEntry.source + "_trade");
 
         this->getLogger()->info(fmt::runtime(tr({}, "market.log8")), player.getRealName());
 
@@ -498,27 +488,21 @@ namespace LOICollection::server::Plugins {
         std::string mTargetObject = target.getUuid().asString();
 
         TradeEntry mEntry{ mObject, mTargetObject, type };
-        this->mImpl->mTradeRequestMap[mObject] = mEntry;
-        this->mImpl->mTradeRequestMap[mTargetObject] = mEntry;
+        this->mImpl->mTradeRequests[mObject] = mEntry;
+        this->mImpl->mTradeRequests[mTargetObject] = mEntry;
 
-        ll::coro::keepThis([this, mObject, mTargetObject]() -> ll::coro::CoroTask<> {
-            this->mImpl->mTimers[mObject] = std::make_shared<ll::coro::InterruptableSleep>();
-
-            co_await this->mImpl->mTimers[mObject]->sleepFor(std::chrono::seconds(this->mImpl->options.TradeRequestTimeout));
-
-            if (!this->mImpl->mTradeRequestMap.contains(mObject) || !this->mImpl->mTradeRequestMap.contains(mTargetObject))
-                co_return;
+        this->mImpl->mTimerManager->schedule(mObject, std::chrono::seconds(this->mImpl->options.TradeRequestTimeout), [this, mObject, mTargetObject]() -> void {
+            if (!this->mImpl->mTradeRequests.contains(mObject) || !this->mImpl->mTradeRequests.contains(mTargetObject))
+                return;
 
             if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer)
                 mPlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "market.tips2"));
             if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mTargetObject)); mPlayer)
                 mPlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "market.tips2"));
 
-            this->mImpl->mTradeRequestMap.erase(mObject);
-            this->mImpl->mTradeRequestMap.erase(mTargetObject);
-
-            this->mImpl->mTimers.erase(mObject);
-        }).launch(ll::thread::ServerThreadExecutor::getDefault());
+            this->mImpl->mTradeRequests.erase(mObject);
+            this->mImpl->mTradeRequests.erase(mTargetObject);
+        });
 
         player.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(player), "market.tips1"));
 
@@ -533,27 +517,21 @@ namespace LOICollection::server::Plugins {
         std::string mTargetObject = target.getUuid().asString();
 
         TradeEntry mEntry{ mObject, mTargetObject, type };
-        this->mImpl->mTradeMap[mObject] = mEntry;
-        this->mImpl->mTradeMap[mTargetObject] = mEntry;
+        this->mImpl->mTrades[mObject] = mEntry;
+        this->mImpl->mTrades[mTargetObject] = mEntry;
 
-        ll::coro::keepThis([this, mObject, mTargetObject]() -> ll::coro::CoroTask<> {
-            this->mImpl->mTimers[mObject + "_trade"] = std::make_shared<ll::coro::InterruptableSleep>();
-
-            co_await this->mImpl->mTimers[mObject + "_trade"]->sleepFor(std::chrono::seconds(this->mImpl->options.TradeTimeout));
-
-            if (!this->mImpl->mTradeMap.contains(mObject) || !this->mImpl->mTradeMap.contains(mTargetObject))
-                co_return;
+        this->mImpl->mTimerManager->schedule(mObject + "_trade", std::chrono::seconds(this->mImpl->options.TradeTimeout), [this, mObject, mTargetObject]() -> void {
+            if (!this->mImpl->mTrades.contains(mObject) || !this->mImpl->mTrades.contains(mTargetObject))
+                return;
 
             if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer)
                 mPlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "market.tips5"));
             if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mTargetObject)); mPlayer)
                 mPlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "market.tips5"));
 
-            this->mImpl->mTradeMap.erase(mObject);
-            this->mImpl->mTradeMap.erase(mTargetObject);
-
-            this->mImpl->mTimers.erase(mObject + "_trade");
-        }).launch(ll::thread::ServerThreadExecutor::getDefault());
+            this->mImpl->mTrades.erase(mObject);
+            this->mImpl->mTrades.erase(mTargetObject);
+        });
 
         this->getLogger()->info(fmt::runtime(tr({}, "market.log7")), player.getRealName(), target.getRealName());
     }
@@ -562,7 +540,17 @@ namespace LOICollection::server::Plugins {
         if (!this->isValid())
             return false;
 
-        return this->mImpl->mTradeRequestMap.contains(player.getUuid().asString()) || this->mImpl->mTradeMap.contains(player.getUuid().asString());
+        return this->mImpl->mTradeRequests.contains(player.getUuid().asString()) || this->mImpl->mTrades.contains(player.getUuid().asString());
+    }
+
+    std::string MarketPlugin::getBlacklist(Player& player, Player& target) {
+        if (!this->isValid())
+            return {};
+
+        return this->getDatabase()->find("Blacklist", {
+            { "target", target.getUuid().asString() },
+            { "author", player.getUuid().asString() }
+        }, "", SQLiteStorage::FindCondition::AND);
     }
 
     std::vector<std::string> MarketPlugin::getBlacklist(Player& player) {
@@ -631,22 +619,17 @@ namespace LOICollection::server::Plugins {
         return this->getDatabase()->has("Item", id);
     }
 
-    bool MarketPlugin::hasBlacklist(Player& player, const std::string& uuid) {
+    bool MarketPlugin::hasBlacklist(Player& player, const std::string& id) {
         if (!this->isValid())
             return false;
 
         std::string mObject = player.getUuid().asString();
-
         if (this->mImpl->BlacklistCache.contains(mObject)) {
-            auto mList = this->mImpl->BlacklistCache.get(mObject).value();
-
-            return std::find(mList->begin(), mList->end(), uuid) != mList->end();
+            auto mKeys = this->mImpl->BlacklistCache.get(mObject).value();
+            return std::find(mKeys->begin(), mKeys->end(), id) != mKeys->end();
         }
 
-        return !this->getDatabase()->find("Blacklist", {
-            { "target", uuid },
-            { "author", mObject }
-        }, "", SQLiteStorage::FindCondition::AND).empty();
+        return this->getDatabase()->has("Blacklist", id);
     }
 
     bool MarketPlugin::isValid() {

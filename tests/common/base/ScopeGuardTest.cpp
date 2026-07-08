@@ -5,7 +5,7 @@
 TEST(ScopeGuardTest, ScopeGuardExecutes) {
     int counter = 0;
     {
-        auto guard = make_scope_guard([&] { ++counter; });
+        auto guard = make_scope_guard([&]() -> void { ++counter; });
         EXPECT_EQ(counter, 0);
     }
 
@@ -15,7 +15,7 @@ TEST(ScopeGuardTest, ScopeGuardExecutes) {
 TEST(ScopeGuardTest, DismissPreventsExecution) {
     int counter = 0;
     {
-        auto guard = make_scope_guard([&] { ++counter; });
+        auto guard = make_scope_guard([&]() -> void { ++counter; });
         guard.dismiss();
     }
 
@@ -25,7 +25,7 @@ TEST(ScopeGuardTest, DismissPreventsExecution) {
 TEST(ScopeGuardTest, MoveGuard) {
     int counter = 0;
     {
-        auto guard1 = make_scope_guard([&] { ++counter; });
+        auto guard1 = make_scope_guard([&]() -> void { ++counter; });
         auto guard2 = std::move(guard1);
     }
 
@@ -35,7 +35,7 @@ TEST(ScopeGuardTest, MoveGuard) {
 TEST(SuccessGuardTest, ExecutesOnNormalExit) {
     int counter = 0;
     {
-        auto guard = make_success_guard([&] { ++counter; });
+        auto guard = make_success_guard([&]() -> void { ++counter; });
     }
 
     EXPECT_EQ(counter, 1);
@@ -44,7 +44,7 @@ TEST(SuccessGuardTest, ExecutesOnNormalExit) {
 TEST(SuccessGuardTest, DoesNotExecuteOnException) {
     int counter = 0;
     try {
-        auto guard = make_success_guard([&] { ++counter; });
+        auto guard = make_success_guard([&]() -> void { ++counter; });
         throw std::runtime_error("test");
     } catch (...) {}
 
@@ -54,7 +54,7 @@ TEST(SuccessGuardTest, DoesNotExecuteOnException) {
 TEST(FailureGuardTest, ExecutesOnException) {
     int counter = 0;
     try {
-        auto guard = make_failure_guard([&] { ++counter; });
+        auto guard = make_failure_guard([&]() -> void { ++counter; });
         throw std::runtime_error("fail");
     } catch (...) {}
 
@@ -64,7 +64,7 @@ TEST(FailureGuardTest, ExecutesOnException) {
 TEST(FailureGuardTest, DoesNotExecuteOnNormalExit) {
     int counter = 0;
     {
-        auto guard = make_failure_guard([&] { ++counter; });
+        auto guard = make_failure_guard([&]() -> void { ++counter; });
     }
     
     EXPECT_EQ(counter, 0);

@@ -7,7 +7,7 @@
 
 #include "LOICollectionA/utils/mc-server/ScoreboardUtils.h"
 
-TEST(ScoreboardUtilsTest, CreateScoreboard) {
+TEST(ScoreboardUtilsTest, CreateAndRemoveScoreboard) {
     ScoreboardUtils::create("test_plugin_1");
     ScoreboardUtils::create("test_plugin_2");
     ScoreboardUtils::create("test_plugin_3");
@@ -15,11 +15,22 @@ TEST(ScoreboardUtilsTest, CreateScoreboard) {
     EXPECT_TRUE(ScoreboardUtils::hasScoreboard("test_plugin_1"));
     EXPECT_TRUE(ScoreboardUtils::hasScoreboard("test_plugin_2"));
     EXPECT_TRUE(ScoreboardUtils::hasScoreboard("test_plugin_3"));
+
+    ScoreboardUtils::remove("test_plugin_1");
+    ScoreboardUtils::remove("test_plugin_2");
+    ScoreboardUtils::remove("test_plugin_3");
+    EXPECT_FALSE(ScoreboardUtils::hasScoreboard("test_plugin_1"));
+    EXPECT_FALSE(ScoreboardUtils::hasScoreboard("test_plugin_2"));
+    EXPECT_FALSE(ScoreboardUtils::hasScoreboard("test_plugin_3"));
 }
 
 TEST(ScoreboardUtilsTest, ModifyAndGetScore) {
     auto player = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(player);
+
+    ScoreboardUtils::create("test_plugin_1");
+    ScoreboardUtils::create("test_plugin_2");
+    ScoreboardUtils::create("test_plugin_3");
 
     ScoreboardUtils::addScore(*player, "test_plugin_1", 10);
     ScoreboardUtils::addScore(*player, "test_plugin_2", 20);
@@ -36,4 +47,16 @@ TEST(ScoreboardUtilsTest, ModifyAndGetScore) {
     EXPECT_EQ(ScoreboardUtils::getScore(*player, "test_plugin_1"), 5);
     EXPECT_EQ(ScoreboardUtils::getScore(*player, "test_plugin_2"), 10);
     EXPECT_EQ(ScoreboardUtils::getScore(*player, "test_plugin_3"), 15);
+
+    ScoreboardUtils::setScore(*player, "test_plugin_1", 100);
+    ScoreboardUtils::setScore(*player, "test_plugin_2", 200);
+    ScoreboardUtils::setScore(*player, "test_plugin_3", 300);
+
+    EXPECT_EQ(ScoreboardUtils::getScore(*player, "test_plugin_1"), 100);
+    EXPECT_EQ(ScoreboardUtils::getScore(*player, "test_plugin_2"), 200);
+    EXPECT_EQ(ScoreboardUtils::getScore(*player, "test_plugin_3"), 300);
+
+    ScoreboardUtils::remove("test_plugin_1");
+    ScoreboardUtils::remove("test_plugin_2");
+    ScoreboardUtils::remove("test_plugin_3");
 }

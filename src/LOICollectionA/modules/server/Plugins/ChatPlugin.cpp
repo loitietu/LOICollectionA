@@ -217,8 +217,9 @@ namespace LOICollection::server::Plugins {
             );
 
             ll::service::getLevel()->forEachPlayer([this, packet, &player = event.self()](Player& mTarget) -> bool {
-                if (!mTarget.isSimulatedPlayer() && !this->isBlacklist(mTarget, player))
+                if (!mTarget.isSimulatedPlayer() && !this->getBlacklist(mTarget, player).empty())
                     packet.sendTo(mTarget);
+                
                 return true;
             });
         }, ll::event::EventPriority::Normal);
@@ -241,12 +242,11 @@ namespace LOICollection::server::Plugins {
         if (!this->isValid()) 
             return;
 
-        std::string mObject = player.getUuid().asString();
         std::string mTismestamp = SystemUtils::getCurrentTimestamp();
 
         std::unordered_map<std::string, std::string> mData = {
             { "title", text },
-            { "author", mObject },
+            { "author", player.getUuid().asString() },
             { "time", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 60, "None") : "None" }
         };
 
@@ -275,14 +275,14 @@ namespace LOICollection::server::Plugins {
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log5"), player)), mTargetObject);
 
         if (this->mImpl->BlacklistCache.contains(mObject))
-            this->mImpl->BlacklistCache.update(mObject, [mTargetObject](std::shared_ptr<std::vector<std::string>> mList) -> void {
-                mList->push_back(mTargetObject);
+            this->mImpl->BlacklistCache.update(mObject, [mTismestamp](std::shared_ptr<std::vector<std::string>> mList) -> void {
+                mList->push_back(mTismestamp);
             });
     }
 
     void ChatPlugin::delTitle(Player& player, const std::string& text) {
         if (!this->isValid())
-             return;
+            return;
 
         if (!this->hasTitle(player, text)) {
             this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "ChatPlugin");
@@ -307,30 +307,22 @@ namespace LOICollection::server::Plugins {
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log3"), player)), text);
     }
 
-    void ChatPlugin::delBlacklist(Player& player, const std::string& target) {
+    void ChatPlugin::delBlacklist(Player& player, const std::string& id) {
         if (!this->isValid())
             return;
 
-        if (!this->hasBlacklist(player, target)) {
+        if (!this->hasBlacklist(player, id)) {
             this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "ChatPlugin");
 
             return;
         }
 
-        std::string mId = this->getDatabase()->find("Blacklist", {
-            { "name", target },
-            { "author", player.getUuid().asString() }
-        }, "", SQLiteStorage::FindCondition::AND);
+        this->getDatabase()->del("Blacklist", id);
 
-        if (mId.empty())
-            return;
+        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log6"), player)), id);
 
-        this->getDatabase()->del("Blacklist", mId);
-
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log6"), player)), target);
-
-        this->mImpl->BlacklistCache.update(player.getUuid().asString(), [target](std::shared_ptr<std::vector<std::string>> mList) -> void {
-            mList->erase(std::remove(mList->begin(), mList->end(), target), mList->end());
+        this->mImpl->BlacklistCache.update(player.getUuid().asString(), [id](std::shared_ptr<std::vector<std::string>> mList) -> void {
+            mList->erase(std::remove(mList->begin(), mList->end(), id), mList->end());
         });
     }
 
@@ -375,6 +367,16 @@ namespace LOICollection::server::Plugins {
         return this->getDatabase()->get("Titles", mId, "title", "None");
     }
 
+    std::string ChatPlugin::getBlacklist(Player& player, Player& target) {
+        if (!this->isValid())
+            return {};
+
+        return this->getDatabase()->find("Blacklist", {
+            { "target", target.getUuid().asString() },
+            { "author", player.getUuid().asString() }
+        }, "", SQLiteStorage::FindCondition::AND);
+    }
+
     std::vector<std::string> ChatPlugin::getTitles(Player& player) {
         if (!this->isValid())
             return {};
@@ -401,11 +403,11 @@ namespace LOICollection::server::Plugins {
         return mKeys;
     }
 
-    std::unordered_map<std::string, std::string> ChatPlugin::getBlacklistData(const std::string& target) {
+    std::unordered_map<std::string, std::string> ChatPlugin::getBlacklistData(const std::string& id) {
         if (!this->isValid())
             return {};
 
-        return this->getDatabase()->get("Blacklist", target);
+        return this->getDatabase()->get("Blacklist", id);
     }
 
     bool ChatPlugin::hasTitle(Player& player, const std::string& text) {
@@ -418,39 +420,17 @@ namespace LOICollection::server::Plugins {
         }, "", SQLiteStorage::FindCondition::AND).empty();
     }
 
-    bool ChatPlugin::hasBlacklist(Player& player, const std::string& uuid) {
+    bool ChatPlugin::hasBlacklist(Player& player, const std::string& id) {
         if (!this->isValid())
             return false;
 
         std::string mObject = player.getUuid().asString();
-
         if (this->mImpl->BlacklistCache.contains(mObject)) {
-            auto mList = this->mImpl->BlacklistCache.get(mObject).value();
-
-            return std::find(mList->begin(), mList->end(), uuid) != mList->end();
+            auto mKeys = this->mImpl->BlacklistCache.get(mObject).value();
+            return std::find(mKeys->begin(), mKeys->end(), id) != mKeys->end();
         }
 
-        return !this->getDatabase()->find("Blacklist", {
-            { "target", uuid },
-            { "author", mObject }
-        }, "", SQLiteStorage::FindCondition::AND).empty();
-    }
-
-    bool ChatPlugin::isTitle(Player& player, const std::string& text) {
-        if (!this->isValid()) 
-            return false;
-
-        return !this->getDatabase()->find("Titles", {
-            { "title", text },
-            { "author", player.getUuid().asString() }
-        }, "", SQLiteStorage::FindCondition::AND).empty();
-    }
-
-    bool ChatPlugin::isBlacklist(Player& player, Player& target) {
-        if (!this->isValid()) 
-            return false;
-
-        return this->hasBlacklist(player, target.getUuid().asString());
+        return this->getDatabase()->has("Blacklist", id);
     }
 
     bool ChatPlugin::isValid() {

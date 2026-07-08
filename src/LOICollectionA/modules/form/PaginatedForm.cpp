@@ -12,6 +12,51 @@
 #include "LOICollectionA/include/form/PaginatedForm.h"
 
 namespace LOICollection::form {
+    struct Element {
+        enum class ElementType {
+            Header,
+            Label,
+            Button,
+            Divider
+        };
+
+        [[nodiscard]] virtual ElementType getType() const = 0;
+
+        virtual ~Element() = default;
+    };
+
+    struct Button : Element {
+        std::string text;
+        std::string image;
+        PaginatedForm::ButtonCallback callback;
+
+        [[nodiscard]] ElementType getType() const override {
+            return ElementType::Button;
+        }
+    };
+
+    struct Label : Element {
+        std::string text;
+
+        [[nodiscard]] ElementType getType() const override {
+            return ElementType::Label;
+        }
+    };
+
+    struct Header : Element {
+        std::string text;
+
+        [[nodiscard]] ElementType getType() const override {
+            return ElementType::Header;
+        }
+    };
+
+    struct Divider : Element {
+        [[nodiscard]] ElementType getType() const override {
+            return ElementType::Divider;
+        }
+    };
+
     struct PaginatedForm::Impl {
         std::string mTitle;
         std::string mContent;
@@ -26,6 +71,7 @@ namespace LOICollection::form {
         int mNumElementPerPage = 10;
     
         std::vector<std::unique_ptr<Page>> mPages;
+        std::vector<std::unique_ptr<Element>> mElements;
 
         FormCallback mCallback;
         FormCallbackIndex mCallbackIndex;
@@ -43,7 +89,12 @@ namespace LOICollection::form {
         this->mImpl->mNumElementPerPage = std::max(elementPerPage, 1);
 
         if (elements.empty()) {
-            this->mImpl->mPages.emplace_back(std::make_unique<Page>());
+            this->mImpl->mNumPerPage = 1;
+
+            Page mPage;
+            mPage.page = 1;
+
+            this->mImpl->mPages.emplace_back(std::make_unique<Page>(std::move(mPage)));
 
             return;
         }
@@ -70,7 +121,12 @@ namespace LOICollection::form {
         this->mImpl->mNumElementPerPage = std::max(elementPerPage, 1);
 
         if (elements.empty()) {
-            this->mImpl->mPages.emplace_back(std::make_unique<Page>());
+            this->mImpl->mNumPerPage = 1;
+
+            Page mPage;
+            mPage.page = 1;
+
+            this->mImpl->mPages.emplace_back(std::make_unique<Page>(std::move(mPage)));
 
             return;
         }
@@ -126,6 +182,31 @@ namespace LOICollection::form {
                 self->sendChoosedPage(pl);
             });
         }
+
+        for (auto& element : this->mImpl->mElements) {
+            switch (element->getType()) {
+                case Element::ElementType::Header:
+                    page.form->appendHeader(static_cast<Header&>(*element).text);
+                    break;
+                case Element::ElementType::Label:
+                    page.form->appendLabel(static_cast<Label&>(*element).text);
+                    break;
+                case Element::ElementType::Divider:
+                    page.form->appendDivider();
+                    break;
+                case Element::ElementType::Button: {
+                    auto mButton = static_cast<Button&>(*element);
+
+                    page.form->appendButton(mButton.text, mButton.image, "path", [callback = mButton.callback](Player& pl) -> void {
+                        if (!callback)
+                            return;
+                        
+                        callback(pl);
+                    });
+                    break;
+                }
+            }
+        }
     }
 
     int PaginatedForm::getNumPages() const {
@@ -140,7 +221,7 @@ namespace LOICollection::form {
         return this->mImpl->mNumElementPerPage;
     }
 
-    std::optional<PaginatedForm::Page> PaginatedForm::getPage(int page) {
+    std::optional<std::reference_wrapper<PaginatedForm::Page>> PaginatedForm::getPage(int page) {
         if (this->mImpl->mPages.empty())
             return std::nullopt;
 
@@ -190,29 +271,32 @@ namespace LOICollection::form {
     }
 
     void PaginatedForm::appendHeader(const std::string& text) {
-        for (auto& page : this->mImpl->mPages)
-            page->form->appendHeader(text);
+        Header header;
+        header.text = text;
+
+        this->mImpl->mElements.emplace_back(std::make_unique<Header>(std::move(header)));
     }
 
     void PaginatedForm::appendLabel(const std::string& text) {
-        for (auto& page : this->mImpl->mPages)
-            page->form->appendLabel(text);
+        Label label;
+        label.text = text;
+
+        this->mImpl->mElements.emplace_back(std::make_unique<Label>(std::move(label)));
     }
 
     void PaginatedForm::appendDivider() {
-        for (auto& page : this->mImpl->mPages)
-            page->form->appendDivider();
+        Divider divider;
+
+        this->mImpl->mElements.emplace_back(std::make_unique<Divider>(std::move(divider)));
     }
 
     void PaginatedForm::appendButton(const std::string& text, const std::string& image, ButtonCallback callback) {
-        for (auto& page : this->mImpl->mPages) {
-            page->form->appendButton(text, image, "path", [callback](Player& pl) -> void {
-                if (!callback)
-                    return;
-                
-                callback(pl);
-            });
-        }
+        Button button;
+        button.text = text;
+        button.image = image;
+        button.callback = std::move(callback);
+
+        this->mImpl->mElements.emplace_back(std::make_unique<Button>(std::move(button)));
     }
 
     void PaginatedForm::sendPage(Player& player, int page) {
@@ -224,7 +308,7 @@ namespace LOICollection::form {
 
         this->refreshPage(*mPage);
 
-        mPage->form->sendTo(player, [self = shared_from_this()](Player& pl, int id, ll::form::FormCancelReason) -> void {
+        mPage.value().get().form->sendTo(player, [self = shared_from_this()](Player& pl, int id, ll::form::FormCancelReason) -> void {
             if (id == -1 && self->mImpl->mCloseCallback) 
                 self->mImpl->mCloseCallback(pl);
         });

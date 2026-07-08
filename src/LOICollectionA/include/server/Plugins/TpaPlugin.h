@@ -13,8 +13,14 @@
 class Player;
 class SQLiteStorage;
 
-namespace ll::io {
-    class Logger;
+namespace ll {
+    namespace io {
+        class Logger;
+    }
+
+    namespace coro {
+        class Executor;
+    }
 }
 
 namespace LOICollection::server::Plugins {
@@ -36,19 +42,26 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_API   void setInvite(Player& player, bool invite);
 
         LOICOLLECTION_A_API   void addBlacklist(Player& player, Player& target);
-        LOICOLLECTION_A_API   void delBlacklist(Player& player, const std::string& target);
+        LOICOLLECTION_A_API   void delBlacklist(Player& player, const std::string& id);
+
+        LOICOLLECTION_A_API   void setExecutor(const ll::coro::Executor& executor);
 
         LOICOLLECTION_A_API   bool acceptRequest(Player& player, const std::string& id);
         LOICOLLECTION_A_API   bool rejectRequest(Player& player, const std::string& id);
-        LOICOLLECTION_A_API   bool cancelRequest(Player& player, const std::string& id);
+        LOICOLLECTION_A_API   bool cancelRequest(const std::string& id);
+        LOICOLLECTION_A_NDAPI bool hasRequest(const std::string& origin, const std::string& target);
         
+        LOICOLLECTION_A_API   void clearRequest(const std::string& id);
         LOICOLLECTION_A_API   void sendRequest(Player& player, Player& target, const std::string& id, TpaType type);
 
+        LOICOLLECTION_A_NDAPI std::string getBlacklist(Player& player, Player& target);
+
         LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(Player& player);
+        LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklistFromTarget(const std::vector<std::string>& ids);
 
         LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::string> getBlacklistData(const std::string& id);
 
-        LOICOLLECTION_A_NDAPI bool hasBlacklist(Player& player, const std::string& uuid);
+        LOICOLLECTION_A_NDAPI bool hasBlacklist(Player& player, const std::string& id);
 
         LOICOLLECTION_A_NDAPI bool forTpaContent(Player& player);
         
@@ -74,6 +87,7 @@ namespace LOICollection::server::Plugins {
         void unlistenEvent();
         
         struct RequestEntry;
+        struct PlayerRequestSetEntry;
 
         struct operation;
 

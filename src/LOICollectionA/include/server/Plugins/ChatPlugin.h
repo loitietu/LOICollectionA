@@ -37,20 +37,20 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_API   void addTitle(Player& player, const std::string& text, int time);
         LOICOLLECTION_A_API   void addBlacklist(Player& player, Player& target);
         LOICOLLECTION_A_API   void delTitle(Player& player, const std::string& text);
-        LOICOLLECTION_A_API   void delBlacklist(Player& player, const std::string& target);
+        LOICOLLECTION_A_API   void delBlacklist(Player& player, const std::string& id);
 
         LOICOLLECTION_A_NDAPI std::string getTitle(Player& player);
         LOICOLLECTION_A_NDAPI std::string getTitleTime(Player& player, const std::string& text);
+        LOICOLLECTION_A_NDAPI std::string getBlacklist(Player& player, Player& target);
 
         LOICOLLECTION_A_NDAPI std::vector<std::string> getTitles(Player& player);
         LOICOLLECTION_A_NDAPI std::vector<std::string> getBlacklist(Player& player);
 
-        LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::string> getBlacklistData(const std::string& target);
+        LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::string> getBlacklistData(const std::string& id);
         
         LOICOLLECTION_A_NDAPI bool hasTitle(Player& player, const std::string& text);
-        LOICOLLECTION_A_NDAPI bool hasBlacklist(Player& player, const std::string& uuid);
-        LOICOLLECTION_A_NDAPI bool isTitle(Player& player, const std::string& text); 
-        LOICOLLECTION_A_NDAPI bool isBlacklist(Player& player, Player& target);
+        LOICOLLECTION_A_NDAPI bool hasBlacklist(Player& player, const std::string& id);
+        
         LOICOLLECTION_A_NDAPI bool isValid();
 
     public:

@@ -203,6 +203,7 @@ namespace LOICollection::server::Plugins {
                 { "id", mObjectId },
                 { "type", type }
             };
+            
             if (type == "universal") {
                 mItemData["name"] = std::get<std::string>(dt->at("Input2"));
                 mItemData["quantity"] = SystemUtils::toInt(std::get<std::string>(dt->at("Input3")), 1);

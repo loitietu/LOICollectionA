@@ -85,7 +85,7 @@ namespace LOICollection::server::Plugins {
         command.overload<operation>().text("convert").required("Id").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isRemotePlayer())
+                if (entity == nullptr || !entity->isType(ActorType::Player))
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
@@ -95,7 +95,7 @@ namespace LOICollection::server::Plugins {
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isRemotePlayer())
+            if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
@@ -108,7 +108,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
             
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isRemotePlayer())
+            if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
@@ -122,7 +122,7 @@ namespace LOICollection::server::Plugins {
         if (!this->isValid())
             return;
 
-        if (!this->getDatabase()->has(id))
+        if (this->getDatabase()->has(id))
             return;
 
         nlohmann::ordered_json data = {
@@ -150,10 +150,9 @@ namespace LOICollection::server::Plugins {
         if (!this->isValid()) 
             return;
 
-        auto data = this->getDatabase()->get<nlohmann::ordered_json>(id);
-
         std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
 
+        auto data = this->getDatabase()->get<nlohmann::ordered_json>(id);
         if (data.is_null()) {
             player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
             return;
@@ -188,7 +187,7 @@ namespace LOICollection::server::Plugins {
                 mRedactableString.mUnredactedString = value.value("name", "");
                 
                 auto itemStack = std::make_unique<ItemStack>();
-                itemStack->reinit(value.value("id", ""), 0, value.value("specialvalue", 0));
+                itemStack->reinit(value.value("id", ""), 1, value.value("specialvalue", 0));
                 itemStack->setCustomName(mRedactableString);
                 
                 InventoryUtils::giveItem(player, *itemStack, value.value("quantity", 1));
@@ -198,9 +197,14 @@ namespace LOICollection::server::Plugins {
         player.refreshInventory();
         player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
 
-        data.value("personal", false) ? static_cast<void>(this->getDatabase()->remove(id)) : data.at("player").push_back(mUuid);
+        if (data.value("personal", false))
+            this->getDatabase()->remove(id);
+        else {
+            data.at("player").push_back(mUuid);
 
-        this->getDatabase()->set(id, data);
+            this->getDatabase()->set(id, data);
+        }
+
         this->getDatabase()->save();
 
         this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "cdk.log3"), player)), id);

@@ -11,11 +11,19 @@
 #include "LOICollectionA/include/server/Events/modules/MuteEvent.h"
 
 namespace LOICollection::server::Events {
-    std::string MuteAddEvent::getCause() const {
+    std::string MuteAddBeforeEvent::getCause() const {
         return mCause;
     }
 
-    int MuteAddEvent::getTime() const {
+    std::string MuteAddAfterEvent::getCause() const {
+        return mCause;
+    }
+
+    int MuteAddBeforeEvent::getTime() const {
+        return mTime;
+    }
+
+    int MuteAddAfterEvent::getTime() const {
         return mTime;
     }
 
@@ -33,12 +41,15 @@ namespace LOICollection::server::Events {
         const std::string& cause,
         int time
     ) {
-        MuteAddEvent event(player, cause, time);
-        ll::event::EventBus::getInstance().publish(event);
-        if (event.isCancelled())
+        MuteAddBeforeEvent beforeEvent(player, cause, time);
+        ll::event::EventBus::getInstance().publish(beforeEvent);
+        if (beforeEvent.isCancelled())
             return;
 
         origin(player, cause, time);
+
+        MuteAddAfterEvent afterEvent(player, cause, time);
+        ll::event::EventBus::getInstance().publish(afterEvent);
     }
 
     LL_TYPE_INSTANCE_HOOK(
@@ -58,7 +69,7 @@ namespace LOICollection::server::Events {
     }
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactoryAdd();
-    class MuteAddEventEmitter : public ll::event::Emitter<emitterFactoryAdd, MuteAddEvent> {
+    class MuteAddEventEmitter : public ll::event::Emitter<emitterFactoryAdd, MuteAddBeforeEvent, MuteAddAfterEvent> {
         ll::memory::HookRegistrar<MuteAddEventHook> hook;
     };
 

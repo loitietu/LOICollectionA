@@ -141,7 +141,7 @@ void SQLiteStorage::set(std::shared_ptr<ConnectionContext> context, std::string_
         std::format("INSERT INTO {0} (key, {1}) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET {1} = excluded.{1}, updated_at = CURRENT_TIMESTAMP;", table, column)
     );
 
-    auto guard = make_success_guard([&stmt]() -> void { 
+    auto guard = make_scope_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
@@ -171,7 +171,7 @@ void SQLiteStorage::set(std::shared_ptr<ConnectionContext> context, std::string_
         table, columns, placeholder
     ));
 
-    auto guard = make_success_guard([&stmt]() { 
+    auto guard = make_scope_guard([&stmt]() { 
         stmt.reset(); 
     });
 
@@ -188,7 +188,7 @@ void SQLiteStorage::del(std::shared_ptr<ConnectionContext> context, std::string_
         std::format("DELETE FROM {} WHERE key = ?;", table)
     );
 
-    auto guard = make_success_guard([&stmt]() -> void { 
+    auto guard = make_scope_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
@@ -211,7 +211,7 @@ void SQLiteStorage::del(std::shared_ptr<ConnectionContext> context, std::string_
             table, placeholder
         ));
 
-        auto guard = make_success_guard([&stmt]() -> void { 
+        auto guard = make_scope_guard([&stmt]() -> void { 
             stmt.reset(); 
         });
         
@@ -227,7 +227,7 @@ bool SQLiteStorage::has(std::shared_ptr<ConnectionContext> context, std::string_
         std::format("SELECT 1 FROM {} WHERE key = ? LIMIT 1;", table)
     );
 
-    auto guard = make_success_guard([&stmt]() -> void { 
+    auto guard = make_scope_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
@@ -240,7 +240,7 @@ bool SQLiteStorage::has(std::shared_ptr<ConnectionContext> context, std::string_
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name = ? LIMIT 1;"
     );
 
-    auto guard = make_success_guard([&stmt]() -> void { 
+    auto guard = make_scope_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
@@ -264,7 +264,7 @@ std::unordered_map<std::string, std::string> SQLiteStorage::get(std::shared_ptr<
         std::format("SELECT {} FROM {} WHERE key = ?;", sql, table)
     );
 
-    auto guard = make_success_guard([&stmt]() -> void { 
+    auto guard = make_scope_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
@@ -312,7 +312,7 @@ std::unordered_map<std::string, std::unordered_map<std::string, std::string>> SQ
             sql, table, placeholder
         ));
 
-        auto guard = make_success_guard([&stmt]() -> void { 
+        auto guard = make_scope_guard([&stmt]() -> void { 
             stmt.reset(); 
         });
         
@@ -345,7 +345,7 @@ std::string SQLiteStorage::get(std::shared_ptr<ConnectionContext> context, std::
         std::format("SELECT {0} FROM {1} WHERE key = ?;", column, table)
     );
 
-    auto guard = make_success_guard([&stmt]() -> void { 
+    auto guard = make_scope_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
@@ -371,7 +371,7 @@ std::string SQLiteStorage::find(std::shared_ptr<ConnectionContext> context, std:
         std::format("SELECT key FROM {} WHERE {} LIMIT 1;", table, where)
     );
 
-    auto guard = make_success_guard([&stmt]() -> void { 
+    auto guard = make_scope_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
@@ -399,7 +399,7 @@ std::vector<std::string> SQLiteStorage::find(std::shared_ptr<ConnectionContext> 
         std::format("SELECT DISTINCT key FROM {} WHERE {};", table, where)
     );
 
-    auto guard = make_success_guard([&stmt]() -> void { 
+    auto guard = make_scope_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
@@ -428,7 +428,7 @@ std::vector<std::string> SQLiteStorage::find(std::shared_ptr<ConnectionContext> 
         std::format("SELECT DISTINCT {} FROM {} WHERE {};", column, table, where)
     );
 
-    auto guard = make_success_guard([&stmt]() -> void { 
+    auto guard = make_scope_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
@@ -447,7 +447,7 @@ std::vector<std::string> SQLiteStorage::list(std::shared_ptr<ConnectionContext> 
         std::format("SELECT DISTINCT key FROM {};", table)
     );
 
-    auto guard = make_success_guard([&stmt]() -> void { 
+    auto guard = make_scope_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
@@ -463,7 +463,7 @@ std::vector<std::string> SQLiteStorage::list(std::shared_ptr<ConnectionContext> 
         "SELECT DISTINCT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;"
     );
 
-    auto guard = make_success_guard([&stmt]() -> void { 
+    auto guard = make_scope_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
@@ -479,7 +479,7 @@ std::vector<std::string> SQLiteStorage::columns(std::shared_ptr<ConnectionContex
         std::format("PRAGMA table_info({})", table)
     );
 
-    auto guard = make_success_guard([&stmt]() -> void { 
+    auto guard = make_scope_guard([&stmt]() -> void { 
         stmt.reset(); 
     });
 
@@ -492,7 +492,6 @@ std::vector<std::string> SQLiteStorage::columns(std::shared_ptr<ConnectionContex
 
 void SQLiteStorage::exec(std::string_view sql) {
     auto conn = this->writeConnectionPool->getConnection();
-
     if (!conn)
         return;
 
@@ -505,7 +504,6 @@ void SQLiteStorage::exec(std::string_view sql) {
 
 void SQLiteStorage::create(std::string_view table, CreateCallback callback) {
     auto conn = this->writeConnectionPool->getConnection();
-
     if (!conn)
         return;
 
@@ -518,7 +516,6 @@ void SQLiteStorage::create(std::string_view table, CreateCallback callback) {
 
 void SQLiteStorage::remove(std::string_view table) {
     auto conn = this->writeConnectionPool->getConnection();
-
     if (!conn)
         return;
 
@@ -531,7 +528,6 @@ void SQLiteStorage::remove(std::string_view table) {
 
 void SQLiteStorage::set(std::string_view table, std::string_view key, std::string_view column, std::string_view value) {
     auto conn = this->writeConnectionPool->getConnection();
-
     if (!conn)
         return;
 
@@ -544,7 +540,6 @@ void SQLiteStorage::set(std::string_view table, std::string_view key, std::strin
 
 void SQLiteStorage::set(std::string_view table, std::string_view key, std::unordered_map<std::string, std::string> values) {
     auto conn = this->writeConnectionPool->getConnection();
-
     if (!conn)
         return;
 
@@ -557,7 +552,6 @@ void SQLiteStorage::set(std::string_view table, std::string_view key, std::unord
 
 void SQLiteStorage::del(std::string_view table, std::string_view key) {
     auto conn = this->writeConnectionPool->getConnection();
-
     if (!conn)
         return;
 
@@ -570,7 +564,6 @@ void SQLiteStorage::del(std::string_view table, std::string_view key) {
 
 void SQLiteStorage::del(std::string_view table, std::vector<std::string> keys) {
     auto conn = this->writeConnectionPool->getConnection();
-
     if (!conn)
         return;
 
@@ -583,7 +576,6 @@ void SQLiteStorage::del(std::string_view table, std::vector<std::string> keys) {
 
 bool SQLiteStorage::has(std::string_view table, std::string_view key) {
     auto conn = this->readConnectionPool->getConnection();
-
     if (!conn)
         return false;
 
@@ -596,7 +588,6 @@ bool SQLiteStorage::has(std::string_view table, std::string_view key) {
 
 bool SQLiteStorage::has(std::string_view table) {
     auto conn = this->readConnectionPool->getConnection();
-
     if (!conn)
         return false;
 
@@ -609,7 +600,6 @@ bool SQLiteStorage::has(std::string_view table) {
 
 std::unordered_map<std::string, std::string> SQLiteStorage::get(std::string_view table, std::string_view key) {
     auto conn = this->readConnectionPool->getConnection();
-
     if (!conn)
         return {};
 
@@ -622,7 +612,6 @@ std::unordered_map<std::string, std::string> SQLiteStorage::get(std::string_view
 
 std::unordered_map<std::string, std::unordered_map<std::string, std::string>> SQLiteStorage::get(std::string_view table, std::vector<std::string> keys) {
     auto conn = this->readConnectionPool->getConnection();
-
     if (!conn)
         return {};
 
@@ -635,7 +624,6 @@ std::unordered_map<std::string, std::unordered_map<std::string, std::string>> SQ
 
 std::string SQLiteStorage::get(std::string_view table, std::string_view key, std::string_view column, std::string_view defaultValue) {
     auto conn = this->readConnectionPool->getConnection();
-
     if (!conn)
         return std::string(defaultValue);
 
@@ -648,7 +636,6 @@ std::string SQLiteStorage::get(std::string_view table, std::string_view key, std
 
 std::string SQLiteStorage::find(std::string_view table, std::vector<std::pair<std::string, std::string>> conditions, std::string_view defaultValue, FindCondition match) {
     auto conn = this->readConnectionPool->getConnection();
-
     if (!conn)
         return std::string(defaultValue);
 
@@ -661,7 +648,6 @@ std::string SQLiteStorage::find(std::string_view table, std::vector<std::pair<st
 
 std::vector<std::string> SQLiteStorage::find(std::string_view table, std::vector<std::pair<std::string, std::string>> conditions, FindCondition match) {
     auto conn = this->readConnectionPool->getConnection();
-
     if (!conn)
         return {};
 
@@ -674,7 +660,6 @@ std::vector<std::string> SQLiteStorage::find(std::string_view table, std::vector
 
 std::vector<std::string> SQLiteStorage::find(std::string_view table, std::string_view column, std::vector<std::pair<std::string, std::string>> conditions, FindCondition match) {
     auto conn = this->readConnectionPool->getConnection();
-
     if (!conn)
         return {};
 
@@ -687,7 +672,6 @@ std::vector<std::string> SQLiteStorage::find(std::string_view table, std::string
 
 std::vector<std::string> SQLiteStorage::list(std::string_view table) {
     auto conn = this->readConnectionPool->getConnection();
-
     if (!conn)
         return {};
 
@@ -700,7 +684,6 @@ std::vector<std::string> SQLiteStorage::list(std::string_view table) {
 
 std::vector<std::string> SQLiteStorage::list() {
     auto conn = this->readConnectionPool->getConnection();
-
     if (!conn)
         return {};
     
@@ -713,7 +696,6 @@ std::vector<std::string> SQLiteStorage::list() {
 
 std::vector<std::string> SQLiteStorage::columns(std::string_view table) {
     auto conn = this->readConnectionPool->getConnection();
-
     if (!conn)
         return {};
 
@@ -726,7 +708,6 @@ std::vector<std::string> SQLiteStorage::columns(std::string_view table) {
 
 SQLiteStorageTransaction::SQLiteStorageTransaction(SQLiteStorage& storage, bool readOnly) : mStorage(storage) {
     this->mConnection = readOnly ? mStorage.readConnectionPool->getConnection() : mStorage.writeConnectionPool->getConnection();
-
     if (!this->mConnection)
         return;
 
@@ -748,6 +729,8 @@ bool SQLiteStorageTransaction::commit() {
         this->mTransaction->commit();
         this->mTransaction.reset();
     } catch (...) {
+        this->mTransaction.reset(); 
+        
         this->mStorage.writeConnectionPool->returnConnection(mConnection);
         return false;
     }
@@ -764,6 +747,8 @@ bool SQLiteStorageTransaction::rollback() {
         this->mTransaction->rollback();
         this->mTransaction.reset();
     } catch(...) {
+        this->mTransaction.reset(); 
+
         this->mStorage.writeConnectionPool->returnConnection(mConnection);
         return false;
     }

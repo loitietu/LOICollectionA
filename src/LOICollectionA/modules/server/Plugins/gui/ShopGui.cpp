@@ -540,7 +540,7 @@ namespace LOICollection::server::Plugins {
         ll::form::CustomForm form(LOICollectionAPI::APIUtils::getInstance().translate(data.value("title", ""), player));
         form.appendLabel(LOICollectionAPI::APIUtils::getInstance().translate(data.value("introduce", ""), player));
         form.appendInput("Input", LOICollectionAPI::APIUtils::getInstance().translate(data.value("number", ""), player), "", "1");
-        form.sendTo(player, [this, original, data, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+        form.sendTo(player, [this, original = std::move(original), data = std::move(data), type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
             if (!dt) return CommandUtils::executeCommand(pl, original.value("info", nlohmann::ordered_json()).value("exit", ""));
 
             int mNumber = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
@@ -562,7 +562,7 @@ namespace LOICollection::server::Plugins {
             LOICollectionAPI::APIUtils::getInstance().translate(data.value("confirmButton", "confirm"), player),
             LOICollectionAPI::APIUtils::getInstance().translate(data.value("cancelButton", "cancel"), player)
         );
-        form.sendTo(player, [this, original, data, type](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
+        form.sendTo(player, [this, original = std::move(original), data = std::move(data), type](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
             if (result == ll::form::ModalFormSelectedButton::Upper) {
                 if (!this->mParent.title(pl, data, type))
                     return CommandUtils::executeCommand(pl, original.value("info", nlohmann::ordered_json()).value(type == ShopType::buy ? "score" : "title", ""));

@@ -10,7 +10,7 @@
 
 class SQLiteStorageTest : public testing::Test {
 protected:
-    void SetUp() override {
+    static void SetUpTestSuite() {
         tempDir = std::filesystem::temp_directory_path() / "sqlite_storage_test";
 
         std::filesystem::create_directories(tempDir);
@@ -18,16 +18,18 @@ protected:
         storage = std::make_unique<SQLiteStorage>((tempDir / "test.db").string(), 2, 1, 10);
     }
 
-    void TearDown() override {
+    static void TearDownTestSuite() {
         storage.reset();
 
-        std::error_code ec;
-        std::filesystem::remove_all(tempDir, ec);
+        std::filesystem::remove_all(tempDir);
     }
 
-    std::filesystem::path tempDir;
-    std::unique_ptr<SQLiteStorage> storage;
+    static std::filesystem::path tempDir;
+    static std::unique_ptr<SQLiteStorage> storage;
 };
+
+std::filesystem::path SQLiteStorageTest::tempDir;
+std::unique_ptr<SQLiteStorage> SQLiteStorageTest::storage;
 
 TEST_F(SQLiteStorageTest, CreateTableAndSetGetSingleColumn) {
     storage->create("users", [](SQLiteStorage::ColumnCallback add) -> void {

@@ -20,7 +20,7 @@ lip install github.com/loitietu/LOICollectionA
 - 对于安装指定版本的可以执行以下命令
 
 ```bash
-lip install github.com/loitietu/LOICollectionA@v1.12.0
+lip install github.com/loitietu/LOICollectionA@v1.13.0
 ```
 
 - 对于进行版本更新的可以执行以下命令
@@ -47,9 +47,7 @@ lip install --upgrade github.com/loitietu/LOICollectionA
 | --- | --- |
 | LeviLamina | 26.10.x |
 
-> 您需要手动下载对应版本的前置组件  
-> 在下载前置组件时，请确保您下载的版本与 LOICollectionA 的版本兼容  
-> 如果您不确定，我们建议您使用 `lip安装`
+> 请您手动下载版本兼容的前置组件。若不确定版本兼容性，建议改用 lip 安装。
 
 1. 前往 Minebbs 或者 Github Release 下载 LOICollectionA 的最新版本
 2. 解压下载的 `LOICollectionA-windows-x64.zip`
@@ -67,7 +65,7 @@ lip install --upgrade github.com/loitietu/LOICollectionA
 ## 安装 LOICollectionA-Expand
 
 > [!NOTE]
-> 以下内容与上面所提到的大致相似，这里只提供 `lip安装` 部分的详细说明
+> 以下安装步骤与 LOICollectionA 类似，此处仅提供 lip 安装方式供参考。
 
 ### 安装说明
 

@@ -19,6 +19,10 @@ namespace ll {
     namespace io {
         class Logger;
     }
+
+    namespace coro {
+        class Executor;
+    }
 }
 
 namespace LOICollection::server::Plugins {
@@ -44,6 +48,8 @@ namespace LOICollection::server::Plugins {
 
         LOICOLLECTION_A_NDAPI std::shared_ptr<SQLiteStorage> getDatabase();
         LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
+
+        LOICOLLECTION_A_API   void setExecutor(const ll::coro::Executor& executor);
 
         LOICOLLECTION_A_NDAPI Event getBasicEvent(const std::string& name, const std::string& type, const Vec3& position, int dimension);
 
@@ -76,6 +82,9 @@ namespace LOICollection::server::Plugins {
             std::function<void(ll::event::Event&, Event&)> process,
             std::function<std::string(std::string, ll::event::Event&)> formatter
         );
+
+        void startWriteDatabaseTask();
+        void startCleanDatabaseTask();
 
         void registeryCommand();
         void listenEvent();

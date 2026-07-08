@@ -102,7 +102,7 @@ namespace LOICollection::server::Plugins {
         command.overload<operation>().text("gui").optional("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isRemotePlayer())
+                if (entity == nullptr || !entity->isType(ActorType::Player))
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
@@ -117,7 +117,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
             
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isRemotePlayer())
+            if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
@@ -127,7 +127,7 @@ namespace LOICollection::server::Plugins {
         });
         command.overload().text("clock").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isRemotePlayer())
+            if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
@@ -165,6 +165,7 @@ namespace LOICollection::server::Plugins {
 
             if (!itemStack || InventoryUtils::isItemInInventory(event.self(), this->mImpl->options.MenuItemId, 1))
                 return;
+            
             InventoryUtils::giveItem(event.self(), *itemStack, 1);
             event.self().refreshInventory();
         });
@@ -192,6 +193,7 @@ namespace LOICollection::server::Plugins {
 
         if (!this->getDatabase()->has(id))
             this->getDatabase()->set(id, data);
+        
         this->getDatabase()->save();
     }
 

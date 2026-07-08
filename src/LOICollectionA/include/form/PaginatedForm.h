@@ -50,7 +50,7 @@ namespace LOICollection::form {
         LOICOLLECTION_A_NDAPI int getCurrentPage() const;
         LOICOLLECTION_A_NDAPI int getElementPerPage() const;
 
-        LOICOLLECTION_A_API   std::optional<Page> getPage(int page);
+        LOICOLLECTION_A_API   std::optional<std::reference_wrapper<Page>> getPage(int page);
 
         LOICOLLECTION_A_API   void setTitle(const std::string& title);
         LOICOLLECTION_A_API   void setContent(const std::string& content);

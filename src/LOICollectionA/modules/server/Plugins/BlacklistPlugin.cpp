@@ -165,7 +165,7 @@ namespace LOICollection::server::Plugins {
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isRemotePlayer())
+            if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
@@ -211,7 +211,7 @@ namespace LOICollection::server::Plugins {
             );
         });
 
-        this->mImpl->BlacklistAddEventListener = eventBus.emplaceListener<LOICollection::server::Events::BlacklistAddEvent>([this](LOICollection::server::Events::BlacklistAddEvent& event) -> void {
+        this->mImpl->BlacklistAddEventListener = eventBus.emplaceListener<LOICollection::server::Events::BlacklistAddBeforeEvent>([this](LOICollection::server::Events::BlacklistAddBeforeEvent& event) -> void {
             std::string mId = this->getBlacklist(event.self());
 
             if (mId.empty())
@@ -246,7 +246,7 @@ namespace LOICollection::server::Plugins {
             { "subtime", SystemUtils::getNowTime("%Y%m%d%H%M%S") },
             { "data_uuid", player.getUuid().asString() },
             { "data_ip", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':')) },
-            { "data_clientid", player.getConnectionRequest()->getDeviceId() }
+            { "data_clientid", player.getConnectionRequest().transform(&ConnectionRequest::getDeviceId).value_or("None") }
         };
 
         this->getDatabase()->set("Blacklist", mTismestamp, mData);
@@ -298,7 +298,7 @@ namespace LOICollection::server::Plugins {
         return this->getDatabase()->find("Blacklist", {
             { "data_uuid", player.getUuid().asString() },
             { "data_ip", player.getIPAndPort().substr(0, player.getIPAndPort().find_last_of(':')) },
-            { "data_clientid", player.getConnectionRequest()->getDeviceId() }
+            { "data_clientid", player.getConnectionRequest().transform(&ConnectionRequest::getDeviceId).value_or("None") }
         }, "", SQLiteStorage::FindCondition::OR);
     }
 

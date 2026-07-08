@@ -219,7 +219,7 @@ namespace LOICollection::server::Plugins {
         std::vector<mce::UUID> mPlayerUuids;
 
         ll::service::getLevel()->forEachPlayer([this, &player, &mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
-            std::vector<std::string> mList = this->mParent.getBlacklist(mTarget);
+            std::vector<std::string> mList = this->mParent.getBlacklistFromTarget(this->mParent.getBlacklist(mTarget));
             if (mTarget.isSimulatedPlayer() || std::find(mList.begin(), mList.end(), player.getUuid().asString()) != mList.end() || this->mParent.isInvite(mTarget) || mTarget.getUuid() == player.getUuid())
                 return true;
 

@@ -19,7 +19,6 @@
 #include <ll/api/io/LoggerRegistry.h>
 
 #include <ll/api/coro/CoroTask.h>
-#include <ll/api/coro/InterruptableSleep.h>
 #include <ll/api/chrono/GameChrono.h>
 #include <ll/api/thread/ThreadPoolExecutor.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
@@ -77,6 +76,8 @@
 #include "LOICollectionA/include/server/Events/world/BlockExplodedEvent.h"
 #include "LOICollectionA/include/server/Events/player/PlayerContainerEvent.h"
 
+#include "LOICollectionA/coro/TimerManager.h"
+
 #include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/mc-server/BlockUtils.h"
 #include "LOICollectionA/utils/core/SystemUtils.h"
@@ -125,11 +126,12 @@ namespace LOICollection::server::Plugins {
 
         ll::thread::ThreadPoolExecutor mExecutor{ "BehavorEventPlugin", std::max(static_cast<size_t>(std::thread::hardware_concurrency()) - 2, static_cast<size_t>(2)) };
 
-        ll::coro::InterruptableSleep WirteDatabaseTaskSleep;
-        ll::coro::InterruptableSleep CleanDatabaseTaskSleep;
+        std::unique_ptr<TimerManager> mTimerManager;
 
         std::atomic<bool> WriteDatabaseTaskRunning{ true };
         std::atomic<bool> CleanDatabaseTaskRunning{ true };
+
+        Impl() : mTimerManager(std::make_unique<TimerManager>(this->mExecutor)) {}
     };
 
     BehaviorEventPlugin::BehaviorEventPlugin() : mImpl(std::make_unique<Impl>()) {};
@@ -206,6 +208,44 @@ namespace LOICollection::server::Plugins {
         }, ll::event::EventPriority::Highest);
 
         mImpl->mListeners.emplace(name, listener);
+    }
+
+    void BehaviorEventPlugin::startWriteDatabaseTask() {
+        this->mImpl->mTimerManager->schedule("WirteDatabaseTask", std::chrono::minutes(this->mImpl->options.RefreshIntervalInMinutes), [this]() -> void {
+            Event mEvent{};
+
+            std::vector<Event> mEvents;
+            while (this->mImpl->mEvents.try_dequeue(mEvent))
+                mEvents.emplace_back(mEvent);
+
+            std::ranges::sort(mEvents.begin(), mEvents.end(), {}, [](const Event& mEvent) {
+                return std::tie(mEvent.eventName, mEvent.eventTime, mEvent.eventType, mEvent.posX, mEvent.posY, mEvent.posZ, mEvent.dimension);
+            });
+            auto [first, last] = std::ranges::unique(mEvents.begin(), mEvents.end(), {}, [](const Event& mEvent) {
+                return std::tie(mEvent.eventName, mEvent.eventTime, mEvent.eventType, mEvent.posX, mEvent.posY, mEvent.posZ, mEvent.dimension);
+            });
+            mEvents.erase(first, last);
+
+            std::for_each(mEvents.begin(), mEvents.end(), [this](const Event& mEvent) mutable -> void {
+                std::string mTismestamp = SystemUtils::getCurrentTimestamp();
+
+                this->write(mTismestamp, mEvent);
+            });
+
+            if (this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire))
+                this->startWriteDatabaseTask();
+        });
+    }
+
+    void BehaviorEventPlugin::startCleanDatabaseTask() {
+        this->mImpl->mTimerManager->schedule("CleanDatabaseTask", std::chrono::minutes(this->mImpl->options.CleanDatabaseInterval), [this]() -> void {
+            std::vector<std::string> mEvents = this->getEvents();
+            if (static_cast<int>(mEvents.size()) >= this->mImpl->options.CleanThresholdEvent)
+                this->clean(this->mImpl->options.OrganizeDatabaseInterval);
+
+            if (this->mImpl->CleanDatabaseTaskRunning.load(std::memory_order_acquire))
+                this->startCleanDatabaseTask();
+        });
     }
 
     void BehaviorEventPlugin::registeryCommand() {
@@ -403,47 +443,8 @@ namespace LOICollection::server::Plugins {
         this->mImpl->WriteDatabaseTaskRunning.store(true, std::memory_order_release);
         this->mImpl->CleanDatabaseTaskRunning.store(true, std::memory_order_release);
 
-        ll::coro::keepThis([this]() -> ll::coro::CoroTask<> {
-            while (this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire)) {
-                co_await this->mImpl->WirteDatabaseTaskSleep.sleepFor(std::chrono::minutes(this->mImpl->options.RefreshIntervalInMinutes));
-
-                if (!this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire))
-                    break;
-
-                Event mEvent{};
-
-                std::vector<Event> mEvents;
-                while (this->mImpl->mEvents.try_dequeue(mEvent))
-                    mEvents.emplace_back(mEvent);
-
-                std::ranges::sort(mEvents.begin(), mEvents.end(), {}, [](const Event& mEvent) {
-                    return std::tie(mEvent.eventName, mEvent.eventTime, mEvent.eventType, mEvent.posX, mEvent.posY, mEvent.posZ, mEvent.dimension);
-                });
-                auto [first, last] = std::ranges::unique(mEvents.begin(), mEvents.end(), {}, [](const Event& mEvent) {
-                    return std::tie(mEvent.eventName, mEvent.eventTime, mEvent.eventType, mEvent.posX, mEvent.posY, mEvent.posZ, mEvent.dimension);
-                });
-                mEvents.erase(first, last);
-
-                std::for_each(mEvents.begin(), mEvents.end(), [this](const Event& mEvent) mutable -> void {
-                    std::string mTismestamp = SystemUtils::getCurrentTimestamp();
-
-                    this->write(mTismestamp, mEvent);
-                });
-            }
-        }).launch(this->mImpl->mExecutor);
-
-        ll::coro::keepThis([this]() -> ll::coro::CoroTask<> {
-            while (this->mImpl->CleanDatabaseTaskRunning.load(std::memory_order_acquire)) {
-                co_await this->mImpl->CleanDatabaseTaskSleep.sleepFor(std::chrono::hours(this->mImpl->options.CleanDatabaseInterval));
-
-                if (!this->mImpl->CleanDatabaseTaskRunning.load(std::memory_order_acquire))
-                    break;
-
-                std::vector<std::string> mEvents = this->getEvents();
-                if (static_cast<int>(mEvents.size()) >= this->mImpl->options.CleanThresholdEvent)
-                    this->clean(this->mImpl->options.OrganizeDatabaseInterval);
-            }
-        }).launch(this->mImpl->mExecutor);
+        this->startWriteDatabaseTask();
+        this->startCleanDatabaseTask();
 
         this->registeryEvent<ll::event::PlayerConnectEvent>("PlayerConnect", "Normal", "behaviorevent.event.playerconnect", [this](BehaviorEventConfig config) -> bool {
             switch (config) {
@@ -757,8 +758,17 @@ namespace LOICollection::server::Plugins {
         this->mImpl->WriteDatabaseTaskRunning.store(false, std::memory_order_release);
         this->mImpl->CleanDatabaseTaskRunning.store(false, std::memory_order_release);
 
-        this->mImpl->WirteDatabaseTaskSleep.interrupt();
-        this->mImpl->CleanDatabaseTaskSleep.interrupt();
+        this->mImpl->mTimerManager->cancelAll();
+    }
+
+    void BehaviorEventPlugin::setExecutor(const ll::coro::Executor& executor) {
+        if (!this->isValid())
+            return;
+
+        this->mImpl->mTimerManager->setExecutor(executor);
+
+        this->startWriteDatabaseTask();
+        this->startCleanDatabaseTask();
     }
 
     BehaviorEventPlugin::Event BehaviorEventPlugin::getBasicEvent(const std::string& name, const std::string& type, const Vec3& position, int dimension) {
@@ -837,20 +847,23 @@ namespace LOICollection::server::Plugins {
         if (!this->isValid())
             return {};
 
-        std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mEvents;
-        for (auto& [id, data] : this->getDatabase()->get("Events", ids)) {
+        std::unordered_map<std::string, std::string> mEvents;
+        for (auto& [key, data] : this->getDatabase()->get("Events", ids)) {
+            std::string id = std::format("{}_{}.{}.{}.{}:{}", 
+                data.at("event_name"),
+                data.at("event_time"),
+                data.at("position_x"),
+                data.at("position_y"),
+                data.at("position_z"),
+                data.at("position_dimension")
+            );
+
             auto it = mEvents.find(id);
             if (it == mEvents.end())
-                mEvents[id] = data;
-            else if (
-                it->second.at("position_x") == data.at("position_x") &&
-                it->second.at("position_y") == data.at("position_y") &&
-                it->second.at("position_z") == data.at("position_z") &&
-                it->second.at("position_dimension") == data.at("position_dimension")
-            ) it->second = data;
+                mEvents[id] = key;
         }
 
-        return std::views::keys(mEvents) | std::ranges::to<std::vector<std::string>>();
+        return std::views::values(mEvents) | std::ranges::to<std::vector<std::string>>();
     }
 
     void BehaviorEventPlugin::write(const std::string& id, const Event& event) {

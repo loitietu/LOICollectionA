@@ -172,7 +172,7 @@ namespace LOICollection::server::Plugins {
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isRemotePlayer())
+            if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
@@ -203,7 +203,7 @@ namespace LOICollection::server::Plugins {
             event.cancel();
         }, ll::event::EventPriority::Highest);
 
-        this->mImpl->MuteAddEventListener = eventBus.emplaceListener<LOICollection::server::Events::MuteAddEvent>([this](LOICollection::server::Events::MuteAddEvent& event) -> void {
+        this->mImpl->MuteAddEventListener = eventBus.emplaceListener<LOICollection::server::Events::MuteAddAfterEvent>([this](LOICollection::server::Events::MuteAddAfterEvent& event) -> void {
             std::string mId = this->getMute(event.self());
 
             if (mId.empty())

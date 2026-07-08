@@ -11,13 +11,29 @@
 class Player;
 
 namespace LOICollection::server::Events {
-    class MuteAddEvent final : public ll::event::Cancellable<ll::event::PlayerEvent> {
+    class MuteAddBeforeEvent final : public ll::event::Cancellable<ll::event::PlayerEvent> {
     protected:
         const std::string& mCause;
         int mTime;
     
     public:
-        constexpr explicit MuteAddEvent(
+        constexpr explicit MuteAddBeforeEvent(
+            Player& player,
+            const std::string& cause,
+            int time
+        ) : Cancellable(player), mCause(cause), mTime(time) {}
+
+        LOICOLLECTION_A_NDAPI std::string getCause() const;
+        LOICOLLECTION_A_NDAPI int getTime() const;
+    };
+
+    class MuteAddAfterEvent final : public ll::event::Cancellable<ll::event::PlayerEvent> {
+    protected:
+        const std::string& mCause;
+        int mTime;
+    
+    public:
+        constexpr explicit MuteAddAfterEvent(
             Player& player,
             const std::string& cause,
             int time

@@ -15,8 +15,6 @@
 #include <ll/api/command/CommandRegistrar.h>
 #include <ll/api/base/Containers.h>
 
-#include <ll/api/coro/CoroTask.h>
-#include <ll/api/coro/InterruptableSleep.h>
 #include <ll/api/thread/ThreadPoolExecutor.h>
 
 #include <ll/api/event/EventBus.h>
@@ -42,6 +40,8 @@
 #include "LOICollectionA/include/form/PaginatedForm.h"
 
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
+
+#include "LOICollectionA/coro/TimerManager.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/core/SystemUtils.h"
@@ -96,9 +96,11 @@ namespace LOICollection::server::Plugins {
 
         ll::thread::ThreadPoolExecutor mExecutor{ "StatisticsPlugin", std::max(static_cast<size_t>(std::thread::hardware_concurrency()) - 2, static_cast<size_t>(2)) };
 
-        ll::coro::InterruptableSleep WirteDatabaseTaskSleep;
+        std::unique_ptr<TimerManager> mTimerManager;
 
         std::atomic<bool> WriteDatabaseTaskRunning{ true };
+
+        Impl() : mTimerManager(std::make_unique<TimerManager>(this->mExecutor)) {}
     };
 
     StatisticsPlugin::StatisticsPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<StatisticsGui>(*this)) {}
@@ -117,12 +119,31 @@ namespace LOICollection::server::Plugins {
         return this->mImpl->logger;
     }
 
+    void StatisticsPlugin::startWirteDatabaseTask() {
+        this->mImpl->mTimerManager->schedule("WirteDatabaseTask", std::chrono::minutes(this->mImpl->options.RefreshIntervalInMinutes), [this]() -> void {
+            SQLiteStorageTransaction transaction(*this->getDatabase());
+            auto connection = transaction.connection();
+
+            for (const auto& it : this->mImpl->mCache) {
+                for (const auto& it2 : it.second)
+                    this->getDatabase()->set(connection, it2.first, it.first, "value", std::to_string(it2.second));
+            }
+
+            transaction.commit();
+
+            this->mImpl->mCache.clear();
+
+            if (this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire))
+                this->startWirteDatabaseTask();
+        });
+    }
+
     void StatisticsPlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("statistics", tr({}, "commands.statistics.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
-            if (entity == nullptr || !entity->isRemotePlayer())
+            if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
@@ -133,7 +154,7 @@ namespace LOICollection::server::Plugins {
         command.overload<operation>().text("gui").required("Type").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
-                if (entity == nullptr || !entity->isRemotePlayer())
+                if (entity == nullptr || !entity->isType(ActorType::Player))
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
@@ -146,26 +167,7 @@ namespace LOICollection::server::Plugins {
     void StatisticsPlugin::listenEvent() {
         this->mImpl->WriteDatabaseTaskRunning.store(true, std::memory_order_release);
 
-        ll::coro::keepThis([this]() -> ll::coro::CoroTask<> {
-            while (this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire)) {
-                co_await this->mImpl->WirteDatabaseTaskSleep.sleepFor(std::chrono::minutes(this->mImpl->options.RefreshIntervalInMinutes));
-
-                if (!this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire))
-                    break;
-
-                SQLiteStorageTransaction transaction(*this->getDatabase());
-                auto connection = transaction.connection();
-
-                for (const auto& it : this->mImpl->mCache) {
-                    for (const auto& it2 : it.second)
-                        this->getDatabase()->set(connection, it2.first, it.first, "value", std::to_string(it2.second));
-                }
-
-                transaction.commit();
-
-                this->mImpl->mCache.clear();
-            }
-        }).launch(this->mImpl->mExecutor);
+        this->startWirteDatabaseTask();
 
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         this->mImpl->mListeners.emplace("PlayerConnect", eventBus.emplaceListener<ll::event::PlayerConnectEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerConnectEvent& event) mutable -> void {
@@ -187,7 +189,7 @@ namespace LOICollection::server::Plugins {
             
             if (option.OnlineTime) {
                 int mOnlineTime = SystemUtils::toInt(
-                    SystemUtils::getTimeSpan(SystemUtils::getNowTime(), this->mImpl->mOnilneTime.at(mUuid), "0")
+                    SystemUtils::getTimeSpan(SystemUtils::getNowTime(), this->mImpl->mOnilneTime[mUuid], "0")
                 );
 
                 this->addStatistic(event.self(), StatisticType::onlinetime, mOnlineTime);
@@ -244,7 +246,14 @@ namespace LOICollection::server::Plugins {
 
         this->mImpl->WriteDatabaseTaskRunning.store(false, std::memory_order_release);
 
-        this->mImpl->WirteDatabaseTaskSleep.interrupt();
+        this->mImpl->mTimerManager->cancelAll();
+    }
+
+    void StatisticsPlugin::setExecutor(const ll::coro::Executor& executor) {
+        if (!this->isValid())
+            return;
+
+        this->mImpl->mTimerManager->setExecutor(executor);
     }
 
     std::string StatisticsPlugin::getStatisticName(StatisticType type) {

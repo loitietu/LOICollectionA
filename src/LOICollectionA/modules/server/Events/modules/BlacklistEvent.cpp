@@ -13,11 +13,19 @@
 #include "LOICollectionA/include/server/Events/modules/BlacklistEvent.h"
 
 namespace LOICollection::server::Events {
-    std::string BlacklistAddEvent::getCause() const {
+    std::string BlacklistAddBeforeEvent::getCause() const {
         return mCause;
     }
 
-    int BlacklistAddEvent::getTime() const {
+    std::string BlacklistAddAfterEvent::getCause() const {
+        return mCause;
+    }
+
+    int BlacklistAddBeforeEvent::getTime() const {
+        return mTime;
+    }
+
+    int BlacklistAddAfterEvent::getTime() const {
         return mTime;
     }
 
@@ -35,12 +43,15 @@ namespace LOICollection::server::Events {
         const std::string& cause,
         int time
     ) {
-        BlacklistAddEvent event(player, cause, time);
-        ll::event::EventBus::getInstance().publish(event);
-        if (event.isCancelled())
+        BlacklistAddBeforeEvent beforeEvent(player, cause, time);
+        ll::event::EventBus::getInstance().publish(beforeEvent);
+        if (beforeEvent.isCancelled())
             return;
 
         origin(player, cause, time);
+
+        BlacklistAddAfterEvent afterEvent(player, cause, time);
+        ll::event::EventBus::getInstance().publish(afterEvent);
     }
 
     LL_TYPE_INSTANCE_HOOK(
@@ -60,7 +71,7 @@ namespace LOICollection::server::Events {
     }
 
     static std::unique_ptr<ll::event::EmitterBase> emitterFactoryAdd();
-    class BlacklistAddEventEmitter : public ll::event::Emitter<emitterFactoryAdd, BlacklistAddEvent> {
+    class BlacklistAddEventEmitter : public ll::event::Emitter<emitterFactoryAdd, BlacklistAddBeforeEvent, BlacklistAddAfterEvent> {
         ll::memory::HookRegistrar<BlacklistAddEventHook> hook;
     };
 

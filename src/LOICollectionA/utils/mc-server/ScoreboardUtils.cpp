@@ -40,6 +40,15 @@ namespace ScoreboardUtils {
         );
     }
 
+    void remove(const std::string& name) {
+        auto level = ll::service::getLevel();
+
+        if (!hasScoreboard(name))
+            return;
+
+        level->getScoreboard().removeObjective(level->getScoreboard().getObjective(name));
+    }
+
     void modifyScore(ScoreboardId& identity, const std::string& name, int score, ScoreType action) {
         auto level = ll::service::getLevel();
 
@@ -58,7 +67,7 @@ namespace ScoreboardUtils {
         );
     }
 
-    void addScore(Player& player, const std::string &name, int score) {
+    void addScore(Player& player, const std::string& name, int score) {
         auto level = ll::service::getLevel();
 
         ScoreboardId identity = level->getScoreboard().getScoreboardId(player);
@@ -68,7 +77,7 @@ namespace ScoreboardUtils {
         modifyScore(identity, name, score, ScoreType::add);
     }
 
-    void reduceScore(Player& player, const std::string &name, int score) {
+    void reduceScore(Player& player, const std::string& name, int score) {
         auto level = ll::service::getLevel();
 
         ScoreboardId identity = level->getScoreboard().getScoreboardId(player);
@@ -76,5 +85,15 @@ namespace ScoreboardUtils {
             identity = level->getScoreboard().createScoreboardId(player);
 
         modifyScore(identity, name, score, ScoreType::reduce);
+    }
+
+    void setScore(Player& player, const std::string &name, int score) {
+        auto level = ll::service::getLevel();
+
+        ScoreboardId identity = level->getScoreboard().getScoreboardId(player);
+        if (identity.mRawID == ScoreboardId::INVALID().mRawID)
+            identity = level->getScoreboard().createScoreboardId(player);
+
+        modifyScore(identity, name, score, ScoreType::set);
     }
 }
