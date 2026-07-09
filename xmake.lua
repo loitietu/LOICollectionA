@@ -55,6 +55,19 @@ target("LOICollectionA")
         "/w44738",
         "/w45204"
     )
+    add_cxflags(
+        "/EHs",
+        "-Wno-microsoft-cast",
+        "-Wno-invalid-offsetof",
+        "-Wno-c++2b-extensions",
+        "-Wno-microsoft-include",
+        "-Wno-overloaded-virtual",
+        "-Wno-ignored-qualifiers",
+        "-Wno-missing-field-initializers",
+        "-Wno-potentially-evaluated-expression",
+        "-Wno-pragma-system-header-outside-header",
+        {tools = {"clang_cl"}}
+    )
     add_defines(
         "NOMINMAX",
         "UNICODE",
