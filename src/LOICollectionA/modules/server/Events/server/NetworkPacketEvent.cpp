@@ -118,21 +118,21 @@ namespace LOICollection::server::Events {
         origin(packet);
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory1();
-    class NetworkPacketEventEmitter : public ll::event::Emitter<emitterFactory1, NetworkPacketBeforeEvent, NetworkPacketAfterEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> NetworkPacketEmitterFactory1();
+    class NetworkPacketEventEmitter : public ll::event::Emitter<NetworkPacketEmitterFactory1, NetworkPacketBeforeEvent, NetworkPacketAfterEvent> {
         ll::memory::HookRegistrar<NetworkPacketEventHook1, NetworkPacketEventHook2> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory1() {
+    static std::unique_ptr<ll::event::EmitterBase> NetworkPacketEmitterFactory1() {
         return std::make_unique<NetworkPacketEventEmitter>();
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory2();
-    class NetworkBroadcastPacketEventEmitter : public ll::event::Emitter<emitterFactory2, NetworkBroadcastPacketEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> NetworkPacketEmitterFactory2();
+    class NetworkBroadcastPacketEventEmitter : public ll::event::Emitter<NetworkPacketEmitterFactory2, NetworkBroadcastPacketEvent> {
         ll::memory::HookRegistrar<NetworkBroadcastPacketEventHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory2() {
+    static std::unique_ptr<ll::event::EmitterBase> NetworkPacketEmitterFactory2() {
         return std::make_unique<NetworkBroadcastPacketEventEmitter>();
     }
 }

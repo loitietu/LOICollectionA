@@ -54,21 +54,21 @@ namespace LOICollection::server::Events {
         origin(id);
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryCreate();
-    class MenuCreateEventEmitter : public ll::event::Emitter<emitterFactoryCreate, MenuCreateEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> MenuEmitterFactoryCreate();
+    class MenuCreateEventEmitter : public ll::event::Emitter<MenuEmitterFactoryCreate, MenuCreateEvent> {
         ll::memory::HookRegistrar<MenuCreateEventHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryCreate() {
+    static std::unique_ptr<ll::event::EmitterBase> MenuEmitterFactoryCreate() {
         return std::make_unique<MenuCreateEventEmitter>();
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryDelete();
-    class MenuDeleteEventEmitter : public ll::event::Emitter<emitterFactoryDelete, MenuDeleteEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> MenuEmitterFactoryDelete();
+    class MenuDeleteEventEmitter : public ll::event::Emitter<MenuEmitterFactoryDelete, MenuDeleteEvent> {
         ll::memory::HookRegistrar<MenuDeleteEventHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryDelete() {
+    static std::unique_ptr<ll::event::EmitterBase> MenuEmitterFactoryDelete() {
         return std::make_unique<MenuDeleteEventEmitter>();
     }
 }

@@ -70,21 +70,21 @@ namespace LOICollection::server::Events {
         origin(id);
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryAdd();
-    class BlacklistAddEventEmitter : public ll::event::Emitter<emitterFactoryAdd, BlacklistAddBeforeEvent, BlacklistAddAfterEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> BlacklistEmitterFactoryAdd();
+    class BlacklistAddEventEmitter : public ll::event::Emitter<BlacklistEmitterFactoryAdd, BlacklistAddBeforeEvent, BlacklistAddAfterEvent> {
         ll::memory::HookRegistrar<BlacklistAddEventHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryAdd() {
+    static std::unique_ptr<ll::event::EmitterBase> BlacklistEmitterFactoryAdd() {
         return std::make_unique<BlacklistAddEventEmitter>();
     }
-
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryRemove();
-    class BlacklistRemoveEventEmitter : public ll::event::Emitter<emitterFactoryRemove, BlacklistRemoveEvent> {
+    
+    static std::unique_ptr<ll::event::EmitterBase> BlacklistEmitterFactoryRemove();
+    class BlacklistRemoveEventEmitter : public ll::event::Emitter<BlacklistEmitterFactoryRemove, BlacklistRemoveEvent> {
         ll::memory::HookRegistrar<BlacklistRemoveEventHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryRemove() {
+    static std::unique_ptr<ll::event::EmitterBase> BlacklistEmitterFactoryRemove() {
         return std::make_unique<BlacklistRemoveEventEmitter>();
     }
 }

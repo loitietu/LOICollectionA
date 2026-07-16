@@ -151,12 +151,12 @@ namespace LOICollection::server::Events {
         origin(owner, hitResult);
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory();
-    class PlayerHurtEventEmitter : public ll::event::Emitter<emitterFactory, PlayerHurtEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> PlayerHurtEmitterFactory();
+    class PlayerHurtEventEmitter : public ll::event::Emitter<PlayerHurtEmitterFactory, PlayerHurtEvent> {
         ll::memory::HookRegistrar<PlayerHurtEventHook1, PlayerHurtEventHook2, PlayerHurtEventHook3, PlayerHurtEventHook4> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory() {
+    static std::unique_ptr<ll::event::EmitterBase> PlayerHurtEmitterFactory() {
         return std::make_unique<PlayerHurtEventEmitter>();
     }
 }

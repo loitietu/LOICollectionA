@@ -42,12 +42,12 @@ namespace LOICollection::modules {
 }
 
 #define REGISTRY_HELPER(NAME, CLASS, BINDER, PRIORITY)                                                  \
-const auto RegistryHelper = []() -> bool {                                                              \
+const auto NAME##_RegistryHelper = []() -> bool {                                                       \
     static_assert(LOICollection::modules::Loadable<CLASS>, #CLASS " must be loadable");                 \
     static_assert(LOICollection::modules::Unloadable<CLASS>, #CLASS " must be unloadable");             \
     static_assert(LOICollection::modules::Registryable<CLASS>, #CLASS " must be registryable");         \
     static_assert(LOICollection::modules::Unregistryable<CLASS>, #CLASS " must be unregistryable");     \
                                                                                                         \
-    LOICollection::modules::registry<CLASS>(NAME, BINDER, PRIORITY);                                    \
+    LOICollection::modules::registry<CLASS>(#NAME, BINDER, PRIORITY);                                   \
     return true;                                                                                        \
 }();

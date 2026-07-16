@@ -300,4 +300,4 @@ namespace LOICollection::server::Plugins {
     }
 }
 
-REGISTRY_HELPER("MenuPlugin", LOICollection::server::Plugins::MenuPlugin, LOICollection::server::Plugins::MenuPlugin::getInstance(), LOICollection::modules::ModulePriority::High)
+REGISTRY_HELPER(MenuPlugin, LOICollection::server::Plugins::MenuPlugin, LOICollection::server::Plugins::MenuPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

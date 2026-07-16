@@ -453,4 +453,4 @@ namespace LOICollection::server::Plugins {
     }
 }
 
-REGISTRY_HELPER("MonitorPlugin", LOICollection::server::Plugins::MonitorPlugin, LOICollection::server::Plugins::MonitorPlugin::getInstance(), LOICollection::modules::ModulePriority::High)
+REGISTRY_HELPER(MonitorPlugin, LOICollection::server::Plugins::MonitorPlugin, LOICollection::server::Plugins::MonitorPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

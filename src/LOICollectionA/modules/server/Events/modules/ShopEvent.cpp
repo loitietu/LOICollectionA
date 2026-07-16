@@ -54,21 +54,21 @@ namespace LOICollection::server::Events {
         origin(id);
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryCreate();
-    class ShopCreateEventEmitter : public ll::event::Emitter<emitterFactoryCreate, ShopCreateEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> ShopEmitterFactoryCreate();
+    class ShopCreateEventEmitter : public ll::event::Emitter<ShopEmitterFactoryCreate, ShopCreateEvent> {
         ll::memory::HookRegistrar<ShopCreateEventHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryCreate() {
+    static std::unique_ptr<ll::event::EmitterBase> ShopEmitterFactoryCreate() {
         return std::make_unique<ShopCreateEventEmitter>();
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryDelete();
-    class ShopDeleteEventEmitter : public ll::event::Emitter<emitterFactoryDelete, ShopDeleteEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> ShopEmitterFactoryDelete();
+    class ShopDeleteEventEmitter : public ll::event::Emitter<ShopEmitterFactoryDelete, ShopDeleteEvent> {
         ll::memory::HookRegistrar<ShopDeleteEventHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryDelete() {
+    static std::unique_ptr<ll::event::EmitterBase> ShopEmitterFactoryDelete() {
         return std::make_unique<ShopDeleteEventEmitter>();
     }
 }

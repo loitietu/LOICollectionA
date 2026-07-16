@@ -60,23 +60,6 @@
 
 #include "LOICollectionA/include/server/Plugins/TpaPlugin.h"
 
-template <typename T>
-struct Allocator : public std::allocator<T> {
-    using std::allocator<T>::allocator;
-
-    using is_always_equal = typename std::allocator_traits<std::allocator<T>>::is_always_equal;
-};
-
-template <
-    class Key,
-    class Value,
-    class Hash  = phmap::priv::hash_default_hash<Key>,
-    class Eq    = phmap::priv::hash_default_eq<Key>,
-    class Alloc = Allocator<::std::pair<Key const, Value>>,
-    size_t N    = 4,
-    class Mutex = std::shared_mutex>
-using ConcurrentDenseMap = phmap::parallel_flat_hash_map<Key, Value, Hash, Eq, Alloc, N, Mutex>;
-
 using I18nUtilsTools::tr;
 
 namespace LOICollection::server::Plugins {
@@ -107,9 +90,9 @@ namespace LOICollection::server::Plugins {
     struct TpaPlugin::Impl {
         std::unique_ptr<TimerManager> mTimerManager;
 
-        ConcurrentDenseMap<std::string, RequestEntry> mRequests;
-        ConcurrentDenseMap<std::string, PlayerRequestSetEntry> mActiveRequest;
-        ConcurrentDenseMap<std::pair<std::string, std::string>, std::string> mRequestPending;
+        ll::ConcurrentDenseMap<std::string, RequestEntry> mRequests;
+        ll::ConcurrentDenseMap<std::string, PlayerRequestSetEntry> mActiveRequest;
+        ll::ConcurrentDenseMap<std::pair<std::string, std::string>, std::string> mRequestPending;
 
         LRUKCache<std::string, std::vector<std::string>> BlacklistCache;
         LRUKCache<std::string, bool> InviteCache;
@@ -635,4 +618,4 @@ namespace LOICollection::server::Plugins {
     }
 }
 
-REGISTRY_HELPER("TpaPlugin", LOICollection::server::Plugins::TpaPlugin, LOICollection::server::Plugins::TpaPlugin::getInstance(), LOICollection::modules::ModulePriority::High)
+REGISTRY_HELPER(TpaPlugin, LOICollection::server::Plugins::TpaPlugin, LOICollection::server::Plugins::TpaPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

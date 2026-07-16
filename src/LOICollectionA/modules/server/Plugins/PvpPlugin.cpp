@@ -246,4 +246,4 @@ namespace LOICollection::server::Plugins {
     }
 }
 
-REGISTRY_HELPER("PvpPlugin", LOICollection::server::Plugins::PvpPlugin, LOICollection::server::Plugins::PvpPlugin::getInstance(), LOICollection::modules::ModulePriority::High)
+REGISTRY_HELPER(PvpPlugin, LOICollection::server::Plugins::PvpPlugin, LOICollection::server::Plugins::PvpPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

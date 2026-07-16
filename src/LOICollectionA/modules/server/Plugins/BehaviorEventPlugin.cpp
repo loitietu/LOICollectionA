@@ -1017,4 +1017,4 @@ namespace LOICollection::server::Plugins {
     }
 }
 
-REGISTRY_HELPER("BehaviorEventPlugin", LOICollection::server::Plugins::BehaviorEventPlugin, LOICollection::server::Plugins::BehaviorEventPlugin::getInstance(), LOICollection::modules::ModulePriority::High)
+REGISTRY_HELPER(BehaviorEventPlugin, LOICollection::server::Plugins::BehaviorEventPlugin, LOICollection::server::Plugins::BehaviorEventPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

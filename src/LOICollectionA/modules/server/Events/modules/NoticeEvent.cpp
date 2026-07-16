@@ -66,21 +66,21 @@ namespace LOICollection::server::Events {
         origin(id);
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryCreate();
-    class NoticeCreateEventEmitter : public ll::event::Emitter<emitterFactoryCreate, NoticeCreateEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> NoticeEmitterFactoryCreate();
+    class NoticeCreateEventEmitter : public ll::event::Emitter<NoticeEmitterFactoryCreate, NoticeCreateEvent> {
         ll::memory::HookRegistrar<NoticeCreateEventHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryCreate() {
+    static std::unique_ptr<ll::event::EmitterBase> NoticeEmitterFactoryCreate() {
         return std::make_unique<NoticeCreateEventEmitter>();
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryDelete();
-    class NoticeDeleteEventEmitter : public ll::event::Emitter<emitterFactoryDelete, NoticeDeleteEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> NoticeEmitterFactoryDelete();
+    class NoticeDeleteEventEmitter : public ll::event::Emitter<NoticeEmitterFactoryDelete, NoticeDeleteEvent> {
         ll::memory::HookRegistrar<NoticeDeleteEventHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryDelete() {
+    static std::unique_ptr<ll::event::EmitterBase> NoticeEmitterFactoryDelete() {
         return std::make_unique<NoticeDeleteEventEmitter>();
     }
 }

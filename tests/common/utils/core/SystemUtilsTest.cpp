@@ -83,7 +83,7 @@ TEST(SystemUtilsTest, ToFormatSecond) {
 
 TEST(SystemUtilsTest, ToFormatSecondInvalidStringReturnsDefault) {
     EXPECT_EQ(SystemUtils::toFormatSecond("abc", "N/A"), "N/A");
-    EXPECT_EQ(SystemUtils::toFormatSecond("-5", "N/A"), "N/A"); // 非正数
+    EXPECT_EQ(SystemUtils::toFormatSecond("-5", "N/A"), "N/A");
 }
 
 TEST(SystemUtilsTest, ToTimeCalculate) {

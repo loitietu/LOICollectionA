@@ -111,12 +111,12 @@ namespace LOICollection::server::Events {
         origin(id, obj);
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory();
-    class PlayerScoreChangedEventEmitter : public ll::event::Emitter<emitterFactory, PlayerScoreChangedEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> PlayerScoreChangedEmitterFactory();
+    class PlayerScoreChangedEventEmitter : public ll::event::Emitter<PlayerScoreChangedEmitterFactory, PlayerScoreChangedEvent> {
         ll::memory::HookRegistrar<PlayerScoreInitializeHook, PlayerScoreCleanupHook, PlayerScoreChangedHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory() {
+    static std::unique_ptr<ll::event::EmitterBase> PlayerScoreChangedEmitterFactory() {
         return std::make_unique<PlayerScoreChangedEventEmitter>();
     }
 }

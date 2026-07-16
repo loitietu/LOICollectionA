@@ -6,14 +6,9 @@
 
 #include "LOICollectionA/utils/I18nUtils.h"
 
-std::unique_ptr<I18nUtils> i18n;
-
-inline std::string tr(const std::string& local, const std::string& key) {
-    return i18n->get(i18n->has(local) ? local : i18n->defaultLocale, key);
-}
-
 class I18nUtilsTest : public testing::Test {
 protected:
+    std::unique_ptr<I18nUtils> i18n;
     std::filesystem::path tempDir;
 
     void SetUp() override {
@@ -42,6 +37,10 @@ protected:
         std::filesystem::remove_all(tempDir);
 
         i18n.reset();
+    }
+
+    inline std::string tr(const std::string& local, const std::string& key) {
+        return i18n->get(i18n->has(local) ? local : i18n->defaultLocale, key);
     }
 };
 

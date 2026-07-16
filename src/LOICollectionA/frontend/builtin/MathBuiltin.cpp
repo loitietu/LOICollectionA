@@ -155,4 +155,4 @@ namespace MathBuiltin {
     }
 }
 
-REGISTER_NAMESPACE("math", MathBuiltin::registerFunctions)
+REGISTER_NAMESPACE(math, MathBuiltin::registerFunctions)

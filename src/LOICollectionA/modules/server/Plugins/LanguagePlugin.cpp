@@ -162,4 +162,4 @@ namespace LOICollection::server::Plugins {
     }
 }
 
-REGISTRY_HELPER("LanguagePlugin", LOICollection::server::Plugins::LanguagePlugin, LOICollection::server::Plugins::LanguagePlugin::getInstance(), LOICollection::modules::ModulePriority::Normal)
+REGISTRY_HELPER(LanguagePlugin, LOICollection::server::Plugins::LanguagePlugin, LOICollection::server::Plugins::LanguagePlugin::getInstance(), LOICollection::modules::ModulePriority::Normal)

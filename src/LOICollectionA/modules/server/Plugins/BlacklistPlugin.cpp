@@ -402,4 +402,4 @@ namespace LOICollection::server::Plugins {
     }
 }
 
-REGISTRY_HELPER("BlacklistPlugin", LOICollection::server::Plugins::BlacklistPlugin, LOICollection::server::Plugins::BlacklistPlugin::getInstance(), LOICollection::modules::ModulePriority::High)
+REGISTRY_HELPER(BlacklistPlugin, LOICollection::server::Plugins::BlacklistPlugin, LOICollection::server::Plugins::BlacklistPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

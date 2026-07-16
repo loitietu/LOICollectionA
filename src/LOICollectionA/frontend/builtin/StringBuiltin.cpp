@@ -116,4 +116,4 @@ namespace StringBuiltin {
     }
 }
 
-REGISTER_NAMESPACE("string", StringBuiltin::registerFunctions);
+REGISTER_NAMESPACE(string, StringBuiltin::registerFunctions);

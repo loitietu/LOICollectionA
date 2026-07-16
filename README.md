@@ -20,6 +20,8 @@ Future developments will provide more API interfaces to empower plugin developer
 
 > All modules below can be enabled/disabled in the configuration file.
 
+### Basic Modules
+
 - [x] Blacklist
 - [x] Mute
 - [x] Cdk
@@ -34,6 +36,13 @@ Future developments will provide more API interfaces to empower plugin developer
 - [x] Market
 - [x] BehaviorEvent
 - [x] Statistics
+
+### Additional Modules
+
+- [x] BasicHook
+  - [x] FakeSeed
+- [x] RedStone
+- [x] OrderedUI
 
 ## Installation
 

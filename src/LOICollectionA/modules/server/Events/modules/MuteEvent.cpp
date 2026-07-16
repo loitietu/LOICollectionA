@@ -68,21 +68,21 @@ namespace LOICollection::server::Events {
         origin(id);
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryAdd();
-    class MuteAddEventEmitter : public ll::event::Emitter<emitterFactoryAdd, MuteAddBeforeEvent, MuteAddAfterEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> MuteEmitterFactoryAdd();
+    class MuteAddEventEmitter : public ll::event::Emitter<MuteEmitterFactoryAdd, MuteAddBeforeEvent, MuteAddAfterEvent> {
         ll::memory::HookRegistrar<MuteAddEventHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryAdd() {
+    static std::unique_ptr<ll::event::EmitterBase> MuteEmitterFactoryAdd() {
         return std::make_unique<MuteAddEventEmitter>();
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryRemove();
-    class MuteRemoveEventEmitter : public ll::event::Emitter<emitterFactoryRemove, MuteRemoveEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> MuteEmitterFactoryRemove();
+    class MuteRemoveEventEmitter : public ll::event::Emitter<MuteEmitterFactoryRemove, MuteRemoveEvent> {
         ll::memory::HookRegistrar<MuteRemoveEventHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactoryRemove() {
+    static std::unique_ptr<ll::event::EmitterBase> MuteEmitterFactoryRemove() {
         return std::make_unique<MuteRemoveEventEmitter>();
     }
 }

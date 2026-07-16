@@ -99,12 +99,12 @@ namespace LOICollection::server::Events {
         origin(region, pos, component, turnOn);
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory();
-    class RedStoneEventEmitter : public ll::event::Emitter<emitterFactory, RedStoneEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> RedStoneEmitterFactory();
+    class RedStoneEventEmitter : public ll::event::Emitter<RedStoneEmitterFactory, RedStoneEvent> {
         ll::memory::HookRegistrar<RedStoneWireBlockHook, RedStoneTorchBlockHook, ComparatorBlockHook, ObserverBlockHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory() {
+    static std::unique_ptr<ll::event::EmitterBase> RedStoneEmitterFactory() {
         return std::make_unique<RedStoneEventEmitter>();
     }
 }

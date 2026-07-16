@@ -153,4 +153,4 @@ namespace LOICollection::server::ProtableTool {
     }
 }
 
-REGISTRY_HELPER("RedStone", LOICollection::server::ProtableTool::RedStone, LOICollection::server::ProtableTool::RedStone::getInstance(), LOICollection::modules::ModulePriority::Normal)
+REGISTRY_HELPER(RedStone, LOICollection::server::ProtableTool::RedStone, LOICollection::server::ProtableTool::RedStone::getInstance(), LOICollection::modules::ModulePriority::Normal)

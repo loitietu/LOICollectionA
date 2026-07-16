@@ -170,4 +170,4 @@ namespace LOICollection::server::ProtableTool {
     }
 }
 
-REGISTRY_HELPER("OrderedUI", LOICollection::server::ProtableTool::OrderedUI, LOICollection::server::ProtableTool::OrderedUI::getInstance(), LOICollection::modules::ModulePriority::Normal)
+REGISTRY_HELPER(OrderedUI, LOICollection::server::ProtableTool::OrderedUI, LOICollection::server::ProtableTool::OrderedUI::getInstance(), LOICollection::modules::ModulePriority::Normal)

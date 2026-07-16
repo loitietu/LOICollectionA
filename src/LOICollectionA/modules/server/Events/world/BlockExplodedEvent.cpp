@@ -53,12 +53,12 @@ namespace LOICollection::server::Events {
         return origin(dimension, blockPos, destroyedBlock, source);
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory();
-    class BlockExplodedEventEmitter : public ll::event::Emitter<emitterFactory, BlockExplodedEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> BlockExplodedEmitterFactory();
+    class BlockExplodedEventEmitter : public ll::event::Emitter<BlockExplodedEmitterFactory, BlockExplodedEvent> {
         ll::memory::HookRegistrar<BlockExplodedEventHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory() {
+    static std::unique_ptr<ll::event::EmitterBase> BlockExplodedEmitterFactory() {
         return std::make_unique<BlockExplodedEventEmitter>();
     }
 }

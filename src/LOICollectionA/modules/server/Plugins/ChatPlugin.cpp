@@ -516,4 +516,4 @@ namespace LOICollection::server::Plugins {
     }
 }
 
-REGISTRY_HELPER("ChatPlugin", LOICollection::server::Plugins::ChatPlugin, LOICollection::server::Plugins::ChatPlugin::getInstance(), LOICollection::modules::ModulePriority::High)
+REGISTRY_HELPER(ChatPlugin, LOICollection::server::Plugins::ChatPlugin, LOICollection::server::Plugins::ChatPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

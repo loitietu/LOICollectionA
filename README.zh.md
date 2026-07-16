@@ -20,6 +20,8 @@ LOICollectionA 是源于插件 LOICollection 所演化而来的内容，其在�
 
 > 以下功能模块均可在配置文件中进行配置开启或关闭。
 
+### 基础模块
+
 - [x] Blacklist
 - [x] Mute
 - [x] Cdk
@@ -34,6 +36,13 @@ LOICollectionA 是源于插件 LOICollection 所演化而来的内容，其在�
 - [x] Market
 - [x] BehaviorEvent
 - [x] Statistics
+
+### 额外功能模块
+
+- [x] BasicHook
+  - [x] FakeSeed
+- [x] RedStone
+- [x] OrderedUI
 
 ## 安装插件
 

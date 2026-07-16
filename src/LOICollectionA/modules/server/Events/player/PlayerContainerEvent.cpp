@@ -53,12 +53,12 @@ namespace LOICollection::server::Events {
         return origin(playerOpenContainerEvent);
     }
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory();
-    class PlayerOpenContainerEventEmitter : public ll::event::Emitter<emitterFactory, PlayerOpenContainerEvent> {
+    static std::unique_ptr<ll::event::EmitterBase> PlayerContainerEmitterFactory();
+    class PlayerOpenContainerEventEmitter : public ll::event::Emitter<PlayerContainerEmitterFactory, PlayerOpenContainerEvent> {
         ll::memory::HookRegistrar<PlayerOpenContainerHook> hook;
     };
 
-    static std::unique_ptr<ll::event::EmitterBase> emitterFactory() {
+    static std::unique_ptr<ll::event::EmitterBase> PlayerContainerEmitterFactory() {
         return std::make_unique<PlayerOpenContainerEventEmitter>();
     }
 }

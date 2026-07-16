@@ -91,8 +91,8 @@ namespace LOICollection::frontend {
     };
 }
 
-#define REGISTER_NAMESPACE(NAMESPACE, BINDER)   \
-const auto RegisterHelper = []() -> bool {      \
-    BINDER(NAMESPACE);                          \
-    return true;                                \
-}();                                            \
+#define REGISTER_NAMESPACE(NAMESPACE, BINDER)               \
+const auto NAMESPACE##_RegisterHelper = []() -> bool {      \
+    BINDER(#NAMESPACE);                                     \
+    return true;                                            \
+}();                                                        \

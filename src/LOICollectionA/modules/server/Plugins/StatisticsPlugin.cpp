@@ -55,23 +55,6 @@
 
 #include "LOICollectionA/include/server/Plugins/StatisticsPlugin.h"
 
-template <typename T>
-struct Allocator : public std::allocator<T> {
-    using std::allocator<T>::allocator;
-
-    using is_always_equal = typename std::allocator_traits<std::allocator<T>>::is_always_equal;
-};
-
-template <
-    class Key,
-    class Value,
-    class Hash  = phmap::priv::hash_default_hash<Key>,
-    class Eq    = phmap::priv::hash_default_eq<Key>,
-    class Alloc = Allocator<::std::pair<Key const, Value>>,
-    size_t N    = 4,
-    class Mutex = std::shared_mutex>
-using ConcurrentDenseMap = phmap::parallel_flat_hash_map<Key, Value, Hash, Eq, Alloc, N, Mutex>;
-
 using I18nUtilsTools::tr;
 
 namespace LOICollection::server::Plugins {
@@ -82,7 +65,7 @@ namespace LOICollection::server::Plugins {
     struct StatisticsPlugin::Impl {
         std::unordered_map<std::string, std::string> mOnilneTime;
 
-        ConcurrentDenseMap<std::string, ConcurrentDenseMap<std::string, int>> mCache;
+        ll::ConcurrentDenseMap<std::string, ll::ConcurrentDenseMap<std::string, int>> mCache;
 
         std::atomic<bool> mRegistered{ false };
 
@@ -444,4 +427,4 @@ namespace LOICollection::server::Plugins {
     }
 }
 
-REGISTRY_HELPER("StatisticsPlugin", LOICollection::server::Plugins::StatisticsPlugin, LOICollection::server::Plugins::StatisticsPlugin::getInstance(), LOICollection::modules::ModulePriority::High)
+REGISTRY_HELPER(StatisticsPlugin, LOICollection::server::Plugins::StatisticsPlugin, LOICollection::server::Plugins::StatisticsPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

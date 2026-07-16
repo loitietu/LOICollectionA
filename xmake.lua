@@ -38,6 +38,7 @@ set_version("1.13.0")
 includes("scripts/modpacker.lua")
 
 target("LOICollectionA")
+    add_rules("c++.unity_build", { batchsize = 8 })
     add_rules(
         "@levibuildscript/linkrule",
         "modpacker"

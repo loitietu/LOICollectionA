@@ -275,4 +275,4 @@ namespace LOICollection::server::Plugins {
     }
 }
 
-REGISTRY_HELPER("CdkPlugin", LOICollection::server::Plugins::CdkPlugin, LOICollection::server::Plugins::CdkPlugin::getInstance(), LOICollection::modules::ModulePriority::High)
+REGISTRY_HELPER(CdkPlugin, LOICollection::server::Plugins::CdkPlugin, LOICollection::server::Plugins::CdkPlugin::getInstance(), LOICollection::modules::ModulePriority::High)
