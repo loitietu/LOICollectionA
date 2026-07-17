@@ -5,7 +5,8 @@
 
 #include "LOICollectionA/frontend/Lexer.h"
 #include "LOICollectionA/frontend/Parser.h"
-#include "LOICollectionA/frontend/Evaluator.h"
+#include "LOICollectionA/frontend/ir/Compiler.h"
+#include "LOICollectionA/frontend/ir/VM.h"
 
 namespace LOICollection::frontend {
     inline std::string eval(const std::string& input, const Context& ctx = {}) {
@@ -14,7 +15,11 @@ namespace LOICollection::frontend {
 
         auto ast = parser.parse();
 
-        Evaluator evaluator;
-        return evaluator.evaluate(*ast, ctx);
+        ir::Compiler compiler;
+        ir::VM vm;
+
+        auto bytecode = compiler.compile(*ast);
+        auto result = vm.run(bytecode, ctx);
+        return ir::VM::valueToString(result);
     }
 }

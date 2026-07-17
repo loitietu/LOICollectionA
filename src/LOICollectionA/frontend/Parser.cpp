@@ -263,13 +263,13 @@ namespace LOICollection::frontend {
     std::unique_ptr<ExprNode> Parser::parsePowerExpression() {
         auto left = parseUnaryExpression();
         
-        while (currentToken.type == TokenType::TOKEN_POWER) {
+        if (currentToken.type == TokenType::TOKEN_POWER) {
             std::string op = currentToken.value;
 
             eat(TokenType::TOKEN_POWER);
 
             auto right = parsePowerExpression();
-            left = std::make_unique<ArithmeticNode>(std::move(left), std::move(right), op);
+            return std::make_unique<ArithmeticNode>(std::move(left), std::move(right), op);
         }
         
         return left;
@@ -326,13 +326,21 @@ namespace LOICollection::frontend {
     std::unique_ptr<ValueNode> Parser::parseValue() {
         switch (currentToken.type) {
             case TokenType::TOKEN_INT: {
-                int value = std::stoi(currentToken.value);
+                int value;
+                auto [ptr, ec] = std::from_chars(currentToken.value.data(), currentToken.value.data() + currentToken.value.size(), value);
+
+                if (ec != std::errc() || ptr != currentToken.value.data() + currentToken.value.size())
+                    throw std::runtime_error("Invalid integer literal: " + currentToken.value);
 
                 eat(TokenType::TOKEN_INT);
                 return std::make_unique<ValueNode>(value);
             }
             case TokenType::TOKEN_FLOAT: {
-                float value = std::stof(currentToken.value);
+                float value;
+                auto [ptr, ec] = std::from_chars(currentToken.value.data(), currentToken.value.data() + currentToken.value.size(), value);
+
+                if (ec != std::errc() || ptr != currentToken.value.data() + currentToken.value.size())
+                    throw std::runtime_error("Invalid float literal: " + currentToken.value);
 
                 eat(TokenType::TOKEN_FLOAT);
                 return std::make_unique<ValueNode>(value);

@@ -35,7 +35,8 @@
 #include "LOICollectionA/frontend/Lexer.h"
 #include "LOICollectionA/frontend/Parser.h"
 #include "LOICollectionA/frontend/Callback.h"
-#include "LOICollectionA/frontend/Evaluator.h"
+#include "LOICollectionA/frontend/ir/Compiler.h"
+#include "LOICollectionA/frontend/ir/VM.h"
 
 #include "LOICollectionA/include/server/Plugins/PvpPlugin.h"
 #include "LOICollectionA/include/server/Plugins/ChatPlugin.h"
@@ -369,13 +370,17 @@ namespace LOICollection::server::LOICollectionAPI {
     }
 
     std::string APIUtils::translate(const std::string& str, Player& player) try {
-        frontend::Evaluator mEvaluator;
+        frontend::ir::Compiler mCompiler;
+        frontend::ir::VM mVM;
 
         if (this->mImpl->mAstCache.contains(str)) {
             auto mCached = this->mImpl->mAstCache.get(str);
 
-            if (mCached.has_value())
-                return mEvaluator.evaluate(*mCached.value(), { std::ref(player) });
+            if (mCached.has_value()) {
+                auto bytecode = mCompiler.compile(*mCached.value());
+                auto result = mVM.run(bytecode, { std::ref(player) });
+                return frontend::ir::VM::valueToString(result);
+            }
         }
 
         frontend::Lexer mLexer(str);
@@ -383,13 +388,14 @@ namespace LOICollection::server::LOICollectionAPI {
 
         std::unique_ptr<frontend::ASTNode> mAst = mParser.parse();
 
-        std::string result = mEvaluator.evaluate(*mAst, { std::ref(player) });
+        auto bytecode = mCompiler.compile(*mAst);
+        auto result = mVM.run(bytecode, { std::ref(player) });
 
         std::shared_ptr<frontend::TemplateNode> mTemplate = std::make_shared<frontend::TemplateNode>();
         mTemplate->parts = std::move(static_cast<frontend::TemplateNode*>(mAst.release())->parts);
 
         this->mImpl->mAstCache.put(str, mTemplate);
-        return result;
+        return frontend::ir::VM::valueToString(result);
     } catch (const std::exception& e) {
         this->mImpl->logger->error("APIUtils: {}", e.what());
         
@@ -397,13 +403,17 @@ namespace LOICollection::server::LOICollectionAPI {
     }
 
     std::string APIUtils::translate(const std::string& str) try {
-        frontend::Evaluator mEvaluator;
+        frontend::ir::Compiler mCompiler;
+        frontend::ir::VM mVM;
 
         if (this->mImpl->mAstCache.contains(str)) {
             auto mCached = this->mImpl->mAstCache.get(str);
 
-            if (mCached.has_value())
-                return mEvaluator.evaluate(*mCached.value());
+            if (mCached.has_value()) {
+                auto bytecode = mCompiler.compile(*mCached.value());
+                auto result = mVM.run(bytecode);
+                return frontend::ir::VM::valueToString(result);
+            }
         }
 
         frontend::Lexer mLexer(str);
@@ -411,13 +421,14 @@ namespace LOICollection::server::LOICollectionAPI {
 
         std::unique_ptr<frontend::ASTNode> mAst = mParser.parse();
 
-        std::string result = mEvaluator.evaluate(*mAst);
+        auto bytecode = mCompiler.compile(*mAst);
+        auto result = mVM.run(bytecode);
 
         std::shared_ptr<frontend::TemplateNode> mTemplate = std::make_shared<frontend::TemplateNode>();
         mTemplate->parts = std::move(static_cast<frontend::TemplateNode*>(mAst.release())->parts);
 
         this->mImpl->mAstCache.put(str, mTemplate);
-        return result;
+        return frontend::ir::VM::valueToString(result);
     } catch (const std::exception& e) {
         this->mImpl->logger->error("APIUtils: {}", e.what());
 

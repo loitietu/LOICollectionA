@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "LOICollectionA/frontend/Context.h"
 #include "LOICollectionA/frontend/Callback.h"
-#include "LOICollectionA/frontend/Evaluator.h"
 
 using namespace LOICollection::frontend;
 
@@ -17,6 +17,8 @@ TEST(FunctionCallTest, RegisterAndCall) {
     CallbackTypeValues args = { 10, 20 };
     EXPECT_EQ(fc.callFunction(ns, "add", args), "30");
     EXPECT_THROW((void)fc.callFunction(ns, "sub", args), std::runtime_error);
+
+    fc.unregisterFunction(ns, "add", { ParamType::INT, ParamType::INT }, false);
 }
 
 TEST(FunctionCallTest, CombinationFunction) {
@@ -35,6 +37,8 @@ TEST(FunctionCallTest, CombinationFunction) {
     CallbackTypeValues emptyArgs;
     std::string result = fc.callFunction(ns, "get_placeholder", emptyArgs, ctx.params);
     EXPECT_EQ(result, "84");
+
+    fc.unregisterFunction(ns, "get_placeholder", {}, true);
 }
 
 TEST(CallbackTest, ValuesToTypes) {
@@ -57,4 +61,6 @@ TEST(MacroCallTest, RegisterAndCall) {
     CallbackTypeValues args = { std::string("test123") };
     EXPECT_EQ(MacroCall::getInstance().callMacro("echo", args), "test123");
     EXPECT_THROW((void)MacroCall::getInstance().callMacro("nonexistent", args), std::runtime_error);
+
+    MacroCall::getInstance().unregisterMacro("echo", { ParamType::STRING }, false);
 }

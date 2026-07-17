@@ -58,7 +58,8 @@ namespace LOICollection::frontend {
 
         LOICOLLECTION_A_API   void registerFunction(const std::string& namespaces, const std::string& function, CallbackFunc callback, const CallbackTypeArgs& args);
         LOICOLLECTION_A_API   void registerFunction(const std::string& namespaces, const std::string& function, CallbackFuncCombination callback, const CallbackTypeArgs& args);
-        
+        LOICOLLECTION_A_API   void unregisterFunction(const std::string& namespaces, const std::string& function, const CallbackTypeArgs& args, bool isCombination);
+
         LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& namespaces, const std::string& function, const CallbackTypeArgs& args) const;
 
         LOICOLLECTION_A_NDAPI std::string callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders = {});
@@ -77,6 +78,7 @@ namespace LOICollection::frontend {
 
         LOICOLLECTION_A_API   void registerMacro(const std::string& name, CallbackFunc callback, const CallbackTypeArgs& args);
         LOICOLLECTION_A_API   void registerMacro(const std::string& name, CallbackFuncCombination callback, const CallbackTypeArgs& args);
+        LOICOLLECTION_A_API   void unregisterMacro(const std::string& name, const CallbackTypeArgs& args, bool isCombination);
 
         LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& name, const CallbackTypeArgs& args) const;
 

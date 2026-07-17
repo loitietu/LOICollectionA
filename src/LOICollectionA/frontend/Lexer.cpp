@@ -94,13 +94,28 @@ namespace LOICollection::frontend {
     Token Lexer::parseNumber() {
         size_t start = position;
 
-        while (std::isdigit(currentChar) || currentChar == '.')
-            advance();
+        bool hasDot = false;
+        while (currentChar != 0) {
+            if (std::isdigit(currentChar)) {
+                advance();
+            } else if (currentChar == '.' && !hasDot) {
+                hasDot = true;
+                advance();
+            } else {
+                break;
+            }
+        }
         
         std::string num = input.substr(start, position - start);
+        if (num.empty())
+            throw std::runtime_error("Invalid number literal");
+        
+        if (hasDot) {
+            if (num == ".")
+                throw std::runtime_error("Invalid float literal: single dot");
 
-        if (num.find('.') != std::string::npos)
             return { TokenType::TOKEN_FLOAT, num, start };
+        }
 
         return { TokenType::TOKEN_INT, num, start };
     }

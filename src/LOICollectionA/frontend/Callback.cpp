@@ -54,6 +54,13 @@ namespace LOICollection::frontend {
         this->mImpl->mFunctionCombinations[namespaces][sig] = std::move(callback);
     }
 
+    void FunctionCall::unregisterFunction(const std::string& namespaces, const std::string& function, const CallbackTypeArgs& args, bool isCombination) {
+        Signature sig{ function, args.size(), args, isCombination };
+
+        if (this->mImpl->mFunctions[namespaces].find(sig) != this->mImpl->mFunctions[namespaces].end())
+            this->mImpl->mFunctions[namespaces].erase(sig);
+    }
+
     bool FunctionCall::isRegistered(const std::string& namespaces, const std::string& function, const CallbackTypeArgs& args) const {
         Signature sig{ function, args.size(), args, false };
         bool result = this->mImpl->mFunctions[namespaces].find(sig) != this->mImpl->mFunctions[namespaces].end();
@@ -99,6 +106,13 @@ namespace LOICollection::frontend {
         Signature sig{ name, args.size(), args, true };
 
         this->mImpl->mMacroCombinations[sig] = callback;
+    }
+
+    void MacroCall::unregisterMacro(const std::string& name, const CallbackTypeArgs& args, bool isCombination) {
+        Signature sig{ name, args.size(), args, isCombination };
+
+        if (this->mImpl->mMacros.find(sig) != this->mImpl->mMacros.end())
+            this->mImpl->mMacros.erase(sig);
     }
 
     bool MacroCall::isRegistered(const std::string& name, const CallbackTypeArgs& args) const {
