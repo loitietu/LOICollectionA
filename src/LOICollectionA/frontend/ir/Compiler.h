@@ -8,16 +8,22 @@
 #include "LOICollectionA/frontend/ir/ByteCode.h"
 
 namespace LOICollection::frontend::ir {
-    class Compiler {
+    class Compiler : public ASTVisitor {
     public:
-        LOICOLLECTION_A_NDAPI BytecodeChunk compile(const ASTNode& root);
+        LOICOLLECTION_A_NDAPI BytecodeChunk compile(ASTNode& root);
 
     private:
         BytecodeChunk chunk;
 
-        void compileNode(const ASTNode& node);
-        void compileExpr(const ExprNode& expr);
-        void compileTemplate(const TemplateNode& tpl, bool pushAsMultiple = false);
+        void visit(ValueNode& node) override;
+        void visit(IfNode& node) override;
+        void visit(CompareNode& node) override;
+        void visit(LogicalNode& node) override;
+        void visit(FunctionNode& node) override;
+        void visit(MacroNode& node) override;
+        void visit(ArithmeticNode& node) override;
+        void visit(UnaryNode& node) override;
+        void visit(TemplateNode& node) override;
 
         int addConstant(const ValueNode::ValueType& val);
         int addFunction(const std::string& name, int argCount);

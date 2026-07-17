@@ -5,6 +5,8 @@
 #include <vector>
 #include <variant>
 
+#include "LOICollectionA/frontend/ASTVisitor.h"
+
 namespace LOICollection::frontend {
     struct ASTNode {
         enum class Type { 
@@ -14,11 +16,32 @@ namespace LOICollection::frontend {
         [[nodiscard]] virtual Type getType() const = 0;
         
         virtual ~ASTNode() = default;
+
+        virtual void accept(ASTVisitor& visitor) = 0;
     };
 
     struct ExprNode : ASTNode {
         [[nodiscard]] Type getType() const override {
             return Type::Expr;
+        }
+    };
+
+    struct ValueNode : ExprNode {
+        using ValueType = std::variant<int, float, std::string, bool>;
+
+        ValueType value;
+        
+        explicit ValueNode(int v) : value(v) {}
+        explicit ValueNode(float v) : value(v) {}
+        explicit ValueNode(const std::string& v) : value(v) {}
+        explicit ValueNode(bool v) : value(v) {}
+
+        [[nodiscard]] Type getType() const override {
+            return Type::Value;
+        }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
         }
     };
 
@@ -35,20 +58,9 @@ namespace LOICollection::frontend {
         [[nodiscard]] Type getType() const override {
             return Type::If;
         }
-    };
-    
-    struct ValueNode : ExprNode {
-        using ValueType = std::variant<int, float, std::string, bool>;
 
-        ValueType value;
-        
-        explicit ValueNode(int v) : value(v) {}
-        explicit ValueNode(float v) : value(v) {}
-        explicit ValueNode(const std::string& v) : value(v) {}
-        explicit ValueNode(bool v) : value(v) {}
-
-        [[nodiscard]] Type getType() const override {
-            return Type::Value;
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
         }
     };
 
@@ -65,6 +77,10 @@ namespace LOICollection::frontend {
         [[nodiscard]] Type getType() const override {
             return Type::Compare;
         }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
     };
 
     struct LogicalNode : ExprNode {
@@ -79,6 +95,10 @@ namespace LOICollection::frontend {
         
         [[nodiscard]] Type getType() const override {
             return Type::Logical;
+        }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
         }
     };
 
@@ -95,6 +115,10 @@ namespace LOICollection::frontend {
         [[nodiscard]] Type getType() const override {
             return Type::Function;
         }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
     };
 
     struct MacroNode : ExprNode {
@@ -107,6 +131,10 @@ namespace LOICollection::frontend {
         
         [[nodiscard]] Type getType() const override {
             return Type::Macro;
+        }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
         }
     };
 
@@ -123,6 +151,10 @@ namespace LOICollection::frontend {
         [[nodiscard]] Type getType() const override {
             return Type::Arithmetic;
         }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
     };
 
     struct UnaryNode : ExprNode {
@@ -136,6 +168,10 @@ namespace LOICollection::frontend {
         [[nodiscard]] Type getType() const override {
             return Type::Unary;
         }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
     };
 
     struct TemplateNode : ASTNode {
@@ -147,6 +183,10 @@ namespace LOICollection::frontend {
 
         void addPart(auto&& part) {
             parts.emplace_back(std::forward<decltype(part)>(part));
+        }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
         }
     };
 }
