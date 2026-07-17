@@ -14,7 +14,6 @@ namespace LOICollection::frontend::ir {
         LOICOLLECTION_A_NDAPI ValueNode::ValueType run(const BytecodeChunk& chunk, const Context& ctx = {});
 
         LOICOLLECTION_A_NDAPI static std::string valueToString(const ValueNode::ValueType& val);
-        LOICOLLECTION_A_NDAPI static ValueNode::ValueType stringToValue(const std::string& str);
         LOICOLLECTION_A_NDAPI static ValueNode::ValueType applyArithmetic(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op);
         LOICOLLECTION_A_NDAPI static ValueNode::ValueType applyUnary(const ValueNode::ValueType& operand, const std::string& op);
         LOICOLLECTION_A_NDAPI static bool valueToBool(const ValueNode::ValueType& val);

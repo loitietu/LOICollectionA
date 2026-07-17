@@ -69,7 +69,7 @@ namespace LOICollection::frontend {
         return result || this->mImpl->mFunctionCombinations[namespaces].find(sig) != this->mImpl->mFunctionCombinations[namespaces].end();
     }
 
-    std::string FunctionCall::callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders)  {
+    TypedValue FunctionCall::callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders)  {
         std::vector<ParamType> argTypes = valuesToTypes(args);
 
         if (!this->isRegistered(namespaces, function, argTypes))
@@ -123,7 +123,7 @@ namespace LOICollection::frontend {
         return result || this->mImpl->mMacroCombinations.find(sig) != this->mImpl->mMacroCombinations.end();
     }
 
-    std::string MacroCall::callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders) {
+    TypedValue MacroCall::callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders) {
         std::vector<ParamType> argTypes = valuesToTypes(args);
 
         if (!this->isRegistered(name, argTypes))

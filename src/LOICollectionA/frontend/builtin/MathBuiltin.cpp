@@ -33,124 +33,120 @@ namespace MathBuiltin {
         FunctionCall::getInstance().registerFunction(namespaces, "random", random, { ParamType::FLOAT, ParamType::FLOAT });
     }
 
-    std::string abs(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg) -> std::string {
+    LOICollection::frontend::TypedValue abs(const LOICollection::frontend::CallbackTypeValues& args) {
+        return std::visit([](auto&& arg) -> LOICollection::frontend::TypedValue {
             using T = std::decay_t<decltype(arg)>;
 
             if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>)
-                return std::to_string(std::abs(arg));
-            else
-                return {};
+                return std::abs(arg);
+
+            return {};
         }, args[0]);
     }
 
-    std::string min(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg1, auto&& arg2) -> std::string {
+    LOICollection::frontend::TypedValue min(const LOICollection::frontend::CallbackTypeValues& args) {
+        return std::visit([](auto&& arg1, auto&& arg2) -> LOICollection::frontend::TypedValue {
             using T1 = std::decay_t<decltype(arg1)>;
             using T2 = std::decay_t<decltype(arg2)>;
 
             if constexpr (
                 (std::is_same_v<T1, int> && std::is_same_v<T2, int>) ||
                 (std::is_same_v<T1, float> && std::is_same_v<T2, float>)
-            ) {
-                return std::to_string(std::min(arg1, arg2));
-            } else {
-                return {};
-            }
+            ) return std::min(arg1, arg2);
+
+            return {};
         }, args[0], args[1]);
     }
 
-    std::string max(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg1, auto&& arg2) -> std::string {
+    LOICollection::frontend::TypedValue max(const LOICollection::frontend::CallbackTypeValues& args) {
+        return std::visit([](auto&& arg1, auto&& arg2) -> LOICollection::frontend::TypedValue {
             using T1 = std::decay_t<decltype(arg1)>;
             using T2 = std::decay_t<decltype(arg2)>;
 
             if constexpr (
                 (std::is_same_v<T1, int> && std::is_same_v<T2, int>) ||
                 (std::is_same_v<T1, float> && std::is_same_v<T2, float>)
-            ) {
-                return std::to_string(std::max(arg1, arg2));
-            } else {
-                return {};
-            }
+            ) return std::max(arg1, arg2);
+
+            return {};
         }, args[0], args[1]);
     }
 
-    std::string sqrt(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg) -> std::string {
+    LOICollection::frontend::TypedValue sqrt(const LOICollection::frontend::CallbackTypeValues& args) {
+        return std::visit([](auto&& arg) -> LOICollection::frontend::TypedValue {
             using T = std::decay_t<decltype(arg)>;
 
             if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>)
-                return std::to_string(std::sqrt(arg));
-            else
-                return {};
+                return static_cast<float>(std::sqrt(arg));
+
+            return {};
         }, args[0]);
     }
 
-    std::string pow(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg1, auto&& arg2) -> std::string {
+    LOICollection::frontend::TypedValue pow(const LOICollection::frontend::CallbackTypeValues& args) {
+        return std::visit([](auto&& arg1, auto&& arg2) -> LOICollection::frontend::TypedValue {
             using T1 = std::decay_t<decltype(arg1)>;
             using T2 = std::decay_t<decltype(arg2)>;
 
             if constexpr ((std::is_same_v<T1, int> && std::is_same_v<T2, int>))
-                return std::to_string(MathUtils::pow(arg1, arg2));
+                return static_cast<float>(MathUtils::pow(arg1, arg2));
             else if constexpr ((std::is_same_v<T1, float> && std::is_same_v<T2, float>))
-                return std::to_string(std::pow(arg1, arg2));
-            else
-                return {};
+                return std::pow(arg1, arg2);
+
+            return {};
         }, args[0], args[1]);
     }
 
-    std::string log(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg) -> std::string {
+    LOICollection::frontend::TypedValue log(const LOICollection::frontend::CallbackTypeValues& args) {
+        return std::visit([](auto&& arg) -> LOICollection::frontend::TypedValue {
             using T = std::decay_t<decltype(arg)>;
 
             if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>)
-                return std::to_string(std::log(arg));
-            else
-                return {};
+                return static_cast<float>(std::log(arg));
+
+            return {};
         }, args[0]);
     }
 
-    std::string sin(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg) -> std::string {
+    LOICollection::frontend::TypedValue sin(const LOICollection::frontend::CallbackTypeValues& args) {
+        return std::visit([](auto&& arg) -> LOICollection::frontend::TypedValue {
             using T = std::decay_t<decltype(arg)>;
 
             if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>)
-                return std::to_string(std::sin(arg));
-            else
-                return {};
+                return static_cast<float>(std::sin(arg));
+
+            return {};
         }, args[0]);
     }
 
-    std::string cos(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg) -> std::string {
+    LOICollection::frontend::TypedValue cos(const LOICollection::frontend::CallbackTypeValues& args) {
+        return std::visit([](auto&& arg) -> LOICollection::frontend::TypedValue {
             using T = std::decay_t<decltype(arg)>;
 
             if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>)
-                return std::to_string(std::cos(arg));
-            else
-                return {};
+                return static_cast<float>(std::cos(arg));
+
+            return {};
         }, args[0]);
     }
 
-    std::string random(const LOICollection::frontend::CallbackTypeValues& args) {
+    LOICollection::frontend::TypedValue random(const LOICollection::frontend::CallbackTypeValues& args) {
         static std::random_device rd;
         static std::mt19937 gen(rd());
 
-        return std::visit([](auto&& arg1, auto&& arg2) -> std::string {
+        return std::visit([](auto&& arg1, auto&& arg2) -> LOICollection::frontend::TypedValue {
             using T1 = std::decay_t<decltype(arg1)>;
             using T2 = std::decay_t<decltype(arg2)>;
 
             if constexpr (std::is_same_v<T1, int> && std::is_same_v<T2, int>) {
                 std::uniform_int_distribution<> dis(arg1, arg2);
-                return std::to_string(dis(gen));
+                return dis(gen);
             } else if constexpr (std::is_same_v<T1, float> && std::is_same_v<T2, float>) {
                 std::uniform_real_distribution<> dis(arg1, arg2);
-                return std::to_string(dis(gen));
-            } else {
-                return {};
+                return static_cast<float>(dis(gen));
             }
+                
+            return {};
         }, args[0], args[1]);
     }
 }

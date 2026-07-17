@@ -7,14 +7,14 @@
 namespace MathBuiltin {
     void registerFunctions(const std::string& namespaces);
 
-    std::string abs(const LOICollection::frontend::CallbackTypeValues& args);
-    std::string min(const LOICollection::frontend::CallbackTypeValues& args);
-    std::string max(const LOICollection::frontend::CallbackTypeValues& args);
-    std::string sqrt(const LOICollection::frontend::CallbackTypeValues& args);
-    std::string pow(const LOICollection::frontend::CallbackTypeValues& args);
-    std::string log(const LOICollection::frontend::CallbackTypeValues& args);
-    std::string sin(const LOICollection::frontend::CallbackTypeValues& args);
-    std::string cos(const LOICollection::frontend::CallbackTypeValues& args);
+    LOICollection::frontend::TypedValue abs(const LOICollection::frontend::CallbackTypeValues& args);
+    LOICollection::frontend::TypedValue min(const LOICollection::frontend::CallbackTypeValues& args);
+    LOICollection::frontend::TypedValue max(const LOICollection::frontend::CallbackTypeValues& args);
+    LOICollection::frontend::TypedValue sqrt(const LOICollection::frontend::CallbackTypeValues& args);
+    LOICollection::frontend::TypedValue pow(const LOICollection::frontend::CallbackTypeValues& args);
+    LOICollection::frontend::TypedValue log(const LOICollection::frontend::CallbackTypeValues& args);
+    LOICollection::frontend::TypedValue sin(const LOICollection::frontend::CallbackTypeValues& args);
+    LOICollection::frontend::TypedValue cos(const LOICollection::frontend::CallbackTypeValues& args);
 
-    std::string random(const LOICollection::frontend::CallbackTypeValues& args);
+    LOICollection::frontend::TypedValue random(const LOICollection::frontend::CallbackTypeValues& args);
 }

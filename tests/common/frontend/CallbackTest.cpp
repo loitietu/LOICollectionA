@@ -10,12 +10,12 @@ TEST(FunctionCallTest, RegisterAndCall) {
     const std::string ns = "test_callback";
 
     fc.registerFunction(ns, "add",
-        [](const CallbackTypeValues& v) -> std::string {
-            return std::to_string(std::get<int>(v[0]) + std::get<int>(v[1]));
+        [](const CallbackTypeValues& v) -> TypedValue {
+            return std::get<int>(v[0]) + std::get<int>(v[1]);
         }, { ParamType::INT, ParamType::INT });
 
     CallbackTypeValues args = { 10, 20 };
-    EXPECT_EQ(fc.callFunction(ns, "add", args), "30");
+    EXPECT_EQ(std::get<int>(fc.callFunction(ns, "add", args)), 30);
     EXPECT_THROW((void)fc.callFunction(ns, "sub", args), std::runtime_error);
 
     fc.unregisterFunction(ns, "add", { ParamType::INT, ParamType::INT }, false);
@@ -26,17 +26,16 @@ TEST(FunctionCallTest, CombinationFunction) {
     const std::string ns = "test_combo";
 
     fc.registerFunction(ns, "get_placeholder",
-        [](const CallbackTypeValues&, const CallbackTypePlaces& places) -> std::string {
-            if (places.count(0)) {
-                return std::to_string(std::any_cast<int>(places.at(0)) * 2);
-            }
+        [](const CallbackTypeValues&, const CallbackTypePlaces& places) -> TypedValue {
+            if (places.count(0))
+                return std::any_cast<int>(places.at(0)) * 2;
+
             return "missing";
         }, {});
 
     Context ctx(42);
     CallbackTypeValues emptyArgs;
-    std::string result = fc.callFunction(ns, "get_placeholder", emptyArgs, ctx.params);
-    EXPECT_EQ(result, "84");
+    EXPECT_EQ(std::get<int>(fc.callFunction(ns, "get_placeholder", emptyArgs, ctx.params)), 84);
 
     fc.unregisterFunction(ns, "get_placeholder", {}, true);
 }
@@ -59,7 +58,7 @@ TEST(MacroCallTest, RegisterAndCall) {
         }, { ParamType::STRING });
     
     CallbackTypeValues args = { std::string("test123") };
-    EXPECT_EQ(MacroCall::getInstance().callMacro("echo", args), "test123");
+    EXPECT_EQ(std::get<std::string>(MacroCall::getInstance().callMacro("echo", args)), "test123");
     EXPECT_THROW((void)MacroCall::getInstance().callMacro("nonexistent", args), std::runtime_error);
 
     MacroCall::getInstance().unregisterMacro("echo", { ParamType::STRING }, false);

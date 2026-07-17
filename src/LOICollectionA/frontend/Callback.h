@@ -8,6 +8,8 @@
 #include <functional>
 #include <unordered_map>
 
+#include "LOICollectionA/frontend/AST.h"
+
 #include "LOICollectionA/base/Macro.h"
 
 namespace LOICollection::frontend {
@@ -18,14 +20,14 @@ namespace LOICollection::frontend {
         BOOL
     };
 
-    using TypedValue = std::variant<int, float, std::string, bool>;
+    using TypedValue = ValueNode::ValueType;
 
     using CallbackTypeArgs = std::vector<ParamType>;
     using CallbackTypeValues = std::vector<TypedValue>;
     using CallbackTypePlaces = std::unordered_map<int, std::any>;
 
-    using CallbackFunc = std::function<std::string(const CallbackTypeValues&)>;
-    using CallbackFuncCombination = std::function<std::string(const CallbackTypeValues&, const CallbackTypePlaces&)>;
+    using CallbackFunc = std::function<TypedValue(const CallbackTypeValues&)>;
+    using CallbackFuncCombination = std::function<TypedValue(const CallbackTypeValues&, const CallbackTypePlaces&)>;
 
     struct Signature {
         std::string name;
@@ -62,7 +64,7 @@ namespace LOICollection::frontend {
 
         LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& namespaces, const std::string& function, const CallbackTypeArgs& args) const;
 
-        LOICOLLECTION_A_NDAPI std::string callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders = {});
+        LOICOLLECTION_A_NDAPI TypedValue callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders = {});
 
     private:
         FunctionCall();
@@ -82,7 +84,7 @@ namespace LOICollection::frontend {
 
         LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& name, const CallbackTypeArgs& args) const;
 
-        LOICOLLECTION_A_NDAPI std::string callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders = {});
+        LOICOLLECTION_A_NDAPI TypedValue callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders = {});
 
     private:
         MacroCall();

@@ -24,8 +24,8 @@ namespace StringBuiltin {
 
             if constexpr (std::is_same_v<T, std::string>)
                 return std::to_string(arg.length());
-            else
-                return {};
+
+            return {};
         }, args[0]);
     }
 
@@ -37,9 +37,9 @@ namespace StringBuiltin {
                 std::string result = arg;
                 std::transform(result.begin(), result.end(), result.begin(), ::toupper);
                 return result;
-            } else {
-                return {};
             }
+            
+            return {};
         }, args[0]);
     }
 
@@ -51,9 +51,9 @@ namespace StringBuiltin {
                 std::string result = arg;
                 std::transform(result.begin(), result.end(), result.begin(), ::tolower);
                 return result;
-            } else {
-                return {};
             }
+                
+            return {};
         }, args[0]);
     }
 
@@ -70,6 +70,7 @@ namespace StringBuiltin {
                 size_t count = (arg3 < 0) ? 0 : static_cast<size_t>(arg3);
                 return arg1.substr(arg2, count);
             }
+
             return {};
         }, args[0], args[1], args[2]);
     }
@@ -109,9 +110,9 @@ namespace StringBuiltin {
                 }
 
                 return result;
-            } else {
-                return {};
             }
+            
+            return {};
         }, args[0], args[1], args[2]);
     }
 }

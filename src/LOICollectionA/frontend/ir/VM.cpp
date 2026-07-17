@@ -1,7 +1,7 @@
 #include <cmath>
+#include <ranges>
 #include <string>
 #include <vector>
-#include <charconv>
 #include <stdexcept>
 #include <algorithm>
 
@@ -31,27 +31,6 @@ namespace LOICollection::frontend::ir {
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
                 return arg ? "true" : "false";
         }, val);
-    }
-
-    ValueNode::ValueType VM::stringToValue(const std::string& str) {
-        if (str == "true") return true;
-        if (str == "false") return false;
-        
-        if (str.find('.') != std::string::npos) {
-            float result;
-            auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
-
-            if (ec == std::errc() && ptr == str.data() + str.size())
-                return result;
-        } else {
-            int result;
-            auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
-
-            if (ec == std::errc() && ptr == str.data() + str.size())
-                return result;
-        }
-
-        return str;
     }
 
     ValueNode::ValueType VM::applyArithmetic(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op) {
@@ -106,8 +85,13 @@ namespace LOICollection::frontend::ir {
                 return arg != 0;
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, float>)
                 return std::abs(arg) > std::numeric_limits<float>::epsilon();
-            else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::string>)
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::string>) {
+                auto lower = arg | std::views::transform(::tolower) | std::ranges::to<std::string>();
+                if (lower == "false") return false;
+                if (lower == "true") return true;
+                
                 return !arg.empty();
+            }
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
                 return arg;
         }, val);
@@ -315,11 +299,11 @@ namespace LOICollection::frontend::ir {
 
                     auto ns = meta.name.substr(0, meta.name.find("::"));
                     auto func = meta.name.substr(meta.name.find("::") + 2);
-                    std::string result = FunctionCall::getInstance().callFunction(
+                    auto result = FunctionCall::getInstance().callFunction(
                         ns, func, args, ctx.params
                     );
 
-                    this->push(VM::stringToValue(result));
+                    this->push(result);
                     break;
                 }
                 case OpCode::CALL_MACRO: {
@@ -331,11 +315,11 @@ namespace LOICollection::frontend::ir {
                         args.push_back(this->pop());
 
                     std::reverse(args.begin(), args.end());
-                    std::string result = MacroCall::getInstance().callMacro(
+                    auto result = MacroCall::getInstance().callMacro(
                         meta.name, args, ctx.params
                     );
 
-                    this->push(VM::stringToValue(result));
+                    this->push(result);
                     break;
                 }
 
