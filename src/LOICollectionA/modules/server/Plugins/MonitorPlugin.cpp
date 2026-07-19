@@ -118,7 +118,7 @@ namespace LOICollection::server::Plugins {
 
                     std::string result;
                     for (const std::string& page : option.Pages[index]) 
-                        result.append((result.empty() ? "" : "'\n'") + page);
+                        result.append((result.empty() ? "" : " + '\n' + ") + page);
 
                     *mName = result;
                     index = index < maxIndex ? index + 1 : 0;
@@ -259,13 +259,15 @@ namespace LOICollection::server::Plugins {
             if (mObjectScoreboards.empty() || std::find(mObjectScoreboards.begin(), mObjectScoreboards.end(), mId) != mObjectScoreboards.end()) {
                 int mOriScore = ScoreboardUtils::getScore(event.self(), mId);
 
-                std::string mMessage = fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "monitor.changescore.text")), mId,
+                std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(
+                    tr(LanguagePlugin::getInstance().getLanguage(event.self()), "monitor.changescore.text"), event.self()
+                );
+                
+                event.self().sendMessage(fmt::format(fmt::runtime(mMessage), mId,
                     (mType == ScoreChangedType::add ? (mOriScore - mScore) : (mType == ScoreChangedType::reduce ? (mOriScore + mScore) : mScore)),
                     (mType == ScoreChangedType::add ? "+" : (mType == ScoreChangedType::reduce ? "-" : "")) + std::to_string(mScore),
                     mOriScore
-                );
-                
-                event.self().sendMessage(LOICollectionAPI::APIUtils::getInstance().translate(mMessage, event.self()));
+                ));
             }
         }));
 

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -21,6 +22,7 @@ namespace LOICollection::frontend::ir {
 
     private:
         std::vector<ValueNode::ValueType> stack;
+        std::unordered_map<std::string, ValueNode::ValueType> variables;
 
         size_t ip;
 

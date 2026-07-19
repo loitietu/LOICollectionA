@@ -173,6 +173,25 @@ namespace LOICollection::frontend::ir {
                     break;
                 }
 
+                case OpCode::LOAD_VAR: {
+                    const auto& name = std::get<std::string>(chunk.constants[instr.operand]);
+
+                    auto it = this->variables.find(name);
+                    if (it == this->variables.end())
+                        throw std::runtime_error("Undefined variable: " + name);
+
+                    this->push(it->second);
+                    break;
+                }
+                case OpCode::STORE_VAR: {
+                    const auto& name = std::get<std::string>(chunk.constants[instr.operand]);
+
+                    auto val = this->pop();
+
+                    this->variables[name] = val;
+                    break;
+                }
+
                 case OpCode::ADD: {
                     auto r = this->pop();
                     auto l = this->pop();
@@ -295,7 +314,7 @@ namespace LOICollection::frontend::ir {
                     for (int i = 0; i < meta.argCount; ++i)
                         args.push_back(this->pop());
 
-                    std::reverse(args.begin(), args.end());
+                    std::ranges::reverse(args);
 
                     auto ns = meta.name.substr(0, meta.name.find("::"));
                     auto func = meta.name.substr(meta.name.find("::") + 2);
@@ -314,7 +333,8 @@ namespace LOICollection::frontend::ir {
                     for (int i = 0; i < meta.argCount; ++i)
                         args.push_back(this->pop());
 
-                    std::reverse(args.begin(), args.end());
+                    std::ranges::reverse(args);
+                    
                     auto result = MacroCall::getInstance().callMacro(
                         meta.name, args, ctx.params
                     );

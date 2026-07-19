@@ -32,19 +32,19 @@ TEST(APIUtilsTest, RegisterAngGetVariable) {
     auto player = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(player);
 
-    EXPECT_EQ(APIUtils::getInstance().getValueForVariable("test_var_one"), "test_value_one");
-    EXPECT_EQ(APIUtils::getInstance().getValueForVariable("test_var_two", *player), "test_value_two_test_player");
-    EXPECT_EQ(APIUtils::getInstance().getValueForVariable("test_var_three", { 10 }), "test_value_three_10");
-    EXPECT_EQ(APIUtils::getInstance().getValueForVariable("test_var_four", *player, { 20 }), "test_value_four_test_player_20");
+    EXPECT_EQ(std::get<std::string>(APIUtils::getInstance().getValueForVariable("test_var_one")), "test_value_one");
+    EXPECT_EQ(std::get<std::string>(APIUtils::getInstance().getValueForVariable("test_var_two", *player)), "test_value_two_test_player");
+    EXPECT_EQ(std::get<std::string>(APIUtils::getInstance().getValueForVariable("test_var_three", { 10 })), "test_value_three_10");
+    EXPECT_EQ(std::get<std::string>(APIUtils::getInstance().getValueForVariable("test_var_four", *player, { 20 })), "test_value_four_test_player_20");
 }
 
 TEST(APIUtilsTest, TranslateString) {
     auto player = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(player);
 
-    EXPECT_EQ(APIUtils::getInstance().translate("'Test '{test_var_one}"), "Test test_value_one");
-    EXPECT_EQ(APIUtils::getInstance().translate("'Test '{test_var_two}", *player), "Test test_value_two_test_player");
-    EXPECT_EQ(APIUtils::getInstance().translate("'Test '{test_var_one}' '{test_var_two}", *player), "Test test_value_one test_value_two_test_player");
+    EXPECT_EQ(APIUtils::getInstance().translate("'Test ' + {test_var_one}"), "Test test_value_one");
+    EXPECT_EQ(APIUtils::getInstance().translate("'Test ' + {test_var_two}", *player), "Test test_value_two_test_player");
+    EXPECT_EQ(APIUtils::getInstance().translate("'Test ' + {test_var_one} + ' ' + {test_var_two}", *player), "Test test_value_one test_value_two_test_player");
 
-    EXPECT_EQ(APIUtils::getInstance().translate("'Hello '{player_realname}", *player), "Hello test_player");
+    EXPECT_EQ(APIUtils::getInstance().translate("'Hello ' + {player_realname}", *player), "Hello test_player");
 }

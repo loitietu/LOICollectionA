@@ -25,6 +25,20 @@ namespace LOICollection::frontend::ir {
         }
     }
 
+    void Compiler::visit(VariableNode& node) {
+        int idx = this->addConstant(node.name);
+        this->chunk.emit(OpCode::LOAD_VAR, idx);
+    }
+
+    void Compiler::visit(AssignmentNode& node) {
+        node.value->accept(*this);
+
+        this->chunk.emit(OpCode::DUP);
+
+        int idx = this->addConstant(node.varName);
+        this->chunk.emit(OpCode::STORE_VAR, idx);
+    }
+
     void Compiler::visit(IfNode& node) {
         node.condition->accept(*this);
 
@@ -116,8 +130,7 @@ namespace LOICollection::frontend::ir {
     void Compiler::visit(FunctionNode& node) {
         int argCount = 0;
         if (node.args) {
-            auto& tpl = static_cast<const TemplateNode&>(*node.args);
-            for (auto& part : tpl.parts) {
+            for (auto& part : node.args->parts) {
                 part->accept(*this);
                 argCount++;
             }
@@ -130,8 +143,7 @@ namespace LOICollection::frontend::ir {
     void Compiler::visit(MacroNode& node) {
         int argCount = 0;
         if (node.args) {
-            auto& tpl = static_cast<const TemplateNode&>(*node.args);
-            for (auto& part : tpl.parts) {
+            for (auto& part : node.args->parts) {
                 part->accept(*this);
                 argCount++;
             }
@@ -171,16 +183,11 @@ namespace LOICollection::frontend::ir {
             return;
         }
 
-        if (node.parts.size() == 1) {
-            node.parts[0]->accept(*this);
-            return;
-        }
-
-        node.parts[0]->accept(*this);
-        for (size_t i = 1; i < node.parts.size(); ++i) {
+        for (size_t i = 0; i < node.parts.size(); ++i) {
             node.parts[i]->accept(*this);
-
-            this->chunk.emit(OpCode::ADD);
+            
+            if (i != node.parts.size() - 1)
+                this->chunk.emit(OpCode::POP);
         }
     }
 

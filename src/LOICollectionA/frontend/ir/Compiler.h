@@ -16,6 +16,8 @@ namespace LOICollection::frontend::ir {
         BytecodeChunk chunk;
 
         void visit(ValueNode& node) override;
+        void visit(VariableNode& node) override;
+        void visit(AssignmentNode& node) override;
         void visit(IfNode& node) override;
         void visit(CompareNode& node) override;
         void visit(LogicalNode& node) override;

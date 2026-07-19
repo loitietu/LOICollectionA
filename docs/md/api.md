@@ -1,7 +1,7 @@
 # LOICollectionAPI
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.11.1 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
+> 以下内容取自 LOICollectionA 1.14.0 的 `LOICollectionAPI` 结构，对于后续版本的 `LOICollectionAPI` 结构可能会有所不同。
 
 ## 默认变量
 
@@ -30,9 +30,9 @@
 | {player_pos_y} | 玩家所在Y坐标 | int |
 | {player_pos_z} | 玩家所在Z坐标 | int |
 | {player_pos_respawn} | 玩家重生坐标 | string |
-| {player_pos_respawn_x} | 玩家重生X坐标 | int |
-| {player_pos_respawn_y} | 玩家重生Y坐标 | int |
-| {player_pos_respawn_z} | 玩家重生Z坐标 | int |
+| {player_pos_respawn_x} | 玩家重生X坐标 | int / string(None) |
+| {player_pos_respawn_y} | 玩家重生Y坐标 | int / string(None) |
+| {player_pos_respawn_z} | 玩家重生Z坐标 | int / string(None) |
 | {player_pos_block} | 玩家所在的方块坐标 | string |
 | {player_pos_lastdeath} | 玩家上次死亡的坐标 | string |
 | {player_realname} | 玩家的真实名字 | string |
@@ -42,16 +42,16 @@
 | {player_can_fly} | 玩家是否可以飞行 | boolean |
 | {player_health} | 玩家当前生命值 | int |
 | {player_max_health} | 玩家最大生命值 | int |
-| {player_hunger} | 玩家当前饥饿值 | int |
-| {player_max_hunger} | 玩家最大饥饿值 | int |
-| {player_saturation} | 玩家当前饱和度 | int |
-| {player_max_saturation} | 玩家最大饱和度 | int |
+| {player_hunger} | 玩家当前饥饿值 | int / string(None) |
+| {player_max_hunger} | 玩家最大饥饿值 | int / string(None) |
+| {player_saturation} | 玩家当前饱和度 | int / string(None) |
+| {player_max_saturation} | 玩家最大饱和度 | int / string(None) |
 | {player_speed} | 玩家当前速度 | float |
 | {player_direction} | 玩家当前朝向 | string |
 | {player_dimension} | 玩家当前维度ID | int |
 | {player_ip} | 玩家连接IP | string |
-| {player_exp_xp} | 玩家当前经验 | int |
-| {player_exp_level} | 玩家当前等级 | int |
+| {player_exp_xp} | 玩家当前经验 | int / string(None) |
+| {player_exp_level} | 玩家当前等级 | int / string(None) |
 | {player_exp_level_next} | 玩家下一等级所需经验 | int |
 | {player_handitem} | 玩家手持物品名称 | string |
 | {player_offhand} | 玩家副手持物品名称 | string |
@@ -94,7 +94,7 @@ ${variable}
 以下将展示玩家的真实名字，且不会解析其他内容
 
 ```text
-{player_realname} -> ${team}
+{player_realname} + '->' + ${team}
 ```
 
 - 返回结果：`player -> {team}`
@@ -123,7 +123,7 @@ if (condition)[result_yes : result_no]
 !> 需要注意的是语句的原 `result` 无法解析特殊字符，需要将其整合为字符串类型
 
 ```text
-if({player_ms.avg} <= 50)["§a" : if( {player_ms.avg} > 50 && {player_ms.avg} <= 250)["§e" : "§c"]]" "{player_ms.avg}"§bms"
+if({player_ms.avg} <= 50)["§a" : if( {player_ms.avg} > 50 && {player_ms.avg} <= 250)["§e" : "§c"]] + {player_ms.avg} + "§bms"
 ```
 
 - **当判断条件满足 `{player_ms.avg} <= 50` 时，其会返回 "§a {player_ms.avg}§bms"**  
@@ -167,7 +167,7 @@ if({player_ms.avg} <= 50)["§a" : if( {player_ms.avg} > 50 && {player_ms.avg} <=
     - 返回结果：false
 
     > [!NOTE]
-    > 这里的比较大致可以参考 `C++` 的比较规则
+    > 这里的比较规则大致可以参考 `C++` 的比较规则
 
 ## 函数 - function
 
@@ -222,3 +222,6 @@ math::abs(math::max(math::cos(math::sqrt(100)), math::sin(math::sqrt(100))))
 ```
 
 - 返回结果：0.544021
+
+> [!WARNING]
+> 每个表达式后都必须添加分隔符 `;`

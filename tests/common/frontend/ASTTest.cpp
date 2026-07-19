@@ -29,7 +29,7 @@ TEST(ASTTest, NodeTypesFromParsing) {
         EXPECT_EQ(tpl.parts[0]->getType(), ASTNode::Type::Arithmetic);
     }
     {
-        Lexer lex("if(true)[a:b]");
+        Lexer lex("if(true)['a':'b']");
         Parser parser(lex);
 
         auto ast = parser.parse();

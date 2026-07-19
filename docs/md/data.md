@@ -67,7 +67,7 @@
                     "ModuleEnabled": true, // 是否启用动态服务器 MOTD
                     "RefreshInterval": 200, // 刷新间隔，单位为 tick（20 tick = 1 秒）
                     "Pages": [
-                        "'Players: '{server_player_online}'/'{server_player_max}" // 每行显示内容，支持 LOICollectionA API 变量
+                        "'Players: ' + {server_player_online} + '/' + {server_player_max}" // 每行显示内容，支持 LOICollectionA API 变量
                     ]
                 },
                 "Sidebar": {
@@ -219,7 +219,7 @@
 ```
 
 > [!NOTE]
-> 以上内容取自 LOICollectionA 1.13.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以上内容取自 LOICollectionA 1.14.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 
 ## 模块数据文件
 

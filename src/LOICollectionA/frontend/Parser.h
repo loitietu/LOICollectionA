@@ -24,9 +24,11 @@ namespace LOICollection::frontend {
 
         std::unique_ptr<ASTNode> parseTemplateUntil(TokenType stopToken, bool stopOnColon = false);
 
-        std::unique_ptr<ValueNode> parseTranspile(TokenType stopToken = TokenType::TOKEN_RBRACE);
+        std::unique_ptr<ValueNode> parseTranspile();
         std::unique_ptr<TemplateNode> parseArgs(TokenType delimiterToken = TokenType::TOKEN_COMMA, TokenType stopToken = TokenType::TOKEN_RPAREN);
 
+        std::unique_ptr<ASTNode> parseStatement();
+        
         std::unique_ptr<ExprNode> parseBaseExpression();
 
         std::unique_ptr<ExprNode> parseBoolExpression();

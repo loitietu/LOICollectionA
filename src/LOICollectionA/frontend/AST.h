@@ -11,7 +11,7 @@ namespace LOICollection::frontend {
     struct ASTNode {
         enum class Type { 
             Value, Compare, Logical, If, Template, Expr,
-            Arithmetic, Unary, Function, Macro
+            Arithmetic, Unary, Function, Macro, Variable, Assignment
         };
         [[nodiscard]] virtual Type getType() const = 0;
         
@@ -39,6 +39,32 @@ namespace LOICollection::frontend {
         [[nodiscard]] Type getType() const override {
             return Type::Value;
         }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct VariableNode : ExprNode {
+        std::string name;
+
+        explicit VariableNode(std::string n) : name(std::move(n)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::Variable; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct AssignmentNode : ExprNode {
+        std::string varName;
+        std::unique_ptr<ExprNode> value;
+
+        AssignmentNode(std::string name, auto&& val)
+            : varName(std::move(name)), value(std::forward<decltype(val)>(val)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::Assignment; }
 
         void accept(ASTVisitor& visitor) override {
             visitor.visit(*this);
@@ -103,7 +129,7 @@ namespace LOICollection::frontend {
     };
 
     struct FunctionNode : ExprNode {
-        std::unique_ptr<ASTNode> args; 
+        std::unique_ptr<TemplateNode> args; 
         std::string namespaces;
         std::string name;
 
@@ -122,7 +148,7 @@ namespace LOICollection::frontend {
     };
 
     struct MacroNode : ExprNode {
-        std::unique_ptr<ASTNode> args;
+        std::unique_ptr<TemplateNode> args;
         std::string name;
 
         MacroNode(auto&& a, std::string n)

@@ -41,6 +41,7 @@ namespace LOICollection::frontend {
                 case '^': return makeToken(TokenType::TOKEN_POWER);
                 case ',': return makeToken(TokenType::TOKEN_COMMA);
                 case '$': return makeToken(TokenType::TOKEN_TRANSPILE);
+                case ';': return makeToken(TokenType::TOKEN_SEMICOLON);
             }
 
             if (std::isdigit(currentChar) || currentChar == '.') return parseNumber();
@@ -80,7 +81,7 @@ namespace LOICollection::frontend {
 
     Token Lexer::parseIdentifier() {
         size_t start = position;
-        while (currentChar != 0 && !std::isspace(currentChar) && !std::strchr("()[]{}=><!&|.:", currentChar))
+        while (currentChar != 0 && !std::isspace(currentChar) && !std::strchr("()[]{}=><!&|.:;", currentChar))
             advance();
 
         std::string id = input.substr(start, position - start);

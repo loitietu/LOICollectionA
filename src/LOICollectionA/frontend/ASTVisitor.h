@@ -4,6 +4,8 @@ namespace LOICollection::frontend {
     struct ASTNode;
     struct ExprNode;
     struct ValueNode;
+    struct VariableNode;
+    struct AssignmentNode;
     struct IfNode;
     struct CompareNode;
     struct LogicalNode;
@@ -18,6 +20,8 @@ namespace LOICollection::frontend {
         virtual ~ASTVisitor() = default;
 
         virtual void visit(ValueNode& node) = 0;
+        virtual void visit(VariableNode& node) = 0;
+        virtual void visit(AssignmentNode& node) = 0;
         virtual void visit(IfNode& node) = 0;
         virtual void visit(CompareNode& node) = 0;
         virtual void visit(LogicalNode& node) = 0;

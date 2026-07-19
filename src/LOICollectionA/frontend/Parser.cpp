@@ -20,7 +20,13 @@ namespace LOICollection::frontend {
             if (tpl->parts.size() >= 100)
                 throw std::runtime_error("Too many parts in template");
 
-            tpl->addPart(parseBaseExpression());
+            tpl->addPart(parseStatement());
+
+            if (currentToken.type == TokenType::TOKEN_SEMICOLON) {
+                eat(TokenType::TOKEN_SEMICOLON);
+            } else if (currentToken.type != TokenType::TOKEN_EOF) {
+                throw std::runtime_error("Expected ';' or EOF after statement, got " + getTokenName(currentToken.type) + " (" + currentToken.value + ")");
+            }
         }
 
         return tpl;
@@ -61,7 +67,7 @@ namespace LOICollection::frontend {
         eat(TokenType::TOKEN_IDENT);
         eat(TokenType::TOKEN_LPAREN);
 
-        std::unique_ptr<ASTNode> args = parseArgs();
+        std::unique_ptr<TemplateNode> args = parseArgs();
 
         eat(TokenType::TOKEN_RPAREN);
 
@@ -79,7 +85,7 @@ namespace LOICollection::frontend {
 
         eat(TokenType::TOKEN_IDENT);
 
-        std::unique_ptr<ASTNode> args;
+        std::unique_ptr<TemplateNode> args;
         if (currentToken.type == TokenType::TOKEN_LPAREN) {
             eat(TokenType::TOKEN_LPAREN);
 
@@ -118,12 +124,10 @@ namespace LOICollection::frontend {
                     break;
             }
 
-            if (currentToken.type == TokenType::TOKEN_IF) {
-                tpl->addPart(parseIfStatement()); 
-                continue;
-            }
+            tpl->addPart(parseStatement());
 
-            tpl->addPart(parseBaseExpression());
+            if (currentToken.type != TokenType::TOKEN_COLON && currentToken.type != TokenType::TOKEN_RBRCKET)
+                eat(TokenType::TOKEN_SEMICOLON);
         }
 
         if (tpl->parts.size() == 1) {
@@ -135,18 +139,22 @@ namespace LOICollection::frontend {
         return tpl;
     }
 
-    std::unique_ptr<ValueNode> Parser::parseTranspile(TokenType stopToken) {
+    std::unique_ptr<ValueNode> Parser::parseTranspile() {
         eat(TokenType::TOKEN_TRANSPILE);
 
         std::string buffer;
-        while (currentToken.type != stopToken && currentToken.type != TokenType::TOKEN_EOF) {
+        while (currentToken.type != TokenType::TOKEN_EOF) {
+            if (currentToken.type == TokenType::TOKEN_RBRACE || currentToken.type == TokenType::TOKEN_SEMICOLON) {
+                buffer += currentToken.value;
+
+                eat(currentToken.type);
+
+                break;
+            }
+
             buffer += currentToken.value;
             eat(currentToken.type);
         }
-
-        buffer += currentToken.value;
-        
-        eat(stopToken);
 
         return std::make_unique<ValueNode>(std::move(buffer));
     }
@@ -167,6 +175,24 @@ namespace LOICollection::frontend {
         }
 
         return tpl;
+    }
+
+    std::unique_ptr<ASTNode> Parser::parseStatement() {
+        if (currentToken.type == TokenType::TOKEN_IDENT) {
+            Token next = lexer.peekNextToken();
+            if (next.type == TokenType::TOKEN_OP && next.value == "=") {
+                std::string varName = currentToken.value;
+
+                eat(TokenType::TOKEN_IDENT);
+                eat(TokenType::TOKEN_OP);
+
+                auto right = parseBaseExpression();
+
+                return std::make_unique<AssignmentNode>(varName, std::move(right));
+            }
+        }
+
+        return parseBaseExpression();
     }
 
     std::unique_ptr<ExprNode> Parser::parseBaseExpression() {
@@ -310,7 +336,11 @@ namespace LOICollection::frontend {
                 if (peek() == TokenType::TOKEN_NAMESPACE)
                     return parseFunction();
 
-                break;
+                std::string name = currentToken.value;
+
+                eat(TokenType::TOKEN_IDENT);
+
+                return std::make_unique<VariableNode>(std::move(name));
             }
             case TokenType::TOKEN_TRANSPILE:
                 return parseTranspile();
@@ -350,12 +380,6 @@ namespace LOICollection::frontend {
 
                 eat(TokenType::TOKEN_STRING);
                 return std::make_unique<ValueNode>(std::move(str));
-            }
-            case TokenType::TOKEN_IDENT: {
-                std::string text = std::move(currentToken.value);
-
-                eat(TokenType::TOKEN_IDENT);
-                return std::make_unique<ValueNode>(std::move(text));
             }
             case TokenType::TOKEN_BOOL_LIT: {
                 bool val = (currentToken.value == "true");
@@ -407,6 +431,7 @@ namespace LOICollection::frontend {
             case TokenType::TOKEN_NAMESPACE: return "NAMESPACE";
             case TokenType::TOKEN_COMMA: return ",";
             case TokenType::TOKEN_TRANSPILE: return "TRANSPILE";
+            case TokenType::TOKEN_SEMICOLON: return ";";
             case TokenType::TOKEN_EOF: return "EOF";
             default: return "UNKNOWN";
         }

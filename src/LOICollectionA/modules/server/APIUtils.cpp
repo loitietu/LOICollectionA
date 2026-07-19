@@ -56,10 +56,10 @@ namespace LOICollection::server::LOICollectionAPI {
 
         std::shared_ptr<ll::io::Logger> logger;
 
-        std::unordered_map<std::string, std::function<std::string()>> mVariableCommonMap;
-        std::unordered_map<std::string, std::function<std::string(Player&)>> mVariableMap;
-        std::unordered_map<std::string, std::function<std::string(const frontend::CallbackTypeValues&)>> mVariableCommonMapParameter;
-        std::unordered_map<std::string, std::function<std::string(Player&, const frontend::CallbackTypeValues&)>> mVariableMapParameter;
+        std::unordered_map<std::string, std::function<frontend::TypedValue()>> mVariableCommonMap;
+        std::unordered_map<std::string, std::function<frontend::TypedValue(Player&)>> mVariableMap;
+        std::unordered_map<std::string, std::function<frontend::TypedValue(const frontend::CallbackTypeValues&)>> mVariableCommonMapParameter;
+        std::unordered_map<std::string, std::function<frontend::TypedValue(Player&, const frontend::CallbackTypeValues&)>> mVariableMapParameter;
 
         Impl() : mAstCache(100, 200, 5) {}
     };
@@ -73,8 +73,8 @@ namespace LOICollection::server::LOICollectionAPI {
         this->registerVariable("version_ll", []() -> std::string {
             return ll::getLoaderVersion().to_string();
         });
-        this->registerVariable("version_protocol", []() -> std::string {
-            return std::to_string(ll::getNetworkProtocolVersion()); 
+        this->registerVariable("version_protocol", []() -> int {
+            return ll::getNetworkProtocolVersion(); 
         });
         this->registerVariable("player", [](Player& player) -> std::string {
             return std::string{player.mName};
@@ -87,11 +87,11 @@ namespace LOICollection::server::LOICollectionAPI {
                 Plugins::ChatPlugin::getInstance().getTitleTime(player, Plugins::ChatPlugin::getInstance().getTitle(player)), "None"
             );
         });
-        this->registerVariable("player_pvp", [](Player& player) -> std::string {
-            return Plugins::PvpPlugin::getInstance().isEnable(player) ? "true" : "false";
+        this->registerVariable("player_pvp", [](Player& player) -> bool {
+            return Plugins::PvpPlugin::getInstance().isEnable(player);
         });
-        this->registerVariable("player_mute", [](Player& player) -> std::string {
-            return Plugins::MutePlugin::getInstance().isMute(player) ? "true" : "false";
+        this->registerVariable("player_mute", [](Player& player) -> bool {
+            return Plugins::MutePlugin::getInstance().isMute(player);
         });
         this->registerVariable("player_language", [](Player& player) -> std::string { 
             return Plugins::LanguagePlugin::getInstance().getLanguage(player);
@@ -104,23 +104,23 @@ namespace LOICollection::server::LOICollectionAPI {
                 std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::onlinetime)), "None"
             );
         });
-        this->registerVariable("player_statistcs_kills", [](Player& player) -> std::string {
-            return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::kills));
+        this->registerVariable("player_statistcs_kills", [](Player& player) -> int {
+            return Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::kills);
         });
-        this->registerVariable("player_statistcs_deaths", [](Player& player) -> std::string {
-            return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::deaths));
+        this->registerVariable("player_statistcs_deaths", [](Player& player) -> int {
+            return Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::deaths);
         });
-        this->registerVariable("player_statistcs_place", [](Player& player) -> std::string {
-            return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::place));
+        this->registerVariable("player_statistcs_place", [](Player& player) -> int {
+            return Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::place);
         });
-        this->registerVariable("player_statistcs_destroy", [](Player& player) -> std::string {
-            return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::destroy));
+        this->registerVariable("player_statistcs_destroy", [](Player& player) -> int {
+            return Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::destroy);
         });
-        this->registerVariable("player_statistcs_respawn", [](Player& player) -> std::string {
-            return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::respawn));
+        this->registerVariable("player_statistcs_respawn", [](Player& player) -> int {
+            return Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::respawn);
         });
-        this->registerVariable("player_statistcs_join", [](Player& player) -> std::string {
-            return std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::join));
+        this->registerVariable("player_statistcs_join", [](Player& player) -> int {
+            return Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::join);
         });
         this->registerVariable("player_gamemode", [](Player& player) -> std::string {
             return std::string(magic_enum::enum_name(player.getPlayerGameType()));
@@ -128,26 +128,32 @@ namespace LOICollection::server::LOICollectionAPI {
         this->registerVariable("player_pos", [](Player& player) -> std::string {
             return player.getPosition().toString();
         });
-        this->registerVariable("player_pos_x", [](Player& player) -> std::string {
-            return std::to_string(static_cast<int>(player.getPosition().x));
+        this->registerVariable("player_pos_x", [](Player& player) -> int {
+            return static_cast<int>(player.getPosition().x);
         });
-        this->registerVariable("player_pos_y", [](Player& player) -> std::string {
-            return std::to_string(static_cast<int>(player.getPosition().y));
+        this->registerVariable("player_pos_y", [](Player& player) -> int {
+            return static_cast<int>(player.getPosition().y);
         });
-        this->registerVariable("player_pos_z", [](Player& player) -> std::string {
-            return std::to_string(static_cast<int>(player.getPosition().z));
+        this->registerVariable("player_pos_z", [](Player& player) -> int {
+            return static_cast<int>(player.getPosition().z);
         });
         this->registerVariable("player_pos_respawn", [](Player& player) -> std::string {
             return player.hasRespawnPosition() ? player.getExpectedSpawnPosition().toString() : "None";
         });
-        this->registerVariable("player_pos_respawn_x", [](Player& player) -> std::string {
-            return player.hasRespawnPosition() ? std::to_string(static_cast<int>(player.getExpectedSpawnPosition().x)) : "None";
+        this->registerVariable("player_pos_respawn_x", [](Player& player) -> frontend::TypedValue {
+            if (!player.hasRespawnPosition()) return "None";
+
+            return static_cast<int>(player.getExpectedSpawnPosition().x);
         });
-        this->registerVariable("player_pos_respawn_y", [](Player& player) -> std::string {
-            return player.hasRespawnPosition() ? std::to_string(static_cast<int>(player.getExpectedSpawnPosition().y)) : "None";
+        this->registerVariable("player_pos_respawn_y", [](Player& player) -> frontend::TypedValue {
+            if (!player.hasRespawnPosition()) return "None";
+
+            return static_cast<int>(player.getExpectedSpawnPosition().y);
         });
-        this->registerVariable("player_pos_respawn_z", [](Player& player) -> std::string {
-            return player.hasRespawnPosition() ? std::to_string(static_cast<int>(player.getExpectedSpawnPosition().z)) : "None";
+        this->registerVariable("player_pos_respawn_z", [](Player& player) -> frontend::TypedValue {
+            if (!player.hasRespawnPosition()) return "None";
+
+            return static_cast<int>(player.getExpectedSpawnPosition().z);
         });
         this->registerVariable("player_pos_block", [](Player& player) -> std::string {
             return player.getFeetBlockPos().toString();
@@ -164,50 +170,50 @@ namespace LOICollection::server::LOICollectionAPI {
         this->registerVariable("player_uuid", [](Player& player) -> std::string {
             return player.getUuid().asString();
         });
-        this->registerVariable("player_is_op", [](Player& player) -> std::string {
-            return player.isOperator() ? "true" : "false";
+        this->registerVariable("player_is_op", [](Player& player) -> bool {
+            return player.isOperator();
         });
-        this->registerVariable("player_can_fly", [](Player& player) -> std::string {
-            return player.canFly() ? "true" : "false";
+        this->registerVariable("player_can_fly", [](Player& player) -> bool {
+            return player.canFly();
         });
-        this->registerVariable("player_health", [](Player& player) -> std::string {
-            return std::to_string(player.getHealth());
+        this->registerVariable("player_health", [](Player& player) -> int {
+            return player.getHealth();
         });
-        this->registerVariable("player_max_health", [](Player& player) -> std::string {
-            return std::to_string(static_cast<int>(player.getMaxHealth()));
+        this->registerVariable("player_max_health", [](Player& player) -> int {
+            return static_cast<int>(player.getMaxHealth());
         });
-        this->registerVariable("player_hunger", [](Player& player) -> std::string {
+        this->registerVariable("player_hunger", [](Player& player) -> frontend::TypedValue {
             if (auto attribute = player.getAttribute(Player::HUNGER()).mPtr; attribute)
-                return std::to_string(static_cast<int>(attribute->mCurrentValue));
+                return static_cast<int>(attribute->mCurrentValue);
 
             return "None";
         });
-        this->registerVariable("player_max_hunger", [](Player& player) -> std::string {
+        this->registerVariable("player_max_hunger", [](Player& player) -> frontend::TypedValue {
             if (auto attribute = player.getAttribute(Player::HUNGER()).mPtr; attribute)
-                return std::to_string(static_cast<int>(attribute->mCurrentMaxValue));
+                return static_cast<int>(attribute->mCurrentMaxValue);
 
             return "None";
         });
-        this->registerVariable("player_saturation", [](Player& player) -> std::string {
+        this->registerVariable("player_saturation", [](Player& player) -> frontend::TypedValue {
             if (auto attribute = player.getAttribute(Player::SATURATION()).mPtr; attribute)
-                return std::to_string(static_cast<int>(attribute->mCurrentValue));
+                return static_cast<int>(attribute->mCurrentValue);
 
             return "None";
         });
-        this->registerVariable("player_max_saturation", [](Player& player) -> std::string {
+        this->registerVariable("player_max_saturation", [](Player& player) -> frontend::TypedValue{
             if (auto attribute = player.getAttribute(Player::SATURATION()).mPtr; attribute)
-                return std::to_string(static_cast<int>(attribute->mCurrentMaxValue));
+                return static_cast<int>(attribute->mCurrentMaxValue);
 
             return "None";
         });
-        this->registerVariable("player_speed", [](Player& player) -> std::string {
-            return std::to_string(player.getSpeed());
+        this->registerVariable("player_speed", [](Player& player) -> float {
+            return player.getSpeed();
         });
         this->registerVariable("player_direction", [](Player& player) -> std::string {
             return player.mBuiltInComponents->mActorRotationComponent->mRot->toString();
         });
-        this->registerVariable("player_dimension", [](Player& player) -> std::string {
-            return std::to_string(player.getDimensionId());
+        this->registerVariable("player_dimension", [](Player& player) -> int {
+            return player.getDimensionId();
         });
         this->registerVariable("player_os", [](Player& player) -> std::string {
             return magic_enum::enum_name(player.mBuildPlatform).data();
@@ -215,20 +221,20 @@ namespace LOICollection::server::LOICollectionAPI {
         this->registerVariable("player_ip", [](Player& player) -> std::string {
             return player.getIPAndPort();
         });
-        this->registerVariable("player_exp_xp", [](Player& player) -> std::string {
+        this->registerVariable("player_exp_xp", [](Player& player) -> frontend::TypedValue {
             if (auto attribute = player.getAttribute(Player::EXPERIENCE()).mPtr; attribute)
-                return std::to_string(static_cast<int>(attribute->mCurrentValue));
+                return static_cast<int>(attribute->mCurrentValue);
 
             return "None";
         });
-        this->registerVariable("player_exp_level", [](Player& player) -> std::string {
+        this->registerVariable("player_exp_level", [](Player& player) -> frontend::TypedValue {
             if (auto attribute = player.getAttribute(Player::LEVEL()).mPtr; attribute)
-                return std::to_string(static_cast<int>(attribute->mCurrentValue));
+                return static_cast<int>(attribute->mCurrentValue);
 
             return "None";
         });
-        this->registerVariable("player_exp_level_next", [](Player& player) -> std::string {
-            return std::to_string(player.getXpNeededForNextLevel());
+        this->registerVariable("player_exp_level_next", [](Player& player) -> int {
+            return player.getXpNeededForNextLevel();
         });
         this->registerVariable("player_handitem", [](Player& player) -> std::string {
             return player.getCarriedItem().getName();
@@ -236,41 +242,41 @@ namespace LOICollection::server::LOICollectionAPI {
         this->registerVariable("player_offhand", [](Player& player) -> std::string {
             return player.getOffhandSlot().getName();
         });
-        this->registerVariable("player_ms", [](Player& player) -> std::string {
-            return std::to_string(std::min(player.getNetworkStatus()->mAveragePing->count(), static_cast<long long>(300000)));
+        this->registerVariable("player_ms", [](Player& player) -> int {
+            return static_cast<int>(std::min(player.getNetworkStatus()->mAveragePing->count(), static_cast<long long>(300000)));
         });
-        this->registerVariable("player_ms_avg", [](Player& player) -> std::string {
-            return std::to_string(std::min(player.getNetworkStatus()->mCurrentPing->count(), static_cast<long long>(300000)));
+        this->registerVariable("player_ms_avg", [](Player& player) -> int {
+            return static_cast<int>(std::min(player.getNetworkStatus()->mCurrentPing->count(), static_cast<long long>(300000)));
         });
-        this->registerVariable("player_packet", [](Player& player) -> std::string {
-            return std::to_string(player.getNetworkStatus()->mAveragePacketLoss);
+        this->registerVariable("player_packet", [](Player& player) -> float {
+            return player.getNetworkStatus()->mAveragePacketLoss;
         });
-        this->registerVariable("player_packet_avg", [](Player& player) -> std::string {
-            return std::to_string(player.getNetworkStatus()->mCurrentPacketLoss);
+        this->registerVariable("player_packet_avg", [](Player& player) -> float {
+            return player.getNetworkStatus()->mCurrentPacketLoss;
         });
-        this->registerVariable("server_tps", []() -> std::string {
+        this->registerVariable("server_tps", []() -> float {
             auto mMspt = static_cast<double>(ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count()) / 1e6;
-            return std::to_string(mMspt <= 50.0 ? 20.0 : static_cast<double>(1000.0 / mMspt));
+            return static_cast<float>(mMspt <= 50.0 ? 20.0 : static_cast<double>(1000.0 / mMspt));
         });
-        this->registerVariable("server_mspt", []() -> std::string { 
-            return std::to_string(static_cast<double>(ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count()) / 1e6);
+        this->registerVariable("server_mspt", []() -> float { 
+            return static_cast<float>(static_cast<double>(ProfilerLite::gProfilerLiteInstance().mDebugServerTickTime->count()) / 1e6);
         });
         this->registerVariable("server_time", []() -> std::string {
             return SystemUtils::getNowTime();
         });
-        this->registerVariable("server_player_max", []() -> std::string {
-            return std::to_string(ll::service::getServerNetworkHandler()->mMaxNumPlayers);
+        this->registerVariable("server_player_max", []() -> int {
+            return ll::service::getServerNetworkHandler()->mMaxNumPlayers;
         });
-        this->registerVariable("server_player_online", []() -> std::string {
-            return std::to_string(ll::service::getLevel()->getActivePlayerCount());
+        this->registerVariable("server_player_online", []() -> int {
+            return ll::service::getLevel()->getActivePlayerCount();
         });
-        this->registerVariable("server_entity", []() -> std::string {
-            return std::to_string(ll::service::getLevel()->getRuntimeActorList().size());
+        this->registerVariable("server_entity", []() -> int {
+            return static_cast<int>(ll::service::getLevel()->getRuntimeActorList().size());
         });
-        this->registerVariable("score", [](Player& player, const frontend::CallbackTypeValues& args) -> std::string {
+        this->registerVariable("score", [](Player& player, const frontend::CallbackTypeValues& args) -> int {
             std::string name = std::get<std::string>(args[0]);
 
-            return std::to_string(ScoreboardUtils::getScore(player, name));
+            return ScoreboardUtils::getScore(player, name);
         }, { frontend::ParamType::STRING });
         this->registerVariable("tr", [](Player& player, const frontend::CallbackTypeValues& args) -> std::string {
             std::string name = std::get<std::string>(args[0]);
@@ -283,7 +289,7 @@ namespace LOICollection::server::LOICollectionAPI {
 
             return I18nUtils::getInstance()->get(langcode, name);
         }, { frontend::ParamType::STRING, frontend::ParamType::STRING });
-        this->registerVariable("entity", [](const frontend::CallbackTypeValues& args) -> std::string {
+        this->registerVariable("entity", [](const frontend::CallbackTypeValues& args) -> int {
             std::string name = std::get<std::string>(args[0]);
 
             std::vector<Actor*> mRuntimeActorList = ll::service::getLevel()->getRuntimeActorList();
@@ -291,7 +297,7 @@ namespace LOICollection::server::LOICollectionAPI {
                 return actor->getTypeName() == name;
             }));
             
-            return std::to_string(count);
+            return count;
         }, { frontend::ParamType::STRING });
     }
     APIUtils::~APIUtils() = default;
@@ -301,39 +307,39 @@ namespace LOICollection::server::LOICollectionAPI {
         return instance;
     }
 
-    void APIUtils::registerVariable(const std::string& name, std::function<std::string()> callback) {
+    void APIUtils::registerVariable(const std::string& name, std::function<frontend::TypedValue()> callback) {
         this->mImpl->mVariableCommonMap.emplace(name, std::move(callback));
 
-        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues&) -> std::string {
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues&) -> frontend::TypedValue {
             return this->getValueForVariable(name);
         }, {});
     }
 
-    void APIUtils::registerVariable(const std::string& name, std::function<std::string(Player&)> callback) {
+    void APIUtils::registerVariable(const std::string& name, std::function<frontend::TypedValue(Player&)> callback) {
         this->mImpl->mVariableMap.emplace(name, std::move(callback));
 
-        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues&, const frontend::CallbackTypePlaces& placeholders) -> std::string {
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues&, const frontend::CallbackTypePlaces& placeholders) -> frontend::TypedValue {
             return this->getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0)));
         }, {});
     }
 
-    void APIUtils::registerVariable(const std::string& name, std::function<std::string(const frontend::CallbackTypeValues&)> callback, frontend::CallbackTypeArgs args) {
+    void APIUtils::registerVariable(const std::string& name, std::function<frontend::TypedValue(const frontend::CallbackTypeValues&)> callback, frontend::CallbackTypeArgs args) {
         this->mImpl->mVariableCommonMapParameter.emplace(name, std::move(callback));
 
-        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues& args) -> std::string {
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues& args) -> frontend::TypedValue {
             return this->getValueForVariable(name, args);
         }, args);
     }
 
-    void APIUtils::registerVariable(const std::string& name, std::function<std::string(Player&, const frontend::CallbackTypeValues&)> callback, frontend::CallbackTypeArgs args) {
+    void APIUtils::registerVariable(const std::string& name, std::function<frontend::TypedValue(Player&, const frontend::CallbackTypeValues&)> callback, frontend::CallbackTypeArgs args) {
         this->mImpl->mVariableMapParameter.emplace(name, std::move(callback));
 
-        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues& args, const frontend::CallbackTypePlaces& placeholders) -> std::string {
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues& args, const frontend::CallbackTypePlaces& placeholders) -> frontend::TypedValue {
             return this->getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0)), args);
         }, args);
     }
 
-    std::string APIUtils::getValueForVariable(const std::string& name) try {
+    frontend::TypedValue APIUtils::getValueForVariable(const std::string& name) try {
         auto it = this->mImpl->mVariableCommonMap.find(name);
         return it != this->mImpl->mVariableCommonMap.end() ? it->second() : "None";
     } catch (const std::exception& e) {
@@ -342,7 +348,7 @@ namespace LOICollection::server::LOICollectionAPI {
         return "None";
     }
 
-    std::string APIUtils::getValueForVariable(const std::string& name, Player& player) try {
+    frontend::TypedValue APIUtils::getValueForVariable(const std::string& name, Player& player) try {
         auto it = this->mImpl->mVariableMap.find(name);
         return it != this->mImpl->mVariableMap.end() ? it->second(player) : this->getValueForVariable(name);
     } catch (const std::exception& e) {
@@ -351,7 +357,7 @@ namespace LOICollection::server::LOICollectionAPI {
         return "None";
     }
 
-    std::string APIUtils::getValueForVariable(const std::string& name, const frontend::CallbackTypeValues& parameter) try {
+    frontend::TypedValue APIUtils::getValueForVariable(const std::string& name, const frontend::CallbackTypeValues& parameter) try {
         auto it = this->mImpl->mVariableCommonMapParameter.find(name);
         return it != this->mImpl->mVariableCommonMapParameter.end() ? it->second(parameter) : "None";
     } catch (const std::exception& e) {
@@ -360,7 +366,7 @@ namespace LOICollection::server::LOICollectionAPI {
         return "None";
     }
 
-    std::string APIUtils::getValueForVariable(const std::string& name, Player& player, const frontend::CallbackTypeValues& parameter) try {
+    frontend::TypedValue APIUtils::getValueForVariable(const std::string& name, Player& player, const frontend::CallbackTypeValues& parameter) try {
         auto it = this->mImpl->mVariableMapParameter.find(name);
         return it != this->mImpl->mVariableMapParameter.end() ? it->second(player, parameter) : this->getValueForVariable(name, parameter);
     } catch (const std::exception& e) {
