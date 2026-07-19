@@ -128,6 +128,22 @@ namespace LOICollection::frontend {
         }
     };
 
+    struct TemplateNode : ASTNode {
+        std::vector<std::unique_ptr<ASTNode>> parts;
+
+        [[nodiscard]] Type getType() const override {
+            return Type::Template;
+        }
+
+        void addPart(auto&& part) {
+            parts.emplace_back(std::forward<decltype(part)>(part));
+        }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
     struct FunctionNode : ExprNode {
         std::unique_ptr<TemplateNode> args; 
         std::string namespaces;
@@ -193,22 +209,6 @@ namespace LOICollection::frontend {
         
         [[nodiscard]] Type getType() const override {
             return Type::Unary;
-        }
-
-        void accept(ASTVisitor& visitor) override {
-            visitor.visit(*this);
-        }
-    };
-
-    struct TemplateNode : ASTNode {
-        std::vector<std::unique_ptr<ASTNode>> parts;
-
-        [[nodiscard]] Type getType() const override {
-            return Type::Template;
-        }
-
-        void addPart(auto&& part) {
-            parts.emplace_back(std::forward<decltype(part)>(part));
         }
 
         void accept(ASTVisitor& visitor) override {

@@ -197,7 +197,7 @@ namespace LOICollection::server::Plugins {
                 process(event, mEvent);
 
                 if (!this->mImpl->mEvents.try_enqueue(mEvent)) {
-                    this->getLogger()->error(fmt::runtime(tr({}, "console.log.error.containter")), "BehaviorEventPlugin");
+                    this->getLogger()->error(fmt::runtime(tr({}, "console.log.error.container")), "BehaviorEventPlugin");
 
                     return;
                 }
