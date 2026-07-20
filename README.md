@@ -5,7 +5,9 @@
 ![Release](https://img.shields.io/github/v/release/loitietu/LOICollectionA?style=flat-square)
 ![Stars](https://img.shields.io/github/stars/loitietu/LOICollectionA?style=social)
 ![Downloads](https://img.shields.io/github/downloads/loitietu/LOICollectionA/total?style=flat-square)
-[![License](https://img.shields.io/github/license/loitietu/LOICollectionA)](LICENSE)
+[![License](https://img.shields.io/github/license/loitietu/LOICollectionA)](LICENSE)  
+
+[![656669024](https://img.shields.io/badge/1018233878-red?style=for-the-badge&logo=qq)](https://qm.qq.com/cgi-bin/qm/qr?k=l7XBaItHiNLnFKX7YiI7uqsEIZHaxjq3&jump_from=webapi&authKey=G3/2El1RPyAVYP4NYTJ2ytKRL6hSYfDNQXbrOlKBy/P0FEUjQSnXF8c7TWNkGbCC)
 
 [![English](https://img.shields.io/badge/English-inactive?style=for-the-badge)](README.md)
 [![中文](https://img.shields.io/badge/简体中文-informational?style=for-the-badge)](README.zh.md)
