@@ -5,6 +5,7 @@
 
 #include <fmt/core.h>
 
+#include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/command/Command.h>
@@ -19,8 +20,6 @@
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
-
-#include "LOICollectionA/include/RegistryHelper.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
 
@@ -50,8 +49,8 @@ namespace LOICollection::server::Plugins {
     LanguagePlugin::LanguagePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<LanguageGui>(*this)) {};
     LanguagePlugin::~LanguagePlugin() = default;
 
-    LanguagePlugin& LanguagePlugin::getInstance() {
-        static LanguagePlugin instance;
+    std::shared_ptr<LanguagePlugin> LanguagePlugin::getShared() {
+        static auto instance = std::shared_ptr<LanguagePlugin>(new LanguagePlugin());
         return instance;
     }
 
@@ -68,7 +67,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player);
+            this->mGui->open(player).or_else(modules::defaultErrorHandler<LanguagePlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -84,8 +83,9 @@ namespace LOICollection::server::Plugins {
             if (auto data = I18nUtils::getInstance()->data; data.find(langcode) == data.end())
                 langcode = I18nUtils::getInstance()->defaultLocale;
 
-            if (!this->mImpl->db->has("Language", event.self().getUuid().asString()))
-                this->set(event.self(), langcode);
+            if (!this->mImpl->db->has("Language", event.self().getUuid().asString())) {
+                this->set(event.self(), langcode).or_else(modules::defaultErrorHandler<LanguagePlugin>);
+            }
         }, ll::event::EventPriority::High);
     }
 
@@ -94,21 +94,22 @@ namespace LOICollection::server::Plugins {
         eventBus.removeListener(this->mImpl->PlayerConnectEventListener);
     }
 
-    std::string LanguagePlugin::getLanguage(const std::string& mObject) {
-        if (this->mImpl->Cache.contains(mObject))
-            return *this->mImpl->Cache.get(mObject).value();
+    ll::Expected<std::string> LanguagePlugin::getLanguage(const std::string& uuid) {
+        if (this->mImpl->Cache.contains(uuid))
+            return *this->mImpl->Cache.get(uuid).value();
         
-        std::string langcode = this->mImpl->db->get("Language", mObject, "value", I18nUtils::getInstance()->defaultLocale);
-        
-        this->mImpl->Cache.put(mObject, langcode);
-        return langcode;
+        return this->mImpl->db->get("Language", uuid, "value", I18nUtils::getInstance()->defaultLocale)
+            .transform([this, &uuid](std::string langcode) -> std::string {
+                this->mImpl->Cache.put(uuid, langcode);
+                return langcode;  
+            });
     }
 
-    std::string LanguagePlugin::getLanguage(Player& player) {
+    ll::Expected<std::string> LanguagePlugin::getLanguage(Player& player) {
         return this->getLanguage(player.getUuid().asString());
     }
 
-    void LanguagePlugin::set(Player& player, const std::string& langcode) {
+    ll::Expected<void> LanguagePlugin::set(Player& player, const std::string& langcode) {
         std::string mObject = player.getUuid().asString();
 
         std::unordered_map<std::string, std::string> mData = {
@@ -116,18 +117,28 @@ namespace LOICollection::server::Plugins {
             { "value", langcode }
         };
 
-        this->mImpl->db->set("Language", mObject, mData);
-        this->mImpl->Cache.put(mObject, langcode);
+        return this->mImpl->db->set("Language", mObject, mData)
+            .transform([this, &mObject, &langcode]() -> void {
+                this->mImpl->Cache.put(mObject, langcode);
+            });
     }
 
-    bool LanguagePlugin::load() {
+    std::string LanguagePlugin::getName() {
+        return "LanguagePlugin";
+    }
+
+    modules::ModulePriority LanguagePlugin::getPriority() {
+        return modules::ModulePriority::Normal;
+    }
+
+    ll::Expected<bool> LanguagePlugin::load() {
         this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
 
         return true;
     }
 
-    bool LanguagePlugin::unload() {
+    ll::Expected<bool> LanguagePlugin::unload() {
         this->mImpl->db.reset();
         this->mImpl->logger.reset();
 
@@ -137,29 +148,28 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool LanguagePlugin::registry() {
-        this->mImpl->db->create("Language", [](SQLiteStorage::ColumnCallback ctor) -> void {
+    ll::Expected<bool> LanguagePlugin::registry() {
+        return this->mImpl->db->create("Language", [](SQLiteStorage::ColumnCallback ctor) -> void {
             ctor("name");
             ctor("value");
+        }).transform([this]() -> bool {
+            this->registeryCommand();
+            this->listenEvent();
+
+            this->mImpl->mRegistered.store(true, std::memory_order_release);
+
+            return true;
         });
-
-        this->registeryCommand();
-        this->listenEvent();
-
-        this->mImpl->mRegistered.store(true, std::memory_order_release);
-
-        return true;
     }
 
-    bool LanguagePlugin::unregistry() {
+    ll::Expected<bool> LanguagePlugin::unregistry() {
         this->unlistenEvent();
 
-        this->mImpl->db->exec("VACUUM;");
+        return this->mImpl->db->exec("VACUUM;")
+            .transform([this]() -> bool {
+                this->mImpl->mRegistered.store(false, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(false, std::memory_order_release);
-
-        return true;
+                return true;
+            });
     }
 }
-
-REGISTRY_HELPER(LanguagePlugin, LOICollection::server::Plugins::LanguagePlugin, LOICollection::server::Plugins::LanguagePlugin::getInstance(), LOICollection::modules::ModulePriority::Normal)

@@ -4,11 +4,13 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <variant>
 #include <functional>
 #include <unordered_map>
 
+#include <ll/api/Expected.h>
+
 #include "LOICollectionA/frontend/AST.h"
+#include "LOICollectionA/frontend/DiagnosticEngine.h"
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -26,8 +28,8 @@ namespace LOICollection::frontend {
     using CallbackTypeValues = std::vector<TypedValue>;
     using CallbackTypePlaces = std::unordered_map<int, std::any>;
 
-    using CallbackFunc = std::function<TypedValue(const CallbackTypeValues&)>;
-    using CallbackFuncCombination = std::function<TypedValue(const CallbackTypeValues&, const CallbackTypePlaces&)>;
+    using CallbackFunc = std::function<ll::Expected<TypedValue>(const CallbackTypeValues&)>;
+    using CallbackFuncCombination = std::function<ll::Expected<TypedValue>(const CallbackTypeValues&, const CallbackTypePlaces&)>;
 
     struct Signature {
         std::string name;
@@ -52,7 +54,7 @@ namespace LOICollection::frontend {
         }
     };
 
-    std::vector<ParamType> valuesToTypes(const CallbackTypeValues& values);
+    std::vector<ParamType> valuesToTypes(const CallbackTypeValues& values, DiagnosticEngine& diagnostics);
 
     class FunctionCall {
     public:
@@ -64,7 +66,7 @@ namespace LOICollection::frontend {
 
         LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& namespaces, const std::string& function, const CallbackTypeArgs& args) const;
 
-        LOICOLLECTION_A_NDAPI TypedValue callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders = {});
+        LOICOLLECTION_A_NDAPI ll::Expected<TypedValue> callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics);
 
     private:
         FunctionCall();
@@ -84,7 +86,7 @@ namespace LOICollection::frontend {
 
         LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& name, const CallbackTypeArgs& args) const;
 
-        LOICOLLECTION_A_NDAPI TypedValue callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders = {});
+        LOICOLLECTION_A_NDAPI ll::Expected<TypedValue> callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics);
 
     private:
         MacroCall();

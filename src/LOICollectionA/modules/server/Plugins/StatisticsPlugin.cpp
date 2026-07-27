@@ -35,8 +35,6 @@
 #include <mc/world/level/Level.h>
 #include <mc/world/actor/player/Player.h>
 
-#include "LOICollectionA/include/RegistryHelper.h"
-
 #include "LOICollectionA/include/form/PaginatedForm.h"
 
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
@@ -79,19 +77,24 @@ namespace LOICollection::server::Plugins {
 
         ll::thread::ThreadPoolExecutor mExecutor{ "StatisticsPlugin", std::max(static_cast<size_t>(std::thread::hardware_concurrency()) - 2, static_cast<size_t>(2)) };
 
-        std::unique_ptr<TimerManager> mTimerManager;
+        std::shared_ptr<TimerManager> mTimerManager;
 
         std::atomic<bool> WriteDatabaseTaskRunning{ true };
 
-        Impl() : mTimerManager(std::make_unique<TimerManager>(this->mExecutor)) {}
+        Impl() : mTimerManager(std::make_shared<TimerManager>(this->mExecutor)) {}
     };
 
     StatisticsPlugin::StatisticsPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<StatisticsGui>(*this)) {}
     StatisticsPlugin::~StatisticsPlugin() = default;
 
-    StatisticsPlugin& StatisticsPlugin::getInstance() {
-        static StatisticsPlugin instance;
+    std::shared_ptr<StatisticsPlugin> StatisticsPlugin::getShared() {
+        static auto instance = std::shared_ptr<StatisticsPlugin>(new StatisticsPlugin());
         return instance;
+    }
+
+    std::error_code StatisticsPlugin::makeErrorCode(StatisticsPluginErrorCode e) {
+        static StatisticsPluginErrorCategory cat;
+        return std::error_code{ static_cast<int>(e), cat };
     }
 
     std::shared_ptr<SQLiteStorage> StatisticsPlugin::getDatabase() {
@@ -103,21 +106,29 @@ namespace LOICollection::server::Plugins {
     }
 
     void StatisticsPlugin::startWirteDatabaseTask() {
-        this->mImpl->mTimerManager->schedule("WirteDatabaseTask", std::chrono::minutes(this->mImpl->options.RefreshIntervalInMinutes), [this]() -> void {
-            SQLiteStorageTransaction transaction(*this->getDatabase());
-            auto connection = transaction.connection();
+        this->mImpl->mTimerManager->loopSchedule("WirteDatabaseTask", std::chrono::minutes(this->mImpl->options.RefreshIntervalInMinutes), [this]() -> void {
+            if (!this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire))
+                return;
+            
+            auto transaction = SQLiteStorageTransaction::create(*this->getDatabase());
+            if (!transaction.has_value()) {
+                modules::defaultErrorHandler<StatisticsPlugin>(transaction.error());
 
-            for (const auto& it : this->mImpl->mCache) {
-                for (const auto& it2 : it.second)
-                    this->getDatabase()->set(connection, it2.first, it.first, "value", std::to_string(it2.second));
+                return;
             }
 
-            transaction.commit();
+            auto connection = transaction.value().connection();
+
+            for (const auto& it : this->mImpl->mCache) {
+                for (const auto& it2 : it.second) {
+                    this->getDatabase()->set(connection, "Statistics", it.first, it2.first, std::to_string(it2.second))
+                        .or_else(modules::defaultErrorHandler<StatisticsPlugin>);
+                }
+            }
+
+            transaction.value().commit();
 
             this->mImpl->mCache.clear();
-
-            if (this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire))
-                this->startWirteDatabaseTask();
         });
     }
 
@@ -130,7 +141,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player);
+            this->mGui->open(player).or_else(modules::defaultErrorHandler<StatisticsPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -141,7 +152,7 @@ namespace LOICollection::server::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
-                this->mGui->open(player, param.Type);
+                this->mGui->open(player, param.Type).or_else(modules::defaultErrorHandler<StatisticsPlugin>);
 
                 output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
             });
@@ -161,7 +172,7 @@ namespace LOICollection::server::Plugins {
                 this->mImpl->mOnilneTime.emplace(event.self().getUuid().asString(), SystemUtils::getNowTime());
             
             if (option.Join)
-                this->addStatistic(event.self(), StatisticType::join, 1);
+                this->addStatistic(event.self(), StatisticType::join, 1).or_else(modules::defaultErrorHandler<StatisticsPlugin>);
         }));
 
         this->mImpl->mListeners.emplace("PlayerDisconnect", eventBus.emplaceListener<ll::event::PlayerDisconnectEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerDisconnectEvent& event) mutable -> void {
@@ -175,7 +186,7 @@ namespace LOICollection::server::Plugins {
                     SystemUtils::getTimeSpan(SystemUtils::getNowTime(), this->mImpl->mOnilneTime[mUuid], "0")
                 );
 
-                this->addStatistic(event.self(), StatisticType::onlinetime, mOnlineTime);
+                this->addStatistic(event.self(), StatisticType::onlinetime, mOnlineTime).or_else(modules::defaultErrorHandler<StatisticsPlugin>);
 
                 this->mImpl->mOnilneTime.erase(mUuid);
             }
@@ -188,11 +199,11 @@ namespace LOICollection::server::Plugins {
                 );
 
                 if (mSource && mSource->isRemotePlayer() && event.self().isRemotePlayer())
-                    this->addStatistic(*static_cast<Player*>(mSource), StatisticType::kills, 1);
+                    this->addStatistic(*static_cast<Player*>(mSource), StatisticType::kills, 1).or_else(modules::defaultErrorHandler<StatisticsPlugin>);
             }
 
             if (event.self().isRemotePlayer() && option.Death)
-                this->addStatistic(static_cast<Player&>(event.self()), StatisticType::deaths, 1);
+                this->addStatistic(static_cast<Player&>(event.self()), StatisticType::deaths, 1).or_else(modules::defaultErrorHandler<StatisticsPlugin>);
         }));
 
         this->mImpl->mListeners.emplace("PlayerPlaceBlock", eventBus.emplaceListener<ll::event::PlayerPlacedBlockEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerPlacedBlockEvent& event) mutable -> void {
@@ -200,7 +211,7 @@ namespace LOICollection::server::Plugins {
                 return;
             
             if (option.Place)
-                this->addStatistic(event.self(), StatisticType::place, 1);
+                this->addStatistic(event.self(), StatisticType::place, 1).or_else(modules::defaultErrorHandler<StatisticsPlugin>);
         }));
 
         this->mImpl->mListeners.emplace("PlayerDestroyBlock", eventBus.emplaceListener<ll::event::PlayerDestroyBlockEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerDestroyBlockEvent& event) mutable -> void {
@@ -208,7 +219,7 @@ namespace LOICollection::server::Plugins {
                 return;
             
             if (option.Destroy)
-                this->addStatistic(event.self(), StatisticType::destroy, 1);
+                this->addStatistic(event.self(), StatisticType::destroy, 1).or_else(modules::defaultErrorHandler<StatisticsPlugin>);
         }));
 
         this->mImpl->mListeners.emplace("PlayerRespawn", eventBus.emplaceListener<ll::event::PlayerRespawnEvent>([this, option = this->mImpl->options.DatabaseInfo](ll::event::PlayerRespawnEvent& event) mutable -> void {
@@ -216,7 +227,7 @@ namespace LOICollection::server::Plugins {
                 return;
             
             if (option.Respawn)
-                this->addStatistic(event.self(), StatisticType::respawn, 1);
+                this->addStatistic(event.self(), StatisticType::respawn, 1).or_else(modules::defaultErrorHandler<StatisticsPlugin>);
         }));
     }
 
@@ -232,112 +243,120 @@ namespace LOICollection::server::Plugins {
         this->mImpl->mTimerManager->cancelAll();
     }
 
-    void StatisticsPlugin::setExecutor(const ll::coro::Executor& executor) {
+    ll::Expected<void> StatisticsPlugin::setExecutor(const ll::coro::Executor& executor) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(StatisticsPluginErrorCode::Invalid));
 
         this->mImpl->mTimerManager->setExecutor(executor);
+
+        return {};
     }
 
-    std::string StatisticsPlugin::getStatisticName(StatisticType type) {
+    ll::Expected<std::string> StatisticsPlugin::getStatisticName(StatisticType type) {
         if (!this->isValid())
-            return "";
+            return ll::makeErrorCodeError(makeErrorCode(StatisticsPluginErrorCode::Invalid));
 
         switch (type) {
-            case StatisticType::onlinetime: return "OnlineTime";
-            case StatisticType::kills: return "Kill";
-            case StatisticType::deaths: return "Death";
-            case StatisticType::place: return "Place";
-            case StatisticType::destroy: return "Destroy";
-            case StatisticType::respawn: return "Respawn";
-            case StatisticType::join: return "Joins";
+            case StatisticType::onlinetime: return "onlinetime";
+            case StatisticType::kills: return "kill";
+            case StatisticType::deaths: return "death";
+            case StatisticType::place: return "place";
+            case StatisticType::destroy: return "destroy";
+            case StatisticType::respawn: return "respawn";
+            case StatisticType::join: return "joins";
         }
 
-        return "";
+        return "Unknown";
     }
 
-    std::string StatisticsPlugin::getPlayerInfo(const std::string& uuid) {
+    ll::Expected<std::string> StatisticsPlugin::getPlayerInfo(const std::string& uuid) {
         if (!this->isValid())
-            return "";
+            return ll::makeErrorCodeError(makeErrorCode(StatisticsPluginErrorCode::Invalid));
 
         return this->getDatabase()->get("Language", uuid, "name", "Unknown");
     }
 
-    std::vector<std::pair<std::string, int>> StatisticsPlugin::getRankingList(StatisticType type, int limit) {
+    ll::Expected<std::vector<std::pair<std::string, int>>> StatisticsPlugin::getRankingList(StatisticType type, int limit) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(StatisticsPluginErrorCode::Invalid));
 
-        std::string mTable = this->getStatisticName(type);
-        if (mTable.empty())
-            return {};
+        return this->getStatistics(type, limit)
+            .transform([](std::vector<std::pair<std::string, int>> data) -> std::vector<std::pair<std::string, int>> {
+                std::ranges::sort(data, [](const auto& a, const auto& b) {
+                    return a.second > b.second;
+                });
 
-        std::vector<std::pair<std::string, int>> mSorted = this->getStatistics(type, limit);
-        std::ranges::sort(mSorted, [](const auto& a, const auto& b) {
-            return a.second > b.second;
-        });
-
-        return mSorted;
+                return data;
+            });
     }
 
-    std::vector<std::pair<std::string, int>> StatisticsPlugin::getStatistics(StatisticType type, int limit) {
+    ll::Expected<std::vector<std::pair<std::string, int>>> StatisticsPlugin::getStatistics(StatisticType type, int limit) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(StatisticsPluginErrorCode::Invalid));
 
-        std::string mTable = this->getStatisticName(type);
-        if (mTable.empty())
-            return {};
+        return this->getDatabase()->list("Statistics")
+            .transform([this, type, limit](const std::vector<std::string>& ids) -> std::vector<std::pair<std::string, int>> {
+                return ids
+                    | std::views::take(limit > 0 ? limit : static_cast<int>(ids.size()))
+                    | std::views::transform([this, type](const std::string& key) -> std::pair<std::string, int> { 
+                        auto result = this->getStatistic(key, type);
+                        if (!result.has_value()) {
+                            modules::defaultErrorHandler<StatisticsPlugin>(result.error());
 
-        std::vector<std::string> mData = this->getDatabase()->list(mTable);
+                            return {};
+                        }
 
-        auto mSorted = mData
-            | std::views::take(limit > 0 ? limit : static_cast<int>(mData.size()))
-            | std::views::transform([this, type](const std::string& key) { 
-                return std::make_pair(key, this->getStatistic(key, type));
-            }) | std::ranges::to<std::vector<std::pair<std::string, int>>>();
-
-        return mSorted;
+                        return std::make_pair(key, result.value());
+                    })
+                    | std::ranges::to<std::vector<std::pair<std::string, int>>>();
+            });
     }
 
-    int StatisticsPlugin::getStatistic(const std::string& uuid, StatisticType type) {
+    ll::Expected<int> StatisticsPlugin::getStatistic(const std::string& uuid, StatisticType type) {
         if (!this->isValid())
-            return 0;
+            return ll::makeErrorCodeError(makeErrorCode(StatisticsPluginErrorCode::Invalid));
 
-        std::string mTable = this->getStatisticName(type);
-        if (mTable.empty())
-            return 0;
+        return this->getStatisticName(type)
+            .and_then([this, uuid](const std::string& table) -> ll::Expected<int> {
+                if (table.empty())
+                    return 0;
 
-        if (this->mImpl->mCache.contains(uuid) && this->mImpl->mCache[uuid].contains(mTable))
-            return this->mImpl->mCache[uuid][mTable];
+                if (this->mImpl->mCache.contains(uuid) && this->mImpl->mCache[uuid].contains(table))
+                    return this->mImpl->mCache[uuid][table];
 
-        int result = SystemUtils::toInt(
-            this->getDatabase()->get(mTable, uuid, "value", "0")
-        );
+                return this->getDatabase()->get("Statistics", uuid, table, "0")
+                    .transform([this, uuid, table](const std::string& value) -> int {
+                        int result = SystemUtils::toInt(value);
 
-        this->mImpl->mCache[uuid][mTable] = result;
+                        this->mImpl->mCache[uuid][table] = result;
 
-        return result;
+                        return result;
+                    });
+            });
     }
 
-    int StatisticsPlugin::getStatistic(Player& player, StatisticType type) {
+    ll::Expected<int> StatisticsPlugin::getStatistic(Player& player, StatisticType type) {
         if (!this->isValid())
-            return 0;
+            return ll::makeErrorCodeError(makeErrorCode(StatisticsPluginErrorCode::Invalid));
 
         return this->getStatistic(player.getUuid().asString(), type);
     }
 
-    void StatisticsPlugin::addStatistic(Player& player, StatisticType type, int value) {
+    ll::Expected<void> StatisticsPlugin::addStatistic(Player& player, StatisticType type, int value) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(StatisticsPluginErrorCode::Invalid));
 
-        std::string mUuid = player.getUuid().asString();
-        std::string mTable = this->getStatisticName(type);
+        std::string uuid = player.getUuid().asString();
+        
+        return this->getStatisticName(type)
+            .and_then([this, type, value, uuid, &player](const std::string& table) -> ll::Expected<void> {
+                return this->getStatistic(player, type)
+                    .transform([this, value, uuid, table](int result) -> void {
+                        int mValue = result + value;
 
-        if (mTable.empty())
-            return;
-
-        int mValue = this->getStatistic(player, type) + value;
-
-        this->mImpl->mCache[mUuid][mTable] = mValue;
+                        this->mImpl->mCache[uuid][table] = mValue;
+                    });
+            });
     }
 
     bool StatisticsPlugin::isValid() {
@@ -345,13 +364,18 @@ namespace LOICollection::server::Plugins {
     }
 
     int StatisticsPlugin::getRankingPlayerCount() {
-        if (!this->isValid())
-            return 0;
-
         return this->mImpl->options.RankingPlayerCount;
     }
 
-    bool StatisticsPlugin::load() {
+    std::string StatisticsPlugin::getName() {
+        return "StatisticsPlugin";
+    }
+
+    modules::ModulePriority StatisticsPlugin::getPriority() {
+        return modules::ModulePriority::High;
+    }
+
+    ll::Expected<bool> StatisticsPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Statistics.ModuleEnabled)
             return false;
 
@@ -365,7 +389,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool StatisticsPlugin::unload() {
+    ll::Expected<bool> StatisticsPlugin::unload() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -379,52 +403,39 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool StatisticsPlugin::registry() {
+    ll::Expected<bool> StatisticsPlugin::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        this->getDatabase()->create("OnlineTime", [](SQLiteStorage::ColumnCallback ctor) -> void {
-            ctor("value");
-        });
-        this->getDatabase()->create("Kill", [](SQLiteStorage::ColumnCallback ctor) -> void {
-            ctor("value");
-        });
-        this->getDatabase()->create("Death", [](SQLiteStorage::ColumnCallback ctor) -> void {
-            ctor("value");
-        });
-        this->getDatabase()->create("Place", [](SQLiteStorage::ColumnCallback ctor) -> void {
-            ctor("value");
-        });
-        this->getDatabase()->create("Destroy", [](SQLiteStorage::ColumnCallback ctor) -> void {
-            ctor("value");
-        });
-        this->getDatabase()->create("Respawn", [](SQLiteStorage::ColumnCallback ctor) -> void {
-            ctor("value");
-        });
-        this->getDatabase()->create("Joins", [](SQLiteStorage::ColumnCallback ctor) -> void {
-            ctor("value");
-        });
+        return this->getDatabase()->create("Statistics", [](SQLiteStorage::ColumnCallback ctor) -> void {
+            ctor("onlinetime");
+            ctor("kill");
+            ctor("death");
+            ctor("place");
+            ctor("destroy");
+            ctor("respawn");
+            ctor("joins");
+        }).transform([this]() -> bool {
+            this->registeryCommand();
+            this->listenEvent();
 
-        this->registeryCommand();
-        this->listenEvent();
+            this->mImpl->mRegistered.store(true, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(true, std::memory_order_release);
-
-        return true;
+            return true;
+        });
     }
 
-    bool StatisticsPlugin::unregistry() {
+    ll::Expected<bool> StatisticsPlugin::unregistry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
         this->unlistenEvent();
 
-        this->getDatabase()->exec("VACUUM;");
+        return this->getDatabase()->exec("VACUUM;")
+            .transform([this]() -> bool {
+                this->mImpl->mRegistered.store(false, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(false, std::memory_order_release);
-
-        return true;
+                return true;
+            });
     }
 }
-
-REGISTRY_HELPER(StatisticsPlugin, LOICollection::server::Plugins::StatisticsPlugin, LOICollection::server::Plugins::StatisticsPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

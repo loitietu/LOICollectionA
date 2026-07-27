@@ -1,6 +1,7 @@
 #include <string>
 #include <unordered_map>
 
+#include <ll/api/Expected.h>
 #include <ll/api/form/ModalForm.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/form/CustomForm.h>
@@ -23,231 +24,338 @@
 using I18nUtilsTools::tr;
 
 namespace LOICollection::server::Plugins {
-    void TpaGui::generic(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-        
-        ll::form::CustomForm form(tr(mObjectLanguage, "tpa.gui.setting.title"));
-        form.appendLabel(tr(mObjectLanguage, "tpa.gui.setting.label"));
-        form.appendToggle("Toggle1", tr(mObjectLanguage, "tpa.gui.setting.generic.switch1"), this->mParent.isInvite(player));
-        form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-            if (!dt) return this->setting(pl);
+    ll::Expected<void> TpaGui::generic(Player& player) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .and_then([this, &player](const std::string& language) -> ll::Expected<void> {
+                return this->mParent.isInvite(player)
+                    .transform([this, language, &player](bool exists) -> void {
+                        ll::form::CustomForm form(tr(language, "tpa.gui.setting.title"));
+                        form.appendLabel(tr(language, "tpa.gui.setting.label"));
+                        form.appendToggle("Toggle1", tr(language, "tpa.gui.setting.generic.switch1"), exists);
+                        form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+                            if (!dt) {
+                                this->setting(pl).or_else(modules::defaultErrorHandler<TpaPlugin>);
 
-            this->mParent.setInvite(pl, std::get<uint64>(dt->at("Toggle1")));
-        });
+                                return;
+                            }
+
+                            this->mParent.setInvite(pl, std::get<uint64>(dt->at("Toggle1"))).or_else(modules::defaultErrorHandler<TpaPlugin>);
+                        });
+                    });
+            });
     };
 
-    void TpaGui::blacklistSet(Player& player, const std::string& target) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+    ll::Expected<void> TpaGui::blacklistSet(Player& player, const std::string& target) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .and_then([this, &player, &target](const std::string& language) -> ll::Expected<void> {
+                return this->mParent.hasBlacklist(player, target)
+                    .and_then([this, language, &player, &target](bool exists) -> ll::Expected<void> {
+                        if (!exists) {
+                            player.sendMessage(tr(language, "tpa.gui.error"));
 
-        if (!this->mParent.hasBlacklist(player, target)) {
-            player.sendMessage(tr(mObjectLanguage, "tpa.gui.error"));
+                            return this->setting(player);
+                        }
 
-            this->setting(player);
-            return;
-        }
+                        auto data = this->mParent.getBlacklistData(target);
+                        if (!data.has_value())
+                            return ll::Unexpected(data.error());
 
-        std::unordered_map<std::string, std::string> mData = this->mParent.getBlacklistData(target);
+                        ll::form::SimpleForm form(tr(language, "tpa.gui.setting.title"), 
+                            fmt::format(fmt::runtime(tr(language, "tpa.gui.setting.blacklist.set.label")),
+                                data.value().at("target"),
+                                data.value().at("name"),
+                                SystemUtils::toFormatTime(data.value().at("time"), "None")
+                            )
+                        );
+                        form.appendButton(tr(language, "tpa.gui.setting.blacklist.set.remove"), [this, target](Player& pl) -> void {
+                            this->mParent.delBlacklist(pl, target)
+                                .or_else([](ll::Error e) -> ll::Expected<void> {
+                                    if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == TpaPlugin::makeErrorCode(TpaPluginErrorCode::BlacklistNotFound))
+                                        return {};
 
-        std::string mObjectLabel = tr(mObjectLanguage, "tpa.gui.setting.blacklist.set.label");
-        ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), 
-            fmt::format(fmt::runtime(mObjectLabel),
-                mData.at("target"),
-                mData.at("name"),
-                SystemUtils::toFormatTime(mData.at("time"), "None")
-            )
-        );
-        form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.set.remove"), [this, target](Player& pl) -> void {
-            this->mParent.delBlacklist(pl, target);
-        });
-        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
-            if (id == -1) this->blacklist(pl);
-        });
+                                    return ll::Unexpected(e);
+                                })
+                                .or_else(modules::defaultErrorHandler<TpaPlugin>);
+                        });
+                        form.sendTo(player, [this](Player& pl, int id, ll::form::FormCancelReason) -> void {
+                            if (id == -1)
+                                this->blacklist(pl).or_else(modules::defaultErrorHandler<TpaPlugin>);
+                        });
+
+                        return {};
+                    });
+            });
     }
 
-    void TpaGui::blacklistAdd(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+    ll::Expected<void> TpaGui::blacklistAdd(Player& player) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .transform([this, &player](const std::string& language) -> void {
+                std::vector<std::string> mPlayers;
+                std::vector<mce::UUID> mPlayerUuids;
 
-        std::vector<std::string> mPlayers;
-        std::vector<mce::UUID> mPlayerUuids;
+                ll::service::getLevel()->forEachPlayer([&player, &mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
+                    if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
+                        return true;
 
-        ll::service::getLevel()->forEachPlayer([&player, &mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
-            if (mTarget.isSimulatedPlayer() || mTarget.getUuid() == player.getUuid())
+                    mPlayers.push_back(mTarget.getRealName());
+                    mPlayerUuids.push_back(mTarget.getUuid());
+                    return true;
+                });
+
+                std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
+                    tr(language, "tpa.gui.setting.title"),
+                    tr(language, "tpa.gui.setting.blacklist.add.label"),
+                    mPlayers
+                );
+                form->setPreviousButton(tr(language, "generic.gui.page.previous"));
+                form->setNextButton(tr(language, "generic.gui.page.next"));
+                form->setChooseButton(tr(language, "generic.gui.page.choose"));
+                form->setChooseInput(tr(language, "generic.gui.page.choose.input"));
+                form->setCallback([this, language, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
+                    Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
+                    if (!mPlayer) {
+                        pl.sendMessage(tr(language, "tpa.gui.error"));
+
+                        this->setting(pl).or_else(modules::defaultErrorHandler<TpaPlugin>);
+
+                        return;
+                    }
+
+                    this->mParent.addBlacklist(pl, *mPlayer).or_else(modules::defaultErrorHandler<TpaPlugin>);
+                });
+                form->setCloseCallback([this](Player& pl) -> void {
+                    this->setting(pl).or_else(modules::defaultErrorHandler<TpaPlugin>);
+                });
+
+                form->sendPage(player, 1);
+            });
+    }
+
+    ll::Expected<void> TpaGui::blacklist(Player& player) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .and_then([this, &player](const std::string& language) -> ll::Expected<void> {
+                return this->mParent.getBlacklist(player)
+                    .transform([this, language, &player](const std::vector<std::string>& blacklists) -> void {
+                        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
+                            tr(language, "tpa.gui.setting.title"),
+                            tr(language, "tpa.gui.setting.label"),
+                            blacklists
+                        );
+                        form->setPreviousButton(tr(language, "generic.gui.page.previous"));
+                        form->setNextButton(tr(language, "generic.gui.page.next"));
+                        form->setChooseButton(tr(language, "generic.gui.page.choose"));
+                        form->setChooseInput(tr(language, "generic.gui.page.choose.input"));
+                        form->setCallback([this](Player& pl, const std::string& response) -> void {
+                            this->blacklistSet(pl, response).or_else(modules::defaultErrorHandler<TpaPlugin>);
+                        });
+                        form->setCloseCallback([this](Player& pl) -> void {
+                            this->setting(pl).or_else(modules::defaultErrorHandler<TpaPlugin>);
+                        });
+                        form->appendDivider();
+                        form->appendButton(tr(language, "tpa.gui.setting.blacklist.add"), "textures/ui/editIcon", [this, language](Player& pl) -> void {
+                            int mBlacklistCount = this->mParent.getBlacklistUpload();
+
+                            this->mParent.getBlacklist(pl)
+                                .and_then([this, language, mBlacklistCount, &pl](const std::vector<std::string>& ids) -> ll::Expected<void> {
+                                    if (static_cast<int>(ids.size()) >= mBlacklistCount) {
+                                        pl.sendMessage(fmt::format(fmt::runtime(tr(language, "tpa.tips2")), mBlacklistCount));
+                                        
+                                        return this->setting(pl);
+                                    }
+
+                                    return this->blacklistAdd(pl);
+                                })
+                                .or_else(modules::defaultErrorHandler<TpaPlugin>);
+                        });
+
+                        form->sendPage(player, 1);
+                    });
+            });
+    }
+
+    ll::Expected<void> TpaGui::setting(Player& player) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .transform([this, &player](const std::string& language) -> void {
+                ll::form::SimpleForm form(tr(language, "tpa.gui.setting.title"), tr(language, "tpa.gui.setting.label"));
+                form.appendButton(tr(language, "tpa.gui.setting.generic"), "textures/ui/icon_setting", "path", [this](Player& pl) -> void {
+                    this->generic(pl).or_else(modules::defaultErrorHandler<TpaPlugin>);
+                });
+                form.appendButton(tr(language, "tpa.gui.setting.blacklist"), "textures/ui/icon_lock", "path", [this](Player& pl) -> void {
+                    this->blacklist(pl).or_else(modules::defaultErrorHandler<TpaPlugin>);
+                });
+                form.sendTo(player);
+            });
+    }
+
+    ll::Expected<void> TpaGui::tpa(Player& player, Player& target, TpaType type) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .and_then([this, &player](const std::string& language) -> ll::Expected<bool> {
+                int mRequestUpload = this->mParent.getRequestUpload();
+                if (this->mParent.getRequestCount(player) >= mRequestUpload) {
+                    player.sendMessage(fmt::format(fmt::runtime(tr(language, "tpa.tips5")), mRequestUpload));
+                    
+                    return false;
+                }
+
                 return true;
+            })
+            .and_then([&target](bool exists) -> ll::Expected<std::string> {
+                if (!exists)
+                    return {};
 
-            mPlayers.push_back(mTarget.getRealName());
-            mPlayerUuids.push_back(mTarget.getUuid());
-            return true;
-        });
+                return LanguagePlugin::getShared()->getLanguage(target);
+            })
+            .and_then([this, &player, &target, type](const std::string& language) -> ll::Expected<void> {
+                if (language.empty())
+                    return {};
 
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "tpa.gui.setting.title"),
-            tr(mObjectLanguage, "tpa.gui.setting.blacklist.add.label"),
-            mPlayers
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this, mObjectLanguage, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
-            Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
-            if (!mPlayer) {
-                pl.sendMessage(tr(mObjectLanguage, "tpa.gui.error"));
+                std::string id = SystemUtils::getCurrentTimestamp();
 
-                this->setting(pl);
-                return;
-            }
+                auto result = this->mParent.sendRequest(player, target, id, type)
+                    .or_else([](ll::Error e) -> ll::Expected<void> {
+                        if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == TpaPlugin::makeErrorCode(TpaPluginErrorCode::RequestExists))
+                            return {};
 
-            this->mParent.addBlacklist(pl, *mPlayer);
-        });
-        form->setCloseCallback([this](Player& pl) -> void {
-            this->setting(pl);
-        });
+                        return ll::Unexpected(e);
+                    });
 
-        form->sendPage(player, 1);
+                if (!result.has_value())
+                    return ll::Unexpected(result.error());
+
+                ll::form::ModalForm form(tr(language, "tpa.gui.title"),
+                    LOICollectionAPI::APIUtils::getInstance().translate(tr(language, (type == TpaType::tpa) ? "tpa.there" : "tpa.here"), player),
+                    tr(language, "tpa.yes"),
+                    tr(language, "tpa.no")
+                );
+                form.sendTo(target, [this, language, id](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
+                    if (result == ll::form::ModalFormSelectedButton::Upper) {
+                        this->mParent.acceptRequest(pl, id)
+                            .or_else([](ll::Error e) -> ll::Expected<bool> {
+                                if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == TpaPlugin::makeErrorCode(TpaPluginErrorCode::RequestNotFound))
+                                    return false;
+
+                                return ll::Unexpected(e);
+                            })
+                            .transform([language, &pl](bool exists) -> void {
+                                if (!exists) 
+                                    pl.sendMessage(tr(language, "tpa.gui.error"));
+                            })
+                            .or_else(modules::defaultErrorHandler<TpaPlugin>);
+
+                        return;
+                    }
+                    
+                    this->mParent.rejectRequest(pl, id)
+                        .or_else([](ll::Error e) -> ll::Expected<bool> {
+                            if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == TpaPlugin::makeErrorCode(TpaPluginErrorCode::RequestNotFound))
+                                return {};
+
+                            return ll::Unexpected(e);
+                        })
+                        .or_else(modules::defaultErrorHandler<TpaPlugin, bool>);
+                });
+
+                return {};
+            });
     }
 
-    void TpaGui::blacklist(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+    ll::Expected<void> TpaGui::content(Player& player, Player& target) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .transform([this, &player, &target](const std::string& language) -> void {
+                ll::form::CustomForm form(tr(language, "tpa.gui.title"));
+                form.appendLabel(tr(language, "tpa.gui.label"));
+                form.appendDropdown("dropdown", tr(language, "tpa.gui.dropdown"), { "tpa", "tphere" });
+                form.sendTo(player, [this, language, target = target.getUuid()](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+                    if (!dt) {
+                        this->open(pl).or_else(modules::defaultErrorHandler<TpaPlugin>);
 
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "tpa.gui.setting.title"),
-            tr(mObjectLanguage, "tpa.gui.setting.label"),
-            this->mParent.getBlacklist(player)
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this](Player& pl, const std::string& response) -> void {
-            this->blacklistSet(pl, response);
-        });
-        form->setCloseCallback([this](Player& pl) -> void {
-            this->setting(pl);
-        });
-        form->appendDivider();
-        form->appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist.add"), "textures/ui/editIcon", [this, mObjectLanguage](Player& pl) -> void {
-            int mBlacklistCount = this->mParent.getBlacklistUpload();
-            if (static_cast<int>(this->mParent.getBlacklist(pl).size()) >= mBlacklistCount) {
-                pl.sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "tpa.tips2")), mBlacklistCount));
+                        return;
+                    }
 
-                this->setting(pl);
-                return;
-            }
+                    Player* mTarget = ll::service::getLevel()->getPlayer(target);
+                    if (!mTarget) {
+                        pl.sendMessage(tr(language, "tpa.gui.error"));
 
-            this->blacklistAdd(pl);
-        });
+                        this->open(pl).or_else(modules::defaultErrorHandler<TpaPlugin>);
 
-        form->sendPage(player, 1);
+                        return;
+                    }
+
+                    this->mParent.forTpaContent(pl)
+                        .and_then([this, language, &pl, &mTarget, &dt](bool exists) -> ll::Expected<void> {
+                            if (!exists) {
+                                pl.sendMessage(tr(language, "tpa.tips1"));
+
+                                return {};
+                            }
+
+                            return this->tpa(pl, *mTarget, 
+                                std::get<std::string>(dt->at("dropdown")) == "tpa" ? TpaType::tpa : TpaType::tphere
+                            );
+                        })
+                        .or_else(modules::defaultErrorHandler<TpaPlugin>);
+                });
+            });
     }
 
-    void TpaGui::setting(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+    ll::Expected<void> TpaGui::open(Player& player) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .transform([this, &player](const std::string& language) -> void {
+                std::vector<std::string> mPlayers;
+                std::vector<mce::UUID> mPlayerUuids;
 
-        ll::form::SimpleForm form(tr(mObjectLanguage, "tpa.gui.setting.title"), tr(mObjectLanguage, "tpa.gui.setting.label"));
-        form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.generic"), "textures/ui/icon_setting", "path", [this](Player& pl) -> void {
-            this->generic(pl);
-        });
-        form.appendButton(tr(mObjectLanguage, "tpa.gui.setting.blacklist"), "textures/ui/icon_lock", "path", [this](Player& pl) -> void {
-            this->blacklist(pl);
-        });
-        form.sendTo(player);
-    }
+                ll::service::getLevel()->forEachPlayer([this, &player, &mPlayers, &mPlayerUuids](Player& target) -> bool {
+                    std::string uuid = player.getUuid().asString();
 
-    void TpaGui::tpa(Player& player, Player& target, TpaType type) {
-        int mRequestUpload = this->mParent.getRequestUpload();
-        if (this->mParent.getRequestCount(player) >= mRequestUpload) {
-            player.sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(player), "tpa.tips5")), mRequestUpload));
-            
-            return;
-        }
+                    auto result = this->mParent.getBlacklist(target)
+                        .and_then([this](const std::vector<std::string>& ids) -> ll::Expected<std::vector<std::string>> {
+                            return this->mParent.getBlacklistFromTarget(ids);
+                        })
+                        .transform([uuid, &target](const std::vector<std::string>& ids) -> bool {
+                            return !target.isSimulatedPlayer() && std::find(ids.begin(), ids.end(), uuid) == ids.end();
+                        })
+                        .and_then([this, uuid, &target](bool exists) -> ll::Expected<bool> {
+                            return this->mParent.isInvite(target)
+                                .transform([uuid, exists, &target](bool invite) -> bool { 
+                                    return exists && !invite && target.getUuid().asString() != uuid;
+                                });
+                        });
 
-        std::string mId = SystemUtils::getCurrentTimestamp();
-        this->mParent.sendRequest(player, target, mId, type);
+                    if (!result.has_value()) {
+                        modules::defaultErrorHandler<TpaPlugin>(result.error());
 
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(target);
+                        return true;
+                    }
 
-        ll::form::ModalForm form(tr(mObjectLanguage, "tpa.gui.title"),
-            LOICollectionAPI::APIUtils::getInstance().translate(tr(mObjectLanguage, (type == TpaType::tpa) ? "tpa.there" : "tpa.here"), player),
-            tr(mObjectLanguage, "tpa.yes"),
-            tr(mObjectLanguage, "tpa.no")
-        );
-        form.sendTo(target, [this, mObjectLanguage, mId](Player& pl, ll::form::ModalFormResult result, ll::form::FormCancelReason) -> void {
-            if (result == ll::form::ModalFormSelectedButton::Upper) {
-                if (!this->mParent.acceptRequest(pl, mId)) 
-                    pl.sendMessage(tr(mObjectLanguage, "tpa.gui.error"));
+                    if (result.value()) {
+                        mPlayers.push_back(target.getRealName());
+                        mPlayerUuids.push_back(target.getUuid());
+                    }
 
-                return;
-            }
-            
-            this->mParent.rejectRequest(pl, mId);
-        });
-    }
+                    return true;
+                });
 
-    void TpaGui::content(Player& player, Player& target) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-        
-        ll::form::CustomForm form(tr(mObjectLanguage, "tpa.gui.title"));
-        form.appendLabel(tr(mObjectLanguage, "tpa.gui.label"));
-        form.appendDropdown("dropdown", tr(mObjectLanguage, "tpa.gui.dropdown"), { "tpa", "tphere" });
-        form.sendTo(player, [this, mObjectLanguage, target = target.getUuid()](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-            if (!dt) return this->open(pl);
+                std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
+                    tr(language, "tpa.gui.title"),
+                    tr(language, "tpa.gui.label2"),
+                    mPlayers
+                );
+                form->setPreviousButton(tr(language, "generic.gui.page.previous"));
+                form->setNextButton(tr(language, "generic.gui.page.next"));
+                form->setChooseButton(tr(language, "generic.gui.page.choose"));
+                form->setChooseInput(tr(language, "generic.gui.page.choose.input"));
+                form->setCallback([this, language, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
+                    Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
+                    if (!mPlayer) {
+                        pl.sendMessage(tr(language, "tpa.gui.error"));
 
-            Player* mTarget = ll::service::getLevel()->getPlayer(target);
-            if (!mTarget) {
-                pl.sendMessage(tr(mObjectLanguage, "tpa.gui.error"));
+                        return;
+                    }
 
-                this->open(pl);
-                return;
-            }
+                    this->content(pl, *mPlayer).or_else(modules::defaultErrorHandler<TpaPlugin>);
+                });
 
-            if (!this->mParent.forTpaContent(pl)) {
-                pl.sendMessage(tr(mObjectLanguage, "tpa.tips1"));
-
-                return;
-            }
-
-            this->tpa(pl, *mTarget, 
-                std::get<std::string>(dt->at("dropdown")) == "tpa" ? TpaType::tpa : TpaType::tphere
-            );
-        });
-    }
-
-    void TpaGui::open(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        std::vector<std::string> mPlayers;
-        std::vector<mce::UUID> mPlayerUuids;
-
-        ll::service::getLevel()->forEachPlayer([this, &player, &mPlayers, &mPlayerUuids](Player& mTarget) -> bool {
-            std::vector<std::string> mList = this->mParent.getBlacklistFromTarget(this->mParent.getBlacklist(mTarget));
-            if (mTarget.isSimulatedPlayer() || std::find(mList.begin(), mList.end(), player.getUuid().asString()) != mList.end() || this->mParent.isInvite(mTarget) || mTarget.getUuid() == player.getUuid())
-                return true;
-
-            mPlayers.push_back(mTarget.getRealName());
-            mPlayerUuids.push_back(mTarget.getUuid());
-            return true;
-        });
-
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "tpa.gui.title"),
-            tr(mObjectLanguage, "tpa.gui.label2"),
-            mPlayers
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this, mObjectLanguage, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
-            Player* mPlayer = ll::service::getLevel()->getPlayer(mPlayerUuids.at(index));
-            if (!mPlayer) {
-                pl.sendMessage(tr(mObjectLanguage, "tpa.gui.error"));
-
-                return;
-            }
-
-            this->content(pl, *mPlayer);
-        });
-
-        form->sendPage(player, 1);
+                form->sendPage(player, 1);
+            });
     }
 }

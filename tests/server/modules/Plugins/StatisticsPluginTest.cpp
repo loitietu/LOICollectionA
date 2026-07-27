@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <string_view>
 
 #include <ll/api/service/Bedrock.h>
 
@@ -15,21 +16,19 @@
 
 using namespace LOICollection::server::Plugins;
 
-class StatisticsPluginTest : public testing::Test { 
+class StatisticsPluginTest : public testing::Test {
 protected:
     void SetUp() override {
-        if (!StatisticsPlugin::getInstance().isValid())
+        if (!StatisticsPlugin::getShared()->isValid())
             GTEST_SKIP() << "StatisticsPlugin is not valid";
     }
 
     void TearDown() override {
-        StatisticsPlugin::getInstance().getDatabase()->exec("DELETE FROM OnlineTime;");
-        StatisticsPlugin::getInstance().getDatabase()->exec("DELETE FROM Kill;");
-        StatisticsPlugin::getInstance().getDatabase()->exec("DELETE FROM Death;");
-        StatisticsPlugin::getInstance().getDatabase()->exec("DELETE FROM Place;");
-        StatisticsPlugin::getInstance().getDatabase()->exec("DELETE FROM Destroy;");
-        StatisticsPlugin::getInstance().getDatabase()->exec("DELETE FROM Respawn;");
-        StatisticsPlugin::getInstance().getDatabase()->exec("DELETE FROM Joins;");
+        auto db = StatisticsPlugin::getShared()->getDatabase();
+
+        auto result = db->exec("DELETE FROM Statistics;");
+        if (!result.has_value())
+            GTEST_FAIL() << "Unable to clear data";
     }
 };
 
@@ -37,9 +36,14 @@ TEST_F(StatisticsPluginTest, AddAndGetStatistic) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    StatisticsPlugin::getInstance().addStatistic(*sp, StatisticType::onlinetime, 100);
-    StatisticsPlugin::getInstance().addStatistic(*sp, StatisticType::deaths, 100);
+    EXPECT_TRUE(StatisticsPlugin::getShared()->addStatistic(*sp, StatisticType::onlinetime, 100).has_value());
+    EXPECT_TRUE(StatisticsPlugin::getShared()->addStatistic(*sp, StatisticType::deaths, 100).has_value());
 
-    EXPECT_EQ(StatisticsPlugin::getInstance().getStatistic(*sp, StatisticType::onlinetime), 100);
-    EXPECT_EQ(StatisticsPlugin::getInstance().getStatistic(*sp, StatisticType::deaths), 100);
+    auto stat1 = StatisticsPlugin::getShared()->getStatistic(*sp, StatisticType::onlinetime);
+    EXPECT_TRUE(stat1.has_value());
+    EXPECT_EQ(stat1.value(), 100);
+
+    auto stat2 = StatisticsPlugin::getShared()->getStatistic(*sp, StatisticType::deaths);
+    EXPECT_TRUE(stat2.has_value());
+    EXPECT_EQ(stat2.value(), 100);
 }

@@ -24,17 +24,20 @@ using namespace LOICollection::server::Plugins;
 class MenuPluginTest : public testing::Test {
 protected:
     void SetUp() override {
-        if (!MenuPlugin::getInstance().isValid())
+        if (!MenuPlugin::getShared()->isValid())
             GTEST_SKIP() << "MenuPlugin is not valid";
     }
 
     void TearDown() override {
-        MenuPlugin::getInstance().getDatabase()->write({});
-        MenuPlugin::getInstance().getDatabase()->save();
+        MenuPlugin::getShared()->getDatabase()->write({});
+
+        auto saveResult = MenuPlugin::getShared()->getDatabase()->save();
+        if (!saveResult.has_value())
+            GTEST_FAIL() << "Unable to save data";
     }
 
     void CreateMenuEntry() {
-        nlohmann::json menuSimpleData = {
+        nlohmann::ordered_json menuSimpleData = {
             { "title", "Menu Test" },
             { "content", "This is a menu test" },
             { "info", {
@@ -101,25 +104,35 @@ protected:
             { "permission", 0 }
         };
 
-        MenuPlugin::getInstance().create("test_menu_simple", menuSimpleData);
-        MenuPlugin::getInstance().create("test_menu_modal", menuModalData);
+        ASSERT_TRUE(MenuPlugin::getShared()->create("test_menu_simple", menuSimpleData).has_value());
+        ASSERT_TRUE(MenuPlugin::getShared()->create("test_menu_modal", menuModalData).has_value());
     }
 };
 
 TEST_F(MenuPluginTest, MenuCreate) {
     CreateMenuEntry();
 
-    EXPECT_TRUE(MenuPlugin::getInstance().has("test_menu_simple"));
-    EXPECT_TRUE(MenuPlugin::getInstance().has("test_menu_modal"));
+    auto has1 = MenuPlugin::getShared()->has("test_menu_simple");
+    EXPECT_TRUE(has1.has_value());
+    EXPECT_TRUE(has1.value());
+
+    auto has2 = MenuPlugin::getShared()->has("test_menu_modal");
+    EXPECT_TRUE(has2.has_value());
+    EXPECT_TRUE(has2.value());
 }
 
 TEST_F(MenuPluginTest, MenuRemove) {
     CreateMenuEntry();
 
-    MenuPlugin::getInstance().remove("test_menu_simple");
+    EXPECT_TRUE(MenuPlugin::getShared()->remove("test_menu_simple").has_value());
 
-    EXPECT_FALSE(MenuPlugin::getInstance().has("test_menu_simple"));
-    EXPECT_TRUE(MenuPlugin::getInstance().has("test_menu_modal"));
+    auto has1 = MenuPlugin::getShared()->has("test_menu_simple");
+    EXPECT_TRUE(has1.has_value());
+    EXPECT_FALSE(has1.value());
+
+    auto has2 = MenuPlugin::getShared()->has("test_menu_modal");
+    EXPECT_TRUE(has2.has_value());
+    EXPECT_TRUE(has2.value());
 }
 
 TEST_F(MenuPluginTest, MenuHandleActionSimple) {
@@ -134,8 +147,11 @@ TEST_F(MenuPluginTest, MenuHandleActionSimple) {
 
     ScoreboardUtils::setScore(*sp, "test_tietu_money", 100);
 
-    auto data = MenuPlugin::getInstance().getDatabase()->get("test_menu_simple", nlohmann::ordered_json{});
-    MenuPlugin::getInstance().handleAction(*sp, data["customize"].at(0), data);
+    auto dataResult = MenuPlugin::getShared()->getDatabase()->get<nlohmann::ordered_json>("test_menu_simple");
+    ASSERT_TRUE(dataResult.has_value());
+    auto& data = dataResult.value();
+
+    EXPECT_TRUE(MenuPlugin::getShared()->handleAction(*sp, data["customize"].at(0), data).has_value());
 
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu1"), 4);
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu2"), 4);
@@ -143,14 +159,14 @@ TEST_F(MenuPluginTest, MenuHandleActionSimple) {
 
     ScoreboardUtils::reduceScore(*sp, "test_tietu2", 4);
 
-    MenuPlugin::getInstance().handleAction(*sp, data["customize"].at(0), data);
+    EXPECT_FALSE(MenuPlugin::getShared()->handleAction(*sp, data["customize"].at(0), data).has_value());
 
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu1"), 2);
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu2"), 0);
 
     sp->getAbilities().setPlayerPermissions(PlayerPermissionLevel::Member);
 
-    MenuPlugin::getInstance().handleAction(*sp, data["customize"].at(1), data);
+    EXPECT_FALSE(MenuPlugin::getShared()->handleAction(*sp, data["customize"].at(1), data).has_value());
 
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu1"), 1);
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu2"), 0);
@@ -168,8 +184,11 @@ TEST_F(MenuPluginTest, MenuHandleActionModal) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    auto data = MenuPlugin::getInstance().getDatabase()->get("test_menu_modal", nlohmann::ordered_json{});
-    MenuPlugin::getInstance().handleAction(*sp, data["cancelButton"], data);
+    auto dataResult = MenuPlugin::getShared()->getDatabase()->get<nlohmann::ordered_json>("test_menu_modal");
+    ASSERT_TRUE(dataResult.has_value());
+    auto& data = dataResult.value();
+
+    EXPECT_TRUE(MenuPlugin::getShared()->handleAction(*sp, data["cancelButton"], data).has_value());
 
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu1"), 7);
 

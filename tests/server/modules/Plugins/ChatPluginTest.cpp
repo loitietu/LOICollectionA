@@ -26,15 +26,24 @@ protected:
 
 protected:
     void SetUp() override {
-        if (!ChatPlugin::getInstance().isValid())
+        if (!ChatPlugin::getShared()->isValid())
             GTEST_SKIP() << "ChatPlugin is not valid";
     }
 
     void TearDown() override {
-        ChatPlugin::getInstance().getDatabase()->exec("DELETE FROM Blacklist;");
-        ChatPlugin::getInstance().getDatabase()->exec("DELETE FROM Titles;");
+        auto db = ChatPlugin::getShared()->getDatabase();
 
-        ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->exec("DELETE FROM Chat;");
+        auto r1 = db->exec("DELETE FROM Blacklist;");
+        if (!r1.has_value())
+            GTEST_FAIL() << "Unable to clear data";
+
+        auto r2 = db->exec("DELETE FROM Titles;");
+        if (!r2.has_value())
+            GTEST_FAIL() << "Unable to clear data";
+
+        auto r3 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->exec("DELETE FROM Chat;");
+        if (!r3.has_value())
+            GTEST_FAIL() << "Unable to clear data";
     }
 
     bool CreateBlacklistEntry() {
@@ -44,10 +53,18 @@ protected:
         if (!sp.create() || !sp2)
             return false;
 
-        ChatPlugin::getInstance().addBlacklist(*sp2, *sp.getPlayer());
+        auto addResult = ChatPlugin::getShared()->addBlacklist(*sp2, *sp.getPlayer());
+        if (!addResult.has_value()) return false;
 
-        this->mBlacklistId = ChatPlugin::getInstance().getBlacklist(*sp2, *sp.getPlayer());
-        if (this->mBlacklistId.empty() || !ChatPlugin::getInstance().hasBlacklist(*sp2, this->mBlacklistId))
+        auto id = ChatPlugin::getShared()->getBlacklist(*sp2, *sp.getPlayer());
+        if (!id.has_value()) return false;
+
+        this->mBlacklistId = id.value();
+
+        auto has = ChatPlugin::getShared()->hasBlacklist(*sp2, this->mBlacklistId);
+        if (!has.has_value()) return false;
+
+        if (this->mBlacklistId.empty() || !has.value())
             return false;
 
         return sp.destroy();
@@ -58,9 +75,10 @@ protected:
         if (!sp)
             return false;
 
-        ChatPlugin::getInstance().addTitle(*sp, "Test Title", 24);
-        if (!ChatPlugin::getInstance().hasTitle(*sp, "Test Title"))
-            return false;
+        if (!ChatPlugin::getShared()->addTitle(*sp, "Test Title", 24).has_value()) return false;
+
+        auto has = ChatPlugin::getShared()->hasTitle(*sp, "Test Title");
+        if (!has.has_value() || !has.value()) return false;
 
         return true;
     }
@@ -76,9 +94,11 @@ TEST_F(ChatPluginTest, DeletePlayerFromBlacklist) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    ChatPlugin::getInstance().delBlacklist(*sp, this->mBlacklistId);
+    EXPECT_TRUE(ChatPlugin::getShared()->delBlacklist(*sp, this->mBlacklistId).has_value());
 
-    EXPECT_FALSE(ChatPlugin::getInstance().hasBlacklist(*sp, this->mBlacklistId));
+    auto has = ChatPlugin::getShared()->hasBlacklist(*sp, this->mBlacklistId);
+    EXPECT_TRUE(has.has_value());
+    EXPECT_FALSE(has.value());
 }
 
 TEST_F(ChatPluginTest, GetBlacklist) {
@@ -87,7 +107,9 @@ TEST_F(ChatPluginTest, GetBlacklist) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    EXPECT_TRUE(ChatPlugin::getInstance().getBlacklist(*sp).size() > 0);
+    auto blacklists = ChatPlugin::getShared()->getBlacklist(*sp);
+    EXPECT_TRUE(blacklists.has_value());
+    EXPECT_TRUE(blacklists.value().size() > 0);
 }
 
 TEST_F(ChatPluginTest, GetBlacklistData) {
@@ -96,9 +118,10 @@ TEST_F(ChatPluginTest, GetBlacklistData) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    auto data = ChatPlugin::getInstance().getBlacklistData(this->mBlacklistId);
-    EXPECT_FALSE(data.empty());
-    EXPECT_TRUE(data["author"] == sp->getUuid().asString());
+    auto data = ChatPlugin::getShared()->getBlacklistData(this->mBlacklistId);
+    EXPECT_TRUE(data.has_value());
+    EXPECT_FALSE(data.value().empty());
+    EXPECT_TRUE(data.value()["author"] == sp->getUuid().asString());
 }
 
 TEST_F(ChatPluginTest, AddTitleToPlayer) {
@@ -111,9 +134,11 @@ TEST_F(ChatPluginTest, DeleteTitleFromPlayer) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    ChatPlugin::getInstance().delTitle(*sp, "Test Title");
+    EXPECT_TRUE(ChatPlugin::getShared()->delTitle(*sp, "Test Title").has_value());
 
-    EXPECT_FALSE(ChatPlugin::getInstance().hasTitle(*sp, "Test Title"));
+    auto has = ChatPlugin::getShared()->hasTitle(*sp, "Test Title");
+    EXPECT_TRUE(has.has_value());
+    EXPECT_FALSE(has.value());
 }
 
 TEST_F(ChatPluginTest, GetTitleFromPlayer) {
@@ -122,11 +147,12 @@ TEST_F(ChatPluginTest, GetTitleFromPlayer) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    ChatPlugin::getInstance().setTitle(*sp, "Test Title");
+    EXPECT_TRUE(ChatPlugin::getShared()->setTitle(*sp, "Test Title").has_value());
 
-    std::string title = ChatPlugin::getInstance().getTitle(*sp);
-    EXPECT_FALSE(title.empty());
-    EXPECT_TRUE(title == "Test Title");
+    auto title = ChatPlugin::getShared()->getTitle(*sp);
+    EXPECT_TRUE(title.has_value());
+    EXPECT_FALSE(title.value().empty());
+    EXPECT_TRUE(title.value() == "Test Title");
 }
 
 TEST_F(ChatPluginTest, GetTitleTimeFromPlayer) {
@@ -135,8 +161,9 @@ TEST_F(ChatPluginTest, GetTitleTimeFromPlayer) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    std::string time = ChatPlugin::getInstance().getTitleTime(*sp, "Test Title");
-    EXPECT_FALSE(time.empty());
+    auto time = ChatPlugin::getShared()->getTitleTime(*sp, "Test Title");
+    EXPECT_TRUE(time.has_value());
+    EXPECT_FALSE(time.value().empty());
 }
 
 TEST_F(ChatPluginTest, GetTitlesFromPlayer) {
@@ -145,9 +172,10 @@ TEST_F(ChatPluginTest, GetTitlesFromPlayer) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    std::vector<std::string> titles = ChatPlugin::getInstance().getTitles(*sp);
-    EXPECT_FALSE(titles.empty());
-    EXPECT_TRUE(std::find(titles.begin(), titles.end(), "Test Title") != titles.end());
+    auto titles = ChatPlugin::getShared()->getTitles(*sp);
+    EXPECT_TRUE(titles.has_value());
+    EXPECT_FALSE(titles.value().empty());
+    EXPECT_TRUE(std::find(titles.value().begin(), titles.value().end(), "Test Title") != titles.value().end());
 }
 
 TEST_F(ChatPluginTest, ChatFormatting) {

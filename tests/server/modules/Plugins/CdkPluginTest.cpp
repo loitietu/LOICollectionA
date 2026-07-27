@@ -25,42 +25,53 @@ using namespace LOICollection::server::Plugins;
 class CdkPluginTest : public testing::Test {
 protected:
     void SetUp() override {
-        if (!CdkPlugin::getInstance().isValid())
+        if (!CdkPlugin::getShared()->isValid())
             GTEST_SKIP() << "CdkPlugin is not valid";
     }
 
     void TearDown() override {
-        CdkPlugin::getInstance().getDatabase()->write({});
-        CdkPlugin::getInstance().getDatabase()->save();
+        CdkPlugin::getShared()->getDatabase()->write({});
+
+        auto saveResult = CdkPlugin::getShared()->getDatabase()->save();
+        if (!saveResult.has_value())
+            GTEST_FAIL() << "Unable to save data";
     }
 };
 
 TEST_F(CdkPluginTest, CreateCdk) {
-    CdkPlugin::getInstance().create("test", 3600, false);
+    EXPECT_TRUE(CdkPlugin::getShared()->create("test", 3600, false).has_value());
 
-    EXPECT_TRUE(CdkPlugin::getInstance().has("test"));
+    auto has = CdkPlugin::getShared()->has("test");
+    EXPECT_TRUE(has.has_value());
+    EXPECT_TRUE(has.value());
 }
 
 TEST_F(CdkPluginTest, DeleteCdk) {
-    CdkPlugin::getInstance().create("test", 3600, false);
-    CdkPlugin::getInstance().remove("test");
+    EXPECT_TRUE(CdkPlugin::getShared()->create("test", 3600, false).has_value());
+    EXPECT_TRUE(CdkPlugin::getShared()->remove("test").has_value());
 
-    EXPECT_FALSE(CdkPlugin::getInstance().has("test"));
+    auto has = CdkPlugin::getShared()->has("test");
+    EXPECT_TRUE(has.has_value());
+    EXPECT_FALSE(has.value());
 }
 
 TEST_F(CdkPluginTest, GetCdks) {
-    CdkPlugin::getInstance().create("test", 3600, false);
+    EXPECT_TRUE(CdkPlugin::getShared()->create("test", 3600, false).has_value());
 
-    EXPECT_TRUE(CdkPlugin::getInstance().getCdks().size() >= 1);
+    auto cdks = CdkPlugin::getShared()->getCdks();
+    EXPECT_TRUE(cdks.has_value());
+    EXPECT_TRUE(cdks.value().size() >= 1);
 }
 
 TEST_F(CdkPluginTest, ConvertCdkNoPersonal) {
-    CdkPlugin::getInstance().create("test", 3600, false);
+    EXPECT_TRUE(CdkPlugin::getShared()->create("test", 3600, false).has_value());
 
     ScoreboardUtils::create("test_tietu1");
     ScoreboardUtils::create("test_tietu2");
 
-    nlohmann::ordered_json data = CdkPlugin::getInstance().getDatabase()->get("test", nlohmann::ordered_json{});
+    auto dataResult = CdkPlugin::getShared()->getDatabase()->get<nlohmann::ordered_json>("test");
+    ASSERT_TRUE(dataResult.has_value());
+    nlohmann::ordered_json data = dataResult.value();
     data["scores"]["test_tietu1"] = 100;
     data["scores"]["test_tietu2"] = 200;
     data["title"]["test_tietu1"] = 0;
@@ -75,32 +86,39 @@ TEST_F(CdkPluginTest, ConvertCdkNoPersonal) {
         }, {
             { "id", "{Count:2b,Damage:0s,Name:'minecraft:diamond',WasPickedUp:0b}" },
             { "type", "nbt" }
-        } 
+        }
     });
 
-    CdkPlugin::getInstance().getDatabase()->set("test", data);
+    CdkPlugin::getShared()->getDatabase()->set("test", data);
 
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    CdkPlugin::getInstance().convert(*sp, "test");
+    EXPECT_TRUE(CdkPlugin::getShared()->convert(*sp, "test").has_value());
 
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu1"), 100);
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu2"), 200);
     EXPECT_TRUE(InventoryUtils::isItemInInventory(*sp, "minecraft:apple", 1));
     EXPECT_TRUE(InventoryUtils::isItemInInventory(*sp, "minecraft:diamond", 2));
-    
-    if (ChatPlugin::getInstance().isValid()) {
-        EXPECT_TRUE(ChatPlugin::getInstance().hasTitle(*sp, "test_tietu1"));
-        EXPECT_TRUE(ChatPlugin::getInstance().hasTitle(*sp, "test_tietu2"));
+
+    if (ChatPlugin::getShared()->isValid()) {
+        auto has1 = ChatPlugin::getShared()->hasTitle(*sp, "test_tietu1");
+        EXPECT_TRUE(has1.has_value());
+        EXPECT_TRUE(has1.value());
+
+        auto has2 = ChatPlugin::getShared()->hasTitle(*sp, "test_tietu2");
+        EXPECT_TRUE(has2.has_value());
+        EXPECT_TRUE(has2.value());
     }
 
-    auto playerData = CdkPlugin::getInstance().getDatabase()->get_ptr("/test/player", nlohmann::ordered_json::array());
+    auto playerDataResult = CdkPlugin::getShared()->getDatabase()->get_ptr<nlohmann::ordered_json>("/test/player");
+    ASSERT_TRUE(playerDataResult.has_value());
+    auto& playerData = playerDataResult.value();
     EXPECT_TRUE(std::find(playerData.begin(), playerData.end(), sp->getUuid().asString()) != playerData.end());
 
-    if (CdkPlugin::getInstance().isValid()) {
-        ChatPlugin::getInstance().delTitle(*sp, "test_tietu1");
-        ChatPlugin::getInstance().delTitle(*sp, "test_tietu2");
+    if (CdkPlugin::getShared()->isValid()) {
+        EXPECT_TRUE(ChatPlugin::getShared()->delTitle(*sp, "test_tietu1").has_value());
+        EXPECT_TRUE(ChatPlugin::getShared()->delTitle(*sp, "test_tietu2").has_value());
     }
 
     ScoreboardUtils::remove("test_tietu1");
@@ -108,12 +126,14 @@ TEST_F(CdkPluginTest, ConvertCdkNoPersonal) {
 }
 
 TEST_F(CdkPluginTest, ConvertCdkWithPersonal) {
-    CdkPlugin::getInstance().create("test", 3600, true);
+    EXPECT_TRUE(CdkPlugin::getShared()->create("test", 3600, true).has_value());
 
     ScoreboardUtils::create("test_tietu1");
     ScoreboardUtils::create("test_tietu2");
 
-    nlohmann::ordered_json data = CdkPlugin::getInstance().getDatabase()->get("test", nlohmann::ordered_json{});
+    auto dataResult = CdkPlugin::getShared()->getDatabase()->get<nlohmann::ordered_json>("test");
+    ASSERT_TRUE(dataResult.has_value());
+    nlohmann::ordered_json data = dataResult.value();
     data["scores"]["test_tietu1"] = 100;
     data["scores"]["test_tietu2"] = 200;
     data["title"]["test_tietu1"] = 0;
@@ -128,31 +148,38 @@ TEST_F(CdkPluginTest, ConvertCdkWithPersonal) {
         }, {
             { "id", "{Count:2b,Damage:0s,Name:'minecraft:diamond',WasPickedUp:0b}" },
             { "type", "nbt" }
-        } 
+        }
     });
 
-    CdkPlugin::getInstance().getDatabase()->set("test", data);
+    CdkPlugin::getShared()->getDatabase()->set("test", data);
 
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    CdkPlugin::getInstance().convert(*sp, "test");
+    EXPECT_TRUE(CdkPlugin::getShared()->convert(*sp, "test").has_value());
 
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu1"), 100);
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu2"), 200);
     EXPECT_TRUE(InventoryUtils::isItemInInventory(*sp, "minecraft:apple", 1));
     EXPECT_TRUE(InventoryUtils::isItemInInventory(*sp, "minecraft:diamond", 2));
-    
-    if (ChatPlugin::getInstance().isValid()) {
-        EXPECT_TRUE(ChatPlugin::getInstance().hasTitle(*sp, "test_tietu1"));
-        EXPECT_TRUE(ChatPlugin::getInstance().hasTitle(*sp, "test_tietu2"));
+
+    if (ChatPlugin::getShared()->isValid()) {
+        auto has1 = ChatPlugin::getShared()->hasTitle(*sp, "test_tietu1");
+        EXPECT_TRUE(has1.has_value());
+        EXPECT_TRUE(has1.value());
+
+        auto has2 = ChatPlugin::getShared()->hasTitle(*sp, "test_tietu2");
+        EXPECT_TRUE(has2.has_value());
+        EXPECT_TRUE(has2.value());
     }
 
-    EXPECT_FALSE(CdkPlugin::getInstance().has("test"));
+    auto has = CdkPlugin::getShared()->has("test");
+    EXPECT_TRUE(has.has_value());
+    EXPECT_FALSE(has.value());
 
-    if (CdkPlugin::getInstance().isValid()) {
-        ChatPlugin::getInstance().delTitle(*sp, "test_tietu1");
-        ChatPlugin::getInstance().delTitle(*sp, "test_tietu2");
+    if (CdkPlugin::getShared()->isValid()) {
+        EXPECT_TRUE(ChatPlugin::getShared()->delTitle(*sp, "test_tietu1").has_value());
+        EXPECT_TRUE(ChatPlugin::getShared()->delTitle(*sp, "test_tietu2").has_value());
     }
 
     ScoreboardUtils::remove("test_tietu1");

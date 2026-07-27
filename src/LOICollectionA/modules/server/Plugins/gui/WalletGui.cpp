@@ -2,6 +2,7 @@
 
 #include <fmt/format.h>
 
+#include <ll/api/Expected.h>
 #include <ll/api/form/CustomForm.h>
 #include <ll/api/form/SimpleForm.h>
 #include <ll/api/service/Bedrock.h>
@@ -23,142 +24,161 @@
 using I18nUtilsTools::tr;
 
 namespace LOICollection::server::Plugins {
-    void WalletGui::content(Player& player, const std::string& target, WalletTransferType type) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+    ll::Expected<void> WalletGui::content(Player& player, const std::string& target, WalletTransferType type) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .and_then([this, target, type, &player](const std::string& language) -> ll::Expected<void> {
+                return this->mParent.getPlayerInfo(target)
+                    .transform([this, language, target, type, &player](const std::string& name) -> void {
+                        std::string mTargetName = type == WalletTransferType::online ? 
+                            ll::service::getLevel()->getPlayer(mce::UUID::fromString(target))->getRealName() : name;
 
-        std::string mTargetName = type == WalletTransferType::online ? 
-            ll::service::getLevel()->getPlayer(mce::UUID::fromString(target))->getRealName() : this->mParent.getPlayerInfo(target);
+                        std::string mLabel = tr(language, "wallet.gui.label") + "\n" + tr(language, "wallet.gui.transfer.label2");
 
-        std::string mLabel = tr(mObjectLanguage, "wallet.gui.label") + "\n" + tr(mObjectLanguage, "wallet.gui.transfer.label2");
+                        ll::form::CustomForm form(tr(language, "wallet.gui.title"));
+                        form.appendLabel(fmt::format(fmt::runtime(mLabel), 
+                            ScoreboardUtils::getScore(player, this->mParent.getTargetScoreboard()),
+                            std::to_string(this->mParent.getExchangeRate() * 100) + "%%",
+                            mTargetName
+                        ));
+                        form.appendInput("Input", tr(language, "wallet.gui.transfer.input"), tr(language, "wallet.gui.transfer.input.placeholder"));
+                        form.sendTo(player, [this, language, target, mTargetName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+                            if (!dt) {
+                                this->transfer(pl, type).or_else(modules::defaultErrorHandler<WalletPlugin>);
 
-        ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
-        form.appendLabel(fmt::format(fmt::runtime(mLabel), 
-            ScoreboardUtils::getScore(player, this->mParent.getTargetScoreboard()),
-            std::to_string(this->mParent.getExchangeRate() * 100) + "%%",
-            mTargetName
-        ));
-        form.appendInput("Input", tr(mObjectLanguage, "wallet.gui.transfer.input"), tr(mObjectLanguage, "wallet.gui.transfer.input.placeholder"));
-        form.sendTo(player, [this, mObjectLanguage, target, mTargetName, type](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-            if (!dt) return this->transfer(pl, type);
+                                return;
+                            }
 
-            int mMoney = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
-            if (!this->mParent.forTransfer(pl, target, mTargetName, mMoney)) {
-                pl.sendMessage(tr(mObjectLanguage, "wallet.tips.transfer"));
+                            int mMoney = SystemUtils::toInt(std::get<std::string>(dt->at("Input")), 0);
+                            if (!this->mParent.forTransfer(pl, target, mTargetName, mMoney)) {
+                                pl.sendMessage(tr(language, "wallet.tips.transfer"));
 
-                this->transfer(pl, type);
-                return;
-            }
-        });
+                                this->transfer(pl, type).or_else(modules::defaultErrorHandler<WalletPlugin>);
+                            }
+                        });
+                    });
+            });
     }
 
-    void WalletGui::transfer(Player& player, WalletTransferType type) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+    ll::Expected<void> WalletGui::transfer(Player& player, WalletTransferType type) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .and_then([this, type, &player](const std::string& language) -> ll::Expected<void> {
+                std::vector<std::string> mPlayerNames;
+                std::vector<std::string> mPlayerUuids;
 
-        std::vector<std::string> mPlayerNames;
-        std::vector<std::string> mPlayerUuids;
+                switch (type) {
+                    case WalletTransferType::online: {
+                        ll::service::getLevel()->forEachPlayer([&mPlayerNames, &mPlayerUuids](Player& mTarget) -> bool {
+                            if (mTarget.isSimulatedPlayer())
+                                return true;
 
-        switch (type) {
-            case WalletTransferType::online: {
-                ll::service::getLevel()->forEachPlayer([&mPlayerNames, &mPlayerUuids](Player& mTarget) -> bool {
-                    if (mTarget.isSimulatedPlayer())
-                        return true;
+                            mPlayerNames.push_back(mTarget.getRealName());
+                            mPlayerUuids.push_back(mTarget.getUuid().asString());
+                            return true;
+                        });
 
-                    mPlayerNames.push_back(mTarget.getRealName());
-                    mPlayerUuids.push_back(mTarget.getUuid().asString());
-                    return true;
-                });
+                        break;
+                    }
+                    case WalletTransferType::offline: {
+                        auto result = this->mParent.getPlayerInfo();
+                        if (!result.has_value())
+                            return ll::Unexpected(result.error());
 
-                break;
-            }
-            case WalletTransferType::offline: {
-                for (auto& mTarget : this->mParent.getPlayerInfo()) {
-                    mPlayerNames.push_back(mTarget.second);
-                    mPlayerUuids.push_back(mTarget.first);
+                        for (auto& mTarget : result.value()) {
+                            mPlayerNames.push_back(mTarget.second);
+                            mPlayerUuids.push_back(mTarget.first);
+                        }
+
+                        break;
+                    }
                 }
 
-                break;
-            }
-        }
+                std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
+                    tr(language, "wallet.gui.title"),
+                    tr(language, "wallet.gui.transfer.label1"),
+                    mPlayerNames
+                );
+                form->setPreviousButton(tr(language, "generic.gui.page.previous"));
+                form->setNextButton(tr(language, "generic.gui.page.next"));
+                form->setChooseButton(tr(language, "generic.gui.page.choose"));
+                form->setChooseInput(tr(language, "generic.gui.page.choose.input"));
+                form->setCallback([this, type, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
+                    this->content(pl, mPlayerUuids.at(index), type).or_else(modules::defaultErrorHandler<WalletPlugin>);
+                });
+                form->setCloseCallback([this](Player& pl) -> void {
+                    this->open(pl).or_else(modules::defaultErrorHandler<WalletPlugin>);
+                });
 
-        std::shared_ptr<form::PaginatedForm> form = std::make_shared<form::PaginatedForm>(
-            tr(mObjectLanguage, "wallet.gui.title"),
-            tr(mObjectLanguage, "wallet.gui.transfer.label1"),
-            mPlayerNames
-        );
-        form->setPreviousButton(tr(mObjectLanguage, "generic.gui.page.previous"));
-        form->setNextButton(tr(mObjectLanguage, "generic.gui.page.next"));
-        form->setChooseButton(tr(mObjectLanguage, "generic.gui.page.choose"));
-        form->setChooseInput(tr(mObjectLanguage, "generic.gui.page.choose.input"));
-        form->setCallback([this, type, mPlayerUuids = std::move(mPlayerUuids)](Player& pl, int index) -> void {
-            this->content(pl, mPlayerUuids.at(index), type);
-        });
-        form->setCloseCallback([this](Player& pl) -> void {
-            this->open(pl);
-        });
+                form->sendPage(player, 1);
 
-        form->sendPage(player, 1);
+                return {};
+            });
     }
 
-    void WalletGui::redenvelope(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+    ll::Expected<void> WalletGui::redenvelope(Player& player) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .transform([this, &player](const std::string& language) -> void {
+                ll::form::CustomForm form(tr(language, "wallet.gui.title"));
+                form.appendLabel(fmt::format(fmt::runtime(tr(language, "wallet.gui.label")),
+                    ScoreboardUtils::getScore(player, this->mParent.getTargetScoreboard()), std::to_string(this->mParent.getExchangeRate() * 100) + "%%"
+                ));
+                form.appendInput("Input1", tr(language, "wallet.gui.redenvelope.input1"), tr(language, "wallet.gui.redenvelope.input1.placeholder"));
+                form.appendInput("Input2", tr(language, "wallet.gui.redenvelope.input2"), tr(language, "wallet.gui.redenvelope.input2.placeholder"));
+                form.appendInput("Input3", tr(language, "wallet.gui.redenvelope.input3"), tr(language, "wallet.gui.redenvelope.input3.placeholder"));
+                form.sendTo(player, [this, language](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
+                    if (!dt) {
+                        this->open(pl).or_else(modules::defaultErrorHandler<WalletPlugin>);
 
-        ll::form::CustomForm form(tr(mObjectLanguage, "wallet.gui.title"));
-        form.appendLabel(fmt::format(fmt::runtime(tr(mObjectLanguage, "wallet.gui.label")),
-            ScoreboardUtils::getScore(player, this->mParent.getTargetScoreboard()), std::to_string(this->mParent.getExchangeRate() * 100) + "%%"
-        ));
-        form.appendInput("Input1", tr(mObjectLanguage, "wallet.gui.redenvelope.input1"), tr(mObjectLanguage, "wallet.gui.redenvelope.input1.placeholder"));
-        form.appendInput("Input2", tr(mObjectLanguage, "wallet.gui.redenvelope.input2"), tr(mObjectLanguage, "wallet.gui.redenvelope.input2.placeholder"));
-        form.appendInput("Input3", tr(mObjectLanguage, "wallet.gui.redenvelope.input3"), tr(mObjectLanguage, "wallet.gui.redenvelope.input3.placeholder"));
-        form.sendTo(player, [this, mObjectLanguage](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) -> void {
-            if (!dt) return this->open(pl);
+                        return;
+                    }
 
-            std::string mObjectKey = std::get<std::string>(dt->at("Input3"));
+                    std::string mObjectKey = std::get<std::string>(dt->at("Input3"));
+                    if (mObjectKey.empty()) {
+                        pl.sendMessage(tr(language, "generic.tips.noinput"));
 
-            if (mObjectKey.empty()) {
-                pl.sendMessage(tr(mObjectLanguage, "generic.tips.noinput"));
+                        this->open(pl).or_else(modules::defaultErrorHandler<WalletPlugin>);
 
-                this->open(pl);
-                return;
-            }
+                        return;
+                    }
 
-            int mScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input1")), 0);
-            int mCount = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
+                    int mScore = SystemUtils::toInt(std::get<std::string>(dt->at("Input1")), 0);
+                    int mCount = SystemUtils::toInt(std::get<std::string>(dt->at("Input2")), 0);
 
-            std::string mScoreboard = this->mParent.getTargetScoreboard();
-            if (mScore <= 0 || mCount <= 0 || ScoreboardUtils::getScore(pl, mScoreboard) < mScore * mCount) {
-                pl.sendMessage(tr(mObjectLanguage, "wallet.tips.redenvelope"));
+                    std::string mScoreboard = this->mParent.getTargetScoreboard();
+                    if (mScore <= 0 || mCount <= 0 || ScoreboardUtils::getScore(pl, mScoreboard) < mScore * mCount) {
+                        pl.sendMessage(tr(language, "wallet.tips.redenvelope"));
 
-                this->open(pl);
-                return;
-            }
+                        this->open(pl).or_else(modules::defaultErrorHandler<WalletPlugin>);
 
-            this->mParent.redenvelope(pl, mObjectKey, mScore, mCount);
-        });
+                        return;
+                    }
+
+                    this->mParent.redenvelope(pl, mObjectKey, mScore, mCount).or_else(modules::defaultErrorHandler<WalletPlugin>);
+                });
+            });
     }
 
-    void WalletGui::open(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-
-        std::string mLabel = tr(mObjectLanguage, "wallet.gui.label");
-        
-        ll::form::SimpleForm form(tr(mObjectLanguage, "wallet.gui.title"), 
-            fmt::format(fmt::runtime(mLabel), 
-                ScoreboardUtils::getScore(player, this->mParent.getTargetScoreboard()),
-                std::to_string(this->mParent.getExchangeRate() * 100) + "%%"
-            )
-        );
-        form.appendButton(tr(mObjectLanguage, "wallet.gui.transfer"), "textures/ui/MCoin", "path", [this](Player& pl) -> void {
-            this->transfer(pl, WalletTransferType::online);
-        });
-        form.appendButton(tr(mObjectLanguage, "wallet.gui.offlineTransfer"), "textures/ui/icon_best3", "path", [this](Player& pl) -> void {
-            this->transfer(pl, WalletTransferType::offline);
-        });
-        form.appendButton(tr(mObjectLanguage, "wallet.gui.redenvelope"), "textures/ui/comment", "path", [this](Player& pl) -> void {
-            this->redenvelope(pl);
-        });
-        form.appendButton(tr(mObjectLanguage, "wallet.gui.wealth"), "textures/ui/creative_icon", "path", [this](Player& pl) -> void {
-            this->mParent.wealth(pl);
-        });
-        form.sendTo(player);
+    ll::Expected<void> WalletGui::open(Player& player) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .transform([this, &player](const std::string& language) -> void {
+                ll::form::SimpleForm form(tr(language, "wallet.gui.title"), 
+                    fmt::format(fmt::runtime(tr(language, "wallet.gui.label")), 
+                        ScoreboardUtils::getScore(player, this->mParent.getTargetScoreboard()),
+                        std::to_string(this->mParent.getExchangeRate() * 100) + "%%"
+                    )
+                );
+                form.appendButton(tr(language, "wallet.gui.transfer"), "textures/ui/MCoin", "path", [this](Player& pl) -> void {
+                    this->transfer(pl, WalletTransferType::online).or_else(modules::defaultErrorHandler<WalletPlugin>);
+                });
+                form.appendButton(tr(language, "wallet.gui.offlineTransfer"), "textures/ui/icon_best3", "path", [this](Player& pl) -> void {
+                    this->transfer(pl, WalletTransferType::offline).or_else(modules::defaultErrorHandler<WalletPlugin>);
+                });
+                form.appendButton(tr(language, "wallet.gui.redenvelope"), "textures/ui/comment", "path", [this](Player& pl) -> void {
+                    this->redenvelope(pl).or_else(modules::defaultErrorHandler<WalletPlugin>);
+                });
+                form.appendButton(tr(language, "wallet.gui.wealth"), "textures/ui/creative_icon", "path", [this](Player& pl) -> void {
+                    this->mParent.wealth(pl).or_else(modules::defaultErrorHandler<WalletPlugin>);
+                });
+                form.sendTo(player);
+            });
     }
 }

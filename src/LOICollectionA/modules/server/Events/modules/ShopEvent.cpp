@@ -26,16 +26,16 @@ namespace LOICollection::server::Events {
         HookPriority::Normal,
         Plugins::ShopPlugin,
         &Plugins::ShopPlugin::create,
-        void,
+        ll::Expected<void>,
         const std::string& id,
         const nlohmann::ordered_json& data
     ) {
         ShopCreateEvent event(id);
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled())
-            return;
+            return {};
 
-        origin(id, data);
+        return origin(id, data);
     }
 
     LL_TYPE_INSTANCE_HOOK(
@@ -43,15 +43,15 @@ namespace LOICollection::server::Events {
         HookPriority::Normal,
         Plugins::ShopPlugin,
         &Plugins::ShopPlugin::remove,
-        void,
+        ll::Expected<void>,
         const std::string& id
     ) {
         ShopDeleteEvent event(id);
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled())
-            return;
+            return {};
 
-        origin(id);
+        return origin(id);
     }
 
     static std::unique_ptr<ll::event::EmitterBase> ShopEmitterFactoryCreate();

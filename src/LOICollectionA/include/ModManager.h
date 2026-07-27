@@ -4,18 +4,12 @@
 #include <string>
 #include <vector>
 
+#include "LOICollectionA/include/ModulePriority.h"
+
 #include "LOICollectionA/base/Macro.h"
 
 namespace LOICollection::modules {
-    enum class ModulePriority : int {
-        Higest = 0,
-        High = 1,
-        Normal = 2,
-        Low = 3,
-        Lowest = 4
-    };
-
-    class ModRegistry;
+    class ModuleBase;
     class ModManager {
     public:
         ModManager(const ModManager&) = delete;
@@ -26,10 +20,10 @@ namespace LOICollection::modules {
 
         LOICOLLECTION_A_NDAPI static ModManager& getInstance();
 
-        LOICOLLECTION_A_API   void registry(std::shared_ptr<ModRegistry> registry, ModulePriority priority = ModulePriority::Normal);
+        LOICOLLECTION_A_API   void registry(std::shared_ptr<ModuleBase> modules, const std::string& name, ModulePriority priority = ModulePriority::Normal);
         LOICOLLECTION_A_API   void unregistry(const std::string& name);
 
-        LOICOLLECTION_A_NDAPI std::shared_ptr<ModRegistry> getRegistry(const std::string& name) const;
+        LOICOLLECTION_A_NDAPI std::shared_ptr<ModuleBase> getModule(const std::string& name) const;
 
         LOICOLLECTION_A_NDAPI std::vector<std::string> mods() const;
 
@@ -39,5 +33,21 @@ namespace LOICollection::modules {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
+    };
+
+    template <typename Derived>
+    class AutoRegister {
+    private:
+        static inline bool registered = []() -> bool {
+            std::shared_ptr<Derived> modules = Derived::getShared();
+            ModManager::getInstance().registry(modules, modules->getName(), modules->getPriority());
+
+            return true;
+        }();
+
+    protected:
+        AutoRegister() {
+            static_cast<void>(registered);
+        }
     };
 }

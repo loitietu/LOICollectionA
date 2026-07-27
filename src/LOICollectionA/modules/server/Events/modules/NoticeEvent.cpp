@@ -36,7 +36,7 @@ namespace LOICollection::server::Events {
         HookPriority::Normal,
         Plugins::NoticePlugin,
         &Plugins::NoticePlugin::create,
-        void,
+        ll::Expected<void>,
         const std::string& id,
         const std::string& title,
         int priority,
@@ -45,9 +45,9 @@ namespace LOICollection::server::Events {
         NoticeCreateEvent event(id, title, priority, poiontout);
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled())
-            return;
+            return {};
 
-        origin(id, title, priority, poiontout);
+        return origin(id, title, priority, poiontout);
     }
 
     LL_TYPE_INSTANCE_HOOK(
@@ -55,15 +55,15 @@ namespace LOICollection::server::Events {
         HookPriority::Normal,
         Plugins::NoticePlugin,
         &Plugins::NoticePlugin::remove,
-        void,
+        ll::Expected<void>,
         const std::string& id
     ) {
         NoticeDeleteEvent event(id);
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled())
-            return;
+            return {};
 
-        origin(id);
+        return origin(id);
     }
 
     static std::unique_ptr<ll::event::EmitterBase> NoticeEmitterFactoryCreate();

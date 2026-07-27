@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ll/api/Expected.h>
+
 #include "LOICollectionA/base/Macro.h"
 
 #include "LOICollectionA/include/server/Plugins/types/StatisticType.h"
@@ -16,7 +18,7 @@ namespace LOICollection::server::Plugins {
     public:
         StatisticsGui(StatisticsPlugin& plugin) : mParent(plugin) {}
 
-        LOICOLLECTION_A_API void open(Player& player, StatisticType type);
-        LOICOLLECTION_A_API void open(Player& player);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> open(Player& player, StatisticType type);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> open(Player& player);
     };
 }

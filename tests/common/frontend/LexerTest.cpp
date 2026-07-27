@@ -7,7 +7,8 @@
 using namespace LOICollection::frontend;
 
 TEST(LexerTest, ParseNumbers) {
-    Lexer lexer("123 3.14");
+    DiagnosticEngine diagnostics;
+    Lexer lexer("123 3.14", diagnostics);
 
     Token t1 = lexer.getNextToken();
     EXPECT_EQ(t1.type, TokenType::TOKEN_INT);
@@ -21,7 +22,8 @@ TEST(LexerTest, ParseNumbers) {
 }
 
 TEST(LexerTest, ParseString) {
-    Lexer lexer("\"hello world\"");
+    DiagnosticEngine diagnostics;
+    Lexer lexer("\"hello world\"", diagnostics);
 
     Token t = lexer.getNextToken();
     EXPECT_EQ(t.type, TokenType::TOKEN_STRING);
@@ -29,7 +31,8 @@ TEST(LexerTest, ParseString) {
 }
 
 TEST(LexerTest, ParseIdentifiersAndKeywords) {
-    Lexer lexer("if true false myVar");
+    DiagnosticEngine diagnostics;
+    Lexer lexer("if true false myVar", diagnostics);
 
     auto t1 = lexer.getNextToken();
     EXPECT_EQ(t1.type, TokenType::TOKEN_IF);
@@ -48,7 +51,8 @@ TEST(LexerTest, ParseIdentifiersAndKeywords) {
 }
 
 TEST(LexerTest, ParseOperators) {
-    Lexer lexer("+ - * / % ^ == != > < >= <= && || !");
+    DiagnosticEngine diagnostics;
+    Lexer lexer("+ - * / % ^ == != > < >= <= && || !", diagnostics);
     std::vector<TokenType> expected = {
         TokenType::TOKEN_PLUS,    TokenType::TOKEN_MINUS,   TokenType::TOKEN_MULTIPLY,
         TokenType::TOKEN_DIVIDE,  TokenType::TOKEN_MOD,     TokenType::TOKEN_POWER,
@@ -64,7 +68,8 @@ TEST(LexerTest, ParseOperators) {
 }
 
 TEST(LexerTest, ParseColonAndNamespace) {
-    Lexer lexer(": ::");
+    DiagnosticEngine diagnostics;
+    Lexer lexer(": ::", diagnostics);
 
     auto t1 = lexer.getNextToken();
     EXPECT_EQ(t1.type, TokenType::TOKEN_COLON);
@@ -75,7 +80,8 @@ TEST(LexerTest, ParseColonAndNamespace) {
 }
 
 TEST(LexerTest, PeekDoesNotAdvance) {
-    Lexer lexer("1 2");
+    DiagnosticEngine diagnostics;
+    Lexer lexer("1 2", diagnostics);
 
     auto peeked = lexer.peekNextToken();
     EXPECT_EQ(peeked.type, TokenType::TOKEN_INT);

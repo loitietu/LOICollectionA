@@ -4,6 +4,7 @@
 
 #include <fmt/core.h>
 
+#include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/service/Bedrock.h>
@@ -21,8 +22,6 @@
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
-
-#include "LOICollectionA/include/RegistryHelper.h"
 
 #include "LOICollectionA/include/server/APIUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
@@ -66,9 +65,14 @@ namespace LOICollection::server::Plugins {
     PvpPlugin::PvpPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<PvpGui>(*this)) {};
     PvpPlugin::~PvpPlugin() = default;
 
-    PvpPlugin& PvpPlugin::getInstance() {
-        static PvpPlugin instance;
+    std::shared_ptr<PvpPlugin> PvpPlugin::getShared() {
+        static auto instance = std::shared_ptr<PvpPlugin>(new PvpPlugin());
         return instance;
+    }
+
+    std::error_code PvpPlugin::makeErrorCode(PvpPluginErrorCode e) {
+        static PvpPluginErrorCategory cat;
+        return std::error_code{ static_cast<int>(e), cat };
     }
 
     std::shared_ptr<ll::io::Logger> PvpPlugin::getLogger() {
@@ -84,7 +88,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player);
+            this->mGui->open(player).or_else(modules::defaultErrorHandler<PvpPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -94,7 +98,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->enable(player, false);
+            this->enable(player, false).or_else(modules::defaultErrorHandler<PvpPlugin>);
 
             output.success(tr(origin.getLocaleCode(), "commands.pvp.success.disable"));
         });
@@ -104,7 +108,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
-            this->enable(player, true);
+            this->enable(player, true).or_else(modules::defaultErrorHandler<PvpPlugin>);
 
             output.success(tr(origin.getLocaleCode(), "commands.pvp.success.enable"));
         });
@@ -118,14 +122,20 @@ namespace LOICollection::server::Plugins {
 
             std::string mObject = event.self().getUuid().asString();
 
-            if (!this->mImpl->db->has("Pvp", mObject)) {
-                std::unordered_map<std::string, std::string> mData = {
-                    { "name", mObject },
-                    { "enable", "false" }
-                };
+            this->mImpl->db->has("Pvp", mObject)
+                .and_then([this, mObject](bool exists) -> ll::Expected<void> {
+                    if (!exists) {
+                        std::unordered_map<std::string, std::string> mData = {
+                            { "name", mObject },
+                            { "enable", "false" }
+                        };
 
-                this->mImpl->db->set("Pvp", mObject, mData);
-            }
+                        return this->mImpl->db->set("Pvp", mObject, mData);
+                    }
+
+                    return {};
+                })
+                .or_else(modules::defaultErrorHandler<PvpPlugin>);
         });
         this->mImpl->PlayerHurtEventListener = eventBus.emplaceListener<LOICollection::server::Events::PlayerHurtEvent>([this](LOICollection::server::Events::PlayerHurtEvent& event) mutable -> void {
             if (!event.getSource().isRemotePlayer() || event.getSource().isSimulatedPlayer() || event.self().isSimulatedPlayer())
@@ -139,16 +149,26 @@ namespace LOICollection::server::Plugins {
 
             auto& source = static_cast<Player&>(event.getSource());
 
-            bool isPvp = this->isEnable(event.self()) && this->isEnable(source);
-            if (!isPvp)
-                event.cancel();
+            this->isEnable(event.self())
+                .and_then([this, &source](bool exists) -> ll::Expected<bool> {
+                    return exists ? this->isEnable(source) : false;
+                })
+                .transform([this, &source, &event](bool enable) -> void {
+                    if (!enable)
+                        event.cancel();
 
-            this->mImpl->mThrottle([isPvp, &source]() -> void {
-                if (isPvp)
-                    return;
+                    this->mImpl->mThrottle([enable, &source]() -> void {
+                        if (enable)
+                            return;
 
-                source.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(source), "pvp.off"));
-            });
+                        LanguagePlugin::getShared()->getLanguage(source)
+                            .transform([&source](const std::string& language) -> void {
+                                source.sendMessage(tr(language, "pvp.off"));
+                            })
+                            .or_else(modules::defaultErrorHandler<PvpPlugin>);
+                    });
+                })
+                .or_else(modules::defaultErrorHandler<PvpPlugin>);
         });
     }
 
@@ -158,41 +178,53 @@ namespace LOICollection::server::Plugins {
         eventBus.removeListener(this->mImpl->PlayerHurtEventListener);
     }
 
-    void PvpPlugin::enable(Player& player, bool value) {
+    ll::Expected<void> PvpPlugin::enable(Player& player, bool value) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(PvpPluginErrorCode::Invalid));
         
-        this->mImpl->db->set("Pvp", player.getUuid().asString(), "enable", (value ? "true" : "false"));
+        return this->mImpl->db->set("Pvp", player.getUuid().asString(), "enable", (value ? "true" : "false"))
+            .transform([this, value, &player]() -> void {
+                if (value) {
+                    this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "pvp.log1"), player));
 
-        if (value) {
-            this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "pvp.log1"), player));
-
-            return;
-        }
-        
-        this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "pvp.log2"), player));
+                    return;
+                }
+                
+                this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "pvp.log2"), player));
+            });
     }
 
-    bool PvpPlugin::isEnable(Player& player) {
+    ll::Expected<bool> PvpPlugin::isEnable(Player& player) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(PvpPluginErrorCode::Invalid));
 
         std::string mObject = player.getUuid().asString();
 
         if (this->mImpl->PvpCache.contains(mObject)) 
             return *this->mImpl->PvpCache.get(mObject).value();
 
-        bool result = this->mImpl->db->get("Pvp", mObject, "enable", "false") == "true";
+        return this->mImpl->db->get("Pvp", mObject, "enable", "false")
+            .transform([this, mObject](const std::string& value) -> bool {
+                bool result = (value == "true");
 
-        this->mImpl->PvpCache.put(mObject, result);
-        return result;
+                this->mImpl->PvpCache.put(mObject, result);
+                return result;
+            });
     }
 
     bool PvpPlugin::isValid() {
         return this->getLogger() != nullptr && this->mImpl->db != nullptr;
     }
 
-    bool PvpPlugin::load() {
+    std::string PvpPlugin::getName() {
+        return "PvpPlugin";
+    }
+
+    modules::ModulePriority PvpPlugin::getPriority() {
+        return modules::ModulePriority::High;
+    }
+
+    ll::Expected<bool> PvpPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Pvp.ModuleEnabled)
             return false;
 
@@ -203,7 +235,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool PvpPlugin::unload() {
+    ll::Expected<bool> PvpPlugin::unload() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -217,24 +249,24 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool PvpPlugin::registry() {
+    ll::Expected<bool> PvpPlugin::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
         
-        this->mImpl->db->create("Pvp", [](SQLiteStorage::ColumnCallback ctor) -> void {
+        return this->mImpl->db->create("Pvp", [](SQLiteStorage::ColumnCallback ctor) -> void {
             ctor("name");
             ctor("enable");
+        }).transform([this]() -> bool {
+            this->registeryCommand();
+            this->listenEvent();
+
+            this->mImpl->mRegistered.store(true, std::memory_order_release);
+
+            return true;
         });
-
-        this->registeryCommand();
-        this->listenEvent();
-
-        this->mImpl->mRegistered.store(true, std::memory_order_release);
-
-        return true;
     }
 
-    bool PvpPlugin::unregistry() {
+    ll::Expected<bool> PvpPlugin::unregistry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -245,5 +277,3 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 }
-
-REGISTRY_HELPER(PvpPlugin, LOICollection::server::Plugins::PvpPlugin, LOICollection::server::Plugins::PvpPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

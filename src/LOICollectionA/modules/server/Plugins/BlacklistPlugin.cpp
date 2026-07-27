@@ -3,12 +3,12 @@
 #include <vector>
 #include <ranges>
 #include <string>
-#include <algorithm>
 #include <filesystem>
 #include <unordered_map>
 
 #include <fmt/core.h>
 
+#include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/service/Bedrock.h>
@@ -43,8 +43,6 @@
 #include <mc/server/commands/CommandOutputMessageType.h>
 
 #include <mc/common/SubClientId.h>
-
-#include "LOICollectionA/include/RegistryHelper.h"
 
 #include "LOICollectionA/include/server/APIUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
@@ -97,9 +95,14 @@ namespace LOICollection::server::Plugins {
     BlacklistPlugin::BlacklistPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<BlacklistGui>(*this)) {};
     BlacklistPlugin::~BlacklistPlugin() = default;
 
-    BlacklistPlugin& BlacklistPlugin::getInstance() {
-        static BlacklistPlugin instance;
+    std::shared_ptr<BlacklistPlugin> BlacklistPlugin::getShared() {
+        static auto instance = std::shared_ptr<BlacklistPlugin>(new BlacklistPlugin());
         return instance;
+    }
+
+    std::error_code BlacklistPlugin::makeErrorCode(BlacklistPluginErrorCode e) {
+        static BlacklistPluginErrorCategory cat;
+        return std::error_code{ static_cast<int>(e), cat };
     }
     
     std::shared_ptr<SQLiteStorage> BlacklistPlugin::getDatabase() {
@@ -111,7 +114,11 @@ namespace LOICollection::server::Plugins {
     }
 
     void BlacklistPlugin::registeryCommand() {
-        ll::command::CommandRegistrar::getInstance(false).tryRegisterSoftEnum(BlacklistObjectName, this->getBlacklists());
+        this->getBlacklists()
+            .transform([](std::vector<std::string> blacklists) -> void {
+                ll::command::CommandRegistrar::getInstance(false).tryRegisterSoftEnum(BlacklistObjectName, std::move(blacklists));
+            })
+            .or_else(modules::defaultErrorHandler<BlacklistPlugin>);
 
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("blacklist", tr({}, "commands.blacklist.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
@@ -122,47 +129,65 @@ namespace LOICollection::server::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 for (Player*& pl : results) {
-                    if (this->isBlacklist(*pl) || pl->getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || pl->isSimulatedPlayer()) {
+                    if (pl->getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || pl->isSimulatedPlayer()) {
                         output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.error.add")), pl->getRealName());
                         continue;
                     }
 
-                    this->addBlacklist(*pl, param.Cause, param.Time);
+                    this->addBlacklist(*pl, param.Cause, param.Time).or_else(modules::defaultErrorHandler<BlacklistPlugin>);
 
                     output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.success.add")), pl->getRealName());
                 }
             });
         command.overload<operation>().text("remove").required("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                if (!this->hasBlacklist(param.Object))
-                    return output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.error.remove")), param.Object);
-                
-                this->delBlacklist(param.Object);
+                this->hasBlacklist(param.Object)
+                    .and_then([this, &output, &origin, target = param.Object](bool exists) -> ll::Expected<void> {
+                        if (!exists) {
+                            output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.error.remove")), target);
+                            return {};
+                        }
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.success.remove")), param.Object);
+                        return this->delBlacklist(target).transform([&output, &origin, target]() -> void { 
+                            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.success.remove")), target);
+                        });
+                    })
+                    .or_else([](ll::Error e) -> ll::Expected<void> {
+                        if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(BlacklistPluginErrorCode::NotFound))
+                            return {};
+
+                        return ll::Unexpected(e);
+                    })
+                    .or_else(modules::defaultErrorHandler<BlacklistPlugin>);
             });
         command.overload<operation>().text("info").required("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Blacklist", param.Object);
-                
-                if (mEvent.empty())
-                    return output.error(tr(origin.getLocaleCode(), "commands.blacklist.error.info"));
+                this->getDatabase()->get("Blacklist", param.Object)
+                    .transform([&output, &origin, target = param.Object](std::unordered_map<std::string, std::string> data) -> void {
+                        if (data.empty()) {
+                            output.error(tr(origin.getLocaleCode(), "commands.blacklist.error.info"));
+                            return;
+                        }
 
-                output.success(tr(origin.getLocaleCode(), "commands.blacklist.success.info"));
-                std::for_each(mEvent.begin(), mEvent.end(), [&output](const std::pair<std::string, std::string>& mPair) -> void {
-                    std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
+                        output.success(tr(origin.getLocaleCode(), "commands.blacklist.success.info"));
+                        for (auto& pair : data) {
+                            std::string key = pair.first.substr(pair.first.find_first_of('.') + 1);
 
-                    output.success("{0}: {1}", mKey, mPair.second);
-                });
+                            output.success("{0}: {1}", key, pair.second);
+                        }
+                    })
+                    .or_else(modules::defaultErrorHandler<BlacklistPlugin>);
             });
         command.overload<operation>().text("list").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                std::vector<std::string> mObjectList = this->getBlacklists(param.Limit);
-                
-                if (mObjectList.empty())
-                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.success.list")), param.Limit, "None");
+                this->getBlacklists(param.Limit)
+                    .transform([&output, &origin, limit = param.Limit](std::vector<std::string> blacklists) -> void {
+                        if (blacklists.empty())
+                            return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.success.list")), limit, "None");
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.success.list")), param.Limit, fmt::join(mObjectList, ", "));
+                        output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.blacklist.success.list")), limit, fmt::join(blacklists, ", "));
+                    })
+                    .or_else(modules::defaultErrorHandler<BlacklistPlugin>);
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
@@ -170,7 +195,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
-            this->mGui->open(player);
+            this->mGui->open(player).or_else(modules::defaultErrorHandler<BlacklistPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -186,37 +211,53 @@ namespace LOICollection::server::Plugins {
             std::string mIp = event.getNetworkIdentifier().getIPAndPort().substr(0, event.getNetworkIdentifier().getIPAndPort().find_last_of(':'));
             std::string mClientId = static_cast<LoginPacket const&>(event.getPacket()).mConnectionRequest->getDeviceId();
 
-            std::string mId = this->getDatabase()->find("Blacklist", {
+            this->getDatabase()->find("Blacklist", {
                 { "data_uuid", mUuid },
                 { "data_ip", mIp },
                 { "data_clientid", mClientId }
-            }, "", SQLiteStorage::FindCondition::OR);
+            }, "", SQLiteStorage::FindCondition::OR)
+                .and_then([this, mUuid, &event](const std::string& id) -> ll::Expected<void> {
+                    if (id.empty())
+                        return {};
 
-            if (mId.empty())
-                return;
+                    return this->getDatabase()->get("Blacklist", id)
+                        .and_then([this, id, mUuid, &event](std::unordered_map<std::string, std::string> data) -> ll::Expected<void> {
+                            if (SystemUtils::isPastOrPresent(data.at("time")))
+                                return this->delBlacklist(id);
 
-            std::unordered_map<std::string, std::string> mData = this->getDatabase()->get("Blacklist", mId);
+                            auto language = LanguagePlugin::getShared()->getLanguage(mUuid);
+                            if (!language.has_value())
+                                return ll::Unexpected(language.error());
+                                
+                            ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
+                                event.getNetworkIdentifier(), event.getSubClientId(), Connection::DisconnectFailReason::Kicked,
+                                fmt::format(fmt::runtime(tr(language.value(), "blacklist.tips")),
+                                    SystemUtils::toFormatTime(data.at("time"), "None"), data.at("cause")
+                                ),
+                                std::nullopt
+                            );
 
-            if (SystemUtils::isPastOrPresent(mData.at("time")))
-                return this->delBlacklist(mId);
+                            return {};
+                        });
+                })
+                .or_else([](ll::Error e) -> ll::Expected<void> {
+                    if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(BlacklistPluginErrorCode::NotFound))
+                        return {};
 
-            std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(mUuid), "blacklist.tips");
-            ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
-                event.getNetworkIdentifier(), event.getSubClientId(), Connection::DisconnectFailReason::Kicked,
-                fmt::format(fmt::runtime(mObjectTips),
-                    SystemUtils::toFormatTime(mData.at("time"), "None"), mData.at("cause")
-                ),
-                std::nullopt
-            );
+                    return ll::Unexpected(e);
+                })
+                .or_else(modules::defaultErrorHandler<BlacklistPlugin>);
         });
 
         this->mImpl->BlacklistAddEventListener = eventBus.emplaceListener<LOICollection::server::Events::BlacklistAddBeforeEvent>([this](LOICollection::server::Events::BlacklistAddBeforeEvent& event) -> void {
-            std::string mId = this->getBlacklist(event.self());
+            this->getBlacklist(event.self())
+                .transform([](const std::string& id) -> void {
+                    if (id.empty())
+                        return;
 
-            if (mId.empty())
-                return;
-
-            ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues(BlacklistObjectName, { mId });
+                    ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues(BlacklistObjectName, { id });
+                })
+                .or_else(modules::defaultErrorHandler<BlacklistPlugin>);
         });
 
         this->mImpl->BlacklistRemoveEventListener = eventBus.emplaceListener<LOICollection::server::Events::BlacklistRemoveEvent>([](LOICollection::server::Events::BlacklistRemoveEvent& event) -> void {
@@ -231,9 +272,12 @@ namespace LOICollection::server::Plugins {
         eventBus.removeListener(this->mImpl->BlacklistRemoveEventListener);
     }
 
-    void BlacklistPlugin::addBlacklist(Player& player, const std::string& cause, int time) {
-        if (!this->isValid() || player.getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors)
-            return;
+    ll::Expected<void> BlacklistPlugin::addBlacklist(Player& player, const std::string& cause, int time) {
+        if (!this->isValid())
+            return ll::makeErrorCodeError(makeErrorCode(BlacklistPluginErrorCode::Invalid));
+
+        if (player.getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors)
+            return ll::makeErrorCodeError(makeErrorCode(BlacklistPluginErrorCode::PermissionDenied));
 
         std::string mCause = cause.empty() ? "None" : cause;
         std::string mTismestamp = SystemUtils::getCurrentTimestamp();
@@ -248,51 +292,68 @@ namespace LOICollection::server::Plugins {
             { "data_clientid", player.getConnectionRequest().transform(&ConnectionRequest::getDeviceId).value_or("None") }
         };
 
-        this->getDatabase()->set("Blacklist", mTismestamp, mData);
+        return this->getDatabase()->set("Blacklist", mTismestamp, mData)
+            .and_then([&player]() -> ll::Expected<std::string> {
+                return LanguagePlugin::getShared()->getLanguage(player);
+            })
+            .and_then([this, mTismestamp, mCause, &player](const std::string& language) -> ll::Expected<void> {
+                auto time = this->getDatabase()->get("Blacklist", mTismestamp, "time");
+                if (!time.has_value())
+                    return ll::Unexpected(time.error());
 
-        std::string mObjectTips = tr(LanguagePlugin::getInstance().getLanguage(player), "blacklist.tips");
-        ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
-            player.getNetworkIdentifier(), player.getClientSubId(), Connection::DisconnectFailReason::Unknown,
-            fmt::format(fmt::runtime(mObjectTips),
-                SystemUtils::toFormatTime(this->getDatabase()->get("Blacklist", mTismestamp, "time"), "None"),
-                mCause
-            ),
-            std::nullopt
-        );
+                ll::service::getServerNetworkHandler()->disconnectClientWithMessage(
+                    player.getNetworkIdentifier(), player.getClientSubId(), Connection::DisconnectFailReason::Unknown,
+                    fmt::format(fmt::runtime(tr(language, "blacklist.tips")),
+                        SystemUtils::toFormatTime(time.value(), "None"),
+                        mCause
+                    ),
+                    std::nullopt
+                );
 
-        if (this->mImpl->options.BroadcastMessage) {
-            ll::service::getLevel()->forEachPlayer([&player](Player& mTarget) -> bool {
-                std::string mMessage = tr(LanguagePlugin::getInstance().getLanguage(mTarget), "blacklist.broadcast");
+                if (this->mImpl->options.BroadcastMessage) {
+                    ll::service::getLevel()->forEachPlayer([&player](Player& target) -> bool {
+                        LanguagePlugin::getShared()->getLanguage(target)
+                            .and_then([&player, &target](const std::string& language) -> ll::Expected<void> {
+                                TextPacket::createRawMessage(
+                                    LOICollectionAPI::APIUtils::getInstance().translate(tr(language, "blacklist.broadcast"), player)
+                                ).sendTo(target);
 
-                TextPacket::createRawMessage(
-                    LOICollectionAPI::APIUtils::getInstance().translate(mMessage, player)
-                ).sendTo(mTarget);
+                                return {};
+                            })
+                            .or_else(modules::defaultErrorHandler<BlacklistPlugin>);
 
-                return true;
+                        return true;
+                    });
+                }
+
+                this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "blacklist.log1"), player));
+
+                return {};
             });
-        }
-
-        this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "blacklist.log1"), player));
     }
 
-    void BlacklistPlugin::delBlacklist(const std::string& id) {
+    ll::Expected<void> BlacklistPlugin::delBlacklist(const std::string& id) {
         if (!this->isValid()) 
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(BlacklistPluginErrorCode::Invalid));
 
-        if (!this->hasBlacklist(id)) {
-            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "BlacklistPlugin");
+        return this->hasBlacklist(id)
+            .and_then([this, id](bool exists) -> ll::Expected<void> {
+                if (!exists) {
+                    this->getLogger()->error(fmt::runtime(tr({}, "console.log.error.object")), this->getName());
 
-            return;
-        }
+                    return ll::makeErrorCodeError(makeErrorCode(BlacklistPluginErrorCode::NotFound));
+                }
 
-        this->getDatabase()->del("Blacklist", id);
-
-        this->getLogger()->info(fmt::runtime(tr({}, "blacklist.log2")), id);
+                return this->getDatabase()->del("Blacklist", id);  
+            })
+            .transform([this, id]() -> void {
+                this->getLogger()->info(fmt::runtime(tr({}, "blacklist.log2")), id);
+            });
     }
 
-    std::string BlacklistPlugin::getBlacklist(Player& player) {
+    ll::Expected<std::string> BlacklistPlugin::getBlacklist(Player& player) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(BlacklistPluginErrorCode::Invalid));
 
         return this->getDatabase()->find("Blacklist", {
             { "data_uuid", player.getUuid().asString() },
@@ -301,45 +362,55 @@ namespace LOICollection::server::Plugins {
         }, "", SQLiteStorage::FindCondition::OR);
     }
 
-    std::unordered_map<std::string, std::string> BlacklistPlugin::getBlacklistData(const std::string& id) {
+    ll::Expected<std::unordered_map<std::string, std::string>> BlacklistPlugin::getBlacklistData(const std::string& id) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(BlacklistPluginErrorCode::Invalid));
 
         return this->getDatabase()->get("Blacklist", id);
     }
 
-    std::vector<std::string> BlacklistPlugin::getBlacklists(int limit) {
+    ll::Expected<std::vector<std::string>> BlacklistPlugin::getBlacklists(int limit) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(BlacklistPluginErrorCode::Invalid));
 
-        std::vector<std::string> mKeys = this->getDatabase()->list("Blacklist");
-
-        return mKeys
-            | std::views::take(limit > 0 ? limit : static_cast<int>(mKeys.size()))
-            | std::ranges::to<std::vector<std::string>>();
+        return this->getDatabase()->list("Blacklist")
+            .transform([limit](const std::vector<std::string>& keys) -> std::vector<std::string> {
+                return keys
+                    | std::views::take(limit > 0 ? limit : static_cast<int>(keys.size()))
+                    | std::ranges::to<std::vector<std::string>>();
+            });
     }
 
-    bool BlacklistPlugin::hasBlacklist(const std::string& id) {
+    ll::Expected<bool> BlacklistPlugin::hasBlacklist(const std::string& id) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(BlacklistPluginErrorCode::Invalid));
 
         return this->getDatabase()->has("Blacklist", id);
     }
 
-    bool BlacklistPlugin::isBlacklist(Player& player) {
+    ll::Expected<bool> BlacklistPlugin::isBlacklist(Player& player) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(BlacklistPluginErrorCode::Invalid));
 
-        std::string mId = this->getBlacklist(player);
-
-        return !mId.empty();
+        return this->getBlacklist(player)
+            .transform([](const std::string& id) -> bool {
+                return !id.empty();
+            });
     }
 
     bool BlacklistPlugin::isValid() {
         return this->getLogger() != nullptr && this->getDatabase() != nullptr;
     }
 
-    bool BlacklistPlugin::load() {
+    std::string BlacklistPlugin::getName() {
+        return "BlacklistPlugin";
+    }
+
+    modules::ModulePriority BlacklistPlugin::getPriority() {
+        return modules::ModulePriority::High;
+    }
+
+    ll::Expected<bool> BlacklistPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Blacklist.ModuleEnabled)
             return false;
 
@@ -352,7 +423,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool BlacklistPlugin::unload() {
+    ll::Expected<bool> BlacklistPlugin::unload() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -366,11 +437,11 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool BlacklistPlugin::registry() {
+    ll::Expected<bool> BlacklistPlugin::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        this->getDatabase()->create("Blacklist", [](SQLiteStorage::ColumnCallback ctor) -> void {
+        return this->getDatabase()->create("Blacklist", [](SQLiteStorage::ColumnCallback ctor) -> void {
             ctor("name");
             ctor("cause");
             ctor("time");
@@ -378,28 +449,27 @@ namespace LOICollection::server::Plugins {
             ctor("data_uuid");
             ctor("data_ip");
             ctor("data_clientid");
+        }).transform([this]() -> bool {
+            this->registeryCommand();
+            this->listenEvent();
+
+            this->mImpl->mRegistered.store(true, std::memory_order_release);
+
+            return true;
         });
-        
-        this->registeryCommand();
-        this->listenEvent();
-
-        this->mImpl->mRegistered.store(true, std::memory_order_release);
-
-        return true;
     }
 
-    bool BlacklistPlugin::unregistry() {
+    ll::Expected<bool> BlacklistPlugin::unregistry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
         this->unlistenEvent();
 
-        this->getDatabase()->exec("VACUUM;");
+        return this->getDatabase()->exec("VACUUM;")
+            .transform([this]() -> bool {
+                this->mImpl->mRegistered.store(false, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(false, std::memory_order_release);
-
-        return true;
+                return true;
+            });
     }
 }
-
-REGISTRY_HELPER(BlacklistPlugin, LOICollection::server::Plugins::BlacklistPlugin, LOICollection::server::Plugins::BlacklistPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

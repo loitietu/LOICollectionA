@@ -1,11 +1,12 @@
 #include <memory>
-#include <stdexcept>
 
 #include "LOICollectionA/frontend/ir/ByteCode.h"
 
 #include "LOICollectionA/frontend/ir/Compiler.h"
 
 namespace LOICollection::frontend::ir {
+    Compiler::Compiler(DiagnosticEngine& diag) : diagnostics(diag) {}
+
     BytecodeChunk Compiler::compile(ASTNode& root) {
         root.accept(*this);
 
@@ -67,8 +68,9 @@ namespace LOICollection::frontend::ir {
         else if (node.op == "<") this->chunk.emit(OpCode::CMP_LT);
         else if (node.op == ">=") this->chunk.emit(OpCode::CMP_GE);
         else if (node.op == "<=") this->chunk.emit(OpCode::CMP_LE);
-        else throw std::runtime_error("Unknown compare op");
-    };
+        else
+            diagnostics.addError({0, 0, 0}, "Unknown compare op: " + node.op);
+    }
 
     void Compiler::visit(LogicalNode& node) {
         bool isAnd = (node.op == "&&");
@@ -163,7 +165,8 @@ namespace LOICollection::frontend::ir {
         else if (node.op == "/") this->chunk.emit(OpCode::DIV);
         else if (node.op == "%") this->chunk.emit(OpCode::MOD);
         else if (node.op == "^") this->chunk.emit(OpCode::POW);
-        else throw std::runtime_error("Unknown arithmetic op");
+        else
+            diagnostics.addError({0, 0, 0}, "Unknown arithmetic op: " + node.op);
     }
 
     void Compiler::visit(UnaryNode& node) {
@@ -172,7 +175,8 @@ namespace LOICollection::frontend::ir {
         if (node.op == "-") this->chunk.emit(OpCode::NEG);
         else if (node.op == "!") this->chunk.emit(OpCode::NOT);
         else if (node.op == "+") {}
-        else throw std::runtime_error("Unknown unary op");
+        else
+            diagnostics.addError({0, 0, 0}, "Unknown unary op: " + node.op);
     }
 
     void Compiler::visit(TemplateNode& node) {

@@ -8,6 +8,7 @@
 
 #include <fmt/core.h>
 
+#include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 
@@ -39,8 +40,6 @@
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
-
-#include "LOICollectionA/include/RegistryHelper.h"
 
 #include "LOICollectionA/include/form/PaginatedForm.h"
 
@@ -75,7 +74,7 @@ namespace LOICollection::server::Plugins {
     };
 
     struct MarketPlugin::Impl {
-        std::unique_ptr<TimerManager> mTimerManager;
+        std::shared_ptr<TimerManager> mTimerManager;
 
         ll::ConcurrentDenseMap<std::string, TradeEntry> mTrades;
         ll::ConcurrentDenseMap<std::string, TradeEntry> mTradeRequests;
@@ -92,16 +91,21 @@ namespace LOICollection::server::Plugins {
         
         ll::event::ListenerPtr PlayerJoinEventListener;
 
-        Impl() : mTimerManager(std::make_unique<TimerManager>(ll::thread::ServerThreadExecutor::getDefault())),
+        Impl() : mTimerManager(std::make_shared<TimerManager>(ll::thread::ServerThreadExecutor::getDefault())),
             BlacklistCache(100, 100) {}
     };
 
     MarketPlugin::MarketPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<MarketGui>(*this)) {};
     MarketPlugin::~MarketPlugin() = default;
 
-    MarketPlugin& MarketPlugin::getInstance() {
-        static MarketPlugin instance;
+    std::shared_ptr<MarketPlugin> MarketPlugin::getShared() {
+        static auto instance = std::shared_ptr<MarketPlugin>(new MarketPlugin());
         return instance;
+    }
+
+    std::error_code MarketPlugin::makeErrorCode(MarketPluginErrorCode e) {
+        static MarketPluginErrorCategory cat;
+        return std::error_code{ static_cast<int>(e), cat };
     }
 
     std::shared_ptr<SQLiteStorage> MarketPlugin::getDatabase() {
@@ -121,7 +125,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player);
+            this->mGui->open(player).or_else(modules::defaultErrorHandler<MarketPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -133,22 +137,35 @@ namespace LOICollection::server::Plugins {
             if (event.self().isSimulatedPlayer())
                 return;
 
-            std::string mObject = event.self().getUuid().asString();
+            std::string uuid = event.self().getUuid().asString();
+
+            this->mImpl->db2->has("Market", uuid)
+                .and_then([this, uuid, name = event.self().getRealName()](bool exists) -> ll::Expected<void> {
+                    if (!exists) {
+                        std::unordered_map<std::string, std::string> data = {
+                            { "name", name },
+                            { "score", "0" }
+                        };
+
+                        return this->mImpl->db2->set("Market", uuid, data);
+                    }
+
+                    return {};
+                })
+                .or_else(modules::defaultErrorHandler<MarketPlugin>);
             
-            if (!this->mImpl->db2->has("Market", mObject)) {
-                std::unordered_map<std::string, std::string> mData = {
-                    { "name", event.self().getRealName() },
-                    { "score", "0" }
-                };
+            this->mImpl->db2->get("Market", uuid, "score")
+                .and_then([this, uuid, &event](const std::string& value) -> ll::Expected<void> {
+                    int mScore = SystemUtils::toInt(value, 0);
+                    if (mScore > 0) {
+                        ScoreboardUtils::addScore(event.self(), this->mImpl->options.TargetScoreboard, mScore);
 
-                this->mImpl->db2->set("Market", mObject, mData);
-            }
+                        return this->mImpl->db2->set("Market", uuid, "score", "0");
+                    }
 
-            if (int mScore = SystemUtils::toInt(this->mImpl->db2->get("Market", mObject, "score"), 0); mScore > 0) {
-                ScoreboardUtils::addScore(event.self(), this->mImpl->options.TargetScoreboard, mScore);
-
-                this->mImpl->db2->set("Market", mObject, "score", "0");
-            }
+                    return {};
+                })
+                .or_else(modules::defaultErrorHandler<MarketPlugin>);
         });
     }
 
@@ -159,88 +176,111 @@ namespace LOICollection::server::Plugins {
         this->mImpl->mTimerManager->cancelAll();
     }
 
-    bool MarketPlugin::buyItem(Player& player, const std::string& id) {
+    ll::Expected<bool> MarketPlugin::buyItem(Player& player, const std::string& id) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-        std::string mScoreboard = this->mImpl->options.TargetScoreboard;
+        return this->getItemData(id)
+            .and_then([this, id, &player]( std::unordered_map<std::string, std::string> data) -> ll::Expected<bool> {
+                std::string mScoreboard = this->mImpl->options.TargetScoreboard;
 
-        std::unordered_map<std::string, std::string> mData = this->getItemData(id);
+                int mScore = SystemUtils::toInt(data.at("score"), 0);
+                if (ScoreboardUtils::getScore(player, mScoreboard) < mScore) {
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .transform([&player](const std::string& language) -> bool {
+                            player.sendMessage(tr(language, "market.gui.sell.sellItem.tips3"));
 
-        int mScore = SystemUtils::toInt(mData.at("score"), 0);
-        if (ScoreboardUtils::getScore(player, mScoreboard) < mScore) {
-            player.sendMessage(tr(mObjectLanguage, "market.gui.sell.sellItem.tips3"));
+                            return false;
+                        });
+                }
 
-            return false;
-        }
+                ScoreboardUtils::reduceScore(player, mScoreboard, mScore);
 
-        ScoreboardUtils::reduceScore(player, mScoreboard, mScore);
+                ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(data.at("data"))->mTags);
+                InventoryUtils::giveItem(player, mItemStack, static_cast<int>(mItemStack.mCount));
 
-        ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at("data"))->mTags);
-        InventoryUtils::giveItem(player, mItemStack, static_cast<int>(mItemStack.mCount));
+                player.refreshInventory();
 
-        player.refreshInventory();
+                std::string mObject = data.at("player_uuid");
+                if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer) {
+                    return LanguagePlugin::getShared()->getLanguage(*mPlayer)
+                        .transform([mScoreboard, mScore, &data, &mPlayer](const std::string& language) -> bool {
+                            mPlayer->sendMessage(fmt::format(fmt::runtime(tr(language, "market.gui.sell.sellItem.tips1")), data.at("name")));
 
-        std::string mObject = mData.at("player_uuid");
-        if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer) {
-            mPlayer->sendMessage(fmt::format(fmt::runtime(tr(mObjectLanguage, "market.gui.sell.sellItem.tips1")), mData.at("name")));
+                            ScoreboardUtils::addScore(*mPlayer, mScoreboard, mScore);
 
-            ScoreboardUtils::addScore(*mPlayer, mScoreboard, mScore);
-        } else {
-            int mMarketScore = SystemUtils::toInt(this->mImpl->db2->get("Market", mObject, "Score", "0"), 0);
+                            return true;
+                        });
+                } else {
+                    return this->mImpl->db2->get("Market", mObject, "Score", "0")
+                        .and_then([this, mScore, mObject](const std::string& value) -> ll::Expected<bool> {
+                            int mMarketScore = SystemUtils::toInt(value, 0);
 
-            this->mImpl->db2->set("Market", mObject, "Score", std::to_string(mMarketScore + mScore));
-        }
+                            return this->mImpl->db2->set("Market", mObject, "Score", std::to_string(mMarketScore + mScore))
+                                .transform([]() -> bool {
+                                    return true;
+                                });
+                        });
+                }
 
-        this->delItem(id);
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), player)), mData.at("name"));
+                return this->delItem(id)
+                    .transform([this, &data, &player]() -> bool {
+                        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), player)), data.at("name"));
     
-        return true;
+                        return true;
+                    });
+            });
     }
 
-    bool MarketPlugin::offshelfItem(Player& player, const std::string& id, bool returnItem) {
+    ll::Expected<bool> MarketPlugin::offshelfItem(Player& player, const std::string& id, bool returnItem) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
-        std::unordered_map<std::string, std::string> mData = this->getItemData(id);
+        return this->getItemData(id)
+            .and_then([this, id, returnItem, &player](std::unordered_map<std::string, std::string> data) -> ll::Expected<bool> {
+                if (returnItem) {
+                    ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(data.at("data"))->mTags);
+                    InventoryUtils::giveItem(player, mItemStack, static_cast<int>(mItemStack.mCount));
+                }
 
-        if (returnItem) {
-            ItemStack mItemStack = ItemStack::fromTag(CompoundTag::fromSnbt(mData.at("data"))->mTags);
-            InventoryUtils::giveItem(player, mItemStack, static_cast<int>(mItemStack.mCount));
-        }
+                return LanguagePlugin::getShared()->getLanguage(player)
+                    .and_then([this, id, &data, &player](const std::string& language) -> ll::Expected<void> {
+                        player.sendMessage(fmt::format(fmt::runtime(tr(language, "market.gui.sell.sellItem.tips2")), data.at("name")));
 
-        player.sendMessage(fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(player), "market.gui.sell.sellItem.tips2")), mData.at("name")));
+                        return this->delItem(id);
+                    })
+                    .transform([this, &data, &player]() -> bool {
+                        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log3"), player)), data.at("name"));
 
-        this->delItem(id);
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log3"), player)), mData.at("name"));
-
-        return true;
+                        return true;
+                    });
+            });
     }
     
-    bool MarketPlugin::sellItem(Player& player, int slot, const std::string& name, const std::string& icon, const std::string& intr, int score) {
+    ll::Expected<bool> MarketPlugin::sellItem(Player& player, int slot, const std::string& name, const std::string& icon, const std::string& intr, int score) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         ItemStack mItemStack = player.mInventory->mInventory->getItem(slot);
         if (!mItemStack || mItemStack.isNull())
             return false;
 
-        this->addItem(player, mItemStack, name, icon, intr, score);
+        return this->addItem(player, mItemStack, name, icon, intr, score)
+            .transform([slot, &player]() -> bool {
+                player.mInventory->mInventory->removeItem(slot, 64);
+                player.refreshInventory();
 
-        player.mInventory->mInventory->removeItem(slot, 64);
-        player.refreshInventory();
-
-        return true;
+                return true;
+            });
     }
 
-    void MarketPlugin::addBlacklist(Player& player, Player& target) {
+    ll::Expected<void> MarketPlugin::addBlacklist(Player& player, Player& target) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
-        std::string mTimestamp = SystemUtils::getCurrentTimestamp();
         std::string mObject = player.getUuid().asString();
         std::string mTargetObject = target.getUuid().asString();
+        std::string mTimestamp = SystemUtils::getCurrentTimestamp();
 
         std::unordered_map<std::string, std::string> mData = {
             { "name", target.getRealName() },
@@ -249,19 +289,20 @@ namespace LOICollection::server::Plugins {
             { "time", mTimestamp }
         };
 
-        this->getDatabase()->set("Blacklist", mTimestamp, mData);
+        return this->getDatabase()->set("Blacklist", mTimestamp, mData)
+            .transform([this, mObject, mTargetObject, mTimestamp, &player]() -> void {
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log4"), player)), mTargetObject);
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log4"), player)), mTargetObject);
-
-        if (this->mImpl->BlacklistCache.contains(mObject))
-            this->mImpl->BlacklistCache.update(mObject, [mTimestamp](std::shared_ptr<std::vector<std::string>> mList) -> void {
-                mList->push_back(mTimestamp);
+                if (this->mImpl->BlacklistCache.contains(mObject))
+                    this->mImpl->BlacklistCache.update(mObject, [mTimestamp](std::shared_ptr<std::vector<std::string>> mList) -> void {
+                        mList->push_back(mTimestamp);
+                    });
             });
     }
 
-    void MarketPlugin::addItem(Player& player, ItemStack& item, const std::string& name, const std::string& icon, const std::string& intr, int score) {
+    ll::Expected<void> MarketPlugin::addItem(Player& player, ItemStack& item, const std::string& name, const std::string& icon, const std::string& intr, int score) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         std::string mTimestamp = SystemUtils::getCurrentTimestamp();
 
@@ -275,99 +316,124 @@ namespace LOICollection::server::Plugins {
             { "player_uuid", player.getUuid().asString() }
         };
 
-        this->getDatabase()->set("Item", mTimestamp, mData);
-
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), player)), name);
+        return this->getDatabase()->set("Item", mTimestamp, mData)
+            .transform([this, name, &player]() -> void {
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), player)), name);
+            });
     }
 
-    void MarketPlugin::delBlacklist(Player& player, const std::string& id) {
+    ll::Expected<void> MarketPlugin::delBlacklist(Player& player, const std::string& id) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
-        if (!this->hasBlacklist(player, id)) {
-            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "MarketPlugin");
+        return this->hasBlacklist(player, id)
+            .and_then([this, id](bool exists) -> ll::Expected<void> {
+                if (!exists) {
+                    this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), this->getName());
 
-            return;
-        }
+                    return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::BlacklistNotFound));
+                }
 
-        this->getDatabase()->del("Blacklist", id);
+                return this->getDatabase()->del("Blacklist", id);
+            })
+            .transform([this, id, &player]() -> void {
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log5"), player)), id);
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log5"), player)), id);
-
-        this->mImpl->BlacklistCache.update(player.getUuid().asString(), [id](std::shared_ptr<std::vector<std::string>> mList) -> void {
-            mList->erase(std::remove(mList->begin(), mList->end(), id), mList->end());
-        });
+                this->mImpl->BlacklistCache.update(player.getUuid().asString(), [id](std::shared_ptr<std::vector<std::string>> mList) -> void {
+                    mList->erase(std::remove(mList->begin(), mList->end(), id), mList->end());
+                });
+            });
     }
 
-    void MarketPlugin::delItem(const std::string& id) {
+    ll::Expected<void> MarketPlugin::delItem(const std::string& id) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
-        if (!this->hasItem(id)) {
-            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "MarketPlugin");
+        return this->hasItem(id)
+            .and_then([this, id](bool exists) -> ll::Expected<void> {
+                if (!exists) {
+                    this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), this->getName());
 
-            return;
-        }
+                    return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::ItemNotFound));
+                }
 
-        this->getDatabase()->del("Item", id);
+                return this->getDatabase()->del("Item", id);
+            });
     }
 
-    void MarketPlugin::setExecutor(const ll::coro::Executor& executor) {
+    ll::Expected<void> MarketPlugin::setExecutor(const ll::coro::Executor& executor) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         this->mImpl->mTimerManager->setExecutor(executor);
+
+        return {};
     }
 
-    bool MarketPlugin::acceptRequest(Player& player) {
+    ll::Expected<bool> MarketPlugin::acceptRequest(Player& player) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         std::string mObject = player.getUuid().asString();
         if (!this->mImpl->mTradeRequests.contains(mObject))
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::RequestNotFound));
 
         TradeEntry mEntry = this->mImpl->mTradeRequests.at(mObject);
 
         Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mEntry.source));
         if (!sourcePlayer) {
-            player.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(player), "market.gui.error"));
+            return LanguagePlugin::getShared()->getLanguage(player)
+                .transform([&player](const std::string& language) -> bool {
+                    player.sendMessage(tr(language, "market.gui.error"));
 
-            return false;
+                    return false;
+                });
         }
-
-        sourcePlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "market.yes.tips"));
 
         auto& mover = (mEntry.type == MarketTradeType::sell) ? player : *sourcePlayer;
         auto& dest  = (mEntry.type == MarketTradeType::sell) ? *sourcePlayer : player;
 
-        mover.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(mover), "market.tips4"));
+        return LanguagePlugin::getShared()->getLanguage(*sourcePlayer)
+            .and_then([&sourcePlayer, &mover](const std::string& language) -> ll::Expected<std::string> {
+                sourcePlayer->sendMessage(tr(language, "market.yes.tips"));
 
-        this->mGui->tradeContent(dest, mover);
+                return LanguagePlugin::getShared()->getLanguage(mover);
+            })
+            .and_then([this, &dest, &mover](const std::string& language) -> ll::Expected<void> {
+                mover.sendMessage(tr(language, "market.tips4"));
 
-        this->sendTrade(*sourcePlayer, player, mEntry.type);
+                return this->mGui->tradeContent(dest, mover);
+            })
+            .and_then([this, &sourcePlayer, &player, type = mEntry.type]() -> ll::Expected<void> { 
+                return this->sendTrade(*sourcePlayer, player, type);
+            })
+            .transform([this, mObject, source = mEntry.source]() -> bool {
+                this->mImpl->mTradeRequests.erase(mObject);
+                this->mImpl->mTradeRequests.erase(source);
 
-        this->mImpl->mTradeRequests.erase(mObject);
-        this->mImpl->mTradeRequests.erase(mEntry.source);
+                this->mImpl->mTimerManager->cancel(source);
 
-        this->mImpl->mTimerManager->cancel(mEntry.source);
-
-        return true;
-
+                return true;
+            });
     }
 
-    bool MarketPlugin::rejectRequest(Player& player) {
+    ll::Expected<bool> MarketPlugin::rejectRequest(Player& player) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         std::string mObject = player.getUuid().asString();
         if (!this->mImpl->mTradeRequests.contains(mObject))
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::RequestNotFound));
 
         TradeEntry mEntry = this->mImpl->mTradeRequests.at(mObject);
 
-        if (Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mEntry.source)); sourcePlayer)
-            sourcePlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*sourcePlayer), "market.no.tips"));
+        if (Player* sourcePlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mEntry.source)); sourcePlayer) {
+            auto language = LanguagePlugin::getShared()->getLanguage(*sourcePlayer);
+            if (!language.has_value())
+                return ll::Unexpected(language.error());
+
+            sourcePlayer->sendMessage(tr(language.value(), "market.no.tips"));
+        }
         
         this->mImpl->mTradeRequests.erase(mObject);
         this->mImpl->mTradeRequests.erase(mEntry.source);
@@ -377,13 +443,13 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool MarketPlugin::cancelRequest(Player& player) {
+    ll::Expected<bool> MarketPlugin::cancelRequest(Player& player) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         std::string mObject = player.getUuid().asString();
         if (!this->mImpl->mTradeRequests.contains(mObject))
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::RequestNotFound));
 
         TradeEntry mEntry = this->mImpl->mTradeRequests.at(mObject);
         
@@ -395,13 +461,13 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool MarketPlugin::acceptTrade(Player& player, int slot, int score) {
+    ll::Expected<bool> MarketPlugin::acceptTrade(Player& player, int slot, int score) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         std::string mObject = player.getUuid().asString();
         if (!this->mImpl->mTrades.contains(mObject))
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::TradeNotFound));
 
         TradeEntry mEntry = this->mImpl->mTrades.at(mObject);
 
@@ -436,22 +502,26 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool MarketPlugin::cancelTrade(Player& player) {
+    ll::Expected<bool> MarketPlugin::cancelTrade(Player& player) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         std::string mObject = player.getUuid().asString();
         if (!this->mImpl->mTrades.contains(mObject))
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::TradeNotFound));
 
         TradeEntry mEntry = this->mImpl->mTrades.at(mObject);
 
         Player* mPlayer = (mEntry.source == mObject) ?
             ll::service::getLevel()->getPlayer(mce::UUID::fromString(mEntry.target)) :
             ll::service::getLevel()->getPlayer(mce::UUID::fromString(mEntry.source));
-
-        if (mPlayer)
-            mPlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "market.tips6"));
+        if (mPlayer) {
+            auto language = LanguagePlugin::getShared()->getLanguage(*mPlayer);
+            if (!language.has_value())
+                return ll::Unexpected(language.error());
+            
+            mPlayer->sendMessage(tr(language.value(), "market.tips6"));
+        }
 
         this->mImpl->mTrades.erase(mEntry.source);
         this->mImpl->mTrades.erase(mEntry.target);
@@ -463,9 +533,9 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    void MarketPlugin::sendRequest(Player& player, Player& target, MarketTradeType type) {
+    ll::Expected<void> MarketPlugin::sendRequest(Player& player, Player& target, MarketTradeType type) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         std::string mObject = player.getUuid().asString();
         std::string mTargetObject = target.getUuid().asString();
@@ -478,23 +548,37 @@ namespace LOICollection::server::Plugins {
             if (!this->mImpl->mTradeRequests.contains(mObject) || !this->mImpl->mTradeRequests.contains(mTargetObject))
                 return;
 
-            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer)
-                mPlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "market.tips2"));
-            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mTargetObject)); mPlayer)
-                mPlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "market.tips2"));
+            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer) {
+                LanguagePlugin::getShared()->getLanguage(*mPlayer)
+                    .transform([&mPlayer](const std::string& language) -> void {
+                        mPlayer->sendMessage(tr(language, "market.tips2"));
+                    })
+                    .or_else(modules::defaultErrorHandler<MarketPlugin>);
+            }
+            
+            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mTargetObject)); mPlayer) {
+                LanguagePlugin::getShared()->getLanguage(*mPlayer)
+                    .transform([&mPlayer](const std::string& language) -> void {
+                        mPlayer->sendMessage(tr(language, "market.tips2"));
+                    })
+                    .or_else(modules::defaultErrorHandler<MarketPlugin>);
+            }
 
             this->mImpl->mTradeRequests.erase(mObject);
             this->mImpl->mTradeRequests.erase(mTargetObject);
         });
 
-        player.sendMessage(tr(LanguagePlugin::getInstance().getLanguage(player), "market.tips1"));
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .transform([this, &player, name = target.getRealName()](const std::string& language) -> void {
+                player.sendMessage(tr(language, "market.tips1"));
 
-        this->getLogger()->info(fmt::runtime(tr({}, "market.log6")), player.getRealName(), target.getRealName());
+                this->getLogger()->info(fmt::runtime(tr({}, "market.log6")), player.getRealName(), name);
+            });
     }
 
-    void MarketPlugin::sendTrade(Player& player, Player& target, MarketTradeType type) {
+    ll::Expected<void> MarketPlugin::sendTrade(Player& player, Player& target, MarketTradeType type) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         std::string mObject = player.getUuid().asString();
         std::string mTargetObject = target.getUuid().asString();
@@ -507,28 +591,41 @@ namespace LOICollection::server::Plugins {
             if (!this->mImpl->mTrades.contains(mObject) || !this->mImpl->mTrades.contains(mTargetObject))
                 return;
 
-            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer)
-                mPlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "market.tips5"));
-            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mTargetObject)); mPlayer)
-                mPlayer->sendMessage(tr(LanguagePlugin::getInstance().getLanguage(*mPlayer), "market.tips5"));
+            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mObject)); mPlayer) {
+                LanguagePlugin::getShared()->getLanguage(*mPlayer)
+                    .transform([&mPlayer](const std::string& language) -> void {
+                        mPlayer->sendMessage(tr(language, "market.tips5"));
+                    })
+                    .or_else(modules::defaultErrorHandler<MarketPlugin>);
+            }
+            
+            if (Player* mPlayer = ll::service::getLevel()->getPlayer(mce::UUID::fromString(mTargetObject)); mPlayer) {
+                LanguagePlugin::getShared()->getLanguage(*mPlayer)
+                    .transform([&mPlayer](const std::string& language) -> void {
+                        mPlayer->sendMessage(tr(language, "market.tips5"));
+                    })
+                    .or_else(modules::defaultErrorHandler<MarketPlugin>);
+            }
 
             this->mImpl->mTrades.erase(mObject);
             this->mImpl->mTrades.erase(mTargetObject);
         });
 
         this->getLogger()->info(fmt::runtime(tr({}, "market.log7")), player.getRealName(), target.getRealName());
+
+        return {};
     }
 
-    bool MarketPlugin::hasTrade(Player& player) {
+    ll::Expected<bool> MarketPlugin::hasTrade(Player& player) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         return this->mImpl->mTradeRequests.contains(player.getUuid().asString()) || this->mImpl->mTrades.contains(player.getUuid().asString());
     }
 
-    std::string MarketPlugin::getBlacklist(Player& player, Player& target) {
+    ll::Expected<std::string> MarketPlugin::getBlacklist(Player& player, Player& target) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         return this->getDatabase()->find("Blacklist", {
             { "target", target.getUuid().asString() },
@@ -536,75 +633,77 @@ namespace LOICollection::server::Plugins {
         }, "", SQLiteStorage::FindCondition::AND);
     }
 
-    std::vector<std::string> MarketPlugin::getBlacklist(Player& player) {
+    ll::Expected<std::vector<std::string>> MarketPlugin::getBlacklist(Player& player) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         return this->getBlacklist(player.getUuid().asString());
     }
 
-    std::vector<std::string> MarketPlugin::getBlacklist(const std::string& target) {
+    ll::Expected<std::vector<std::string>> MarketPlugin::getBlacklist(const std::string& target) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         if (this->mImpl->BlacklistCache.contains(target))
             return *this->mImpl->BlacklistCache.get(target).value();
 
-        std::vector<std::string> mResult = this->getDatabase()->find("Blacklist", {
+        return this->getDatabase()->find("Blacklist", {
             { "target", target }
-        }, SQLiteStorage::FindCondition::AND);
+        }, SQLiteStorage::FindCondition::AND)
+            .transform([this, target](const std::vector<std::string>& ids) -> std::vector<std::string> {
+                this->mImpl->BlacklistCache.put(target, ids);
 
-        this->mImpl->BlacklistCache.put(target, mResult);
-        return mResult;
+                return ids;
+            });
     }
 
-    std::vector<std::string> MarketPlugin::getItems() {
+    ll::Expected<std::vector<std::string>> MarketPlugin::getItems() {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         return this->getDatabase()->list("Item");
     }
 
-    std::vector<std::string> MarketPlugin::getItems(Player& player) {
+    ll::Expected<std::vector<std::string>> MarketPlugin::getItems(Player& player) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         return this->getDatabase()->find("Item", {
             { "player_uuid", player.getUuid().asString() }
         }, SQLiteStorage::FindCondition::AND);
     }
 
-    std::unordered_map<std::string, std::string> MarketPlugin::getItemData(const std::string& id) {
+    ll::Expected<std::unordered_map<std::string, std::string>> MarketPlugin::getItemData(const std::string& id) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         return this->getDatabase()->get("Item", id);
     }
 
-    std::unordered_map<std::string, std::string> MarketPlugin::getBlacklistData(const std::string& id) {
+    ll::Expected<std::unordered_map<std::string, std::string>> MarketPlugin::getBlacklistData(const std::string& id) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         return this->getDatabase()->get("Blacklist", id);
     }
 
-    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> MarketPlugin::getItemsData(const std::vector<std::string>& ids) {
+    ll::Expected<std::unordered_map<std::string, std::unordered_map<std::string, std::string>>> MarketPlugin::getItemsData(const std::vector<std::string>& ids) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         return this->getDatabase()->get("Item", ids);
     }
 
-    bool MarketPlugin::hasItem(const std::string& id) {
+    ll::Expected<bool> MarketPlugin::hasItem(const std::string& id) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         return this->getDatabase()->has("Item", id);
     }
 
-    bool MarketPlugin::hasBlacklist(Player& player, const std::string& id) {
+    ll::Expected<bool> MarketPlugin::hasBlacklist(Player& player, const std::string& id) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MarketPluginErrorCode::Invalid));
 
         std::string mObject = player.getUuid().asString();
         if (this->mImpl->BlacklistCache.contains(mObject)) {
@@ -620,27 +719,26 @@ namespace LOICollection::server::Plugins {
     }
 
     std::vector<std::string> MarketPlugin::getProhibitedItems() {
-        if (!this->isValid())
-            return {};
-
         return this->mImpl->options.ProhibitedItems;
     }
 
     int MarketPlugin::getBlacklistUpload() {
-        if (!this->isValid())
-            return 0;
-
         return this->mImpl->options.BlacklistUpload;
     }
 
     int MarketPlugin::getMaximumUpload() {
-        if (!this->isValid())
-            return 0;
-
         return this->mImpl->options.MaximumUpload;
     }
 
-    bool MarketPlugin::load() {
+    std::string MarketPlugin::getName() {
+        return "MarketPlugin";
+    }
+
+    modules::ModulePriority MarketPlugin::getPriority() {
+        return modules::ModulePriority::High;
+    }
+
+    ll::Expected<bool> MarketPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Market.ModuleEnabled)
             return false;
         
@@ -654,7 +752,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool MarketPlugin::unload() {
+    ll::Expected<bool> MarketPlugin::unload() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -669,51 +767,51 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool MarketPlugin::registry() {
+    ll::Expected<bool> MarketPlugin::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        this->mImpl->db2->create("Market", [](SQLiteStorage::ColumnCallback ctor) -> void {
+        return this->mImpl->db2->create("Market", [](SQLiteStorage::ColumnCallback ctor) -> void {
             ctor("name");
             ctor("score");
-        });
+        }).and_then([this]() -> ll::Expected<void> {
+            return this->getDatabase()->create("Item", [](SQLiteStorage::ColumnCallback ctor) -> void {
+                ctor("name");
+                ctor("icon");
+                ctor("introduce");
+                ctor("score");
+                ctor("data");
+                ctor("player_name");
+                ctor("player_uuid");
+            });
+        }).and_then([this]() -> ll::Expected<void> {
+            return this->getDatabase()->create("Blacklist", [](SQLiteStorage::ColumnCallback ctor) -> void {
+                ctor("name");
+                ctor("target");
+                ctor("author");
+                ctor("time");
+            });
+        }).transform([this]() -> bool {
+            this->registeryCommand();
+            this->listenEvent();
 
-        this->getDatabase()->create("Item", [](SQLiteStorage::ColumnCallback ctor) -> void {
-            ctor("name");
-            ctor("icon");
-            ctor("introduce");
-            ctor("score");
-            ctor("data");
-            ctor("player_name");
-            ctor("player_uuid");
-        });
-        this->getDatabase()->create("Blacklist", [](SQLiteStorage::ColumnCallback ctor) -> void {
-            ctor("name");
-            ctor("target");
-            ctor("author");
-            ctor("time");
-        });
-        
-        this->registeryCommand();
-        this->listenEvent();
+            this->mImpl->mRegistered.store(true, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(true, std::memory_order_release);
-
-        return true;
+            return true;
+        }); 
     }
 
-    bool MarketPlugin::unregistry() {
+    ll::Expected<bool> MarketPlugin::unregistry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
         this->unlistenEvent();
 
-        this->getDatabase()->exec("VACUUM;");
+        return this->getDatabase()->exec("VACUUM;")
+            .transform([this]() -> bool {
+                this->mImpl->mRegistered.store(false, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(false, std::memory_order_release);
-
-        return true;
+                return true;
+            });
     }
 }
-
-REGISTRY_HELPER(MarketPlugin, LOICollection::server::Plugins::MarketPlugin, LOICollection::server::Plugins::MarketPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

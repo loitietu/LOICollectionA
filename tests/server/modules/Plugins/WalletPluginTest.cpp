@@ -29,14 +29,16 @@ using namespace LOICollection::server::Plugins;
 class WalletPluginTest : public testing::Test {
 protected:
     void SetUp() override {
-        if (!WalletPlugin::getInstance().isValid())
+        if (!WalletPlugin::getShared()->isValid())
             GTEST_SKIP() << "WalletPlugin is not valid";
     }
 
     void TearDown() override {
-        ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->exec("DELETE FROM Wallet;");
+        auto result = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->exec("DELETE FROM Wallet;");
+        if (!result.has_value())
+            GTEST_FAIL() << "Unable to clear data";
 
-        WalletPlugin::getInstance().setExecutor(ll::thread::ServerThreadExecutor::getDefault());
+        EXPECT_TRUE(WalletPlugin::getShared()->setExecutor(ll::thread::ServerThreadExecutor::getDefault()).has_value());
     }
 };
 
@@ -44,10 +46,13 @@ TEST_F(WalletPluginTest, GetPlayerInfo) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    EXPECT_EQ(WalletPlugin::getInstance().getPlayerInfo(sp->getUuid().asString()), "Unknown");
-    
-    auto data = WalletPlugin::getInstance().getPlayerInfo();
-    EXPECT_TRUE(std::find(data.begin(), data.end(), std::make_pair(sp->getUuid().asString(), sp->getRealName())) == data.end());
+    auto info = WalletPlugin::getShared()->getPlayerInfo(sp->getUuid().asString());
+    EXPECT_TRUE(info.has_value());
+    EXPECT_EQ(info.value(), "Unknown");
+
+    auto data = WalletPlugin::getShared()->getPlayerInfo();
+    EXPECT_TRUE(data.has_value());
+    EXPECT_TRUE(std::find(data.value().begin(), data.value().end(), std::make_pair(sp->getUuid().asString(), sp->getRealName())) == data.value().end());
 }
 
 TEST_F(WalletPluginTest, ForTransfer) {
@@ -66,12 +71,16 @@ TEST_F(WalletPluginTest, ForTransfer) {
         ScoreboardUtils::create(config.TargetScoreboard);
     }
 
-    EXPECT_FALSE(WalletPlugin::getInstance().forTransfer(*sp, "nonexistent_target", "test_name", 100));
-    
+    auto transfer1 = WalletPlugin::getShared()->forTransfer(*sp, "nonexistent_target", "test_name", 100);
+    EXPECT_TRUE(transfer1.has_value());
+    EXPECT_FALSE(transfer1.value());
+
     ScoreboardUtils::setScore(*sp, config.TargetScoreboard, 100);
 
-    EXPECT_TRUE(WalletPlugin::getInstance().forTransfer(*sp, sp2.getPlayer()->getUuid().asString(), sp2.getPlayer()->getRealName(), 100));
-    
+    auto transfer2 = WalletPlugin::getShared()->forTransfer(*sp, sp2.getPlayer()->getUuid().asString(), sp2.getPlayer()->getRealName(), 100);
+    EXPECT_TRUE(transfer2.has_value());
+    EXPECT_TRUE(transfer2.value());
+
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, config.TargetScoreboard), 0);
     EXPECT_EQ(ScoreboardUtils::getScore(*sp2.getPlayer(), config.TargetScoreboard), 100 * (1 - config.ExchangeRate));
 
@@ -83,7 +92,7 @@ TEST_F(WalletPluginTest, Wealth) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    WalletPlugin::getInstance().wealth(*sp);
+    EXPECT_TRUE(WalletPlugin::getShared()->wealth(*sp).has_value());
 }
 
 TEST_F(WalletPluginTest, RedenvelopeTimeout) {
@@ -103,8 +112,8 @@ TEST_F(WalletPluginTest, RedenvelopeTimeout) {
 
     MockExecutor executor;
 
-    WalletPlugin::getInstance().setExecutor(executor);
-    WalletPlugin::getInstance().redenvelope(*sp, "test_key", 100, 5);
+    EXPECT_TRUE(WalletPlugin::getShared()->setExecutor(executor).has_value());
+    EXPECT_TRUE(WalletPlugin::getShared()->redenvelope(*sp, "test_key", 100, 5).has_value());
 
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, config.TargetScoreboard), 0);
 
@@ -136,12 +145,12 @@ TEST_F(WalletPluginTest, RedenvelopeReceive) {
 
     MockExecutor executor;
 
-    WalletPlugin::getInstance().setExecutor(executor);
-    WalletPlugin::getInstance().redenvelope(*sp, "test_key", 100, 5);
+    EXPECT_TRUE(WalletPlugin::getShared()->setExecutor(executor).has_value());
+    EXPECT_TRUE(WalletPlugin::getShared()->redenvelope(*sp, "test_key", 100, 5).has_value());
 
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, config.TargetScoreboard), 0);
 
-    WalletPlugin::getInstance().tryGrabRedEnvelope(*sp2.getPlayer(), "test_key");
+    EXPECT_TRUE(WalletPlugin::getShared()->tryGrabRedEnvelope(*sp2.getPlayer(), "test_key").has_value());
 
     executor.advanceTime(std::chrono::seconds(config.RedEnvelopeTimeout + 1));
 
@@ -175,13 +184,13 @@ TEST_F(WalletPluginTest, RedenvelopeReceiveOver) {
 
     MockExecutor executor;
 
-    WalletPlugin::getInstance().setExecutor(executor);
-    WalletPlugin::getInstance().redenvelope(*sp, "test_key", 100, 2);
+    EXPECT_TRUE(WalletPlugin::getShared()->setExecutor(executor).has_value());
+    EXPECT_TRUE(WalletPlugin::getShared()->redenvelope(*sp, "test_key", 100, 2).has_value());
 
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, config.TargetScoreboard), 0);
 
-    WalletPlugin::getInstance().tryGrabRedEnvelope(*sp2.getPlayer(), "test_key");
-    WalletPlugin::getInstance().tryGrabRedEnvelope(*sp3.getPlayer(), "test_key");
+    EXPECT_TRUE(WalletPlugin::getShared()->tryGrabRedEnvelope(*sp2.getPlayer(), "test_key").has_value());
+    EXPECT_TRUE(WalletPlugin::getShared()->tryGrabRedEnvelope(*sp3.getPlayer(), "test_key").has_value());
 
     executor.advanceTime(std::chrono::seconds(config.RedEnvelopeTimeout + 1));
 

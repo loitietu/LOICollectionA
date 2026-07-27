@@ -7,25 +7,49 @@
 
 #include <nlohmann/json.hpp>
 
+#include <ll/api/Expected.h>
+
 #include "LOICollectionA/data/JsonStorage.h"
 
-JsonStorage::JsonStorage(std::filesystem::path path) : mPath(std::move(path)) {
-    if (std::filesystem::exists(mPath)) {
-        std::ifstream file(mPath, std::ios::binary);
-        
-        if (file.is_open())
-            file >> this->mJson;
+JsonStorage::JsonStorage(std::filesystem::path path) : mPath(std::move(path)){}
+JsonStorage::~JsonStorage() = default;
 
-        return;
+ll::Expected<void> JsonStorage::load() {
+    std::unique_lock lock(this->mMutex);
+
+    std::error_code ec;
+    if (!std::filesystem::exists(mPath, ec)) {
+        if (ec) 
+            return ll::makeErrorCodeError(ec);
+
+        std::error_code dir_ec;
+        std::filesystem::create_directories(mPath.parent_path(), dir_ec);
+        if (dir_ec) 
+            return ll::makeErrorCodeError(dir_ec);
+
+        this->mJson = nlohmann::ordered_json::object();
+
+        std::ofstream file(this->mPath, std::ios::binary | std::ios::trunc);
+        if (!file.is_open())
+            return ll::makeErrorCodeError(std::make_error_code(std::errc::permission_denied));
+        
+        file << this->mJson.dump(4);
+
+        return {};
     }
 
-    std::filesystem::create_directories(mPath.parent_path());
+    std::ifstream file(mPath, std::ios::binary);
+    if (!file.is_open())
+        return ll::makeErrorCodeError(std::make_error_code(std::errc::permission_denied));
 
-    this->mJson = nlohmann::ordered_json::object();
+    try {
+        file >> this->mJson;
+    } catch (const nlohmann::json::parse_error& e) {
+        return ll::makeExceptionError(std::make_exception_ptr(e));
+    }
 
-    this->save();
+    return {};
 }
-JsonStorage::~JsonStorage() = default;
 
 void JsonStorage::write(const nlohmann::ordered_json& json) {
     std::unique_lock lock(this->mMutex);
@@ -81,12 +105,19 @@ std::vector<std::string> JsonStorage::keys() const {
     return keys;
 }
 
-void JsonStorage::save() const {
+ll::Expected<void> JsonStorage::save() const {
     std::unique_lock lock(this->mMutex);
 
-    std::filesystem::create_directories(this->mPath.parent_path());
-    std::ofstream file(this->mPath, std::ios::binary | std::ios::trunc);
+    std::error_code ec;
+    std::filesystem::create_directories(this->mPath.parent_path(), ec);
+    if (ec)
+        return ll::makeErrorCodeError(ec);
 
-    if (file.is_open())
-        file << this->mJson.dump(4);
+    std::ofstream file(this->mPath, std::ios::binary | std::ios::trunc);
+    if (!file.is_open())
+        return ll::makeErrorCodeError(std::make_error_code(std::errc::permission_denied));
+
+    file << this->mJson.dump(4);
+
+    return {};
 }

@@ -7,9 +7,11 @@
 using namespace LOICollection::frontend;
 
 TEST(ASTTest, NodeTypesFromParsing) {
+    DiagnosticEngine diagnostics;
+
     {
-        Lexer lex("42");
-        Parser parser(lex);
+        Lexer lex("42", diagnostics);
+        Parser parser(lex, diagnostics);
 
         auto ast = parser.parse();
 
@@ -20,8 +22,8 @@ TEST(ASTTest, NodeTypesFromParsing) {
         EXPECT_EQ(tpl.parts[0]->getType(), ASTNode::Type::Value);
     }
     {
-        Lexer lex("1+2");
-        Parser parser(lex);
+        Lexer lex("1+2", diagnostics);
+        Parser parser(lex, diagnostics);
 
         auto ast = parser.parse();
 
@@ -29,8 +31,8 @@ TEST(ASTTest, NodeTypesFromParsing) {
         EXPECT_EQ(tpl.parts[0]->getType(), ASTNode::Type::Arithmetic);
     }
     {
-        Lexer lex("if(true)['a':'b']");
-        Parser parser(lex);
+        Lexer lex("if(true)['a':'b']", diagnostics);
+        Parser parser(lex, diagnostics);
 
         auto ast = parser.parse();
         

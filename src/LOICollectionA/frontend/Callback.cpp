@@ -1,16 +1,15 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include <stdexcept>
 #include <unordered_map>
 
 #include "LOICollectionA/frontend/Callback.h"
 
 namespace LOICollection::frontend {
-    std::vector<ParamType> valuesToTypes(const CallbackTypeValues& values) {
+    std::vector<ParamType> valuesToTypes(const CallbackTypeValues& values, DiagnosticEngine& diagnostics) {
         std::vector<ParamType> argTypes;
         for (const auto& arg : values) {
-            std::visit([&argTypes](auto&& arg) {
+            std::visit([&argTypes, &diagnostics](auto&& arg) {
                 using T = std::decay_t<decltype(arg)>;
 
                 if constexpr (std::is_same_v<T, int>)
@@ -22,7 +21,7 @@ namespace LOICollection::frontend {
                 else if constexpr (std::is_same_v<T, bool>)
                     argTypes.push_back(ParamType::BOOL);
                 else
-                    throw std::runtime_error("Unsupported argument type");
+                    diagnostics.addError({0, 0, 0}, "Unsupported argument type");
             }, arg);
         }
 
@@ -69,11 +68,13 @@ namespace LOICollection::frontend {
         return result || this->mImpl->mFunctionCombinations[namespaces].find(sig) != this->mImpl->mFunctionCombinations[namespaces].end();
     }
 
-    TypedValue FunctionCall::callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders)  {
-        std::vector<ParamType> argTypes = valuesToTypes(args);
+    ll::Expected<TypedValue> FunctionCall::callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics) {
+        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics);
 
-        if (!this->isRegistered(namespaces, function, argTypes))
-            throw std::runtime_error("Function not registered");
+        if (!this->isRegistered(namespaces, function, argTypes)) {
+            diagnostics.addError({ 0, 0, 0 }, "Function not registered: " + namespaces + "::" + function);
+            return TypedValue{};
+        }
 
         Signature sig{ function, argTypes.size(), std::move(argTypes), false };
         if (this->mImpl->mFunctions[namespaces].find(sig) != this->mImpl->mFunctions[namespaces].end())
@@ -123,11 +124,13 @@ namespace LOICollection::frontend {
         return result || this->mImpl->mMacroCombinations.find(sig) != this->mImpl->mMacroCombinations.end();
     }
 
-    TypedValue MacroCall::callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders) {
-        std::vector<ParamType> argTypes = valuesToTypes(args);
+    ll::Expected<TypedValue> MacroCall::callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics) {
+        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics);
 
-        if (!this->isRegistered(name, argTypes))
-            throw std::runtime_error("Macro not registered");
+        if (!this->isRegistered(name, argTypes)) {
+            diagnostics.addError({ 0, 0, 0 }, "Macro not registered: " + name);
+            return TypedValue{};
+        }
         
         Signature sig{ name, argTypes.size(), std::move(argTypes), false };
         if (this->mImpl->mMacros.find(sig) != this->mImpl->mMacros.end())

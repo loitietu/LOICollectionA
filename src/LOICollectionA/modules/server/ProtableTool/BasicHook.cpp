@@ -2,6 +2,7 @@
 #include <memory>
 #include <string>
 
+#include <ll/api/Expected.h>
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/utils/RandomUtils.h>
@@ -11,8 +12,6 @@
 
 #include <mc/network/MinecraftPacketIds.h>
 #include <mc/network/packet/StartGamePacket.h>
-
-#include "LOICollectionA/include/RegistryHelper.h"
 
 #include "LOICollectionA/include/server/Events/server/NetworkPacketEvent.h"
 
@@ -35,10 +34,10 @@ namespace LOICollection::server::ProtableTool {
     BasicHook::BasicHook() : mImpl(std::make_unique<Impl>()) {};
     BasicHook::~BasicHook() = default;
 
-    BasicHook& BasicHook::getInstance() {
-        static BasicHook instance;
+    std::shared_ptr<BasicHook> BasicHook::getShared() {
+        static auto instance = std::shared_ptr<BasicHook>(new BasicHook());
         return instance;
-    };
+    }
 
     void BasicHook::listenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
@@ -63,7 +62,15 @@ namespace LOICollection::server::ProtableTool {
         eventBus.removeListener(this->mImpl->NetworkPacketEventListener);
     }
 
-    bool BasicHook::load() {
+    std::string BasicHook::getName() {
+        return "BasicHook";
+    }
+
+    modules::ModulePriority BasicHook::getPriority() {
+        return modules::ModulePriority::Normal;
+    }
+
+    ll::Expected<bool> BasicHook::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.ProtableTool.BasicHook.ModuleEnabled)
             return false;
 
@@ -72,7 +79,7 @@ namespace LOICollection::server::ProtableTool {
         return true;
     }
 
-    bool BasicHook::unload() {
+    ll::Expected<bool> BasicHook::unload() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -84,7 +91,7 @@ namespace LOICollection::server::ProtableTool {
         return true;
     }
 
-    bool BasicHook::registry() {
+    ll::Expected<bool> BasicHook::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -95,7 +102,7 @@ namespace LOICollection::server::ProtableTool {
         return true;
     }
 
-    bool BasicHook::unregistry() {
+    ll::Expected<bool> BasicHook::unregistry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
         
@@ -106,5 +113,3 @@ namespace LOICollection::server::ProtableTool {
         return true;
     }
 }
-
-REGISTRY_HELPER(BasicHook, LOICollection::server::ProtableTool::BasicHook, LOICollection::server::ProtableTool::BasicHook::getInstance(), LOICollection::modules::ModulePriority::Normal)

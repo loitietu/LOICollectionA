@@ -38,7 +38,7 @@ namespace LOICollection::server::Events {
         HookPriority::Normal,
         Plugins::BlacklistPlugin,
         &Plugins::BlacklistPlugin::addBlacklist,
-        void,
+        ll::Expected<void>,
         Player& player,
         const std::string& cause,
         int time
@@ -46,12 +46,14 @@ namespace LOICollection::server::Events {
         BlacklistAddBeforeEvent beforeEvent(player, cause, time);
         ll::event::EventBus::getInstance().publish(beforeEvent);
         if (beforeEvent.isCancelled())
-            return;
+            return {};
 
-        origin(player, cause, time);
+        auto result = origin(player, cause, time);
 
         BlacklistAddAfterEvent afterEvent(player, cause, time);
         ll::event::EventBus::getInstance().publish(afterEvent);
+
+        return result;
     }
 
     LL_TYPE_INSTANCE_HOOK(
@@ -59,15 +61,15 @@ namespace LOICollection::server::Events {
         HookPriority::Normal,
         Plugins::BlacklistPlugin,
         &Plugins::BlacklistPlugin::delBlacklist,
-        void,
+        ll::Expected<void>,
         const std::string& id
     ) {
         BlacklistRemoveEvent event(id);
         ll::event::EventBus::getInstance().publish(event);
         if (event.isCancelled())
-            return;
+            return {};
         
-        origin(id);
+        return origin(id);
     }
 
     static std::unique_ptr<ll::event::EmitterBase> BlacklistEmitterFactoryAdd();

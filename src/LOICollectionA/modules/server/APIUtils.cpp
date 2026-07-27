@@ -9,6 +9,7 @@
 
 #include <magic_enum/magic_enum.hpp>
 
+#include <ll/api/Expected.h>
 #include <ll/api/Versions.h>
 #include <ll/api/memory/Memory.h>
 #include <ll/api/service/Bedrock.h>
@@ -56,10 +57,10 @@ namespace LOICollection::server::LOICollectionAPI {
 
         std::shared_ptr<ll::io::Logger> logger;
 
-        std::unordered_map<std::string, std::function<frontend::TypedValue()>> mVariableCommonMap;
-        std::unordered_map<std::string, std::function<frontend::TypedValue(Player&)>> mVariableMap;
-        std::unordered_map<std::string, std::function<frontend::TypedValue(const frontend::CallbackTypeValues&)>> mVariableCommonMapParameter;
-        std::unordered_map<std::string, std::function<frontend::TypedValue(Player&, const frontend::CallbackTypeValues&)>> mVariableMapParameter;
+        std::unordered_map<std::string, std::function<ll::Expected<frontend::TypedValue>()>> mVariableCommonMap;
+        std::unordered_map<std::string, std::function<ll::Expected<frontend::TypedValue>(Player&)>> mVariableMap;
+        std::unordered_map<std::string, std::function<ll::Expected<frontend::TypedValue>(const frontend::CallbackTypeValues&)>> mVariableCommonMapParameter;
+        std::unordered_map<std::string, std::function<ll::Expected<frontend::TypedValue>(Player&, const frontend::CallbackTypeValues&)>> mVariableMapParameter;
 
         Impl() : mAstCache(100, 200, 5) {}
     };
@@ -79,48 +80,56 @@ namespace LOICollection::server::LOICollectionAPI {
         this->registerVariable("player", [](Player& player) -> std::string {
             return std::string{player.mName};
         });
-        this->registerVariable("player_title", [](Player& player) -> std::string {
-            return Plugins::ChatPlugin::getInstance().getTitle(player);
+        this->registerVariable("player_title", [](Player& player) -> ll::Expected<std::string> {
+            return Plugins::ChatPlugin::getShared()->getTitle(player);
         });
-        this->registerVariable("player_title_time", [](Player& player) -> std::string {
-            return SystemUtils::toFormatTime(
-                Plugins::ChatPlugin::getInstance().getTitleTime(player, Plugins::ChatPlugin::getInstance().getTitle(player)), "None"
-            );
+        this->registerVariable("player_title_time", [](Player& player) -> ll::Expected<std::string> {
+            return Plugins::ChatPlugin::getShared()->getTitle(player)
+                .and_then([&player](const std::string& title) -> ll::Expected<std::string> {
+                    return Plugins::ChatPlugin::getShared()->getTitleTime(player, title);
+                })
+                .transform([](const std::string& time) -> std::string {
+                    return SystemUtils::toFormatTime(time);
+                });
         });
-        this->registerVariable("player_pvp", [](Player& player) -> bool {
-            return Plugins::PvpPlugin::getInstance().isEnable(player);
+        this->registerVariable("player_pvp", [](Player& player) -> ll::Expected<bool> {
+            return Plugins::PvpPlugin::getShared()->isEnable(player);
         });
-        this->registerVariable("player_mute", [](Player& player) -> bool {
-            return Plugins::MutePlugin::getInstance().isMute(player);
+        this->registerVariable("player_mute", [](Player& player) -> ll::Expected<bool> {
+            return Plugins::MutePlugin::getShared()->isMute(player);
         });
-        this->registerVariable("player_language", [](Player& player) -> std::string { 
-            return Plugins::LanguagePlugin::getInstance().getLanguage(player);
+        this->registerVariable("player_language", [](Player& player) -> ll::Expected<std::string> { 
+            return Plugins::LanguagePlugin::getShared()->getLanguage(player);
         });
-        this->registerVariable("player_language_name", [](Player& player) -> std::string {
-            return I18nUtils::getInstance()->get(Plugins::LanguagePlugin::getInstance().getLanguage(player), "name");
+        this->registerVariable("player_language_name", [](Player& player) -> ll::Expected<std::string> {
+            return Plugins::LanguagePlugin::getShared()->getLanguage(player)
+                .transform([](const std::string& language) -> std::string {
+                    return I18nUtils::getInstance()->get(language, "name");
+                });
         });
-        this->registerVariable("player_statistcs_onlinetime", [](Player& player) -> std::string {
-            return SystemUtils::toFormatSecond(
-                std::to_string(Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::onlinetime)), "None"
-            );
+        this->registerVariable("player_statistcs_onlinetime", [](Player& player) -> ll::Expected<std::string> {
+            return Plugins::StatisticsPlugin::getShared()->getStatistic(player, Plugins::StatisticType::onlinetime)
+                .transform([](int time) -> std::string {
+                    return SystemUtils::toFormatSecond(std::to_string(time), "None");
+                });
         });
-        this->registerVariable("player_statistcs_kills", [](Player& player) -> int {
-            return Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::kills);
+        this->registerVariable("player_statistcs_kills", [](Player& player) -> ll::Expected<int> {
+            return Plugins::StatisticsPlugin::getShared()->getStatistic(player, Plugins::StatisticType::kills);
         });
-        this->registerVariable("player_statistcs_deaths", [](Player& player) -> int {
-            return Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::deaths);
+        this->registerVariable("player_statistcs_deaths", [](Player& player) -> ll::Expected<int> {
+            return Plugins::StatisticsPlugin::getShared()->getStatistic(player, Plugins::StatisticType::deaths);
         });
-        this->registerVariable("player_statistcs_place", [](Player& player) -> int {
-            return Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::place);
+        this->registerVariable("player_statistcs_place", [](Player& player) -> ll::Expected<int> {
+            return Plugins::StatisticsPlugin::getShared()->getStatistic(player, Plugins::StatisticType::place);
         });
-        this->registerVariable("player_statistcs_destroy", [](Player& player) -> int {
-            return Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::destroy);
+        this->registerVariable("player_statistcs_destroy", [](Player& player) -> ll::Expected<int> {
+            return Plugins::StatisticsPlugin::getShared()->getStatistic(player, Plugins::StatisticType::destroy);
         });
-        this->registerVariable("player_statistcs_respawn", [](Player& player) -> int {
-            return Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::respawn);
+        this->registerVariable("player_statistcs_respawn", [](Player& player) -> ll::Expected<int> {
+            return Plugins::StatisticsPlugin::getShared()->getStatistic(player, Plugins::StatisticType::respawn);
         });
-        this->registerVariable("player_statistcs_join", [](Player& player) -> int {
-            return Plugins::StatisticsPlugin::getInstance().getStatistic(player, Plugins::StatisticType::join);
+        this->registerVariable("player_statistcs_join", [](Player& player) -> ll::Expected<int> {
+            return Plugins::StatisticsPlugin::getShared()->getStatistic(player, Plugins::StatisticType::join);
         });
         this->registerVariable("player_gamemode", [](Player& player) -> std::string {
             return std::string(magic_enum::enum_name(player.getPlayerGameType()));
@@ -278,10 +287,13 @@ namespace LOICollection::server::LOICollectionAPI {
 
             return ScoreboardUtils::getScore(player, name);
         }, { frontend::ParamType::STRING });
-        this->registerVariable("tr", [](Player& player, const frontend::CallbackTypeValues& args) -> std::string {
+        this->registerVariable("tr", [](Player& player, const frontend::CallbackTypeValues& args) -> ll::Expected<std::string> {
             std::string name = std::get<std::string>(args[0]);
 
-            return I18nUtils::getInstance()->get(Plugins::LanguagePlugin::getInstance().getLanguage(player), name);
+            return Plugins::LanguagePlugin::getShared()->getLanguage(player)
+                .transform([name](const std::string& language) -> std::string {
+                    return I18nUtils::getInstance()->get(language, name);
+                });
         }, { frontend::ParamType::STRING });
         this->registerVariable("tr", [](const frontend::CallbackTypeValues& args) -> std::string {
             std::string langcode = std::get<std::string>(args[0]);
@@ -307,76 +319,62 @@ namespace LOICollection::server::LOICollectionAPI {
         return instance;
     }
 
-    void APIUtils::registerVariable(const std::string& name, std::function<frontend::TypedValue()> callback) {
+    void APIUtils::registerVariable(const std::string& name, std::function<ll::Expected<frontend::TypedValue>()> callback) {
         this->mImpl->mVariableCommonMap.emplace(name, std::move(callback));
 
-        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues&) -> frontend::TypedValue {
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues&) -> ll::Expected<frontend::TypedValue> {
             return this->getValueForVariable(name);
         }, {});
     }
 
-    void APIUtils::registerVariable(const std::string& name, std::function<frontend::TypedValue(Player&)> callback) {
+    void APIUtils::registerVariable(const std::string& name, std::function<ll::Expected<frontend::TypedValue>(Player&)> callback) {
         this->mImpl->mVariableMap.emplace(name, std::move(callback));
 
-        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues&, const frontend::CallbackTypePlaces& placeholders) -> frontend::TypedValue {
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues&, const frontend::CallbackTypePlaces& placeholders) -> ll::Expected<frontend::TypedValue> {
             return this->getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0)));
         }, {});
     }
 
-    void APIUtils::registerVariable(const std::string& name, std::function<frontend::TypedValue(const frontend::CallbackTypeValues&)> callback, frontend::CallbackTypeArgs args) {
+    void APIUtils::registerVariable(const std::string& name, std::function<ll::Expected<frontend::TypedValue>(const frontend::CallbackTypeValues&)> callback, frontend::CallbackTypeArgs args) {
         this->mImpl->mVariableCommonMapParameter.emplace(name, std::move(callback));
 
-        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues& args) -> frontend::TypedValue {
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues& args) -> ll::Expected<frontend::TypedValue> {
             return this->getValueForVariable(name, args);
         }, args);
     }
 
-    void APIUtils::registerVariable(const std::string& name, std::function<frontend::TypedValue(Player&, const frontend::CallbackTypeValues&)> callback, frontend::CallbackTypeArgs args) {
+    void APIUtils::registerVariable(const std::string& name, std::function<ll::Expected<frontend::TypedValue>(Player&, const frontend::CallbackTypeValues&)> callback, frontend::CallbackTypeArgs args) {
         this->mImpl->mVariableMapParameter.emplace(name, std::move(callback));
 
-        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues& args, const frontend::CallbackTypePlaces& placeholders) -> frontend::TypedValue {
+        frontend::MacroCall::getInstance().registerMacro(name, [this, name](const frontend::CallbackTypeValues& args, const frontend::CallbackTypePlaces& placeholders) -> ll::Expected<frontend::TypedValue> {
             return this->getValueForVariable(name, std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0)), args);
         }, args);
     }
 
-    frontend::TypedValue APIUtils::getValueForVariable(const std::string& name) try {
+    ll::Expected<frontend::TypedValue> APIUtils::getValueForVariable(const std::string& name) {
         auto it = this->mImpl->mVariableCommonMap.find(name);
         return it != this->mImpl->mVariableCommonMap.end() ? it->second() : "None";
-    } catch (const std::exception& e) {
-        this->mImpl->logger->error("APIUtils: {}", e.what());
-
-        return "None";
     }
 
-    frontend::TypedValue APIUtils::getValueForVariable(const std::string& name, Player& player) try {
+    ll::Expected<frontend::TypedValue> APIUtils::getValueForVariable(const std::string& name, Player& player) {
         auto it = this->mImpl->mVariableMap.find(name);
         return it != this->mImpl->mVariableMap.end() ? it->second(player) : this->getValueForVariable(name);
-    } catch (const std::exception& e) {
-        this->mImpl->logger->error("APIUtils: {}", e.what());
-
-        return "None";
     }
 
-    frontend::TypedValue APIUtils::getValueForVariable(const std::string& name, const frontend::CallbackTypeValues& parameter) try {
+    ll::Expected<frontend::TypedValue> APIUtils::getValueForVariable(const std::string& name, const frontend::CallbackTypeValues& parameter) {
         auto it = this->mImpl->mVariableCommonMapParameter.find(name);
         return it != this->mImpl->mVariableCommonMapParameter.end() ? it->second(parameter) : "None";
-    } catch (const std::exception& e) {
-        this->mImpl->logger->error("APIUtils: {}", e.what());
-
-        return "None";
     }
 
-    frontend::TypedValue APIUtils::getValueForVariable(const std::string& name, Player& player, const frontend::CallbackTypeValues& parameter) try {
+    ll::Expected<frontend::TypedValue> APIUtils::getValueForVariable(const std::string& name, Player& player, const frontend::CallbackTypeValues& parameter) {
         auto it = this->mImpl->mVariableMapParameter.find(name);
         return it != this->mImpl->mVariableMapParameter.end() ? it->second(player, parameter) : this->getValueForVariable(name, parameter);
-    } catch (const std::exception& e) {
-        this->mImpl->logger->error("APIUtils: {}", e.what());
-
-        return "None";
     }
 
-    std::string APIUtils::translate(const std::string& str, Player& player) try {
-        frontend::ir::Compiler mCompiler;
+    std::string APIUtils::translate(const std::string& str, Player& player) {
+        frontend::DiagnosticEngine diagnostics;
+
+        frontend::ir::Compiler mCompiler(diagnostics);
         frontend::ir::VM mVM;
 
         if (this->mImpl->mAstCache.contains(str)) {
@@ -384,32 +382,53 @@ namespace LOICollection::server::LOICollectionAPI {
 
             if (mCached.has_value()) {
                 auto bytecode = mCompiler.compile(*mCached.value());
-                auto result = mVM.run(bytecode, { std::ref(player) });
-                return frontend::ir::VM::valueToString(result);
+                if (diagnostics.hasErrors()) {
+                    this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
+                    diagnostics.clear();
+                } else {
+                    auto result = mVM.run(bytecode, { std::ref(player) }, diagnostics);
+                    if (diagnostics.hasErrors()) {
+                        this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
+                        diagnostics.clear();
+                    } else {
+                        return frontend::ir::VM::valueToString(result);
+                    }
+                }
             }
         }
 
-        frontend::Lexer mLexer(str);
-        frontend::Parser mParser(mLexer);
+        frontend::Lexer mLexer(str, diagnostics);
+        frontend::Parser mParser(mLexer, diagnostics);
 
-        std::unique_ptr<frontend::ASTNode> mAst = mParser.parse();
+        auto mAst = mParser.parse();
+        if (diagnostics.hasErrors()) {
+            this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
+            return str;
+        }
 
         auto bytecode = mCompiler.compile(*mAst);
-        auto result = mVM.run(bytecode, { std::ref(player) });
+        if (diagnostics.hasErrors()) {
+            this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
+            return str;
+        }
+
+        auto result = mVM.run(bytecode, { std::ref(player) }, diagnostics);
+        if (diagnostics.hasErrors()) {
+            this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
+            return str;
+        }
 
         std::shared_ptr<frontend::TemplateNode> mTemplate = std::make_shared<frontend::TemplateNode>();
         mTemplate->parts = std::move(static_cast<frontend::TemplateNode*>(mAst.release())->parts);
 
         this->mImpl->mAstCache.put(str, mTemplate);
         return frontend::ir::VM::valueToString(result);
-    } catch (const std::exception& e) {
-        this->mImpl->logger->error("APIUtils: {}", e.what());
-        
-        return str;
     }
 
-    std::string APIUtils::translate(const std::string& str) try {
-        frontend::ir::Compiler mCompiler;
+    std::string APIUtils::translate(const std::string& str) {
+        frontend::DiagnosticEngine diagnostics;
+
+        frontend::ir::Compiler mCompiler(diagnostics);
         frontend::ir::VM mVM;
 
         if (this->mImpl->mAstCache.contains(str)) {
@@ -417,27 +436,46 @@ namespace LOICollection::server::LOICollectionAPI {
 
             if (mCached.has_value()) {
                 auto bytecode = mCompiler.compile(*mCached.value());
-                auto result = mVM.run(bytecode);
-                return frontend::ir::VM::valueToString(result);
+                if (diagnostics.hasErrors()) {
+                    this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
+                    diagnostics.clear();
+                } else {
+                    auto result = mVM.run(bytecode, {}, diagnostics);
+                    if (diagnostics.hasErrors()) {
+                        this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
+                        diagnostics.clear();
+                    } else {
+                        return frontend::ir::VM::valueToString(result);
+                    }
+                }
             }
         }
 
-        frontend::Lexer mLexer(str);
-        frontend::Parser mParser(mLexer);
+        frontend::Lexer mLexer(str, diagnostics);
+        frontend::Parser mParser(mLexer, diagnostics);
 
-        std::unique_ptr<frontend::ASTNode> mAst = mParser.parse();
+        auto mAst = mParser.parse();
+        if (diagnostics.hasErrors()) {
+            this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
+            return str;
+        }
 
         auto bytecode = mCompiler.compile(*mAst);
-        auto result = mVM.run(bytecode);
+        if (diagnostics.hasErrors()) {
+            this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
+            return str;
+        }
+
+        auto result = mVM.run(bytecode, {}, diagnostics);
+        if (diagnostics.hasErrors()) {
+            this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
+            return str;
+        }
 
         std::shared_ptr<frontend::TemplateNode> mTemplate = std::make_shared<frontend::TemplateNode>();
         mTemplate->parts = std::move(static_cast<frontend::TemplateNode*>(mAst.release())->parts);
 
         this->mImpl->mAstCache.put(str, mTemplate);
         return frontend::ir::VM::valueToString(result);
-    } catch (const std::exception& e) {
-        this->mImpl->logger->error("APIUtils: {}", e.what());
-
-        return str;
     }
 }

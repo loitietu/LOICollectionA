@@ -7,6 +7,7 @@
 
 #include <fmt/core.h>
 
+#include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/service/Bedrock.h>
@@ -31,8 +32,6 @@
 #include <mc/server/commands/CommandSelector.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
-
-#include "LOICollectionA/include/RegistryHelper.h"
 
 #include "LOICollectionA/include/form/PaginatedForm.h"
 
@@ -82,9 +81,14 @@ namespace LOICollection::server::Plugins {
     ChatPlugin::ChatPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<ChatGui>(*this)) {};
     ChatPlugin::~ChatPlugin() = default;
 
-    ChatPlugin& ChatPlugin::getInstance() {
-        static ChatPlugin instance;
+    std::shared_ptr<ChatPlugin> ChatPlugin::getShared() {
+        static auto instance = std::shared_ptr<ChatPlugin>(new ChatPlugin());
         return instance;
+    }
+
+    std::error_code ChatPlugin::makeErrorCode(ChatPluginErrorCode e) {
+        static ChatPluginErrorCategory cat;
+        return std::error_code{ static_cast<int>(e), cat };
     }
 
     std::shared_ptr<SQLiteStorage> ChatPlugin::getDatabase() {
@@ -108,7 +112,7 @@ namespace LOICollection::server::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 for (Player*& pl : results) {
-                    this->addTitle(*pl, param.Title, param.Time);
+                    this->addTitle(*pl, param.Title, param.Time).or_else(modules::defaultErrorHandler<ChatPlugin>);
 
                     output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.chat.success.add")), param.Title, pl->getRealName());
                 }
@@ -123,7 +127,14 @@ namespace LOICollection::server::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 for (Player*& pl : results) {
-                    this->delTitle(*pl, param.Title);
+                    this->delTitle(*pl, param.Title)
+                        .or_else([](ll::Error e) -> ll::Expected<void> {
+                            if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(ChatPluginErrorCode::TitleNotFound))
+                                return {};
+
+                            return ll::Unexpected(e);
+                        })
+                        .or_else(modules::defaultErrorHandler<ChatPlugin>);
 
                     output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.chat.success.remove")), pl->getRealName(), param.Title);
                 }
@@ -138,7 +149,7 @@ namespace LOICollection::server::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 for (Player*& pl : results) {
-                    this->setTitle(*pl, param.Title);
+                    this->setTitle(*pl, param.Title).or_else(modules::defaultErrorHandler<ChatPlugin>);
 
                     output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.chat.success.set")), pl->getRealName(), param.Title);
                 }
@@ -153,12 +164,14 @@ namespace LOICollection::server::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 for (Player*& player : results) {
-                    std::vector<std::string> mObjectList = this->getTitles(*player);
-                    
-                    if (mObjectList.empty())
-                        return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.chat.success.list")), player->getRealName(), "None");
+                    this->getTitles(*player)
+                        .transform([&output, &origin, name = player->getRealName()](const std::vector<std::string>& titles) -> void {
+                             if (titles.empty())
+                                return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.chat.success.list")), name, "None");
 
-                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.chat.success.list")), player->getRealName(), fmt::join(mObjectList, ", "));
+                            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.chat.success.list")), name, fmt::join(titles, ", "));
+                        })
+                        .or_else(modules::defaultErrorHandler<ChatPlugin>);
                 }
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
@@ -170,7 +183,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player);
+            this->mGui->open(player).or_else(modules::defaultErrorHandler<ChatPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -180,7 +193,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
-            this->mGui->setting(player);
+            this->mGui->setting(player).or_else(modules::defaultErrorHandler<ChatPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -192,36 +205,59 @@ namespace LOICollection::server::Plugins {
             if (event.self().isSimulatedPlayer())
                 return;
 
-            std::string mObject = event.self().getUuid().asString();
-            
-            if (!this->mImpl->db2->has("Chat", mObject)) {
-                std::unordered_map<std::string, std::string> mData = {
-                    { "name", event.self().getRealName() },
-                    { "title", "None" }
-                };
+            std::string uuid = event.self().getUuid().asString();
 
-                this->mImpl->db2->set("Chat", mObject, mData);
-            }
+            this->mImpl->db2->has("Chat", uuid)
+                .and_then([this, uuid, name = event.self().getRealName()](bool exists) -> ll::Expected<void> {
+                    if (!exists) {
+                        std::unordered_map<std::string, std::string> mData = {
+                            { "name", name },
+                            { "title", "None" }
+                        };
+
+                        return this->mImpl->db2->set("Chat", uuid, mData);
+                    }
+
+                    return {};
+                })
+                .or_else(modules::defaultErrorHandler<ChatPlugin>);
+        
         });
         this->mImpl->PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>([this](ll::event::PlayerChatEvent& event) -> void {
-            if (event.self().isSimulatedPlayer() || MutePlugin::getInstance().isMute(event.self()))
+            if (event.self().isSimulatedPlayer())
                 return;
 
-            event.cancel();
+            MutePlugin::getShared()->isMute(event.self())
+                .transform([this, &event](bool exists) -> void {
+                    if (exists)
+                        return;
 
-            std::string mChat = LOICollectionAPI::APIUtils::getInstance().translate(this->mImpl->options.FormatText, event.self());
-            
-            TextPacket packet = TextPacket::createChat({}, 
-                fmt::format(fmt::runtime(mChat), event.message()), 
-                {}, event.self().getXuid(), {}
-            );
+                    event.cancel();
 
-            ll::service::getLevel()->forEachPlayer([this, packet, &player = event.self()](Player& mTarget) -> bool {
-                if (!mTarget.isSimulatedPlayer() && this->getBlacklist(mTarget, player).empty())
-                    packet.sendTo(mTarget);
-                
-                return true;
-            });
+                    std::string mChat = LOICollectionAPI::APIUtils::getInstance().translate(this->mImpl->options.FormatText, event.self());
+                    
+                    TextPacket packet = TextPacket::createChat({}, 
+                        fmt::format(fmt::runtime(mChat), event.message()), 
+                        {}, event.self().getXuid(), {}
+                    );
+
+                    ll::service::getLevel()->forEachPlayer([this, &packet, &player = event.self()](Player& mTarget) -> bool {
+                        if (mTarget.isSimulatedPlayer())
+                            return true;
+
+                        this->getBlacklist(mTarget, player)
+                            .transform([&packet, &mTarget](const std::string& id) -> void {
+                                if (!id.empty())
+                                    return;
+
+                                packet.sendTo(mTarget);
+                            })
+                            .or_else(modules::defaultErrorHandler<ChatPlugin>);
+                        
+                        return true;
+                    });
+                })
+                .or_else(modules::defaultErrorHandler<ChatPlugin>);
         }, ll::event::EventPriority::Normal);
     }
 
@@ -231,16 +267,16 @@ namespace LOICollection::server::Plugins {
         eventBus.removeListener(this->mImpl->PlayerChatEventListener);
     }
 
-    void ChatPlugin::setTitle(Player& player, const std::string& text) {
+    ll::Expected<void> ChatPlugin::setTitle(Player& player, const std::string& text) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
 
-        this->mImpl->db2->set("Chat", player.getUuid().asString(), "title", text);
+        return this->mImpl->db2->set("Chat", player.getUuid().asString(), "title", text);
     }
 
-    void ChatPlugin::addTitle(Player& player, const std::string& text, int time) {
+    ll::Expected<void> ChatPlugin::addTitle(Player& player, const std::string& text, int time) {
         if (!this->isValid()) 
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
 
         std::string mTismestamp = SystemUtils::getCurrentTimestamp();
 
@@ -250,14 +286,15 @@ namespace LOICollection::server::Plugins {
             { "time", time ? SystemUtils::toTimeCalculate(SystemUtils::getNowTime(), time * 60, "None") : "None" }
         };
 
-        this->getDatabase()->set("Titles", mTismestamp, mData);
-
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log2"), player)), text);
+        return this->getDatabase()->set("Titles", mTismestamp, mData)
+            .transform([this, text, &player]() -> void {
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log2"), player)), text);
+            });
     }
 
-    void ChatPlugin::addBlacklist(Player& player, Player& target) {
+    ll::Expected<void> ChatPlugin::addBlacklist(Player& player, Player& target) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
 
         std::string mObject = player.getUuid().asString();
         std::string mTargetObject = target.getUuid().asString();
@@ -270,106 +307,132 @@ namespace LOICollection::server::Plugins {
             { "time", SystemUtils::getNowTime("%Y%m%d%H%M%S") }
         };
 
-        this->getDatabase()->set("Blacklist", mTismestamp, mData);
+        return this->getDatabase()->set("Blacklist", mTismestamp, mData)
+            .transform([this, mObject, mTargetObject, mTismestamp, &player]() -> void {
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log5"), player)), mTargetObject);
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log5"), player)), mTargetObject);
-
-        if (this->mImpl->BlacklistCache.contains(mObject))
-            this->mImpl->BlacklistCache.update(mObject, [mTismestamp](std::shared_ptr<std::vector<std::string>> mList) -> void {
-                mList->push_back(mTismestamp);
+                if (this->mImpl->BlacklistCache.contains(mObject)) {
+                    this->mImpl->BlacklistCache.update(mObject, [mTismestamp](std::shared_ptr<std::vector<std::string>> mList) -> void {
+                        mList->push_back(mTismestamp);
+                    });
+                }
             });
     }
 
-    void ChatPlugin::delTitle(Player& player, const std::string& text) {
+    ll::Expected<void> ChatPlugin::delTitle(Player& player, const std::string& text) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
 
-        if (!this->hasTitle(player, text)) {
-            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "ChatPlugin");
+        std::string uuid = player.getUuid().asString();
 
-            return;
-        }
+        return this->hasTitle(player, text)
+            .and_then([this, text, uuid](bool exists) -> ll::Expected<std::string> {
+                if (!exists) {
+                    this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), this->getName());
 
-        std::string mId = this->getDatabase()->find("Titles", {
+                    return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::TitleNotFound));
+                }
+
+                return this->getDatabase()->find("Titles", {
+                    { "title", text },
+                    { "author", uuid }
+                }, "", SQLiteStorage::FindCondition::AND);
+            })
+            .and_then([this](const std::string& id) -> ll::Expected<void> {
+                if (id.empty())
+                    return {};
+
+                return this->getDatabase()->del("Titles", id);
+            })
+            .and_then([this, text, uuid, &player]() -> ll::Expected<void> {
+                if (this->mImpl->db2->get("Chat", uuid, "title", "None") == text)
+                    return this->setTitle(player, "None");
+
+                return {};
+            })
+            .transform([this, text, &player]() -> void {
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log3"), player)), text);
+            });
+    }
+
+    ll::Expected<void> ChatPlugin::delBlacklist(Player& player, const std::string& id) {
+        if (!this->isValid())
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
+
+        return this->hasBlacklist(player, id)
+            .and_then([this, id, &player](bool exists) -> ll::Expected<void> {
+                if (!exists) {
+                    this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), this->getName());
+
+                    return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::BlacklistNotFound));
+                }
+
+                return this->getDatabase()->del("Blacklist", id)
+                    .transform([this, id, &player]() -> void { 
+                        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log6"), player)), id);
+
+                        this->mImpl->BlacklistCache.update(player.getUuid().asString(), [id](std::shared_ptr<std::vector<std::string>> mList) -> void {
+                            mList->erase(std::remove(mList->begin(), mList->end(), id), mList->end());
+                        });
+                    });
+            });
+    }
+
+    ll::Expected<std::string> ChatPlugin::getTitle(Player& player) {
+        if (!this->isValid())
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
+
+        std::string uuid = player.getUuid().asString();
+
+        return this->mImpl->db2->get("Chat", uuid, "title", "None")
+            .and_then([this, uuid, &player](const std::string& title) -> ll::Expected<std::string> {
+                return this->getDatabase()->find("Titles", {
+                    { "title", title },
+                    { "author", uuid }
+                }, "", SQLiteStorage::FindCondition::AND)
+                    .and_then([this, title, &player](const std::string& id) -> ll::Expected<std::string> {
+                        auto data = this->getDatabase()->get("Titles", id);
+                        if (!data.has_value())
+                            return ll::Unexpected(data.error());
+
+                        if (data.value().empty())
+                            return "None";
+
+                        if (SystemUtils::isPastOrPresent(data.value().at("time"))) {
+                            auto result = this->setTitle(player, "None").and_then([this, id]() -> ll::Expected<void> {
+                                return this->getDatabase()->del("Titles", id);
+                            });
+
+                            if (!result.has_value())
+                                return ll::Unexpected(result.error());
+
+                            return "None";
+                        }
+
+                        return title;
+                    });
+            });
+    }
+
+    ll::Expected<std::string> ChatPlugin::getTitleTime(Player& player, const std::string& text) {
+        if (!this->isValid())
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
+
+        return this->getDatabase()->find("Titles", {
             { "title", text },
             { "author", player.getUuid().asString() }
-        }, "", SQLiteStorage::FindCondition::AND);
+        }, "", SQLiteStorage::FindCondition::AND)
+            .and_then([this](const std::string& id) -> ll::Expected<std::string> {
+                if (id.empty())
+                    return "None";
 
-        if (mId.empty())
-            return;
-
-        this->getDatabase()->del("Titles", mId);
-
-        std::string mObject = player.getUuid().asString();
-        if (this->mImpl->db2->get("Chat", mObject, "title", "None") == text)
-            this->setTitle(player, "None");
-
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log3"), player)), text);
+                return this->getDatabase()->get("Titles", id, "title", "None");
+            });
     }
 
-    void ChatPlugin::delBlacklist(Player& player, const std::string& id) {
+    ll::Expected<std::string> ChatPlugin::getBlacklist(Player& player, Player& target) {
         if (!this->isValid())
-            return;
-
-        if (!this->hasBlacklist(player, id)) {
-            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "ChatPlugin");
-
-            return;
-        }
-
-        this->getDatabase()->del("Blacklist", id);
-
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log6"), player)), id);
-
-        this->mImpl->BlacklistCache.update(player.getUuid().asString(), [id](std::shared_ptr<std::vector<std::string>> mList) -> void {
-            mList->erase(std::remove(mList->begin(), mList->end(), id), mList->end());
-        });
-    }
-
-    std::string ChatPlugin::getTitle(Player& player) {
-        if (!this->isValid())
-            return "None";
-
-        std::string mObject = player.getUuid().asString();
-
-        std::string mTitle = this->mImpl->db2->get("Chat", mObject, "title", "None");
-        std::string mId = this->getDatabase()->find("Titles", {
-            { "title", mTitle },
-            { "author", mObject }
-        }, "", SQLiteStorage::FindCondition::AND);
-
-        if (mId.empty())
-            return "None";
-
-        std::unordered_map<std::string, std::string> mData = this->getDatabase()->get("Titles", mId);
-        if (SystemUtils::isPastOrPresent(mData.at("time"))) {
-            this->setTitle(player, "None");
-
-            this->getDatabase()->del("Titles", mId);
-            return "None";
-        }
-
-        return mTitle;
-    }
-
-    std::string ChatPlugin::getTitleTime(Player& player, const std::string& text) {
-        if (!this->isValid())
-            return "None";
-
-        std::string mId = this->getDatabase()->find("Titles", {
-            { "title", text },
-            { "author", player.getUuid().asString() }
-        }, "", SQLiteStorage::FindCondition::AND);
-
-        if (mId.empty())
-            return "None";
-
-        return this->getDatabase()->get("Titles", mId, "title", "None");
-    }
-
-    std::string ChatPlugin::getBlacklist(Player& player, Player& target) {
-        if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
 
         return this->getDatabase()->find("Blacklist", {
             { "target", target.getUuid().asString() },
@@ -377,52 +440,55 @@ namespace LOICollection::server::Plugins {
         }, "", SQLiteStorage::FindCondition::AND);
     }
 
-    std::vector<std::string> ChatPlugin::getTitles(Player& player) {
+    ll::Expected<std::vector<std::string>> ChatPlugin::getTitles(Player& player) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
 
         return this->getDatabase()->find("Titles", "title", {
             { "author", player.getUuid().asString() }
         });
     }
 
-    std::vector<std::string> ChatPlugin::getBlacklist(Player& player) {
+    ll::Expected<std::vector<std::string>> ChatPlugin::getBlacklist(Player& player) {
         if (!this->isValid()) 
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
 
-        std::string mObject = player.getUuid().asString();
+        std::string uuid = player.getUuid().asString();
+        if (this->mImpl->BlacklistCache.contains(uuid))
+            return *this->mImpl->BlacklistCache.get(uuid).value();
 
-        if (this->mImpl->BlacklistCache.contains(mObject))
-            return *this->mImpl->BlacklistCache.get(mObject).value();
-
-        std::vector<std::string> mKeys = this->getDatabase()->find("Blacklist", {
-            { "author", mObject }
-        }, SQLiteStorage::FindCondition::AND);
-
-        this->mImpl->BlacklistCache.put(mObject, mKeys);
-        return mKeys;
+        return this->getDatabase()->find("Blacklist", {
+            { "author", uuid }
+        }, SQLiteStorage::FindCondition::AND)
+            .transform([this, uuid](const std::vector<std::string>& keys) -> std::vector<std::string> {
+                this->mImpl->BlacklistCache.put(uuid, keys);
+                return keys;
+            });
     }
 
-    std::unordered_map<std::string, std::string> ChatPlugin::getBlacklistData(const std::string& id) {
+    ll::Expected<std::unordered_map<std::string, std::string>> ChatPlugin::getBlacklistData(const std::string& id) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
 
         return this->getDatabase()->get("Blacklist", id);
     }
 
-    bool ChatPlugin::hasTitle(Player& player, const std::string& text) {
+    ll::Expected<bool> ChatPlugin::hasTitle(Player& player, const std::string& text) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
 
-        return !this->getDatabase()->find("Titles", {
+        return this->getDatabase()->find("Titles", {
             { "title", text },
             { "author", player.getUuid().asString() }
-        }, "", SQLiteStorage::FindCondition::AND).empty();
+        }, "", SQLiteStorage::FindCondition::AND)
+            .transform([](const std::string& id) -> bool {
+                return !id.empty(); 
+            });
     }
 
-    bool ChatPlugin::hasBlacklist(Player& player, const std::string& id) {
+    ll::Expected<bool> ChatPlugin::hasBlacklist(Player& player, const std::string& id) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(ChatPluginErrorCode::Invalid));
 
         std::string mObject = player.getUuid().asString();
         if (this->mImpl->BlacklistCache.contains(mObject)) {
@@ -438,13 +504,18 @@ namespace LOICollection::server::Plugins {
     }
 
     int ChatPlugin::getBlacklistUpload() {
-        if (!this->isValid())
-            return 0;
-
         return this->mImpl->options.BlacklistUpload;
     }
 
-    bool ChatPlugin::load() {
+    std::string ChatPlugin::getName() {
+        return "ChatPlugin";
+    }
+
+    modules::ModulePriority ChatPlugin::getPriority() {
+        return modules::ModulePriority::High;
+    }
+
+    ll::Expected<bool> ChatPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Chat.ModuleEnabled)
             return false;
 
@@ -458,7 +529,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool ChatPlugin::unload() {
+    ll::Expected<bool> ChatPlugin::unload() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -473,47 +544,47 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool ChatPlugin::registry() {
+    ll::Expected<bool> ChatPlugin::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        this->mImpl->db2->create("Chat", [](SQLiteStorage::ColumnCallback ctor) -> void {
+        return this->mImpl->db2->create("Chat", [](SQLiteStorage::ColumnCallback ctor) -> void {
             ctor("name");
             ctor("title");
-        });
+        }).and_then([this]() -> ll::Expected<void> {
+            return this->getDatabase()->create("Blacklist", [](SQLiteStorage::ColumnCallback ctor) -> void {
+                ctor("name");
+                ctor("target");
+                ctor("author");
+                ctor("time");
+            });
+        }).and_then([this]() -> ll::Expected<void> {
+            return this->getDatabase()->create("Titles", [](SQLiteStorage::ColumnCallback ctor) -> void {
+                ctor("title");
+                ctor("author");
+                ctor("time");
+            });
+        }).transform([this]() -> bool {
+            this->registeryCommand();
+            this->listenEvent();
 
-        this->getDatabase()->create("Blacklist", [](SQLiteStorage::ColumnCallback ctor) -> void {
-            ctor("name");
-            ctor("target");
-            ctor("author");
-            ctor("time");
-        });
-        this->getDatabase()->create("Titles", [](SQLiteStorage::ColumnCallback ctor) -> void {
-            ctor("title");
-            ctor("author");
-            ctor("time");
-        });
-        
-        this->registeryCommand();
-        this->listenEvent();
+            this->mImpl->mRegistered.store(true, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(true, std::memory_order_release);
-
-        return true;
+            return true;
+        });
     }
 
-    bool ChatPlugin::unregistry() {
+    ll::Expected<bool> ChatPlugin::unregistry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
         this->unlistenEvent();
 
-        this->getDatabase()->exec("VACUUM;");
+        return this->getDatabase()->exec("VACUUM;")
+            .transform([this]() -> bool {
+                this->mImpl->mRegistered.store(false, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(false, std::memory_order_release);
-
-        return true;
+                return true;
+            });
     }
 }
-
-REGISTRY_HELPER(ChatPlugin, LOICollection::server::Plugins::ChatPlugin, LOICollection::server::Plugins::ChatPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

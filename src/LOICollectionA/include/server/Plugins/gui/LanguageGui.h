@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ll/api/Expected.h>
+
 #include "LOICollectionA/base/Macro.h"
 
 class Player;
@@ -14,6 +16,6 @@ namespace LOICollection::server::Plugins {
     public:
         LanguageGui(LanguagePlugin& plugin) : mParent(plugin) {}
 
-        LOICOLLECTION_A_API void open(Player& player);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> open(Player& player);
     };
 }

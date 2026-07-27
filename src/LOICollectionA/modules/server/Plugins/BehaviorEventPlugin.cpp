@@ -15,6 +15,7 @@
 #include <concurrentqueue.h>
 #include <magic_enum/magic_enum.hpp>
 
+#include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 
@@ -71,8 +72,6 @@
 #include <mc/server/commands/CommandOutputMessageType.h>
 #include <mc/server/commands/PlayerPermissionLevel.h>
 
-#include "LOICollectionA/include/RegistryHelper.h"
-
 #include "LOICollectionA/include/server/Events/world/BlockExplodedEvent.h"
 #include "LOICollectionA/include/server/Events/player/PlayerContainerEvent.h"
 
@@ -126,20 +125,25 @@ namespace LOICollection::server::Plugins {
 
         ll::thread::ThreadPoolExecutor mExecutor{ "BehavorEventPlugin", std::max(static_cast<size_t>(std::thread::hardware_concurrency()) - 2, static_cast<size_t>(2)) };
 
-        std::unique_ptr<TimerManager> mTimerManager;
+        std::shared_ptr<TimerManager> mTimerManager;
 
         std::atomic<bool> WriteDatabaseTaskRunning{ true };
         std::atomic<bool> CleanDatabaseTaskRunning{ true };
 
-        Impl() : mTimerManager(std::make_unique<TimerManager>(this->mExecutor)) {}
+        Impl() : mTimerManager(std::make_shared<TimerManager>(this->mExecutor)) {}
     };
 
     BehaviorEventPlugin::BehaviorEventPlugin() : mImpl(std::make_unique<Impl>()) {};
     BehaviorEventPlugin::~BehaviorEventPlugin() = default;
 
-    BehaviorEventPlugin& BehaviorEventPlugin::getInstance() {
-        static BehaviorEventPlugin instance;
+    std::shared_ptr<BehaviorEventPlugin> BehaviorEventPlugin::getShared() {
+        static auto instance = std::shared_ptr<BehaviorEventPlugin>(new BehaviorEventPlugin());
         return instance;
+    }
+
+    std::error_code BehaviorEventPlugin::makeErrorCode(BehaviorEventPluginErrorCode e) {
+        static BehaviorEventPluginErrorCategory cat;
+        return std::error_code{ static_cast<int>(e), cat };
     }
 
     std::shared_ptr<SQLiteStorage> BehaviorEventPlugin::getDatabase() {
@@ -192,15 +196,14 @@ namespace LOICollection::server::Plugins {
             }
 
             if (config(BehaviorEventConfig::RecordDatabase)) {
-                Event mEvent = this->getBasicEvent(name, type, mPosition, mDimension);
+                this->getBasicEvent(name, type, mPosition, mDimension)
+                    .transform([this, &event, process](Event mEvent) -> void {
+                        process(event, mEvent);
 
-                process(event, mEvent);
-
-                if (!this->mImpl->mEvents.try_enqueue(mEvent)) {
-                    this->getLogger()->error(fmt::runtime(tr({}, "console.log.error.container")), "BehaviorEventPlugin");
-
-                    return;
-                }
+                        if (!this->mImpl->mEvents.try_enqueue(mEvent))
+                            this->getLogger()->error(fmt::runtime(tr({}, "console.log.error.container")), this->getName());
+                    })
+                    .or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             }
 
             if (config(BehaviorEventConfig::OutputConsole))
@@ -211,7 +214,10 @@ namespace LOICollection::server::Plugins {
     }
 
     void BehaviorEventPlugin::startWriteDatabaseTask() {
-        this->mImpl->mTimerManager->schedule("WirteDatabaseTask", std::chrono::minutes(this->mImpl->options.RefreshIntervalInMinutes), [this]() -> void {
+        this->mImpl->mTimerManager->loopSchedule("WirteDatabaseTask", std::chrono::minutes(this->mImpl->options.RefreshIntervalInMinutes), [this]() -> void {
+            if (!this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire))
+                return;
+            
             Event mEvent{};
 
             std::vector<Event> mEvents;
@@ -229,22 +235,24 @@ namespace LOICollection::server::Plugins {
             std::for_each(mEvents.begin(), mEvents.end(), [this](const Event& mEvent) mutable -> void {
                 std::string mTismestamp = SystemUtils::getCurrentTimestamp();
 
-                this->write(mTismestamp, mEvent);
+                this->write(mTismestamp, mEvent).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
-
-            if (this->mImpl->WriteDatabaseTaskRunning.load(std::memory_order_acquire))
-                this->startWriteDatabaseTask();
         });
     }
 
     void BehaviorEventPlugin::startCleanDatabaseTask() {
-        this->mImpl->mTimerManager->schedule("CleanDatabaseTask", std::chrono::minutes(this->mImpl->options.CleanDatabaseInterval), [this]() -> void {
-            std::vector<std::string> mEvents = this->getEvents();
-            if (static_cast<int>(mEvents.size()) >= this->mImpl->options.CleanThresholdEvent)
-                this->clean(this->mImpl->options.OrganizeDatabaseInterval);
+        this->mImpl->mTimerManager->loopSchedule("CleanDatabaseTask", std::chrono::minutes(this->mImpl->options.CleanDatabaseInterval), [this]() -> void {
+            if (!this->mImpl->CleanDatabaseTaskRunning.load(std::memory_order_acquire))
+                return;
+            
+            this->getEvents()
+                .and_then([this](const std::vector<std::string>& events) -> ll::Expected<void> {
+                    if (static_cast<int>(events.size()) >= this->mImpl->options.CleanThresholdEvent)
+                        return this->clean(this->mImpl->options.OrganizeDatabaseInterval);
 
-            if (this->mImpl->CleanDatabaseTaskRunning.load(std::memory_order_acquire))
-                this->startCleanDatabaseTask();
+                    return {};
+                })
+                .or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
         });
     }
 
@@ -252,121 +260,158 @@ namespace LOICollection::server::Plugins {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("behaviorevent", tr({}, "commands.behaviorevent.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload().text("clean").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
-            this->clean(this->mImpl->options.OrganizeDatabaseInterval);
+            this->clean(this->mImpl->options.OrganizeDatabaseInterval).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
 
             output.success(tr(origin.getLocaleCode(), "commands.behaviorevent.success.clean"));
         });
         command.overload<operation>().text("query").text("event").text("info").required("EventId").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Events", param.EventId);
-                
-                if (mEvent.empty())
-                    return output.error(tr(origin.getLocaleCode(), "commands.behaviorevent.error.query"));
+                this->getDatabase()->get("Events", param.EventId)
+                    .transform([&output, &origin](std::unordered_map<std::string, std::string> data) -> void {
+                        if (data.empty()) {
+                            output.error(tr(origin.getLocaleCode(), "commands.behaviorevent.error.query"));
 
-                output.success(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query.info"));
-                std::for_each(mEvent.begin(), mEvent.end(), [&output, id = param.EventId](const std::pair<std::string, std::string>& mPair) {
-                    std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
+                            return;
+                        }
+                        
+                        output.success(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query.info"));
+                        for (auto& pair : data) {
+                            std::string key = pair.first.substr(pair.first.find_first_of('.') + 1);
 
-                    output.success("{0}: {1}", mKey, mPair.second);
-                });
+                            output.success("{0}: {1}", key, pair.second);
+                        }
+                    }).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
         command.overload<operation>().text("query").text("event").text("name").required("EventName").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                std::vector<std::string> mResult = this->getEvents({{ "event_name", param.EventName }}, {}, param.Limit);
-                
-                if (mResult.empty())
-                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
+                this->getEvents({{ "event_name", param.EventName }}, {}, param.Limit)
+                    .transform([&output, &origin, limit = param.Limit](const std::vector<std::string>& result) -> void {
+                        if (result.empty()) {
+                            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, "None");
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                            return;
+                        }
+
+                        output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, fmt::join(result, ", "));
+                    }).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
         command.overload<operation>().text("query").text("event").text("time").required("Time").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                std::vector<std::string> mResult = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
+                this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
                     std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
                     return !SystemUtils::isPastOrPresent(mTime);
-                }, param.Limit);
-                
-                if (mResult.empty())
-                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
+                }, param.Limit).transform([&output, &origin, limit = param.Limit](const std::vector<std::string>& result) -> void {
+                    if (result.empty()) {
+                        output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, "None");
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                        return;
+                    }
+
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, fmt::join(result, ", "));
+                }).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
         command.overload<operation>().text("query").text("event").text("foundation").required("EventName").required("Time").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                std::vector<std::string> mNames = this->getEvents({{ "event_name", param.EventName }}, {}, param.Limit);
-                std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
-                    std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
-                    return !SystemUtils::isPastOrPresent(mTime);
-                }, param.Limit);
-                std::vector<std::string> mResult = SystemUtils::getIntersection({ mNames, mTimes });
-                
-                if (mResult.empty())
-                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
+                this->getEvents({{ "event_name", param.EventName }}, {}, param.Limit)
+                    .and_then([this, time = param.Time, limit = param.Limit](const std::vector<std::string>& names) -> ll::Expected<std::vector<std::string>> {
+                        return this->getEvents({{ "event_time", "" }}, [time](std::string value) -> bool {
+                            std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
+                            return !SystemUtils::isPastOrPresent(mTime);
+                        }, limit).transform([&names](const std::vector<std::string>& result) -> std::vector<std::string> {
+                            return SystemUtils::getIntersection({ names, result });
+                        });
+                    }).transform([&output, &origin, limit = param.Limit](const std::vector<std::string>& result) -> void {
+                        if (result.empty()) {
+                            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, "None");
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                            return;
+                        }
+
+                        output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, fmt::join(result, ", "));
+                    }).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
         command.overload<operation>().text("query").text("event").text("position").required("PositionOrigin").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
                 Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
-                std::vector<std::string> mResult = this->getEvents({ 
+                this->getEvents({ 
                     { "position_x", std::to_string(static_cast<int>(mPosition.x)) },
                     { "position_y", std::to_string(static_cast<int>(mPosition.y)) },
                     { "position_z", std::to_string(static_cast<int>(mPosition.z)) }
-                }, {}, param.Limit);
-                
-                if (mResult.empty())
-                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
+                }, {}, param.Limit).transform([&output, &origin, limit = param.Limit](const std::vector<std::string>& result) -> void {
+                    if (result.empty()) {
+                        output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, "None");
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                        return;
+                    }
+
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, fmt::join(result, ", "));
+                }).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
         command.overload<operation>().text("query").text("event").text("dimension").required("Dimension").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                std::vector<std::string> mResult = this->getEvents({{ "Position.dimension", std::to_string(param.Dimension) }}, {}, param.Limit);
+                this->getEvents({{ "Position.dimension", std::to_string(param.Dimension) }}, {}, param.Limit)
+                    .transform([&output, &origin, limit = param.Limit](const std::vector<std::string>& result) -> void {
+                        if (result.empty()) {
+                            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, "None");
 
-                if (mResult.empty())
-                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
+                            return;
+                        }
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                        output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, fmt::join(result, ", "));
+                    }).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
         command.overload<operation>().text("query").text("event").text("site").required("PositionOrigin").required("Dimension").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
                 Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
-                std::vector<std::string> mPositions = this->getEvents({ 
+                this->getEvents({ 
                     { "position_x", std::to_string(static_cast<int>(mPosition.x)) },
                     { "position_y", std::to_string(static_cast<int>(mPosition.y)) },
                     { "position_z", std::to_string(static_cast<int>(mPosition.z)) }
-                }, {}, param.Limit);
-                std::vector<std::string> mDimensions = this->getEvents({{ "position_dimension", std::to_string(param.Dimension) }}, {}, param.Limit);
-                std::vector<std::string> mResult = SystemUtils::getIntersection({ mPositions, mDimensions });
+                }, {}, param.Limit).and_then([this, dimension = param.Dimension, limit = param.Limit](const std::vector<std::string>& positions) -> ll::Expected<std::vector<std::string>> {
+                    return this->getEvents({{ "position_dimension", std::to_string(dimension) }}, {}, limit)
+                        .transform([&positions](const std::vector<std::string>& result) -> std::vector<std::string> { 
+                            return SystemUtils::getIntersection({ positions, result });
+                        });
+                }).transform([&output, &origin, limit = param.Limit](const std::vector<std::string>& result) -> void {
+                    if (result.empty()) {
+                        output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, "None");
 
-                if (mResult.empty())
-                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
+                        return;
+                    }
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, fmt::join(result, ", "));
+                }).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
         command.overload<operation>().text("query").text("event").text("custom").required("Target").required("Value").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                std::vector<std::string> mResult = this->getEvents({ { param.Target, param.Value } }, {}, param.Limit);
+                this->getEvents({ { param.Target, param.Value } }, {}, param.Limit)
+                    .transform([&output, &origin, limit = param.Limit](const std::vector<std::string>& result) -> void {
+                        if (result.empty()) {
+                            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, "None");
 
-                if (mResult.empty())
-                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
+                            return;
+                        }
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                        output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, fmt::join(result, ", "));
+                    }).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
         command.overload<operation>().text("query").text("action").text("range").required("PositionOrigin").required("Radius").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
                 Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
-                std::vector<std::string> mResult = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPosition, radius = param.Radius](int x, int y, int z) -> bool {
+                this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPosition, radius = param.Radius](int x, int y, int z) -> bool {
                     return Vec3(x, y, z).distanceToSqr(mPosition) <= radius;
-                }, param.Limit);
+                }, param.Limit).transform([&output, &origin, limit = param.Limit](const std::vector<std::string>& result) -> void {
+                    if (result.empty()) {
+                        output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, "None");
 
-                if (mResult.empty())
-                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
+                        return;
+                    }
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, fmt::join(result, ", "));
+                }).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
         command.overload<operation>().text("query").text("action").text("position").required("PositionOrigin").required("PositionTarget").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
@@ -376,38 +421,50 @@ namespace LOICollection::server::Plugins {
                 Vec3 mPositionMin(std::min(mPositionOrigin.x, mPositionTarget.x), std::min(mPositionOrigin.y, mPositionTarget.y), std::min(mPositionOrigin.z, mPositionTarget.z));
                 Vec3 mPositionMax(std::max(mPositionOrigin.x, mPositionTarget.x), std::max(mPositionOrigin.y, mPositionTarget.y), std::max(mPositionOrigin.z, mPositionTarget.z));
 
-                std::vector<std::string> mResult = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPositionMin, mPositionMax](int x, int y, int z) -> bool {
+                this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPositionMin, mPositionMax](int x, int y, int z) -> bool {
                     return x >= static_cast<double>(mPositionMin.x) && x <= static_cast<double>(mPositionMax.x) && y >= static_cast<double>(mPositionMin.y) && 
                         y <= static_cast<double>(mPositionMax.y) && z >= static_cast<double>(mPositionMin.z) && z <= static_cast<double>(mPositionMax.z);
-                }, param.Limit);
+                }, param.Limit).transform([&output, &origin, limit = param.Limit](const std::vector<std::string>& result) -> void {
+                    if (result.empty()) {
+                        output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, "None");
 
-                if (mResult.empty())
-                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, "None");
+                        return;
+                    }
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), param.Limit, fmt::join(mResult, ", "));
+                    output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.behaviorevent.success.query")), limit, fmt::join(result, ", "));
+                }).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
         command.overload<operation>().text("back").text("range").required("PositionOrigin").required("Radius").required("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
                 Vec3 mPosition = param.PositionOrigin.getPosition(cmd.mVersion, origin, Vec3(0, 0, 0));
 
-                std::vector<std::string> mAreas = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPosition, radius = (param.Radius * param.Radius)](int x, int y, int z) -> bool {
+                this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPosition, radius = (param.Radius * param.Radius)](int x, int y, int z) -> bool {
                     return Vec3(x, y, z).distanceToSqr(mPosition) <= radius;
-                });
-                std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
-                    std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
-                    return !SystemUtils::isPastOrPresent(mTime);
-                });
-                std::vector<std::string> mTypes = this->getEvents({{ "event_type", "Operable" }});
-                std::vector<std::string> mResult = this->filter(
-                    SystemUtils::getIntersection({ mAreas, mTimes, mTypes })
-                );
+                }).and_then([this, time = param.Time](const std::vector<std::string>& areas) -> ll::Expected<std::vector<std::string>> {
+                    return this->getEvents({{ "event_time", "" }}, [time](std::string value) -> bool {
+                        std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
+                        return !SystemUtils::isPastOrPresent(mTime);
+                    }).transform([&areas](const std::vector<std::string>& times) -> std::vector<std::string> {
+                        return SystemUtils::getIntersection({ areas, times });
+                    });
+                }).and_then([this](const std::vector<std::string>& result) -> ll::Expected<std::vector<std::string>> {
+                    return this->getEvents({{ "event_type", "Operable" }})
+                        .transform([&result](const std::vector<std::string>& types) -> std::vector<std::string> {
+                            return SystemUtils::getIntersection({ result, types });
+                        });
+                }).and_then([this](const std::vector<std::string>& result) -> ll::Expected<std::vector<std::string>> {
+                    return this->filter(result);
+                }).and_then([this, &output, &origin](const std::vector<std::string>& result) -> ll::Expected<void> {
+                    if (result.empty()) {
+                        output.error(tr(origin.getLocaleCode(), "commands.behaviorevent.error.back"));
 
-                if (mResult.empty())
-                    return output.error(tr(origin.getLocaleCode(), "commands.behaviorevent.error.back"));
+                        return {};
+                    }
 
-                this->back(mResult);
+                    output.success(tr(origin.getLocaleCode(), "commands.behaviorevent.success.back"));
 
-                output.success(tr(origin.getLocaleCode(), "commands.behaviorevent.success.back"));
+                    return this->back(result);
+                }).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
         command.overload<operation>().text("back").text("position").required("PositionOrigin").required("PositionTarget").required("Time").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param, Command const& cmd) -> void {
@@ -417,25 +474,34 @@ namespace LOICollection::server::Plugins {
                 Vec3 mPositionMin(std::min(mPositionOrigin.x, mPositionTarget.x), std::min(mPositionOrigin.y, mPositionTarget.y), std::min(mPositionOrigin.z, mPositionTarget.z));
                 Vec3 mPositionMax(std::max(mPositionOrigin.x, mPositionTarget.x), std::max(mPositionOrigin.y, mPositionTarget.y), std::max(mPositionOrigin.z, mPositionTarget.z));
 
-                std::vector<std::string> mAreas = this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPositionMin, mPositionMax](int x, int y, int z) -> bool {
+                this->getEventsByPosition(origin.getDimension()->getDimensionId(), [mPositionMin, mPositionMax](int x, int y, int z) -> bool {
                     return x >= static_cast<double>(mPositionMin.x) && x <= static_cast<double>(mPositionMax.x) && y >= static_cast<double>(mPositionMin.y) && 
                         y <= static_cast<double>(mPositionMax.y) && z >= static_cast<double>(mPositionMin.z) && z <= static_cast<double>(mPositionMax.z);
-                });
-                std::vector<std::string> mTimes = this->getEvents({{ "event_time", "" }}, [time = param.Time](std::string value) -> bool {
-                    std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
-                    return !SystemUtils::isPastOrPresent(mTime);
-                });
-                std::vector<std::string> mTypes = this->getEvents({{ "event_type", "Operable" }});
-                std::vector<std::string> mResult = this->filter(
-                    SystemUtils::getIntersection({ mAreas, mTimes, mTypes })
-                );
+                }).and_then([this, time = param.Time](const std::vector<std::string>& areas) -> ll::Expected<std::vector<std::string>> {
+                    return this->getEvents({{ "event_time", "" }}, [time](std::string value) -> bool {
+                        std::string mTime = SystemUtils::toTimeCalculate(value, time * 3600, "0");
+                        return !SystemUtils::isPastOrPresent(mTime);
+                    }).transform([&areas](const std::vector<std::string>& times) -> std::vector<std::string> {
+                        return SystemUtils::getIntersection({ areas, times });
+                    });
+                }).and_then([this](const std::vector<std::string>& result) -> ll::Expected<std::vector<std::string>> {
+                    return this->getEvents({{ "event_type", "Operable" }})
+                        .transform([&result](const std::vector<std::string>& types) -> std::vector<std::string> {
+                            return SystemUtils::getIntersection({ result, types });
+                        });
+                }).and_then([this](const std::vector<std::string>& result) -> ll::Expected<std::vector<std::string>> {
+                    return this->filter(result);
+                }).and_then([this, &output, &origin](const std::vector<std::string>& result) -> ll::Expected<void> {
+                    if (result.empty()) {
+                        output.error(tr(origin.getLocaleCode(), "commands.behaviorevent.error.back"));
 
-                if (mResult.empty())
-                    return output.error(tr(origin.getLocaleCode(), "commands.behaviorevent.error.back"));
+                        return {};
+                    }
 
-                this->back(mResult);
+                    output.success(tr(origin.getLocaleCode(), "commands.behaviorevent.success.back"));
 
-                output.success(tr(origin.getLocaleCode(), "commands.behaviorevent.success.back"));
+                    return this->back(result);
+                }).or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             });
     }
 
@@ -761,19 +827,21 @@ namespace LOICollection::server::Plugins {
         this->mImpl->mTimerManager->cancelAll();
     }
 
-    void BehaviorEventPlugin::setExecutor(const ll::coro::Executor& executor) {
+    ll::Expected<void> BehaviorEventPlugin::setExecutor(const ll::coro::Executor& executor) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(BehaviorEventPluginErrorCode::Invalid));
 
         this->mImpl->mTimerManager->setExecutor(executor);
 
         this->startWriteDatabaseTask();
         this->startCleanDatabaseTask();
+
+        return {};
     }
 
-    BehaviorEventPlugin::Event BehaviorEventPlugin::getBasicEvent(const std::string& name, const std::string& type, const Vec3& position, int dimension) {
+    ll::Expected<BehaviorEventPlugin::Event> BehaviorEventPlugin::getBasicEvent(const std::string& name, const std::string& type, const Vec3& position, int dimension) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(BehaviorEventPluginErrorCode::Invalid));
 
         Event mEvent;
         mEvent.eventName = name;
@@ -787,88 +855,100 @@ namespace LOICollection::server::Plugins {
         return mEvent;
     }
 
-    std::vector<std::string> BehaviorEventPlugin::getEvents(int limit) {
+    ll::Expected<std::vector<std::string>> BehaviorEventPlugin::getEvents(int limit) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(BehaviorEventPluginErrorCode::Invalid));
 
-        std::vector<std::string> mKeys = this->getDatabase()->list("Events");
-
-        return mKeys
-            | std::views::take(limit > 0 ? limit : static_cast<int>(mKeys.size()))
-            | std::ranges::to<std::vector<std::string>>();
-    }
-
-    std::vector<std::string> BehaviorEventPlugin::getEvents(std::vector<std::pair<std::string, std::string>> conditions, std::function<bool(std::string)> filter, int limit) {
-        if (!this->isValid())
-            return {};
-
-        std::vector<std::string> mKeys = this->getEvents(limit);
-
-        std::vector<std::string> mResult;
-        for (auto& [id, data] : this->getDatabase()->get("Events", mKeys)) {
-            auto mView = conditions | std::views::filter([&data, filter](const std::pair<std::string, std::string>& mCondition) -> bool {
-                auto it = data.find(mCondition.first);
-                if (it == data.end())
-                    return false;
-
-                return (!filter && it->second == mCondition.second) || (filter && filter(it->second));
+        return this->getDatabase()->list("Events")
+            .transform([limit](const std::vector<std::string>& keys) -> std::vector<std::string> {
+                return keys
+                    | std::views::take(limit > 0 ? limit : static_cast<int>(keys.size()))
+                    | std::ranges::to<std::vector<std::string>>();
             });
-
-            if (static_cast<size_t>(std::ranges::distance(mView)) == conditions.size())
-                mResult.emplace_back(id);
-        }
-
-        return mResult;
     }
 
-    std::vector<std::string> BehaviorEventPlugin::getEventsByPosition(int dimension, std::function<bool(int x, int y, int z)> filter, int limit) {
+    ll::Expected<std::vector<std::string>> BehaviorEventPlugin::getEvents(std::vector<std::pair<std::string, std::string>> conditions, std::function<bool(std::string)> filter, int limit) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(BehaviorEventPluginErrorCode::Invalid));
 
-        std::vector<std::string> mKeys = this->getEvents(limit);
+        return this->getEvents(limit)
+            .and_then([this](const std::vector<std::string>& keys) -> ll::Expected<std::unordered_map<std::string, std::unordered_map<std::string, std::string>>> {
+                return this->getDatabase()->get("Events", keys);
+            })
+            .transform([conditions = std::move(conditions), filter = std::move(filter)](std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mData) -> std::vector<std::string> {
+                std::vector<std::string> result;
+                for (auto& [id, data] : mData) {
+                    auto view = conditions | std::views::filter([&data, filter](const std::pair<std::string, std::string>& condition) -> bool {
+                        auto it = data.find(condition.first);
+                        if (it == data.end())
+                            return false;
 
-        std::vector<std::string> mResult;
-        for (auto& [id, data] : this->getDatabase()->get("Events", mKeys)) {
-            if (SystemUtils::toInt(data.at("position_dimension"), 0) != dimension)
-                continue;
+                        return (!filter && it->second == condition.second) || (filter && filter(it->second));
+                    });
 
-            int x = SystemUtils::toInt(data.at("position_x"), 0);
-            int y = SystemUtils::toInt(data.at("position_y"), 0);
-            int z = SystemUtils::toInt(data.at("position_z"), 0);
+                    if (static_cast<size_t>(std::ranges::distance(view)) == conditions.size())
+                        result.emplace_back(id);
+                }
 
-            if (filter(x, y, z))
-                mResult.emplace_back(id);
-        }
-
-        return mResult;
+                return result;
+            });
     }
 
-    std::vector<std::string> BehaviorEventPlugin::filter(std::vector<std::string> ids) {
+    ll::Expected<std::vector<std::string>> BehaviorEventPlugin::getEventsByPosition(int dimension, std::function<bool(int x, int y, int z)> filter, int limit) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(BehaviorEventPluginErrorCode::Invalid));
 
-        std::unordered_map<std::string, std::string> mEvents;
-        for (auto& [key, data] : this->getDatabase()->get("Events", ids)) {
-            std::string id = std::format("{}_{}.{}.{}.{}:{}", 
-                data.at("event_name"),
-                data.at("event_time"),
-                data.at("position_x"),
-                data.at("position_y"),
-                data.at("position_z"),
-                data.at("position_dimension")
-            );
+        return this->getEvents(limit)
+            .and_then([this](const std::vector<std::string>& keys) -> ll::Expected<std::unordered_map<std::string, std::unordered_map<std::string, std::string>>> {
+                return this->getDatabase()->get("Events", keys);
+            })
+            .transform([dimension, filter = std::move(filter)](std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mData) -> std::vector<std::string> {
+                std::vector<std::string> mResult;
+                for (auto& [id, data] : mData) {
+                    if (SystemUtils::toInt(data.at("position_dimension"), 0) != dimension)
+                        continue;
 
-            auto it = mEvents.find(id);
-            if (it == mEvents.end())
-                mEvents[id] = key;
-        }
+                    int x = SystemUtils::toInt(data.at("position_x"), 0);
+                    int y = SystemUtils::toInt(data.at("position_y"), 0);
+                    int z = SystemUtils::toInt(data.at("position_z"), 0);
 
-        return std::views::values(mEvents) | std::ranges::to<std::vector<std::string>>();
+                    if (filter(x, y, z))
+                        mResult.emplace_back(id);
+                }
+
+                return mResult;
+            });
     }
 
-    void BehaviorEventPlugin::write(const std::string& id, const Event& event) {
+    ll::Expected<std::vector<std::string>> BehaviorEventPlugin::filter(std::vector<std::string> ids) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(BehaviorEventPluginErrorCode::Invalid));
+
+        return this->getDatabase()->get("Events", ids)
+            .transform([](std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mData) -> std::vector<std::string> {
+                std::unordered_map<std::string, std::string> events;
+                for (auto& [key, data] : mData) {
+                    std::string id = std::format("{}_{}.{}.{}.{}:{}", 
+                        data.at("event_name"),
+                        data.at("event_time"),
+                        data.at("position_x"),
+                        data.at("position_y"),
+                        data.at("position_z"),
+                        data.at("position_dimension")
+                    );
+
+                    auto it = events.find(id);
+                    if (it == events.end())
+                        events[id] = key;
+                }
+
+                return std::views::values(events) | std::ranges::to<std::vector<std::string>>();
+            });
+    }
+
+    ll::Expected<void> BehaviorEventPlugin::write(const std::string& id, const Event& event) {
+        if (!this->isValid())
+            return ll::makeErrorCodeError(makeErrorCode(BehaviorEventPluginErrorCode::Invalid));
 
         std::unordered_map<std::string, std::string> mData = {
             { "event_name", event.eventName },
@@ -883,12 +963,12 @@ namespace LOICollection::server::Plugins {
         for (auto& fieled : event.extendedFields)
             mData[fieled.first] = fieled.second;
 
-        this->getDatabase()->set("Events", id, mData);
+        return this->getDatabase()->set("Events", id, mData);
     }
 
-    void BehaviorEventPlugin::back(std::vector<std::string>& ids) {
+    ll::Expected<void> BehaviorEventPlugin::back(const std::vector<std::string>& ids) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(BehaviorEventPluginErrorCode::Invalid));
 
         std::vector<std::vector<std::string>> chunks = ids
             | std::views::chunk(std::max(this->mImpl->options.SingleBacktrackingQuantity, 1))
@@ -898,52 +978,74 @@ namespace LOICollection::server::Plugins {
             for (auto& chunk : chunks) {
                 co_await ll::chrono::ticks(1);
 
-                for (auto& [id, data] : this->getDatabase()->get("Events", chunk)) {
-                    BlockPos mPosition(
-                        SystemUtils::toInt(data.at("position_x"), 0),
-                        SystemUtils::toInt(data.at("position_y"), 0),
-                        SystemUtils::toInt(data.at("position_z"), 0)
-                    );
-                    int mDimension = SystemUtils::toInt(data.at("position_dimension"), 0);
+                this->getDatabase()->get("Events", chunk)
+                    .and_then([this, chunk](std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mData) -> ll::Expected<void> {
+                        for (auto& [id, data] : mData) {
+                            BlockPos mPosition(
+                                SystemUtils::toInt(data.at("position_x"), 0),
+                                SystemUtils::toInt(data.at("position_y"), 0),
+                                SystemUtils::toInt(data.at("position_z"), 0)
+                            );
+                            int mDimension = SystemUtils::toInt(data.at("position_dimension"), 0);
 
-                    if (data.contains("event_operable")) {
-                        CompoundTag mNbt = CompoundTag::fromSnbt(data.at("event_operable"))->mTags;
+                            if (data.contains("event_operable")) {
+                                CompoundTag mNbt = CompoundTag::fromSnbt(data.at("event_operable"))->mTags;
 
-                        BlockUtils::setBlock(mPosition, mDimension, mNbt);
-                    } else if (data.contains("event_operable_entity")) {
-                        CompoundTag mNbt = CompoundTag::fromSnbt(data.at("event_operable_entity"))->mTags;
+                                BlockUtils::setBlock(mPosition, mDimension, mNbt);
+                            } else if (data.contains("event_operable_entity")) {
+                                CompoundTag mNbt = CompoundTag::fromSnbt(data.at("event_operable_entity"))->mTags;
 
-                        BlockUtils::setBlockEntity(mPosition, mDimension, mNbt);
-                    }
-                }
+                                BlockUtils::setBlockEntity(mPosition, mDimension, mNbt);
+                            }
+                        }
 
-                this->getDatabase()->del("Events", chunk);
+                        return this->getDatabase()->del("Events", chunk);
+                    })
+                    .or_else(modules::defaultErrorHandler<BehaviorEventPlugin>);
             }
 
             co_return;
         }).launch(ll::thread::ServerThreadExecutor::getDefault());
+
+        return {};
     }
 
-    void BehaviorEventPlugin::clean(int hours) {
+    ll::Expected<void> BehaviorEventPlugin::clean(int hours) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(BehaviorEventPluginErrorCode::Invalid));
 
-        std::vector<std::string> mIds;
-        for (auto& [id, data] : this->getDatabase()->get("Events", this->getEvents())) {
-            std::string mTime = SystemUtils::toTimeCalculate(data.at("event_time"), hours * 3600, "0");
-            if (SystemUtils::isPastOrPresent(mTime))
-                mIds.emplace_back(id);
-        }
+        return this->getEvents()
+            .and_then([this](const std::vector<std::string>& ids) -> ll::Expected<std::unordered_map<std::string, std::unordered_map<std::string, std::string>>> {
+                return this->getDatabase()->get("Events", ids);
+            })
+            .and_then([this, hours](std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mData) -> ll::Expected<void> {
+                std::vector<std::string> ids;
+                for (auto& [id, data] : mData) {
+                    std::string time = SystemUtils::toTimeCalculate(data.at("event_time"), hours * 3600, "0");
+                    if (SystemUtils::isPastOrPresent(time))
+                        ids.emplace_back(id);
+                }
 
-        if (!mIds.empty())
-            this->getDatabase()->del("Events", mIds);
+                if (!ids.empty())
+                    return this->getDatabase()->del("Events", ids);
+
+                return {};
+            });
     }
 
     bool BehaviorEventPlugin::isValid() {
         return this->getLogger() != nullptr && this->getDatabase() != nullptr;
     }
 
-    bool BehaviorEventPlugin::load() {
+    std::string BehaviorEventPlugin::getName() {
+        return "BehaviorEventPlugin";
+    }
+
+    modules::ModulePriority BehaviorEventPlugin::getPriority() {
+        return modules::ModulePriority::High;
+    }
+
+    ll::Expected<bool> BehaviorEventPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.BehaviorEvent.ModuleEnabled)
             return false;
 
@@ -956,7 +1058,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool BehaviorEventPlugin::unload() {
+    ll::Expected<bool> BehaviorEventPlugin::unload() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -970,11 +1072,11 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool BehaviorEventPlugin::registry() {
+    ll::Expected<bool> BehaviorEventPlugin::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
-        this->getDatabase()->create("Events", [](SQLiteStorage::ColumnCallback ctor) -> void {
+        return this->getDatabase()->create("Events", [](SQLiteStorage::ColumnCallback ctor) -> void {
             ctor("event_name");
             ctor("event_time");
             ctor("event_type");
@@ -993,28 +1095,27 @@ namespace LOICollection::server::Plugins {
             ctor("event_experience");
             ctor("event_message");
             ctor("player_name");
+        }).transform([this]() -> bool {
+            this->registeryCommand();
+            this->listenEvent();
+
+            this->mImpl->mRegistered.store(true, std::memory_order_release);
+
+            return true;
         });
-
-        this->registeryCommand();
-        this->listenEvent();
-
-        this->mImpl->mRegistered.store(true, std::memory_order_release);
-
-        return true;
     }
     
-    bool BehaviorEventPlugin::unregistry() {
+    ll::Expected<bool> BehaviorEventPlugin::unregistry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
         this->unlistenEvent();
 
-        this->getDatabase()->exec("VACUUM;");
+        return this->getDatabase()->exec("VACUUM;")
+            .transform([this]() -> bool {
+                this->mImpl->mRegistered.store(false, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(false, std::memory_order_release);
-
-        return true;
+                return true;
+            });
     }
 }
-
-REGISTRY_HELPER(BehaviorEventPlugin, LOICollection::server::Plugins::BehaviorEventPlugin, LOICollection::server::Plugins::BehaviorEventPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

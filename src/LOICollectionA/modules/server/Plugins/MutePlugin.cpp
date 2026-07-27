@@ -3,12 +3,12 @@
 #include <string>
 #include <vector>
 #include <ranges>
-#include <algorithm>
 #include <filesystem>
 #include <unordered_map>
 
 #include <fmt/core.h>
 
+#include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/service/Bedrock.h>
@@ -31,8 +31,6 @@
 #include <mc/server/commands/CommandSelector.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
-
-#include "LOICollectionA/include/RegistryHelper.h"
 
 #include "LOICollectionA/include/form/PaginatedForm.h"
 
@@ -86,9 +84,14 @@ namespace LOICollection::server::Plugins {
     MutePlugin::MutePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<MuteGui>(*this)) {};
     MutePlugin::~MutePlugin() = default;
 
-    MutePlugin& MutePlugin::getInstance() {
-        static MutePlugin instance;
+    std::shared_ptr<MutePlugin> MutePlugin::getShared() {
+        static auto instance = std::shared_ptr<MutePlugin>(new MutePlugin());
         return instance;
+    }
+
+    std::error_code MutePlugin::makeErrorCode(MutePluginErrorCode e) {
+        static MutePluginErrorCategory cat;
+        return std::error_code{ static_cast<int>(e), cat };
     }
     
     std::shared_ptr<SQLiteStorage> MutePlugin::getDatabase() {
@@ -100,7 +103,11 @@ namespace LOICollection::server::Plugins {
     }
 
     void MutePlugin::registeryCommand() {
-        ll::command::CommandRegistrar::getInstance(false).tryRegisterSoftEnum(MuteObjectName, getMutes());
+        this->getMutes()
+            .transform([](std::vector<std::string> mutes) -> void {
+                ll::command::CommandRegistrar::getInstance(false).tryRegisterSoftEnum(MuteObjectName, std::move(mutes));
+            })
+            .or_else(modules::defaultErrorHandler<MutePlugin>);
 
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("mute", tr({}, "commands.mute.description"), CommandPermissionLevel::GameDirectors, CommandFlagValue::NotCheat | CommandFlagValue::Async);
@@ -111,12 +118,24 @@ namespace LOICollection::server::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
 
                 for (Player*& pl : results) {
-                    if (this->isMute(*pl) || pl->getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || pl->isSimulatedPlayer()) {
+                    bool exists = false;
+
+                    auto result = this->isMute(*pl);
+                    if (!result.has_value()) {
+                        if (!result.error().isA<ll::ErrorCodeError>() || result.error().as<ll::ErrorCodeError>().ec != makeErrorCode(MutePluginErrorCode::PermissionDenied)) {
+                            modules::defaultErrorHandler<MutePlugin>(result.error());
+                            return;
+                        }
+
+                        exists = true;
+                    }
+
+                    if (exists || pl->getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors || pl->isSimulatedPlayer()) {
                         output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.error.add")), pl->getRealName());
                         continue;
                     }
 
-                    this->addMute(*pl, param.Cause, param.Time);
+                    this->addMute(*pl, param.Cause, param.Time).or_else(modules::defaultErrorHandler<MutePlugin>);
 
                     output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.add")), pl->getRealName());
                 }
@@ -128,47 +147,84 @@ namespace LOICollection::server::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 
                 for (Player*& pl : results) {
-                    if (!this->isMute(*pl)) {
+                    bool exists = false;
+
+                    auto result = this->isMute(*pl);
+                    if (!result.has_value()) {
+                        if (!result.error().isA<ll::ErrorCodeError>() || result.error().as<ll::ErrorCodeError>().ec != makeErrorCode(MutePluginErrorCode::PermissionDenied)) {
+                            modules::defaultErrorHandler<MutePlugin>(result.error());
+                            return;
+                        }
+
+                        exists = true;
+                    }
+
+                    if (!exists) {
                         output.error(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.error.remove")), pl->getRealName());
                         continue;
                     }
 
-                    this->delMute(*pl);
+                    this->delMute(*pl)
+                        .or_else([](ll::Error e) -> ll::Expected<void> {
+                            if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(MutePluginErrorCode::NotFound))
+                                return {};
+
+                            return ll::Unexpected(e);
+                        })
+                        .or_else(modules::defaultErrorHandler<MutePlugin>);
 
                     output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.remove")), pl->getRealName());
                 }
             });
         command.overload<operation>().text("remove").text("id").required("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                if (!this->hasMute(param.Object))
-                    return output.error(tr(origin.getLocaleCode(), "commands.mute.error.remove"));
+                this->hasMute(param.Object)
+                    .and_then([this, &output, &origin, target = param.Object](bool exists) -> ll::Expected<void> {
+                        if (!exists) {
+                            output.error(tr(origin.getLocaleCode(), "commands.mute.error.remove"));
+                            return {};
+                        }
 
-                this->delMute(param.Object);
+                        return this->delMute(target).transform([&output, &origin, target]() -> void { 
+                            output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.remove")), target);
+                        });
+                    })
+                    .or_else([](ll::Error e) -> ll::Expected<void> {
+                        if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(MutePluginErrorCode::NotFound))
+                            return {};
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.remove")), param.Object);
+                        return ll::Unexpected(e);
+                    })
+                    .or_else(modules::defaultErrorHandler<MutePlugin>);
             });
         command.overload<operation>().text("info").required("Object").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                std::unordered_map<std::string, std::string> mEvent = this->getDatabase()->get("Mute", param.Object);
-                
-                if (mEvent.empty())
-                    return output.error(tr(origin.getLocaleCode(), "commands.mute.error.info"));
+                this->getDatabase()->get("Mute", param.Object)
+                    .transform([&output, &origin, target = param.Object](std::unordered_map<std::string, std::string> data) -> void {
+                        if (data.empty()) {
+                            output.error(tr(origin.getLocaleCode(), "commands.mute.error.info"));
+                            return;
+                        }
 
-                output.success(tr(origin.getLocaleCode(), "commands.mute.success.info"));
-                std::for_each(mEvent.begin(), mEvent.end(), [&output](const std::pair<std::string, std::string>& mPair) {
-                    std::string mKey = mPair.first.substr(mPair.first.find_first_of('.') + 1);
+                        output.success(tr(origin.getLocaleCode(), "commands.mute.success.info"));
+                        for (auto& pair : data) {
+                            std::string key = pair.first.substr(pair.first.find_first_of('.') + 1);
 
-                    output.success("{0}: {1}", mKey, mPair.second);
-                });
+                            output.success("{0}: {1}", key, pair.second);
+                        }
+                    })
+                    .or_else(modules::defaultErrorHandler<MutePlugin>);
             });
         command.overload<operation>().text("list").optional("Limit").execute(
             [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
-                std::vector<std::string> mObjectList = this->getMutes(param.Limit);
-                
-                if (mObjectList.empty())
-                    return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.list")), param.Limit, "None");
+                this->getMutes(param.Limit)
+                    .transform([&output, &origin, limit = param.Limit](std::vector<std::string> mutes) -> void {
+                        if (mutes.empty())
+                            return output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.list")), limit, "None");
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.list")), param.Limit, fmt::join(mObjectList, ", "));
+                        output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.mute.success.list")), limit, fmt::join(mutes, ", "));
+                    })
+                    .or_else(modules::defaultErrorHandler<MutePlugin>);
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
@@ -176,7 +232,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
-            this->mGui->open(player);
+            this->mGui->open(player).or_else(modules::defaultErrorHandler<MutePlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -185,31 +241,48 @@ namespace LOICollection::server::Plugins {
     void MutePlugin::listenEvent() {
         ll::event::EventBus& eventBus = ll::event::EventBus::getInstance();
         this->mImpl->PlayerChatEventListener = eventBus.emplaceListener<ll::event::PlayerChatEvent>([this](ll::event::PlayerChatEvent& event) -> void {
-            std::string mId = this->getMute(event.self());
+            this->getMute(event.self())
+                .and_then([this, &event](const std::string& id) -> ll::Expected<void> {
+                    if (id.empty())
+                        return {};
 
-            if (mId.empty())
-                return;
+                    return this->getDatabase()->get("Mute", id)
+                        .and_then([this, id, &event](std::unordered_map<std::string, std::string> data) -> ll::Expected<void> {
+                            if (SystemUtils::isPastOrPresent(data.at("time")))
+                                return this->delMute(event.self());
 
-            std::unordered_map<std::string, std::string> mData = this->getDatabase()->get("Mute", mId);
+                            auto language = LanguagePlugin::getShared()->getLanguage(event.self());
+                            if (!language.has_value())
+                                return ll::Unexpected(language.error());
+                            
+                            event.self().sendMessage(fmt::format(
+                                fmt::runtime(tr(language.value(), "mute.tips")), 
+                                data.at("cause"), 
+                                SystemUtils::toFormatTime(data.at("time"), "None")
+                            ));
+                            event.cancel();
 
-            if (SystemUtils::isPastOrPresent(mData.at("time")))
-                return this->delMute(event.self());
+                            return {};
+                        });
+                })
+                .or_else([](ll::Error e) -> ll::Expected<void> {
+                    if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(MutePluginErrorCode::NotFound))
+                        return {};
 
-            std::string mObjectTips = fmt::format(fmt::runtime(tr(LanguagePlugin::getInstance().getLanguage(event.self()), "mute.tips")), 
-                mData.at("cause"), SystemUtils::toFormatTime(mData.at("time"), "None")
-            );
-            
-            event.self().sendMessage(mObjectTips);
-            event.cancel();
+                    return ll::Unexpected(e);
+                })
+                .or_else(modules::defaultErrorHandler<MutePlugin>);
         }, ll::event::EventPriority::Highest);
 
         this->mImpl->MuteAddEventListener = eventBus.emplaceListener<LOICollection::server::Events::MuteAddAfterEvent>([this](LOICollection::server::Events::MuteAddAfterEvent& event) -> void {
-            std::string mId = this->getMute(event.self());
+            this->getMute(event.self())
+                .transform([](std::string id) -> void {
+                    if (id.empty())
+                        return;
 
-            if (mId.empty())
-                return;
-            
-            ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues(MuteObjectName, { mId });
+                    ll::command::CommandRegistrar::getInstance(false).addSoftEnumValues(MuteObjectName, { id });
+                })
+                .or_else(modules::defaultErrorHandler<MutePlugin>);
         });
 
         this->mImpl->MuteRemoveEventListener = eventBus.emplaceListener<LOICollection::server::Events::MuteRemoveEvent>([](LOICollection::server::Events::MuteRemoveEvent& event) -> void {
@@ -224,9 +297,12 @@ namespace LOICollection::server::Plugins {
         eventBus.removeListener(this->mImpl->MuteRemoveEventListener);
     }
 
-    void MutePlugin::addMute(Player& player, const std::string& cause, int time) {
-        if (!this->isValid() || player.getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors)
-            return;
+    ll::Expected<void> MutePlugin::addMute(Player& player, const std::string& cause, int time) {
+        if (!this->isValid())
+            return ll::makeErrorCodeError(makeErrorCode(MutePluginErrorCode::Invalid));
+
+        if (player.getCommandPermissionLevel() >= CommandPermissionLevel::GameDirectors)
+            return ll::makeErrorCodeError(makeErrorCode(MutePluginErrorCode::PermissionDenied));
 
         std::string mCause = cause.empty() ? "None" : cause;
         std::string mTimestamp = SystemUtils::getCurrentTimestamp();
@@ -239,81 +315,99 @@ namespace LOICollection::server::Plugins {
             { "data", player.getUuid().asString() }
         };
 
-        this->getDatabase()->set("Mute", mTimestamp, mData);
-
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "mute.log1"), player)), mCause);
+        return this->getDatabase()->set("Mute", mTimestamp, mData)
+            .transform([this, mCause, &player]() -> void {
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "mute.log1"), player)), mCause);
+            });
     }
 
-    void MutePlugin::delMute(Player& player) {
+    ll::Expected<void> MutePlugin::delMute(Player& player) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MutePluginErrorCode::Invalid));
 
-        this->delMute(this->getMute(player));
+        return this->getMute(player)
+            .and_then([this](const std::string& id) -> ll::Expected<void> {
+                return this->delMute(id);
+            });
     }
 
-    void MutePlugin::delMute(const std::string& id) {
+    ll::Expected<void> MutePlugin::delMute(const std::string& id) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MutePluginErrorCode::Invalid));
 
-        if (!this->hasMute(id)) {
-            this->getLogger()->warn(fmt::runtime(tr({}, "console.log.error.object")), "MutePlugin");
+        return this->hasMute(id)
+            .and_then([this, id](bool exists) -> ll::Expected<void> {
+                if (!exists) {
+                    this->getLogger()->error(fmt::runtime(tr({}, "console.log.error.object")), this->getName());
 
-            return;
-        }
+                    return ll::makeErrorCodeError(makeErrorCode(MutePluginErrorCode::NotFound));
+                }
 
-        this->getDatabase()->del("Mute", id);
-
-        this->getLogger()->info(fmt::runtime(tr({}, "mute.log2")), id);
+                return this->getDatabase()->del("Mute", id);
+            })
+            .transform([this, id]() -> void {
+                this->getLogger()->info(fmt::runtime(tr({}, "mute.log2")), id);
+            });
     }
 
-    std::string MutePlugin::getMute(Player& player) {
+    ll::Expected<std::string> MutePlugin::getMute(Player& player) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(MutePluginErrorCode::Invalid));
 
         return this->getDatabase()->find("Mute", {
             { "data", player.getUuid().asString() }
         }, "", SQLiteStorage::FindCondition::AND);
     }
 
-    std::vector<std::string> MutePlugin::getMutes(int limit) {
+    ll::Expected<std::vector<std::string>> MutePlugin::getMutes(int limit) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(MutePluginErrorCode::Invalid));
         
-        std::vector<std::string> mKeys = this->getDatabase()->list("Mute");
-
-        return mKeys
-            | std::views::take(limit > 0 ? limit : static_cast<int>(mKeys.size()))
-            | std::ranges::to<std::vector<std::string>>();
+        return this->getDatabase()->list("Mute")
+            .transform([limit](const std::vector<std::string>& keys) -> std::vector<std::string> {
+                return keys
+                    | std::views::take(limit > 0 ? limit : static_cast<int>(keys.size()))
+                    | std::ranges::to<std::vector<std::string>>();
+            });
     }
 
-    std::unordered_map<std::string, std::string> MutePlugin::getMuteData(const std::string& id) {
+    ll::Expected<std::unordered_map<std::string, std::string>> MutePlugin::getMuteData(const std::string& id) {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(MutePluginErrorCode::Invalid));
 
         return this->getDatabase()->get("Mute", id);
     }
 
-    bool MutePlugin::hasMute(const std::string& id) {
+    ll::Expected<bool> MutePlugin::hasMute(const std::string& id) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MutePluginErrorCode::Invalid));
 
         return this->getDatabase()->has("Mute", id);
     }
 
-    bool MutePlugin::isMute(Player& player) {
+    ll::Expected<bool> MutePlugin::isMute(Player& player) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MutePluginErrorCode::Invalid));
 
-        std::string mId = this->getMute(player);
-
-        return !mId.empty();
+        return this->getMute(player)
+            .transform([](const std::string& id) -> bool {
+                return !id.empty();
+            });
     }
 
     bool MutePlugin::isValid() {
         return this->getLogger() != nullptr && this->getDatabase() != nullptr;
     }
 
-    bool MutePlugin::load() {
+    std::string MutePlugin::getName() {
+        return "MutePlugin";
+    }
+
+    modules::ModulePriority MutePlugin::getPriority() {
+        return modules::ModulePriority::High;
+    }
+
+    ll::Expected<bool> MutePlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Mute)
             return false;
 
@@ -326,7 +420,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool MutePlugin::unload() {
+    ll::Expected<bool> MutePlugin::unload() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
@@ -340,38 +434,37 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool MutePlugin::registry() {
+    ll::Expected<bool> MutePlugin::registry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
-        this->getDatabase()->create("Mute", [](SQLiteStorage::ColumnCallback ctor) -> void {
+        return this->getDatabase()->create("Mute", [](SQLiteStorage::ColumnCallback ctor) -> void {
             ctor("name");
             ctor("cause");
             ctor("time");
             ctor("subtime");
             ctor("data");
+        }).transform([this]() -> bool {
+            this->registeryCommand();
+            this->listenEvent();
+
+            this->mImpl->mRegistered.store(true, std::memory_order_release);
+
+            return true;
         });
-        
-        this->registeryCommand();
-        this->listenEvent();
-
-        this->mImpl->mRegistered.store(true, std::memory_order_release);
-
-        return true;
     }
     
-    bool MutePlugin::unregistry() {
+    ll::Expected<bool> MutePlugin::unregistry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
         this->unlistenEvent();
 
-        this->getDatabase()->exec("VACUUM;");
+        return this->getDatabase()->exec("VACUUM;")
+            .transform([this]() -> bool {
+                this->mImpl->mRegistered.store(false, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(false, std::memory_order_release);
-
-        return true;
+                return true;
+            });
     }
 }
-
-REGISTRY_HELPER(MutePlugin, LOICollection::server::Plugins::MutePlugin, LOICollection::server::Plugins::MutePlugin::getInstance(), LOICollection::modules::ModulePriority::High)

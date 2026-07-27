@@ -30,8 +30,6 @@
 #include <mc/server/commands/CommandVersion.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "LOICollectionA/include/RegistryHelper.h"
-
 #include "LOICollectionA/include/form/PaginatedForm.h"
 
 #include "LOICollectionA/include/server/APIUtils.h"
@@ -81,9 +79,14 @@ namespace LOICollection::server::Plugins {
     MenuPlugin::MenuPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<MenuGui>(*this)) {};
     MenuPlugin::~MenuPlugin() = default;
 
-    MenuPlugin& MenuPlugin::getInstance() {
-        static MenuPlugin instance;
+    std::shared_ptr<MenuPlugin> MenuPlugin::getShared() {
+        static auto instance = std::shared_ptr<MenuPlugin>(new MenuPlugin());
         return instance;
+    }
+
+    std::error_code MenuPlugin::makeErrorCode(MenuPluginErrorCode e) {
+        static MenuPluginErrorCategory cat;
+        return std::error_code{ static_cast<int>(e), cat };
     }
 
     std::shared_ptr<JsonStorage> MenuPlugin::getDatabase() {
@@ -108,7 +111,15 @@ namespace LOICollection::server::Plugins {
 
                 this->mGui->open(player, param.Object.empty() ? 
                     this->mImpl->options.EntranceKey : std::string(param.Object)
-                );
+                ).or_else([](ll::Error e) -> ll::Expected<void> {
+                    if (e.isA<ll::ErrorCodeError>()
+                        && (e.as<ll::ErrorCodeError>().ec == makeErrorCode(MenuPluginErrorCode::NotFound)
+                            || e.as<ll::ErrorCodeError>().ec == makeErrorCode(MenuPluginErrorCode::PermissionDenied)))
+                        return {};
+
+                    return ll::Unexpected(e);
+                })
+                .or_else(modules::defaultErrorHandler<MenuPlugin>);
                 
                 output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
             });
@@ -121,7 +132,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->edit(player);
+            this->mGui->edit(player).or_else(modules::defaultErrorHandler<MenuPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -152,8 +163,17 @@ namespace LOICollection::server::Plugins {
             if (event.self().isSimulatedPlayer())
                 return;
 
-            if (event.item().getTypeName() == this->mImpl->options.MenuItemId)
-                this->mGui->open(event.self(), "main");
+            if (event.item().getTypeName() == this->mImpl->options.MenuItemId) {
+                this->mGui->open(event.self(), "main").or_else([](ll::Error e) -> ll::Expected<void> {
+                    if (e.isA<ll::ErrorCodeError>()
+                        && (e.as<ll::ErrorCodeError>().ec == makeErrorCode(MenuPluginErrorCode::InsufficientScore)
+                            || e.as<ll::ErrorCodeError>().ec == makeErrorCode(MenuPluginErrorCode::PermissionDenied)))
+                        return {};
+
+                    return ll::Unexpected(e);
+                })
+                .or_else(modules::defaultErrorHandler<MenuPlugin>);
+            }
         });
 
         this->mImpl->PlayerJoinEventListener = eventBus.emplaceListener<ll::event::PlayerJoinEvent>([this](ll::event::PlayerJoinEvent& event) -> void {
@@ -187,58 +207,78 @@ namespace LOICollection::server::Plugins {
         eventBus.removeListener(this->mImpl->MenuDeleteEventListener);
     }
 
-    void MenuPlugin::create(const std::string& id, const nlohmann::ordered_json& data) {
+    ll::Expected<void> MenuPlugin::create(const std::string& id, const nlohmann::ordered_json& data) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MenuPluginErrorCode::Invalid));
 
         if (!this->getDatabase()->has(id))
             this->getDatabase()->set(id, data);
         
-        this->getDatabase()->save();
+        return this->getDatabase()->save();
     }
 
-    void MenuPlugin::remove(const std::string& id) {
+    ll::Expected<void> MenuPlugin::remove(const std::string& id) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MenuPluginErrorCode::Invalid));
 
         this->getDatabase()->remove(id);
-        this->getDatabase()->save();
+
+        return this->getDatabase()->save();
     }
 
-    void MenuPlugin::handleAction(Player& player, const nlohmann::ordered_json& action, const nlohmann::ordered_json& original) {
-        if (!this->isValid() || action.empty())
-            return;
+    ll::Expected<void> MenuPlugin::handleAction(Player& player, const nlohmann::ordered_json& action, const nlohmann::ordered_json& original) {
+        if (!this->isValid())
+            return ll::makeErrorCodeError(makeErrorCode(MenuPluginErrorCode::Invalid));
+
+        if (action.empty())
+            return {};
 
         if (action.contains("permission")) {
-            if (static_cast<int>(player.getCommandPermissionLevel()) < action["permission"])
-                return CommandUtils::executeCommand(player, original.value("info", nlohmann::ordered_json{}).value("permission", ""));
+            if (static_cast<int>(player.getCommandPermissionLevel()) < action["permission"]) {
+                CommandUtils::executeCommand(player, original.value("info", nlohmann::ordered_json{}).value("permission", ""));
+
+                return ll::makeErrorCodeError(makeErrorCode(MenuPluginErrorCode::PermissionDenied));
+            }
         }
 
         if (action.contains("scores")) {
             for (const auto& [key, value] : action["scores"].items()) {
-                if (value.get<int>() > ScoreboardUtils::getScore(player, key))
-                    return CommandUtils::executeCommand(player, original.value("info", nlohmann::ordered_json{}).value("score", ""));
+                if (value.get<int>() > ScoreboardUtils::getScore(player, key)) {
+                   CommandUtils::executeCommand(player, original.value("info", nlohmann::ordered_json{}).value("score", ""));
+
+                   return ll::makeErrorCodeError(makeErrorCode(MenuPluginErrorCode::InsufficientScore));
+                }
             }
             for (const auto& [key, value] : action["scores"].items())
                 ScoreboardUtils::reduceScore(player, key, value.get<int>());
         }
 
         if (action.value("type", "") == "button") {
-            if (action["run"].is_string())
-                return CommandUtils::executeCommand(player, action["run"].get<std::string>());
+            if (action["run"].is_string()) {
+                CommandUtils::executeCommand(player, action["run"].get<std::string>());
+
+                return {};
+            }
             
             for (const auto& cmd : action["run"])
                 CommandUtils::executeCommand(player, cmd.get<std::string>());
             
-            return;
-        }
+            return {};
+        } 
 
-        this->mGui->open(player, action.value("run", ""));
+        return this->mGui->open(player, action.value("run", "")).or_else([](ll::Error e) -> ll::Expected<void> {
+            if (e.isA<ll::ErrorCodeError>()
+                && (e.as<ll::ErrorCodeError>().ec == MenuPlugin::makeErrorCode(MenuPluginErrorCode::InsufficientScore)
+                    || e.as<ll::ErrorCodeError>().ec == MenuPlugin::makeErrorCode(MenuPluginErrorCode::PermissionDenied)))
+                return {};
+
+            return ll::Unexpected(e);
+        });
     }
 
-    bool MenuPlugin::has(const std::string& id) {
+    ll::Expected<bool> MenuPlugin::has(const std::string& id) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(MenuPluginErrorCode::Invalid));
 
         return this->getDatabase()->has(id);
     }
@@ -247,7 +287,15 @@ namespace LOICollection::server::Plugins {
         return this->getLogger() != nullptr && this->getDatabase() != nullptr;
     }
 
-    bool MenuPlugin::load() {
+    std::string MenuPlugin::getName() {
+        return "MenuPlugin";
+    }
+
+    modules::ModulePriority MenuPlugin::getPriority() {
+        return modules::ModulePriority::High;
+    }
+
+    ll::Expected<bool> MenuPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Menu.ModuleEnabled)
             return false;
 
@@ -257,10 +305,13 @@ namespace LOICollection::server::Plugins {
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Menu;
 
-        return true;
+        return this->mImpl->db->load()
+            .transform([]() -> bool {
+                return true;
+            });
     }
 
-    bool MenuPlugin::unload() {
+    ll::Expected<bool> MenuPlugin::unload() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -274,7 +325,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool MenuPlugin::registry() {     
+    ll::Expected<bool> MenuPlugin::registry() {     
         if (!this->mImpl->options.ModuleEnabled)
             return false;
         
@@ -286,18 +337,17 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool MenuPlugin::unregistry() {
+    ll::Expected<bool> MenuPlugin::unregistry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
         
         this->unlistenEvent();
 
-        this->getDatabase()->save();
+        return this->getDatabase()->save()
+            .transform([this]() -> bool {
+                this->mImpl->mRegistered.store(false, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(false, std::memory_order_release);
-
-        return true;
+                return true;
+            });
     }
 }
-
-REGISTRY_HELPER(MenuPlugin, LOICollection::server::Plugins::MenuPlugin, LOICollection::server::Plugins::MenuPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

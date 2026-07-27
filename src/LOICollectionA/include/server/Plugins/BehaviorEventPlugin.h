@@ -6,7 +6,12 @@
 #include <utility>
 #include <functional>
 
+#include <ll/api/Expected.h>
+
 #include "LOICollectionA/base/Macro.h"
+
+#include "LOICollectionA/include/ModuleBase.h"
+#include "LOICollectionA/include/ModManager.h"
 
 class Vec3;
 class SQLiteStorage;
@@ -32,7 +37,27 @@ namespace LOICollection::server::Plugins {
         OutputConsole
     };
 
-    class BehaviorEventPlugin {
+    enum class BehaviorEventPluginErrorCode : int {
+        Invalid = 1
+    };
+
+    struct BehaviorEventPluginErrorCategory : std::error_category {
+        [[nodiscard]] const char* name() const noexcept override {
+            return "BehaviorEventPluginError";
+        }
+
+        [[nodiscard]] std::string message(int ev) const override {
+            switch (static_cast<BehaviorEventPluginErrorCode>(ev)) {
+                case BehaviorEventPluginErrorCode::Invalid: return "Plugin is invalid";
+                default:
+                    return "Unknown";
+            }
+        }
+    };
+
+    class BehaviorEventPlugin : public std::enable_shared_from_this<BehaviorEventPlugin>,
+                                public modules::ModuleBase,
+                                public modules::AutoRegister<BehaviorEventPlugin> {
     public:
         struct Event;
 
@@ -44,31 +69,36 @@ namespace LOICollection::server::Plugins {
         BehaviorEventPlugin& operator=(BehaviorEventPlugin&&) = delete;
 
     public:
-        LOICOLLECTION_A_NDAPI static BehaviorEventPlugin& getInstance();
+        LOICOLLECTION_A_NDAPI static std::shared_ptr<BehaviorEventPlugin> getShared();
+        LOICOLLECTION_A_NDAPI static std::error_code makeErrorCode(BehaviorEventPluginErrorCode e);
 
         LOICOLLECTION_A_NDAPI std::shared_ptr<SQLiteStorage> getDatabase();
         LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
 
-        LOICOLLECTION_A_API   void setExecutor(const ll::coro::Executor& executor);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> setExecutor(const ll::coro::Executor& executor);
 
-        LOICOLLECTION_A_NDAPI Event getBasicEvent(const std::string& name, const std::string& type, const Vec3& position, int dimension);
+        LOICOLLECTION_A_NDAPI ll::Expected<Event> getBasicEvent(const std::string& name, const std::string& type, const Vec3& position, int dimension);
 
-        LOICOLLECTION_A_NDAPI std::vector<std::string> getEvents(int limit = -1);
-        LOICOLLECTION_A_NDAPI std::vector<std::string> getEvents(std::vector<std::pair<std::string, std::string>> conditions, std::function<bool(std::string)> filter = {}, int limit = -1);
-        LOICOLLECTION_A_NDAPI std::vector<std::string> getEventsByPosition(int dimension, std::function<bool(int x, int y, int z)> filter, int limit = -1);
-        LOICOLLECTION_A_API   std::vector<std::string> filter(std::vector<std::string> ids);
+        LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> getEvents(int limit = -1);
+        LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> getEvents(std::vector<std::pair<std::string, std::string>> conditions, std::function<bool(std::string)> filter = {}, int limit = -1);
+        LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> getEventsByPosition(int dimension, std::function<bool(int x, int y, int z)> filter, int limit = -1);
+        LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> filter(std::vector<std::string> ids);
 
-        LOICOLLECTION_A_API   void write(const std::string& id, const Event& event);
-        LOICOLLECTION_A_API   void back(std::vector<std::string>& ids);
-        LOICOLLECTION_A_API   void clean(int hours);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> write(const std::string& id, const Event& event);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> back(const std::vector<std::string>& ids);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> clean(int hours);
 
         LOICOLLECTION_A_NDAPI bool isValid();
     
     public:
-        LOICOLLECTION_A_API bool load();
-        LOICOLLECTION_A_API bool unload();
-        LOICOLLECTION_A_API bool registry();
-        LOICOLLECTION_A_API bool unregistry();
+        LOICOLLECTION_A_NDAPI std::string getName() override;
+
+        LOICOLLECTION_A_NDAPI modules::ModulePriority getPriority() override;
+
+        LOICOLLECTION_A_API   ll::Expected<bool> load() override;
+        LOICOLLECTION_A_API   ll::Expected<bool> unload() override;
+        LOICOLLECTION_A_API   ll::Expected<bool> registry() override;
+        LOICOLLECTION_A_API   ll::Expected<bool> unregistry() override;
 
     private:
         BehaviorEventPlugin();

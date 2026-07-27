@@ -1,8 +1,9 @@
 #include <string>
 
+#include <ll/api/Expected.h>
 #include <ll/api/data/Version.h>
-#include <ll/api/Mod/Manifest.h>
-#include <ll/api/Mod/NativeMod.h>
+#include <ll/api/mod/Manifest.h>
+#include <ll/api/mod/NativeMod.h>
 #include <ll/api/reflection/Serialization.h>
 
 #include <nlohmann/json.hpp>
@@ -58,16 +59,20 @@ namespace Config {
         config.version = static_cast<int>(mHash);
     }
 
-    void SynchronousPluginConfigType(C_Config& config, const std::string& path) {
+    ll::Expected<void> SynchronousPluginConfigType(C_Config& config, const std::string& path) {
         JsonStorage mConfigObject(path);
 
-        nlohmann::ordered_json mConfigJson = mConfigObject.get();
-        nlohmann::ordered_json mPatchJson = nlohmann::ordered_json::parse(
-            ll::reflection::serialize<nlohmann::ordered_json>(config)->dump()
-        );
-        MergePatch(mConfigJson, mPatchJson);
-        
-        mConfigObject.write(mConfigJson);
-        mConfigObject.save();
+        return mConfigObject.load()
+            .and_then([&mConfigObject, &config, path]() -> ll::Expected<void> {
+                nlohmann::ordered_json mConfigJson = mConfigObject.get();
+                nlohmann::ordered_json mPatchJson = nlohmann::ordered_json::parse(
+                    ll::reflection::serialize<nlohmann::ordered_json>(config)->dump()
+                );
+                MergePatch(mConfigJson, mPatchJson);
+                
+                mConfigObject.write(mConfigJson);
+                
+                return mConfigObject.save();
+            });
     }
 }

@@ -5,6 +5,10 @@
 #include <algorithm>
 #include <unordered_map>
 
+#include <ll/api/Expected.h>
+#include <ll/api/io/Logger.h>
+#include <ll/api/io/LoggerRegistry.h>
+
 #include <ll/api/coro/CoroTask.h>
 #include <ll/api/coro/InterruptableSleep.h>
 #include <ll/api/thread/ServerThreadExecutor.h>
@@ -45,8 +49,6 @@
 
 #include <mc/common/SubClientId.h>
 
-#include "LOICollectionA/include/RegistryHelper.h"
-
 #include "LOICollectionA/include/server/APIUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 
@@ -76,6 +78,8 @@ namespace LOICollection::server::Plugins {
 
         Config::C_Monitor options;
 
+        std::shared_ptr<ll::io::Logger> logger;
+
         std::unordered_map<std::string, ll::event::ListenerPtr> mListeners;
 
         ll::coro::InterruptableSleep NameTaskSleep;
@@ -92,9 +96,18 @@ namespace LOICollection::server::Plugins {
     MonitorPlugin::MonitorPlugin() : mImpl(std::make_unique<Impl>()) {};
     MonitorPlugin::~MonitorPlugin() = default;
 
-    MonitorPlugin& MonitorPlugin::getInstance() {
-        static MonitorPlugin instance;
+    std::shared_ptr<MonitorPlugin> MonitorPlugin::getShared() {
+        static auto instance = std::shared_ptr<MonitorPlugin>(new MonitorPlugin());
         return instance;
+    }
+
+    std::error_code MonitorPlugin::makeErrorCode(MonitorPluginErrorCode e) {
+        static MonitorPluginErrorCategory cat;
+        return std::error_code{ static_cast<int>(e), cat };
+    }
+
+    std::shared_ptr<ll::io::Logger> MonitorPlugin::getLogger() {
+        return this->mImpl->logger;
     }
 
     void MonitorPlugin::listenEvent() {
@@ -193,9 +206,9 @@ namespace LOICollection::server::Plugins {
 
                         std::string mTitle = LOICollectionAPI::APIUtils::getInstance().translate(option.Titles[mTitleIndex], mTarget);
 
-                        this->removeSidebar(mTarget, "LOICollectionA");
-                        this->addSidebar(mTarget, "LOICollectionA", mTitle, SidebarType::Descending);
-                        this->setSidebar(mTarget, "LOICollectionA", data);
+                        this->removeSidebar(mTarget, "LOICollectionA").or_else(modules::defaultErrorHandler<MonitorPlugin>);
+                        this->addSidebar(mTarget, "LOICollectionA", mTitle, SidebarType::Descending).or_else(modules::defaultErrorHandler<MonitorPlugin>);
+                        this->setSidebar(mTarget, "LOICollectionA", data).or_else(modules::defaultErrorHandler<MonitorPlugin>);
 
                         return true;
                     });
@@ -212,12 +225,14 @@ namespace LOICollection::server::Plugins {
                 return;
 
             if (option.Messager.join) {
-                ll::service::getLevel()->forEachPlayer([&player = event.self()](Player& mTarget) -> bool {
-                    std::string mMessage = tr(LanguagePlugin::getInstance().getLanguage(mTarget), "monitor.servertoast.join");
-
-                    TextPacket::createRawMessage(
-                        LOICollectionAPI::APIUtils::getInstance().translate(mMessage, player)
-                    ).sendTo(mTarget);
+                ll::service::getLevel()->forEachPlayer([&player = event.self()](Player& target) -> bool {
+                    LanguagePlugin::getShared()->getLanguage(target)
+                        .transform([&player, &target](const std::string& language) -> void {
+                            TextPacket::createRawMessage(
+                                LOICollectionAPI::APIUtils::getInstance().translate(tr(language, "monitor.servertoast.join"), player)
+                            ).sendTo(target);
+                        })
+                        .or_else(modules::defaultErrorHandler<MonitorPlugin>);
 
                     return true;
                 });
@@ -231,12 +246,14 @@ namespace LOICollection::server::Plugins {
                 return;
 
             if (option.Messager.leave) {
-                ll::service::getLevel()->forEachPlayer([&player = event.self()](Player& mTarget) -> bool {
-                    std::string mMessage = tr(LanguagePlugin::getInstance().getLanguage(mTarget), "monitor.servertoast.leave");
-
-                    TextPacket::createRawMessage(
-                        LOICollectionAPI::APIUtils::getInstance().translate(mMessage, player)
-                    ).sendTo(mTarget);
+                ll::service::getLevel()->forEachPlayer([&player = event.self()](Player& target) -> bool {
+                    LanguagePlugin::getShared()->getLanguage(target)
+                        .transform([&player, &target](const std::string& language) -> void {
+                            TextPacket::createRawMessage(
+                                LOICollectionAPI::APIUtils::getInstance().translate(tr(language, "monitor.servertoast.leave"), player)
+                            ).sendTo(target);
+                        })
+                        .or_else(modules::defaultErrorHandler<MonitorPlugin>);
 
                     return true;
                 });
@@ -259,15 +276,19 @@ namespace LOICollection::server::Plugins {
             if (mObjectScoreboards.empty() || std::find(mObjectScoreboards.begin(), mObjectScoreboards.end(), mId) != mObjectScoreboards.end()) {
                 int mOriScore = ScoreboardUtils::getScore(event.self(), mId);
 
-                std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(
-                    tr(LanguagePlugin::getInstance().getLanguage(event.self()), "monitor.changescore.text"), event.self()
-                );
-                
-                event.self().sendMessage(fmt::format(fmt::runtime(mMessage), mId,
-                    (mType == ScoreChangedType::add ? (mOriScore - mScore) : (mType == ScoreChangedType::reduce ? (mOriScore + mScore) : mScore)),
-                    (mType == ScoreChangedType::add ? "+" : (mType == ScoreChangedType::reduce ? "-" : "")) + std::to_string(mScore),
-                    mOriScore
-                ));
+                LanguagePlugin::getShared()->getLanguage(event.self())
+                    .transform([&event, mScore, mId, mType, mOriScore](const std::string& language) -> void {
+                        std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(
+                            tr(language, "monitor.changescore.text"), event.self()
+                        );
+                        
+                        event.self().sendMessage(fmt::format(fmt::runtime(mMessage), mId,
+                            (mType == ScoreChangedType::add ? (mOriScore - mScore) : (mType == ScoreChangedType::reduce ? (mOriScore + mScore) : mScore)),
+                            (mType == ScoreChangedType::add ? "+" : (mType == ScoreChangedType::reduce ? "-" : "")) + std::to_string(mScore),
+                            mOriScore
+                        ));
+                    })
+                    .or_else(modules::defaultErrorHandler<MonitorPlugin>);
             }
         }));
 
@@ -291,9 +312,13 @@ namespace LOICollection::server::Plugins {
                 
                 auto player = static_cast<Player*>(entity);
 
-                player->sendMessage(LOICollectionAPI::APIUtils::getInstance().translate(
-                    tr(LanguagePlugin::getInstance().getLanguage(*player), "monitor.disablecommand.text"), *player
-                ));
+                LanguagePlugin::getShared()->getLanguage(*player)
+                    .transform([&player](const std::string& language) -> void {
+                        player->sendMessage(LOICollectionAPI::APIUtils::getInstance().translate(
+                            tr(language, "monitor.disablecommand.text"), *player
+                        ));
+                    })
+                    .or_else(modules::defaultErrorHandler<MonitorPlugin>);
             }
         }));
 
@@ -360,9 +385,9 @@ namespace LOICollection::server::Plugins {
         this->mImpl->SiebarTaskSleep.interrupt();
     }
 
-    void MonitorPlugin::addSidebar(Player& player, const std::string& id, const std::string& name, SidebarType type) {
+    ll::Expected<void> MonitorPlugin::addSidebar(Player& player, const std::string& id, const std::string& name, SidebarType type) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MonitorPluginErrorCode::Invalid));
 
         SetDisplayObjectivePacket packet;
         packet.mDisplaySlotName = "sidebar";
@@ -372,11 +397,13 @@ namespace LOICollection::server::Plugins {
         packet.mSortOrder = type == SidebarType::Ascending ? ObjectiveSortOrder::Ascending : ObjectiveSortOrder::Descending;
         
         packet.sendTo(player);
+
+        return {};
     }
 
-    void MonitorPlugin::setSidebar(Player& player, const std::string& id, std::vector<std::pair<std::string, int>> data) {
+    ll::Expected<void> MonitorPlugin::setSidebar(Player& player, const std::string& id, std::vector<std::pair<std::string, int>> data) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MonitorPluginErrorCode::Invalid));
 
         std::vector<ScorePacketInfo> infos;
         for (auto& item : data) {
@@ -395,32 +422,45 @@ namespace LOICollection::server::Plugins {
         packet.mScoreInfo = infos;
 
         packet.sendTo(player);
+
+        return {};
     }
     
-    void MonitorPlugin::removeSidebar(Player& player, const std::string& id) {
+    ll::Expected<void> MonitorPlugin::removeSidebar(Player& player, const std::string& id) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(MonitorPluginErrorCode::Invalid));
 
         RemoveObjectivePacket packet;
         packet.mObjectiveName = id;
 
         packet.sendTo(player);
+
+        return {};
     }
 
     bool MonitorPlugin::isValid() {
         return this->mImpl->options.ModuleEnabled;
     }
 
-    bool MonitorPlugin::load() {
+    std::string MonitorPlugin::getName() {
+        return "MonitorPlugin";
+    }
+
+    modules::ModulePriority MonitorPlugin::getPriority() {
+        return modules::ModulePriority::High;
+    }
+
+    ll::Expected<bool> MonitorPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Monitor.ModuleEnabled)
             return false;
 
+        this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Monitor;
 
         return true;
     }
 
-    bool MonitorPlugin::unload() {
+    ll::Expected<bool> MonitorPlugin::unload() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -432,7 +472,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool MonitorPlugin::registry() {
+    ll::Expected<bool> MonitorPlugin::registry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -443,7 +483,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool MonitorPlugin::unregistry() {
+    ll::Expected<bool> MonitorPlugin::unregistry() {
         if (!this->mImpl->options.ModuleEnabled)
             return false;
 
@@ -454,5 +494,3 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 }
-
-REGISTRY_HELPER(MonitorPlugin, LOICollection::server::Plugins::MonitorPlugin, LOICollection::server::Plugins::MonitorPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

@@ -2,8 +2,9 @@
 #include <ranges>
 #include <string>
 #include <vector>
-#include <stdexcept>
 #include <algorithm>
+
+#include <ll/api/Expected.h>
 
 #include "LOICollectionA/frontend/Callback.h"
 
@@ -33,8 +34,8 @@ namespace LOICollection::frontend::ir {
         }, val);
     }
 
-    ValueNode::ValueType VM::applyArithmetic(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op) {
-        return std::visit([&](auto&& l, auto&& r) -> ValueNode::ValueType {
+    ValueNode::ValueType VM::applyArithmetic(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op, DiagnosticEngine& diagnostics) {
+        return std::visit([&op, &diagnostics](auto&& l, auto&& r) -> ValueNode::ValueType {
             using T = std::decay_t<decltype(l)>;
             using U = std::decay_t<decltype(r)>;
 
@@ -51,20 +52,23 @@ namespace LOICollection::frontend::ir {
                     if constexpr (std::is_integral_v<T> && std::is_integral_v<U>)
                         return l % r;
                         
-                    throw std::runtime_error("Modulo requires integral types");
+                    diagnostics.addError({ 0, 0, 0 }, "Modulo requires integral types");
+                    return 0;
                 }
 
-                throw std::runtime_error("Unknown arithmetic op: " + op);
+                diagnostics.addError({ 0, 0, 0 }, "Unknown arithmetic op: " + op);
+                return 0;
             } else {
                 if (op == "+") return VM::valueToString(l) + VM::valueToString(r);
 
-                throw std::runtime_error("Type mismatch in arithmetic");
+                diagnostics.addError({ 0, 0, 0 }, "Type mismatch in arithmetic");
+                return 0;
             }
         }, left, right);
     }
 
-    ValueNode::ValueType VM::applyUnary(const ValueNode::ValueType& operand, const std::string& op) {
-        return std::visit([&](auto&& arg) -> ValueNode::ValueType {
+    ValueNode::ValueType VM::applyUnary(const ValueNode::ValueType& operand, const std::string& op, DiagnosticEngine& diagnostics) {
+        return std::visit([&op, &diagnostics](auto&& arg) -> ValueNode::ValueType {
             using T = std::decay_t<decltype(arg)>;
 
             if constexpr (std::is_arithmetic_v<T>) {
@@ -73,7 +77,8 @@ namespace LOICollection::frontend::ir {
             }
             if (op == "!") return !VM::valueToBool(arg);
 
-            throw std::runtime_error("Unknown unary op: " + op);
+            diagnostics.addError({ 0, 0, 0 }, "Unknown unary op: " + op);
+            return 0;
         }, operand);
     }
 
@@ -97,8 +102,8 @@ namespace LOICollection::frontend::ir {
         }, val);
     }
 
-    bool VM::applyComparison(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op) {
-        return std::visit([&](auto&& l, auto&& r) -> bool {
+    bool VM::applyComparison(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op, DiagnosticEngine& diagnostics) {
+        return std::visit([&op, &diagnostics](auto&& l, auto&& r) -> bool {
             using T = std::decay_t<decltype(l)>;
             using U = std::decay_t<decltype(r)>;
 
@@ -112,7 +117,8 @@ namespace LOICollection::frontend::ir {
                 if (op == ">=") return cmp >= 0;
                 if (op == "<=") return cmp <= 0;
 
-                throw std::runtime_error("Unknown comparison op: " + op);
+                diagnostics.addError({ 0, 0, 0 }, "Unknown comparison op: " + op);
+                return false;
             } else if constexpr (std::is_same_v<T, U>) {
                 auto cmp = l <=> r;
 
@@ -123,9 +129,11 @@ namespace LOICollection::frontend::ir {
                 if (op == ">=") return cmp >= 0;
                 if (op == "<=") return cmp <= 0;
 
-                throw std::runtime_error("Unknown comparison op: " + op);
+                diagnostics.addError({ 0, 0, 0 }, "Unknown comparison op: " + op);
+                return false;
             } else {
-                throw std::runtime_error("Type mismatch in comparison");
+                diagnostics.addError({ 0, 0, 0 }, "Type mismatch in comparison");
+                return false;
             }
         }, left, right);
     }
@@ -134,9 +142,11 @@ namespace LOICollection::frontend::ir {
         this->stack.push_back(v);
     }
 
-    ValueNode::ValueType VM::pop() {
-        if (this->stack.empty())
-            throw std::runtime_error("Stack underflow");
+    ValueNode::ValueType VM::pop(DiagnosticEngine& diagnostics) {
+        if (this->stack.empty()) {
+            diagnostics.addError({ 0, 0, 0 }, "Stack underflow");
+            return ValueNode::ValueType{};
+        }
 
         auto v = this->stack.back();
         this->stack.pop_back();
@@ -144,14 +154,16 @@ namespace LOICollection::frontend::ir {
         return v;
     }
 
-    ValueNode::ValueType VM::run(const BytecodeChunk& chunk, const Context& ctx) {
+    ValueNode::ValueType VM::run(const BytecodeChunk& chunk, const Context& ctx, DiagnosticEngine& diagnostics) {
         this->ip = 0;
         this->stack.clear();
 
         size_t executed = 0;
         while (true) {
-            if (++executed > 1'000'000)
-                throw std::runtime_error("Instruction limit exceeded (possible infinite loop)");
+            if (++executed > 1'000'000) {
+                diagnostics.addError({ 0, 0, 0 }, "Instruction limit exceeded (possible infinite loop)");
+                return ValueNode::ValueType{};
+            }
 
             const auto& instr = chunk.code[ip++];
             switch (instr.op) {
@@ -162,12 +174,14 @@ namespace LOICollection::frontend::ir {
                     this->push(chunk.constants[instr.operand]);
                     break;
                 case OpCode::POP:
-                    this->pop();
+                    this->pop(diagnostics);
                     break;
 
                 case OpCode::DUP: {
-                    if (this->stack.empty())
-                        throw std::runtime_error("Stack underflow");
+                    if (this->stack.empty()) {
+                        diagnostics.addError({ 0, 0, 0 }, "Stack underflow during DUP");
+                        break;
+                    }
 
                     this->stack.push_back(this->stack.back());
                     break;
@@ -177,8 +191,10 @@ namespace LOICollection::frontend::ir {
                     const auto& name = std::get<std::string>(chunk.constants[instr.operand]);
 
                     auto it = this->variables.find(name);
-                    if (it == this->variables.end())
-                        throw std::runtime_error("Undefined variable: " + name);
+                    if (it == this->variables.end()) {
+                        diagnostics.addError({ 0, 0, 0 }, "Undefined variable: " + name);
+                        break;
+                    }
 
                     this->push(it->second);
                     break;
@@ -186,121 +202,121 @@ namespace LOICollection::frontend::ir {
                 case OpCode::STORE_VAR: {
                     const auto& name = std::get<std::string>(chunk.constants[instr.operand]);
 
-                    auto val = this->pop();
+                    auto val = this->pop(diagnostics);
 
                     this->variables[name] = val;
                     break;
                 }
 
                 case OpCode::ADD: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
-                    this->push(VM::applyArithmetic(l, r, "+"));
+                    this->push(VM::applyArithmetic(l, r, "+", diagnostics));
                     break;
                 }
                 case OpCode::SUB: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
-                    this->push(VM::applyArithmetic(l, r, "-"));
+                    this->push(VM::applyArithmetic(l, r, "-", diagnostics));
                     break;
                 }
                 case OpCode::MUL: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
-                    this->push(VM::applyArithmetic(l, r, "*"));
+                    this->push(VM::applyArithmetic(l, r, "*", diagnostics));
                     break;
                 }
                 case OpCode::DIV: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
-                    this->push(VM::applyArithmetic(l, r, "/"));
+                    this->push(VM::applyArithmetic(l, r, "/", diagnostics));
                     break;
                 }
                 case OpCode::MOD: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
-                    this->push(VM::applyArithmetic(l, r, "%"));
+                    this->push(VM::applyArithmetic(l, r, "%", diagnostics));
                     break;
                 }
                 case OpCode::POW: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
-                    this->push(VM::applyArithmetic(l, r, "^"));
+                    this->push(VM::applyArithmetic(l, r, "^", diagnostics));
                     break;
                 }
 
                 case OpCode::CMP_EQ: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
-                    this->push(VM::applyComparison(l, r, "=="));
+                    this->push(VM::applyComparison(l, r, "==", diagnostics));
                     break;
                 }
                 case OpCode::CMP_NE: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
-                    this->push(VM::applyComparison(l, r, "!="));
+                    this->push(VM::applyComparison(l, r, "!=", diagnostics));
                     break;
                 }
                 case OpCode::CMP_GT: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
-                    this->push(VM::applyComparison(l, r, ">"));
+                    this->push(VM::applyComparison(l, r, ">", diagnostics));
                     break;
                 }
                 case OpCode::CMP_LT: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
-                    this->push(VM::applyComparison(l, r, "<"));
+                    this->push(VM::applyComparison(l, r, "<", diagnostics));
                     break;
                 }
                 case OpCode::CMP_GE: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
-                    this->push(VM::applyComparison(l, r, ">="));
+                    this->push(VM::applyComparison(l, r, ">=", diagnostics));
                     break;
                 }
                 case OpCode::CMP_LE: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
-                    this->push(VM::applyComparison(l, r, "<="));
+                    this->push(VM::applyComparison(l, r, "<=", diagnostics));
                     break;
                 }
 
                 case OpCode::LOGIC_AND: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
                     this->push(VM::valueToBool(l) && VM::valueToBool(r));
                     break;
                 }
                 case OpCode::LOGIC_OR: {
-                    auto r = this->pop();
-                    auto l = this->pop();
+                    auto r = this->pop(diagnostics);
+                    auto l = this->pop(diagnostics);
 
                     this->push(VM::valueToBool(l) || VM::valueToBool(r));
                     break;
                 }
 
                 case OpCode::NEG: {
-                    auto v = this->pop();
+                    auto v = this->pop(diagnostics);
 
-                    this->push(VM::applyUnary(v, "-"));
+                    this->push(VM::applyUnary(v, "-", diagnostics));
                     break;
                 }
                 case OpCode::NOT: {
-                    auto v = this->pop();
+                    auto v = this->pop(diagnostics);
 
                     this->push(!VM::valueToBool(v));
                     break;
@@ -312,17 +328,22 @@ namespace LOICollection::frontend::ir {
                     CallbackTypeValues args;
                     args.reserve(meta.argCount);
                     for (int i = 0; i < meta.argCount; ++i)
-                        args.push_back(this->pop());
+                        args.push_back(this->pop(diagnostics));
 
                     std::ranges::reverse(args);
 
                     auto ns = meta.name.substr(0, meta.name.find("::"));
                     auto func = meta.name.substr(meta.name.find("::") + 2);
                     auto result = FunctionCall::getInstance().callFunction(
-                        ns, func, args, ctx.params
+                        ns, func, args, ctx.params, diagnostics
                     );
+                    
+                    if (!result.has_value()) {
+                        diagnostics.addError({ 0, 0, 0 }, result.error().message());
+                        break;
+                    }
 
-                    this->push(result);
+                    this->push(result.value());
                     break;
                 }
                 case OpCode::CALL_MACRO: {
@@ -331,27 +352,32 @@ namespace LOICollection::frontend::ir {
                     CallbackTypeValues args;
                     args.reserve(meta.argCount);
                     for (int i = 0; i < meta.argCount; ++i)
-                        args.push_back(this->pop());
+                        args.push_back(this->pop(diagnostics));
 
                     std::ranges::reverse(args);
                     
                     auto result = MacroCall::getInstance().callMacro(
-                        meta.name, args, ctx.params
+                        meta.name, args, ctx.params, diagnostics
                     );
 
-                    this->push(result);
+                    if (!result.has_value()) {
+                        diagnostics.addError({ 0, 0, 0 }, result.error().message());
+                        break;
+                    }
+
+                    this->push(result.value());
                     break;
                 }
 
                 case OpCode::JMP_IF_FALSE: {
-                    auto cond = this->pop();
+                    auto cond = this->pop(diagnostics);
                     if (!VM::valueToBool(cond))
                         this->ip += instr.operand;
 
                     break;
                 }
                 case OpCode::JMP_IF_TRUE: {
-                    auto cond = this->pop();
+                    auto cond = this->pop(diagnostics);
                     if (VM::valueToBool(cond))
                         this->ip += instr.operand;
                     

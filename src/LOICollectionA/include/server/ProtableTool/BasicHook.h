@@ -2,10 +2,17 @@
 
 #include <memory>
 
+#include <ll/api/Expected.h>
+
 #include "LOICollectionA/base/Macro.h"
 
+#include "LOICollectionA/include/ModuleBase.h"
+#include "LOICollectionA/include/ModManager.h"
+
 namespace LOICollection::server::ProtableTool {
-    class BasicHook {
+    class BasicHook : public std::enable_shared_from_this<BasicHook>,
+                      public modules::ModuleBase,
+                      public modules::AutoRegister<BasicHook> {
     public:
         ~BasicHook();
 
@@ -15,13 +22,17 @@ namespace LOICollection::server::ProtableTool {
         BasicHook& operator=(BasicHook&&) = delete;
 
     public:
-        LOICOLLECTION_A_NDAPI static BasicHook& getInstance();
+        LOICOLLECTION_A_NDAPI static std::shared_ptr<BasicHook> getShared();
 
     public:
-        LOICOLLECTION_A_API bool load();
-        LOICOLLECTION_A_API bool unload();
-        LOICOLLECTION_A_API bool registry();
-        LOICOLLECTION_A_API bool unregistry();
+        LOICOLLECTION_A_NDAPI std::string getName() override;
+
+        LOICOLLECTION_A_NDAPI modules::ModulePriority getPriority() override;
+
+        LOICOLLECTION_A_API   ll::Expected<bool> load() override;
+        LOICOLLECTION_A_API   ll::Expected<bool> unload() override;
+        LOICOLLECTION_A_API   ll::Expected<bool> registry() override;
+        LOICOLLECTION_A_API   ll::Expected<bool> unregistry() override;
 
     private:
         BasicHook();

@@ -21,41 +21,58 @@ using namespace LOICollection::server::Plugins;
 class NoticePluginTest : public testing::Test {
 protected:
     void SetUp() override {
-        if (!NoticePlugin::getInstance().isValid())
+        if (!NoticePlugin::getShared()->isValid())
             GTEST_SKIP() << "NoticePlugin is not valid";
     }
 
     void TearDown() override {
-        NoticePlugin::getInstance().getDatabase()->write({});
-        NoticePlugin::getInstance().getDatabase()->save();
+        NoticePlugin::getShared()->getDatabase()->write({});
 
-        ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->exec("DELETE FROM Notice;");
+        auto saveResult = NoticePlugin::getShared()->getDatabase()->save();
+        if (!saveResult.has_value())
+            GTEST_FAIL() << "Unable to save data";
+
+        auto result = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->exec("DELETE FROM Notice;");
+        if (!result.has_value())
+            GTEST_FAIL() << "Unable to clear data";
     }
 };
 
 TEST_F(NoticePluginTest, CreateNotice) {
-    NoticePlugin::getInstance().create("test_notice", "Test Notice", 1, false);
+    EXPECT_TRUE(NoticePlugin::getShared()->create("test_notice", "Test Notice", 1, false).has_value());
 
-    EXPECT_TRUE(NoticePlugin::getInstance().has("test_notice"));
+    auto has = NoticePlugin::getShared()->has("test_notice");
+    EXPECT_TRUE(has.has_value());
+    EXPECT_TRUE(has.value());
 }
 
 TEST_F(NoticePluginTest, RemoveNotice) {
-    NoticePlugin::getInstance().create("test_notice", "Test Notice", 1, false);
+    EXPECT_TRUE(NoticePlugin::getShared()->create("test_notice", "Test Notice", 1, false).has_value());
 
-    EXPECT_TRUE(NoticePlugin::getInstance().has("test_notice"));
+    auto has = NoticePlugin::getShared()->has("test_notice");
+    EXPECT_TRUE(has.has_value());
+    EXPECT_TRUE(has.value());
 
-    NoticePlugin::getInstance().remove("test_notice");
+    EXPECT_TRUE(NoticePlugin::getShared()->remove("test_notice").has_value());
 
-    EXPECT_FALSE(NoticePlugin::getInstance().has("test_notice"));
+    auto has2 = NoticePlugin::getShared()->has("test_notice");
+    EXPECT_TRUE(has2.has_value());
+    EXPECT_FALSE(has2.value());
 }
 
 TEST_F(NoticePluginTest, SettingCloseStatus) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    NoticePlugin::getInstance().setClose(*sp, true);
-    EXPECT_TRUE(NoticePlugin::getInstance().isClose(*sp));
+    EXPECT_TRUE(NoticePlugin::getShared()->setClose(*sp, true).has_value());
 
-    NoticePlugin::getInstance().setClose(*sp, false);
-    EXPECT_FALSE(NoticePlugin::getInstance().isClose(*sp));
+    auto isClose = NoticePlugin::getShared()->isClose(*sp);
+    EXPECT_TRUE(isClose.has_value());
+    EXPECT_TRUE(isClose.value());
+
+    EXPECT_TRUE(NoticePlugin::getShared()->setClose(*sp, false).has_value());
+
+    auto isClose2 = NoticePlugin::getShared()->isClose(*sp);
+    EXPECT_TRUE(isClose2.has_value());
+    EXPECT_FALSE(isClose2.value());
 }

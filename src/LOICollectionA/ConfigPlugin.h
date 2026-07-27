@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include <ll/api/Expected.h>
+
 namespace Config {
     struct C_Blacklist {
         bool ModuleEnabled = false;
@@ -247,5 +249,6 @@ namespace Config {
     std::string GetVersion();
 
     void SynchronousPluginConfigVersion(C_Config& config);
-    void SynchronousPluginConfigType(C_Config& config, const std::string& path);
+
+    ll::Expected<void> SynchronousPluginConfigType(C_Config& config, const std::string& path);
 }

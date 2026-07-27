@@ -6,6 +6,7 @@
 #include <fmt/core.h>
 #include <nlohmann/json.hpp>
 
+#include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/command/Command.h>
@@ -28,8 +29,6 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandVersion.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
-
-#include "LOICollectionA/include/RegistryHelper.h"
 
 #include "LOICollectionA/include/form/PaginatedForm.h"
 
@@ -78,9 +77,14 @@ namespace LOICollection::server::Plugins {
     ShopPlugin::ShopPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<ShopGui>(*this)) {};
     ShopPlugin::~ShopPlugin() = default;
 
-    ShopPlugin& ShopPlugin::getInstance() {
-        static ShopPlugin instance;
+    std::shared_ptr<ShopPlugin> ShopPlugin::getShared() {
+        static auto instance = std::shared_ptr<ShopPlugin>(new ShopPlugin());
         return instance;
+    }
+
+    std::error_code ShopPlugin::makeErrorCode(ShopPluginErrorCode e) {
+        static ShopPluginErrorCategory cat;
+        return std::error_code{ static_cast<int>(e), cat };
     }
     
     std::shared_ptr<JsonStorage> ShopPlugin::getDatabase() {
@@ -103,7 +107,7 @@ namespace LOICollection::server::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
-                this->mGui->open(player, param.Object);
+                this->mGui->open(player, param.Object).or_else(modules::defaultErrorHandler<ShopPlugin>);
 
                 output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
             });
@@ -116,7 +120,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
-            this->mGui->edit(player);
+            this->mGui->edit(player).or_else(modules::defaultErrorHandler<ShopPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -139,41 +143,51 @@ namespace LOICollection::server::Plugins {
         eventBus.removeListener(this->mImpl->ShopDeleteEventListener);
     }
 
-    void ShopPlugin::create(const std::string& id, const nlohmann::ordered_json& data) {
+    ll::Expected<void> ShopPlugin::create(const std::string& id, const nlohmann::ordered_json& data) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(ShopPluginErrorCode::Invalid));
 
         if (!this->getDatabase()->has(id))
             this->getDatabase()->set(id, data);
-        this->getDatabase()->save();
+        
+        return this->getDatabase()->save();
     }
 
-    void ShopPlugin::remove(const std::string& id) {
+    ll::Expected<void> ShopPlugin::remove(const std::string& id) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(ShopPluginErrorCode::Invalid));
 
         this->getDatabase()->remove(id);
-        this->getDatabase()->save();
+        
+        return this->getDatabase()->save();
     }
 
-    bool ShopPlugin::commodity(Player& player, int number, const nlohmann::ordered_json& data, ShopType type) {
-        if (!this->isValid() || data.empty())
+    ll::Expected<bool> ShopPlugin::commodity(Player& player, int number, const nlohmann::ordered_json& data, ShopType type) {
+        if (!this->isValid())
+            return ll::makeErrorCodeError(makeErrorCode(ShopPluginErrorCode::Invalid));
+
+        if (data.empty())
             return false;
 
         if (type == ShopType::buy) {
-            if (this->checkModifiedData(player, data, number)) {
-                auto itemStack = std::make_unique<ItemStack>();
+            return this->checkModifiedData(player, data, number)
+                .and_then([number, &data, &player](bool exists) -> ll::Expected<bool> {
+                    if (exists) {
+                        auto itemStack = std::make_unique<ItemStack>();
 
-                if (data.contains("nbt"))
-                    itemStack = std::make_unique<ItemStack>(ItemStack::fromTag(CompoundTag::fromSnbt(data.value("nbt", ""))->mTags));
-                else
-                    itemStack->reinit(data.value("id", ""), 1, 0);
-                
-                InventoryUtils::giveItem(player, *itemStack, number);
-                player.refreshInventory();
+                        if (data.contains("nbt"))
+                            itemStack = std::make_unique<ItemStack>(ItemStack::fromTag(CompoundTag::fromSnbt(data.value("nbt", ""))->mTags));
+                        else
+                            itemStack->reinit(data.value("id", ""), 1, 0);
+                        
+                        InventoryUtils::giveItem(player, *itemStack, number);
+                        player.refreshInventory();
 
-                return true;
-            }
+                        return true;
+                    }
+
+                    return false;
+                });
         } else if (InventoryUtils::isItemInInventory(player, data.value("id", ""), number)) {
             nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json{});
             for (auto it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
@@ -188,36 +202,79 @@ namespace LOICollection::server::Plugins {
         return false;
     }
     
-    bool ShopPlugin::title(Player& player, const nlohmann::ordered_json& data, ShopType type) {
-        if (!this->isValid() || data.empty())
+    ll::Expected<bool> ShopPlugin::title(Player& player, const nlohmann::ordered_json& data, ShopType type) {
+        if (!this->isValid())
+            return ll::makeErrorCodeError(makeErrorCode(ShopPluginErrorCode::Invalid));
+
+        if (data.empty())
             return false;
 
         std::string id = data.value("id", "None");
 
         if (type == ShopType::buy) {
-            if (this->checkModifiedData(player, data, 1)) {
-                if (data.contains("time")) {
-                    ChatPlugin::getInstance().addTitle(player, id, data.value("time", 0));
-                    return true;
-                }
+            return this->checkModifiedData(player, data, 1)
+                .and_then([id, &data, &player](bool exists) -> ll::Expected<bool> {
+                    if (exists) {
+                        if (data.contains("time")) {
+                            return ChatPlugin::getShared()->addTitle(player, id, data.value("time", 0))
+                                .or_else([](ll::Error e) -> ll::Expected<void> {
+                                    if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == ChatPlugin::makeErrorCode(ChatPluginErrorCode::Invalid))
+                                        return {};
 
-                ChatPlugin::getInstance().addTitle(player, id, 0);
-                return true;
-            }
-        } else if (ChatPlugin::getInstance().hasTitle(player, id)) {
-            nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json{});
-            for (auto it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
-                ScoreboardUtils::addScore(player, it.key(), it.value().get<int>());
+                                    return ll::Unexpected(e);
+                                })
+                                .transform([]() -> bool {
+                                    return true;
+                                });
+                        }
 
-            ChatPlugin::getInstance().delTitle(player, id);
-            return true;
+                        return ChatPlugin::getShared()->addTitle(player, id, 0).or_else([](ll::Error e) -> ll::Expected<void> {
+                            if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == ChatPlugin::makeErrorCode(ChatPluginErrorCode::Invalid))
+                                return {};
+
+                            return ll::Unexpected(e);
+                        }).transform([]() -> bool {
+                            return true;
+                        });
+                    }
+
+                    return false;
+                });
         }
+        
+        return ChatPlugin::getShared()->hasTitle(player, id)
+            .or_else([](ll::Error e) -> ll::Expected<bool> {
+                if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == ChatPlugin::makeErrorCode(ChatPluginErrorCode::Invalid))
+                    return false;
 
-        return false;
+                return ll::Unexpected(e);
+            })
+            .and_then([id, &data, &player](bool exists) -> ll::Expected<bool> {
+                if (!exists)
+                    return false;
+
+                nlohmann::ordered_json mScoreboardBase = data.value("scores", nlohmann::ordered_json{});
+                for (auto it = mScoreboardBase.begin(); it != mScoreboardBase.end(); ++it)
+                    ScoreboardUtils::addScore(player, it.key(), it.value().get<int>());
+
+                return ChatPlugin::getShared()->delTitle(player, id)
+                    .or_else([](ll::Error e) -> ll::Expected<void> {
+                        if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == ChatPlugin::makeErrorCode(ChatPluginErrorCode::Invalid))
+                            return {};
+
+                        return ll::Unexpected(e);
+                    })
+                    .transform([]() -> bool {
+                        return true;
+                    });
+            });
     }
 
-    bool ShopPlugin::checkModifiedData(Player& player, nlohmann::ordered_json data, int number) {
-        if (!this->isValid() || !data.contains("scores"))
+    ll::Expected<bool> ShopPlugin::checkModifiedData(Player& player, nlohmann::ordered_json data, int number) {
+        if (!this->isValid())
+            return ll::makeErrorCodeError(makeErrorCode(ShopPluginErrorCode::Invalid));
+
+        if (!data.contains("scores"))
             return true;
 
         for (auto it = data["scores"].begin(); it != data["scores"].end(); ++it) {
@@ -231,9 +288,9 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool ShopPlugin::has(const std::string& id) {
+    ll::Expected<bool> ShopPlugin::has(const std::string& id) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(ShopPluginErrorCode::Invalid));
 
         return this->getDatabase()->has(id);
     }
@@ -242,7 +299,15 @@ namespace LOICollection::server::Plugins {
         return this->getLogger() != nullptr && this->getDatabase() != nullptr;
     }
 
-    bool ShopPlugin::load() {
+    std::string ShopPlugin::getName() {
+        return "ShopPlugin";
+    }
+
+    modules::ModulePriority ShopPlugin::getPriority() {
+        return modules::ModulePriority::High;
+    }
+
+    ll::Expected<bool> ShopPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Shop)
             return false;
 
@@ -252,10 +317,13 @@ namespace LOICollection::server::Plugins {
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
 
-        return true;
+        return this->mImpl->db->load()
+            .transform([]() -> bool {
+                return true;
+            });
     }
 
-    bool ShopPlugin::unload() {
+    ll::Expected<bool> ShopPlugin::unload() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
@@ -266,7 +334,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool ShopPlugin::registry() {
+    ll::Expected<bool> ShopPlugin::registry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
         
@@ -277,16 +345,15 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool ShopPlugin::unregistry() {
+    ll::Expected<bool> ShopPlugin::unregistry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
-        this->getDatabase()->save();
+        return this->getDatabase()->save()
+            .transform([this]() -> bool {
+                this->mImpl->mRegistered.store(false, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(false, std::memory_order_release);
-
-        return true;
+                return true;
+            });
     }
 }
-
-REGISTRY_HELPER(ShopPlugin, LOICollection::server::Plugins::ShopPlugin, LOICollection::server::Plugins::ShopPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

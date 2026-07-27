@@ -19,7 +19,7 @@ protected:
         tempDir = std::filesystem::temp_directory_path() / "json_storage_test";
 
         std::filesystem::create_directories(tempDir);
-        
+
         filePath = tempDir / "test.json";
     }
 
@@ -40,6 +40,7 @@ TEST_F(JsonStorageTest, ConstructorCreatesFileWithEmptyJson) {
     ASSERT_FALSE(std::filesystem::exists(filePath));
 
     JsonStorage storage(filePath);
+    EXPECT_TRUE(storage.load().has_value());
 
     EXPECT_TRUE(std::filesystem::exists(filePath));
     EXPECT_EQ(storage.get(), nlohmann::ordered_json::object());
@@ -50,35 +51,52 @@ TEST_F(JsonStorageTest, ConstructorLoadsExistingJson) {
     writeJsonFile(expected.dump());
 
     JsonStorage storage(filePath);
+    EXPECT_TRUE(storage.load().has_value());
 
     EXPECT_EQ(storage.get(), expected);
 }
 
 TEST_F(JsonStorageTest, SetAndGetValue) {
     JsonStorage storage(filePath);
+    EXPECT_TRUE(storage.load().has_value());
 
     storage.set("intKey", 100);
-    EXPECT_EQ(storage.get<int>("intKey"), 100);
+
+    auto intVal = storage.get<int>("intKey");
+    EXPECT_TRUE(intVal.has_value());
+    EXPECT_EQ(intVal.value(), 100);
     EXPECT_TRUE(storage.has("intKey"));
 
     storage.set("strKey", std::string("hello"));
-    EXPECT_EQ(storage.get<std::string>("strKey"), "hello");
 
-    EXPECT_EQ(storage.get<int>("missing"), 0);
+    auto strVal = storage.get<std::string>("strKey");
+    EXPECT_TRUE(strVal.has_value());
+    EXPECT_EQ(strVal.value(), "hello");
+
+    auto missing = storage.get<int>("missing");
+    EXPECT_FALSE(missing.has_value());
     EXPECT_FALSE(storage.has("missing"));
 }
 
 TEST_F(JsonStorageTest, SetAndGetWithPointer) {
     JsonStorage storage(filePath);
+    EXPECT_TRUE(storage.load().has_value());
 
     storage.set_ptr("/user/name", std::string("Alice"));
     storage.set_ptr("/user/age", 30);
 
-    EXPECT_EQ(storage.get_ptr<std::string>("/user/name"), "Alice");
-    EXPECT_EQ(storage.get_ptr<int>("/user/age"), 30);
+    auto name = storage.get_ptr<std::string>("/user/name");
+    EXPECT_TRUE(name.has_value());
+    EXPECT_EQ(name.value(), "Alice");
+
+    auto age = storage.get_ptr<int>("/user/age");
+    EXPECT_TRUE(age.has_value());
+    EXPECT_EQ(age.value(), 30);
+
     EXPECT_TRUE(storage.has_ptr("/user/name"));
 
-    EXPECT_EQ(storage.get_ptr<std::string>("/user/nick", "unknown"), "unknown");
+    auto missing = storage.get_ptr<std::string>("/user/nick");
+    EXPECT_EQ(missing.value_or("unknown"), "unknown");
 }
 
 TEST_F(JsonStorageTest, RemoveAndRemovePtr) {
@@ -133,15 +151,18 @@ TEST_F(JsonStorageTest, SavePersistsAndReloadsCorrectly) {
     {
         JsonStorage storage(filePath);
         storage.write(data);
-        storage.save(); 
+        EXPECT_TRUE(storage.save().has_value());
     }
 
     JsonStorage reloaded(filePath);
+    EXPECT_TRUE(reloaded.load().has_value());
     EXPECT_EQ(reloaded.get(), data);
 }
 
 TEST_F(JsonStorageTest, ThreadSafetySetAndGet) {
     JsonStorage storage(filePath);
+    EXPECT_TRUE(storage.load().has_value());
+
     const int numThreads = 10;
     const int iterations = 100;
     std::vector<std::thread> threads;
@@ -151,9 +172,12 @@ TEST_F(JsonStorageTest, ThreadSafetySetAndGet) {
         threads.emplace_back([&storage, i]() -> void {
             for (int j = 0; j < iterations; ++j) {
                 storage.set("shared_key", i * 1000 + j);
-                
-                volatile int val = storage.get<int>("shared_key");
-                (void)val;
+
+                auto val = storage.get<int>("shared_key");
+                if (val.has_value()) {
+                    volatile int v = val.value();
+                    (void)v;
+                }
             }
         });
     }

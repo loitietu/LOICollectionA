@@ -2,16 +2,22 @@
 #include <cstddef>
 #include <cstring>
 #include <utility>
-#include <stdexcept>
 
 #include "LOICollectionA/frontend/Lexer.h"
+#include "LOICollectionA/frontend/DiagnosticEngine.h"
 
 namespace LOICollection::frontend {
-    Lexer::Lexer(std::string str)  : input(std::move(str)), position(0) {
-        currentChar = input.empty() ? static_cast<char>(0) : input[0];
-    }
+    Lexer::Lexer(std::string str, DiagnosticEngine& diag) : input(std::move(str)), position(0), line(1), column(1),
+        currentChar(input.empty() ? static_cast<char>(0) : input[0]), diagnostics(diag) {}
 
     void Lexer::advance() {
+        if (currentChar == '\n') {
+            line++;
+            column = 1;
+        } else {
+            column++;
+        }
+
         position++;
         currentChar = (position < input.size()) ? input[position] : static_cast<char>(0);
     }
@@ -50,17 +56,21 @@ namespace LOICollection::frontend {
             return parseIdentifier();
         }
         
-        return { TokenType::TOKEN_EOF, "", position };
+        return { TokenType::TOKEN_EOF, "", {line, column, position} };
     }
 
     Token Lexer::peekNextToken() {
-        size_t pos = position;
-        char c = currentChar;
+        size_t savedPos = position;
+        size_t savedLine = line;
+        size_t savedCol = column;
+        char savedChar = currentChar;
 
         Token t = getNextToken();
 
-        position = pos;
-        currentChar = c;
+        position = savedPos;
+        line = savedLine;
+        column = savedCol;
+        currentChar = savedChar;
 
         return t;
     }
@@ -69,31 +79,39 @@ namespace LOICollection::frontend {
         advance();
         
         size_t start = position;
+
+        SourceLocation startLoc(line, column, start);
         while (currentChar != delimiter && currentChar != 0)
             advance();
 
-        if (currentChar != delimiter)
-            throw std::runtime_error("Unclosed string");
+        if (currentChar != delimiter) {
+            diagnostics.addError(startLoc, "Unclosed string");
+            return { TokenType::TOKEN_EOF, "", startLoc };
+        }
 
         advance();
-        return { TokenType::TOKEN_STRING, input.substr(start, position - start - 1), start };
+        return { TokenType::TOKEN_STRING, input.substr(start, position - start - 1), startLoc };
     }
 
     Token Lexer::parseIdentifier() {
         size_t start = position;
+
+        SourceLocation startLoc(line, column, start);
         while (currentChar != 0 && !std::isspace(currentChar) && !std::strchr("()[]{}=><!&|.:;", currentChar))
             advance();
 
         std::string id = input.substr(start, position - start);
 
-        if (id == "if") return { TokenType::TOKEN_IF, std::move(id), start };
-        if (id == "true" || id == "false") return { TokenType::TOKEN_BOOL_LIT, std::move(id), start };
+        if (id == "if") return { TokenType::TOKEN_IF, std::move(id), startLoc };
+        if (id == "true" || id == "false") return { TokenType::TOKEN_BOOL_LIT, std::move(id), startLoc };
         
-        return { TokenType::TOKEN_IDENT, std::move(id), start };
+        return { TokenType::TOKEN_IDENT, std::move(id), startLoc };
     }
 
     Token Lexer::parseNumber() {
         size_t start = position;
+
+        SourceLocation startLoc(line, column, start);
 
         bool hasDot = false;
         while (currentChar != 0) {
@@ -108,35 +126,34 @@ namespace LOICollection::frontend {
         }
         
         std::string num = input.substr(start, position - start);
-        if (num.empty())
-            throw std::runtime_error("Invalid number literal");
-        
-        if (hasDot) {
-            if (num == ".")
-                throw std::runtime_error("Invalid float literal: single dot");
-
-            return { TokenType::TOKEN_FLOAT, num, start };
+        if (num.empty() || num == ".") {
+            diagnostics.addError(startLoc, "Invalid numeric literal: '" + num + "'");
+            return { TokenType::TOKEN_EOF, "", startLoc };
         }
+        
+        if (hasDot)
+            return { TokenType::TOKEN_FLOAT, num, startLoc };
 
-        return { TokenType::TOKEN_INT, num, start };
+        return { TokenType::TOKEN_INT, num, startLoc };
     }
 
     Token Lexer::parseColon() {
-        size_t start = position;
+        SourceLocation startLoc(line, column, position);
 
         advance();
 
         if (currentChar == ':') {
             advance();
 
-            return { TokenType::TOKEN_NAMESPACE, "::", start };
+            return { TokenType::TOKEN_NAMESPACE, "::", startLoc };
         }
 
-        return { TokenType::TOKEN_COLON, ":", start };
+        return { TokenType::TOKEN_COLON, ":", startLoc };
     }
 
     Token Lexer::parseOperator() {
-        size_t start = position;
+        SourceLocation startLoc(line, column, position);
+
         char first = currentChar;
 
         advance();
@@ -146,7 +163,7 @@ namespace LOICollection::frontend {
             op += currentChar;
             
             advance();
-            return { TokenType::TOKEN_BOOL_OP, op, start };
+            return { TokenType::TOKEN_BOOL_OP, op, startLoc };
         }
 
         if (currentChar == '=') {
@@ -154,10 +171,10 @@ namespace LOICollection::frontend {
             op += '=';
 
             advance();
-            return { TokenType::TOKEN_OP, op, start };
+            return { TokenType::TOKEN_OP, op, startLoc };
         }
 
-        return { TokenType::TOKEN_OP, std::string(1, first), start };
+        return { TokenType::TOKEN_OP, std::string(1, first), startLoc };
     }
 
     void Lexer::skipWhitespace() {
@@ -166,7 +183,7 @@ namespace LOICollection::frontend {
     }
 
     Token Lexer::makeToken(TokenType type) {
-        Token t{ type, std::string(1, currentChar), position };
+        Token t{ type, std::string(1, currentChar), {line, column, position} };
 
         advance();
         

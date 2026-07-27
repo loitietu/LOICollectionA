@@ -12,11 +12,11 @@ class TimerManagerTest : public ::testing::Test {
 protected:
     void SetUp() override {
         executor_ = std::make_unique<MockExecutor>();
-        manager_ = std::make_unique<TimerManager>(*executor_);
+        manager_ = std::make_shared<TimerManager>(*executor_);
     }
 
     std::unique_ptr<MockExecutor> executor_;
-    std::unique_ptr<TimerManager> manager_;
+    std::shared_ptr<TimerManager> manager_;
 };
 
 TEST_F(TimerManagerTest, ScheduleExecutesCallback) {

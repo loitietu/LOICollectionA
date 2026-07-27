@@ -1,5 +1,6 @@
 #include <string>
 
+#include <ll/api/Expected.h>
 #include <ll/api/form/SimpleForm.h>
 
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
@@ -12,16 +13,17 @@
 using I18nUtilsTools::tr;
 
 namespace LOICollection::server::Plugins {
-    void PvpGui::open(Player& player) {
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
-        
-        ll::form::SimpleForm form(tr(mObjectLanguage, "pvp.gui.title"), tr(mObjectLanguage, "pvp.gui.label"));
-        form.appendButton(tr(mObjectLanguage, "pvp.gui.on"), "textures/ui/book_addtextpage_default", "path", [this](Player& pl) -> void {
-            this->mParent.enable(pl, true);
-        });
-        form.appendButton(tr(mObjectLanguage, "pvp.gui.off"), "textures/ui/cancel", "path", [this](Player& pl) -> void {
-            this->mParent.enable(pl, false);
-        });
-        form.sendTo(player);
+    ll::Expected<void> PvpGui::open(Player& player) {
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .transform([this, &player](const std::string& language) -> void {
+                ll::form::SimpleForm form(tr(language, "pvp.gui.title"), tr(language, "pvp.gui.label"));
+                form.appendButton(tr(language, "pvp.gui.on"), "textures/ui/book_addtextpage_default", "path", [this](Player& pl) -> void {
+                    this->mParent.enable(pl, true).or_else(modules::defaultErrorHandler<PvpPlugin>);
+                });
+                form.appendButton(tr(language, "pvp.gui.off"), "textures/ui/cancel", "path", [this](Player& pl) -> void {
+                    this->mParent.enable(pl, false).or_else(modules::defaultErrorHandler<PvpPlugin>);
+                });
+                form.sendTo(player);
+            });
     }
 }

@@ -6,14 +6,19 @@
 
 #include "LOICollectionA/frontend/AST.h"
 #include "LOICollectionA/frontend/ir/ByteCode.h"
+#include "LOICollectionA/frontend/DiagnosticEngine.h"
 
 namespace LOICollection::frontend::ir {
     class Compiler : public ASTVisitor {
     public:
+        LOICOLLECTION_A_API   Compiler(DiagnosticEngine& diag);
+
         LOICOLLECTION_A_NDAPI BytecodeChunk compile(ASTNode& root);
 
     private:
         BytecodeChunk chunk;
+
+        DiagnosticEngine& diagnostics;
 
         void visit(ValueNode& node) override;
         void visit(VariableNode& node) override;

@@ -24,12 +24,14 @@ protected:
 
 protected:
     void SetUp() override {
-        if (!BlacklistPlugin::getInstance().isValid())
+        if (!BlacklistPlugin::getShared()->isValid())
             GTEST_SKIP() << "BlacklistPlugin is not valid";
     }
 
     void TearDown() override {
-        BlacklistPlugin::getInstance().getDatabase()->exec("DELETE FROM Blacklist;");
+        auto result = BlacklistPlugin::getShared()->getDatabase()->exec("DELETE FROM Blacklist;");
+        if (!result.has_value())
+            GTEST_FAIL() << "Unable to clear data";
     }
 
     bool CreateBlacklistEntry() {
@@ -37,10 +39,18 @@ protected:
         if (!sp.create())
             return false;
 
-        BlacklistPlugin::getInstance().addBlacklist(*sp.getPlayer(), "Test cause", 3600);
+        auto result = BlacklistPlugin::getShared()->addBlacklist(*sp.getPlayer(), "Test cause", 3600);
+        if (!result.has_value()) return false;
 
-        this->mBlacklistId = BlacklistPlugin::getInstance().getBlacklist(*sp.getPlayer());
-        if (this->mBlacklistId.empty() || !BlacklistPlugin::getInstance().hasBlacklist(this->mBlacklistId))
+        auto id = BlacklistPlugin::getShared()->getBlacklist(*sp.getPlayer());
+        if (!id.has_value()) return false;
+
+        this->mBlacklistId = id.value();
+
+        auto has = BlacklistPlugin::getShared()->hasBlacklist(this->mBlacklistId);
+        if (!has.has_value()) return false;
+
+        if (this->mBlacklistId.empty() || !has.value())
             return false;
         
         return sp.destroy();
@@ -54,25 +64,31 @@ TEST_F(BlacklistPluginTest, AddPlayerToBlacklist) {
 TEST_F(BlacklistPluginTest, GetBlacklistData) {
     EXPECT_TRUE(CreateBlacklistEntry());
 
-    auto data = BlacklistPlugin::getInstance().getBlacklistData(this->mBlacklistId);
+    auto data = BlacklistPlugin::getShared()->getBlacklistData(this->mBlacklistId);
+    EXPECT_TRUE(data.has_value());
 
-    EXPECT_FALSE(data.empty());
-    EXPECT_TRUE(data.size() == 7);
+    auto& maps = data.value();
+    EXPECT_FALSE(maps.empty());
+    EXPECT_TRUE(maps.size() == 7);
 }
 
 TEST_F(BlacklistPluginTest, GetBlacklists) {
     EXPECT_TRUE(CreateBlacklistEntry());
 
-    auto blacklists = BlacklistPlugin::getInstance().getBlacklists();
+    auto blacklists = BlacklistPlugin::getShared()->getBlacklists();
+    EXPECT_TRUE(blacklists.has_value());
 
-    EXPECT_FALSE(blacklists.empty());
-    EXPECT_TRUE(blacklists.size() >= 1);
+    auto& vecs = blacklists.value();
+    EXPECT_FALSE(vecs.empty());
+    EXPECT_TRUE(vecs.size() >= 1);
 }
 
 TEST_F(BlacklistPluginTest, DeleteBlacklist) {
     EXPECT_TRUE(CreateBlacklistEntry());
 
-    BlacklistPlugin::getInstance().delBlacklist(this->mBlacklistId);
+    EXPECT_TRUE(BlacklistPlugin::getShared()->delBlacklist(this->mBlacklistId).has_value());
 
-    EXPECT_FALSE(BlacklistPlugin::getInstance().hasBlacklist(this->mBlacklistId));
+    auto has = BlacklistPlugin::getShared()->hasBlacklist(this->mBlacklistId);
+    EXPECT_TRUE(has.has_value());
+    EXPECT_FALSE(has.value());
 }

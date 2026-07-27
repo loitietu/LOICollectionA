@@ -6,6 +6,7 @@
 #include <fmt/core.h>
 #include <nlohmann/json.hpp>
 
+#include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/command/Command.h>
@@ -24,8 +25,6 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 
 #include <mc/safety/RedactableString.h>
-
-#include "LOICollectionA/include/RegistryHelper.h"
 
 #include "LOICollectionA/include/form/PaginatedForm.h"
 
@@ -66,9 +65,14 @@ namespace LOICollection::server::Plugins {
     CdkPlugin::CdkPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<CdkGui>(*this)) {};
     CdkPlugin::~CdkPlugin() = default;
 
-    CdkPlugin& CdkPlugin::getInstance() {
-        static CdkPlugin instance;
+    std::shared_ptr<CdkPlugin> CdkPlugin::getShared() {
+        static auto instance = std::shared_ptr<CdkPlugin>(new CdkPlugin());
         return instance;
+    }
+
+    std::error_code CdkPlugin::makeErrorCode(CdkPluginErrorCode e) {
+        static CdkPluginErrorCategory cat;
+        return std::error_code{ static_cast<int>(e), cat };
     }
 
     std::shared_ptr<JsonStorage> CdkPlugin::getDatabase() {
@@ -89,9 +93,19 @@ namespace LOICollection::server::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
-                this->convert(player, param.Id);
-                
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.cdk.success.convert")), player.getRealName(), param.Id);
+                this->convert(player, param.Id)
+                    .or_else([](ll::Error e) -> ll::Expected<void> {
+                        if (e.isA<ll::ErrorCodeError>() 
+                            && (e.as<ll::ErrorCodeError>().ec == makeErrorCode(CdkPluginErrorCode::NotFound)
+                                || e.as<ll::ErrorCodeError>().ec == makeErrorCode(CdkPluginErrorCode::Received)))
+                            return {};
+
+                        return ll::Unexpected(e);
+                    })
+                    .transform([&output, &origin, name = player.getRealName(), id = param.Id]() -> void {
+                        output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.cdk.success.convert")), name, id);
+                    })
+                    .or_else(modules::defaultErrorHandler<CdkPlugin>);
             });
         command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
@@ -99,7 +113,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->convert(player);
+            this->mGui->convert(player).or_else(modules::defaultErrorHandler<CdkPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -112,18 +126,18 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player);
+            this->mGui->open(player).or_else(modules::defaultErrorHandler<CdkPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
     }
 
-    void CdkPlugin::create(const std::string& id, int time, bool personal) {
+    ll::Expected<void> CdkPlugin::create(const std::string& id, int time, bool personal) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(CdkPluginErrorCode::Invalid));
 
         if (this->getDatabase()->has(id))
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(CdkPluginErrorCode::Exists));
 
         nlohmann::ordered_json data = {
             { "personal", personal },
@@ -135,91 +149,104 @@ namespace LOICollection::server::Plugins {
         };
 
         this->getDatabase()->set(id, data);
-        this->getDatabase()->save();
+        
+        return this->getDatabase()->save();
     }
 
-    void CdkPlugin::remove(const std::string& id) {
+    ll::Expected<void> CdkPlugin::remove(const std::string& id) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(CdkPluginErrorCode::Invalid));
 
         this->getDatabase()->remove(id);
-        this->getDatabase()->save();
+
+        return this->getDatabase()->save();
     }
 
-    void CdkPlugin::convert(Player& player, const std::string& id) {
+    ll::Expected<void> CdkPlugin::convert(Player& player, const std::string& id) {
         if (!this->isValid()) 
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(CdkPluginErrorCode::Invalid));
 
-        std::string mObjectLanguage = LanguagePlugin::getInstance().getLanguage(player);
+        return LanguagePlugin::getShared()->getLanguage(player)
+            .and_then([this, id, &player](const std::string& language) -> ll::Expected<void> {
+                return this->getDatabase()->get<nlohmann::ordered_json>(id)
+                    .and_then([this, id, language, &player](nlohmann::ordered_json data) -> ll::Expected<void> {
+                        if (data.is_null()) {
+                            player.sendMessage(tr(language, "cdk.convert.tips1"));
 
-        auto data = this->getDatabase()->get<nlohmann::ordered_json>(id);
-        if (data.is_null()) {
-            player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
-            return;
-        }
+                            return ll::makeErrorCodeError(makeErrorCode(CdkPluginErrorCode::NotFound));
+                        }
 
-        if (SystemUtils::isPastOrPresent(data.value("time", ""))) {
-            this->getDatabase()->remove(id);
-            this->getDatabase()->save();
+                        if (SystemUtils::isPastOrPresent(data.value("time", ""))) {
+                            player.sendMessage(tr(language, "cdk.convert.tips1"));
 
-            player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips1"));
-            return;
-        }
+                            this->getDatabase()->remove(id);
 
-        std::string mUuid = player.getUuid().asString();
-        if (auto it = data.value<nlohmann::ordered_json>("player", {}); std::find(it.begin(), it.end(), mUuid) != it.end()) {
-            player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips2"));
-            return;
-        }
+                            return this->getDatabase()->save();
+                        }
 
-        for (auto elements = data.value<nlohmann::ordered_json>("title", {}); auto& element : elements.items())
-            ChatPlugin::getInstance().addTitle(player, element.key(), element.value());
+                        std::string mUuid = player.getUuid().asString();
+                        if (auto it = data.value<nlohmann::ordered_json>("player", {}); std::find(it.begin(), it.end(), mUuid) != it.end()) {
+                            player.sendMessage(tr(language, "cdk.convert.tips2"));
 
-        for (auto elements = data.value<nlohmann::ordered_json>("scores", {}); auto& element : elements.items())
-            ScoreboardUtils::addScore(player, element.key(), element.value());
+                            return ll::makeErrorCodeError(makeErrorCode(CdkPluginErrorCode::Received));
+                        }
 
-        for (auto& value : data.value<nlohmann::ordered_json>("item", {})) {
-            if (value.value("type", "") == "nbt") {
-                ItemStack itemStack = ItemStack::fromTag(CompoundTag::fromSnbt(value.value("id", ""))->mTags);
-                InventoryUtils::giveItem(player, itemStack, static_cast<int>(itemStack.mCount));
-            } else {
-                Bedrock::Safety::RedactableString mRedactableString;
-                mRedactableString.mUnredactedString = value.value("name", "");
-                
-                auto itemStack = std::make_unique<ItemStack>();
-                itemStack->reinit(value.value("id", ""), 1, value.value("specialvalue", 0));
-                itemStack->setCustomName(mRedactableString);
-                
-                InventoryUtils::giveItem(player, *itemStack, value.value("quantity", 1));
-            }
-        }
+                        for (auto elements = data.value<nlohmann::ordered_json>("title", {}); auto& element : elements.items()) {
+                            auto result = ChatPlugin::getShared()->addTitle(player, element.key(), element.value());
+                            if (!result.has_value()) {
+                                if (!result.error().isA<ll::ErrorCodeError>() || result.error().as<ll::ErrorCodeError>().ec != ChatPlugin::makeErrorCode(ChatPluginErrorCode::Invalid))
+                                    return ll::Unexpected(result.error());
+                            }
+                        }
 
-        player.refreshInventory();
-        player.sendMessage(tr(mObjectLanguage, "cdk.convert.tips3"));
+                        for (auto elements = data.value<nlohmann::ordered_json>("scores", {}); auto& element : elements.items())
+                            ScoreboardUtils::addScore(player, element.key(), element.value());
 
-        if (data.value("personal", false))
-            this->getDatabase()->remove(id);
-        else {
-            data.at("player").push_back(mUuid);
+                        for (auto& value : data.value<nlohmann::ordered_json>("item", {})) {
+                            if (value.value("type", "") == "nbt") {
+                                ItemStack itemStack = ItemStack::fromTag(CompoundTag::fromSnbt(value.value("id", ""))->mTags);
+                                InventoryUtils::giveItem(player, itemStack, static_cast<int>(itemStack.mCount));
+                            } else {
+                                Bedrock::Safety::RedactableString mRedactableString;
+                                mRedactableString.mUnredactedString = value.value("name", "");
+                                
+                                auto itemStack = std::make_unique<ItemStack>();
+                                itemStack->reinit(value.value("id", ""), 1, value.value("specialvalue", 0));
+                                itemStack->setCustomName(mRedactableString);
+                                
+                                InventoryUtils::giveItem(player, *itemStack, value.value("quantity", 1));
+                            }
+                        }
 
-            this->getDatabase()->set(id, data);
-        }
+                        player.refreshInventory();
+                        player.sendMessage(tr(language, "cdk.convert.tips3"));
 
-        this->getDatabase()->save();
+                        if (data.value("personal", false))
+                            this->getDatabase()->remove(id);
+                        else {
+                            data.at("player").push_back(mUuid);
 
-        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "cdk.log3"), player)), id);
+                            this->getDatabase()->set(id, data);
+                        }
+
+                        return this->getDatabase()->save()
+                            .transform([this, id, &player]() -> void {
+                                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "cdk.log3"), player)), id);
+                            });
+                    });
+            });
     }
 
-    std::vector<std::string> CdkPlugin::getCdks() {
+    ll::Expected<std::vector<std::string>> CdkPlugin::getCdks() {
         if (!this->isValid())
-            return {};
+            return ll::makeErrorCodeError(makeErrorCode(CdkPluginErrorCode::Invalid));
 
         return this->getDatabase()->keys();
     }
 
-    bool CdkPlugin::has(const std::string& id) {
+    ll::Expected<bool> CdkPlugin::has(const std::string& id) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(CdkPluginErrorCode::Invalid));
 
         return this->getDatabase()->has(id);
     }
@@ -228,7 +255,15 @@ namespace LOICollection::server::Plugins {
         return this->getLogger() != nullptr && this->getDatabase() != nullptr;
     }
 
-    bool CdkPlugin::load() {
+    std::string CdkPlugin::getName() {
+        return "CdkPlugin";
+    }
+
+    modules::ModulePriority CdkPlugin::getPriority() {
+        return modules::ModulePriority::High;
+    }
+
+    ll::Expected<bool> CdkPlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Cdk)
             return false;
 
@@ -238,10 +273,13 @@ namespace LOICollection::server::Plugins {
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
 
-        return true;
+        return this->mImpl->db->load()
+            .transform([]() -> bool {
+                return true;
+            });
     }
 
-    bool CdkPlugin::unload() {
+    ll::Expected<bool> CdkPlugin::unload() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
@@ -252,7 +290,7 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool CdkPlugin::registry() {
+    ll::Expected<bool> CdkPlugin::registry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
@@ -263,16 +301,15 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool CdkPlugin::unregistry() {
+    ll::Expected<bool> CdkPlugin::unregistry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
-        this->getDatabase()->save();
+        return this->getDatabase()->save()
+            .transform([this]() -> bool {
+                this->mImpl->mRegistered.store(false, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(false, std::memory_order_release);
-
-        return true;
+                return true;
+            });
     }
 }
-
-REGISTRY_HELPER(CdkPlugin, LOICollection::server::Plugins::CdkPlugin, LOICollection::server::Plugins::CdkPlugin::getInstance(), LOICollection::modules::ModulePriority::High)

@@ -22,12 +22,14 @@ using namespace LOICollection::server::Plugins;
 class PvpPluginTest : public testing::Test {
 protected:
     void SetUp() override {
-        if (!PvpPlugin::getInstance().isValid())
+        if (!PvpPlugin::getShared()->isValid())
             GTEST_SKIP() << "PvpPlugin is not valid";
     }
 
     void TearDown() override {
-        ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->exec("DELETE FROM Pvp;");
+        auto result = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->exec("DELETE FROM Pvp;");
+        if (!result.has_value())
+            GTEST_FAIL() << "Unable to clear data";
     }
 };
 
@@ -35,13 +37,17 @@ TEST_F(PvpPluginTest, EnableAndIsPvp) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    PvpPlugin::getInstance().enable(*sp, true);
+    EXPECT_TRUE(PvpPlugin::getShared()->enable(*sp, true).has_value());
 
-    EXPECT_TRUE(PvpPlugin::getInstance().isEnable(*sp));
+    auto enabled = PvpPlugin::getShared()->isEnable(*sp);
+    EXPECT_TRUE(enabled.has_value());
+    EXPECT_TRUE(enabled.value());
 
-    PvpPlugin::getInstance().enable(*sp, false);
+    EXPECT_TRUE(PvpPlugin::getShared()->enable(*sp, false).has_value());
 
-    EXPECT_FALSE(PvpPlugin::getInstance().isEnable(*sp));
+    auto disabled = PvpPlugin::getShared()->isEnable(*sp);
+    EXPECT_TRUE(disabled.has_value());
+    EXPECT_FALSE(disabled.value());
 }
 
 TEST_F(PvpPluginTest, CheckPvp) {
@@ -51,8 +57,8 @@ TEST_F(PvpPluginTest, CheckPvp) {
     TestSimulatedPlayer sp2("test_player3");
     EXPECT_TRUE(sp2.create());
 
-    PvpPlugin::getInstance().enable(*sp, true);
-    PvpPlugin::getInstance().enable(*sp2.getPlayer(), true);
+    EXPECT_TRUE(PvpPlugin::getShared()->enable(*sp, true).has_value());
+    EXPECT_TRUE(PvpPlugin::getShared()->enable(*sp2.getPlayer(), true).has_value());
 
     sp2.getPlayer()->teleport(sp->getPosition(), sp->getDimensionId());
 
@@ -61,7 +67,7 @@ TEST_F(PvpPluginTest, CheckPvp) {
 
     sp2.getPlayer()->heal(20);
 
-    PvpPlugin::getInstance().enable(*sp2.getPlayer(), false);
+    EXPECT_TRUE(PvpPlugin::getShared()->enable(*sp2.getPlayer(), false).has_value());
 
     static_cast<SimulatedPlayer*>(sp)->simulateAttack(sp2.getPlayer());
     EXPECT_TRUE(sp2.getPlayer()->getHealth() == 20);

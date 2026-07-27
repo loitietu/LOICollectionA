@@ -3,7 +3,12 @@
 #include <memory>
 #include <string>
 
+#include <ll/api/Expected.h>
+
 #include "LOICollectionA/base/Macro.h"
+
+#include "LOICollectionA/include/ModuleBase.h"
+#include "LOICollectionA/include/ModManager.h"
 
 #include "LOICollectionA/include/server/Plugins/gui/NoticeGui.h"
 
@@ -15,7 +20,27 @@ namespace ll::io {
 }
 
 namespace LOICollection::server::Plugins {
-    class NoticePlugin {
+    enum class NoticePluginErrorCode : int {
+        Invalid = 1
+    };
+
+    struct NoticePluginErrorCategory : std::error_category {
+        [[nodiscard]] const char* name() const noexcept override {
+            return "NoticePluginError";
+        }
+
+        [[nodiscard]] std::string message(int ev) const override {
+            switch (static_cast<NoticePluginErrorCode>(ev)) {
+                case NoticePluginErrorCode::Invalid: return "Plugin is invalid";
+                default:
+                    return "Unknown";
+            }
+        }
+    };
+
+    class NoticePlugin : public std::enable_shared_from_this<NoticePlugin>,
+                         public modules::ModuleBase,
+                         public modules::AutoRegister<NoticePlugin> {
     public:
         ~NoticePlugin();
 
@@ -25,25 +50,31 @@ namespace LOICollection::server::Plugins {
         NoticePlugin& operator=(NoticePlugin&&) = delete;
 
     public:
-        LOICOLLECTION_A_NDAPI static NoticePlugin& getInstance();
+        LOICOLLECTION_A_NDAPI static std::shared_ptr<NoticePlugin> getShared();
+        LOICOLLECTION_A_NDAPI static std::error_code makeErrorCode(NoticePluginErrorCode e);
 
         LOICOLLECTION_A_NDAPI std::shared_ptr<JsonStorage> getDatabase();
         LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
 
-        LOICOLLECTION_A_API   void create(const std::string& id, const std::string& title, int priority, bool poiontout);
-        LOICOLLECTION_A_API   void remove(const std::string& id);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> create(const std::string& id, const std::string& title, int priority, bool poiontout);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> remove(const std::string& id);
 
-        LOICOLLECTION_A_API   void setClose(Player& player, bool enable);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> setClose(Player& player, bool enable);
 
-        LOICOLLECTION_A_NDAPI bool has(const std::string& id);
-        LOICOLLECTION_A_NDAPI bool isClose(Player& player);
+        LOICOLLECTION_A_NDAPI ll::Expected<bool> has(const std::string& id);
+        LOICOLLECTION_A_NDAPI ll::Expected<bool> isClose(Player& player);
+
         LOICOLLECTION_A_NDAPI bool isValid();
 
     public:
-        LOICOLLECTION_A_API bool load();
-        LOICOLLECTION_A_API bool unload();
-        LOICOLLECTION_A_API bool registry();
-        LOICOLLECTION_A_API bool unregistry();
+        LOICOLLECTION_A_NDAPI std::string getName() override;
+
+        LOICOLLECTION_A_NDAPI modules::ModulePriority getPriority() override;
+
+        LOICOLLECTION_A_API   ll::Expected<bool> load() override;
+        LOICOLLECTION_A_API   ll::Expected<bool> unload() override;
+        LOICOLLECTION_A_API   ll::Expected<bool> registry() override;
+        LOICOLLECTION_A_API   ll::Expected<bool> unregistry() override;
 
     private:
         NoticePlugin();

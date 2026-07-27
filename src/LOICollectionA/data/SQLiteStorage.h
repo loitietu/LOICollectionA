@@ -9,6 +9,8 @@
 #include <string_view>
 #include <unordered_map>
 
+#include <ll/api/Expected.h>
+
 #include "LOICollectionA/base/Macro.h"
 
 namespace SQLite {
@@ -41,58 +43,57 @@ public:
     LOICOLLECTION_A_API   explicit SQLiteStorage(const std::string& path, size_t readSize = 10, size_t writeSize = 2, size_t cacheSize = 100);
     LOICOLLECTION_A_API   ~SQLiteStorage();
 
-    LOICOLLECTION_A_API   void exec(std::shared_ptr<ConnectionContext> context, std::string_view sql);
-    LOICOLLECTION_A_API   void create(std::shared_ptr<ConnectionContext> context, std::string_view table, CreateCallback callback);
-    LOICOLLECTION_A_API   void remove(std::shared_ptr<ConnectionContext> context, std::string_view table);
-    LOICOLLECTION_A_API   void set(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view column, std::string_view value);
-    LOICOLLECTION_A_API   void set(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::unordered_map<std::string, std::string> values);
-    LOICOLLECTION_A_API   void del(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key);
-    LOICOLLECTION_A_API   void del(std::shared_ptr<ConnectionContext> context, std::string_view table, std::vector<std::string> keys);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> exec(std::shared_ptr<ConnectionContext> context, std::string_view sql);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> create(std::shared_ptr<ConnectionContext> context, std::string_view table, CreateCallback callback);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> remove(std::shared_ptr<ConnectionContext> context, std::string_view table);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> set(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view column, std::string_view value);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> set(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::unordered_map<std::string, std::string> values);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> del(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> del(std::shared_ptr<ConnectionContext> context, std::string_view table, std::vector<std::string> keys);
 
-    LOICOLLECTION_A_NDAPI bool has(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key);
-    LOICOLLECTION_A_NDAPI bool has(std::shared_ptr<ConnectionContext> context, std::string_view table);
+    LOICOLLECTION_A_NDAPI ll::Expected<bool> has(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key);
+    LOICOLLECTION_A_NDAPI ll::Expected<bool> has(std::shared_ptr<ConnectionContext> context, std::string_view table);
 
-    LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::string> get(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key);
-    LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::unordered_map<std::string, std::string>> get(std::shared_ptr<ConnectionContext> context, std::string_view table, std::vector<std::string> keys);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::unordered_map<std::string, std::string>> get(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::unordered_map<std::string, std::unordered_map<std::string, std::string>>> get(std::shared_ptr<ConnectionContext> context, std::string_view table, std::vector<std::string> keys);
 
-    LOICOLLECTION_A_NDAPI std::string get(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view column, std::string_view defaultValue = "");
+    LOICOLLECTION_A_NDAPI ll::Expected<std::string> get(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view key, std::string_view column, std::string_view defaultValue = "");
     
-    LOICOLLECTION_A_NDAPI std::string find(std::shared_ptr<ConnectionContext> context, std::string_view table, std::vector<std::pair<std::string, std::string>> conditions, std::string_view defaultValue = "", FindCondition match = FindCondition::AND);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::string> find(std::shared_ptr<ConnectionContext> context, std::string_view table, std::vector<std::pair<std::string, std::string>> conditions, std::string_view defaultValue = "", FindCondition match = FindCondition::AND);
    
-    LOICOLLECTION_A_NDAPI std::vector<std::string> find(std::shared_ptr<ConnectionContext> context, std::string_view table, std::vector<std::pair<std::string, std::string>> conditions, FindCondition match = FindCondition::AND);
-    LOICOLLECTION_A_NDAPI std::vector<std::string> find(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view column, std::vector<std::pair<std::string, std::string>> conditions, FindCondition match = FindCondition::AND);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> find(std::shared_ptr<ConnectionContext> context, std::string_view table, std::vector<std::pair<std::string, std::string>> conditions, FindCondition match = FindCondition::AND);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> find(std::shared_ptr<ConnectionContext> context, std::string_view table, std::string_view column, std::vector<std::pair<std::string, std::string>> conditions, FindCondition match = FindCondition::AND);
 
-    LOICOLLECTION_A_NDAPI std::vector<std::string> list(std::shared_ptr<ConnectionContext> context, std::string_view table);
-    LOICOLLECTION_A_NDAPI std::vector<std::string> list(std::shared_ptr<ConnectionContext> context);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> list(std::shared_ptr<ConnectionContext> context, std::string_view table);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> list(std::shared_ptr<ConnectionContext> context);
 
-    LOICOLLECTION_A_NDAPI std::vector<std::string> columns(std::shared_ptr<ConnectionContext> context, std::string_view table);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> columns(std::shared_ptr<ConnectionContext> context, std::string_view table);
 
-    LOICOLLECTION_A_API   void exec(std::string_view sql);
-
-    LOICOLLECTION_A_API   void create(std::string_view table, CreateCallback callback);
-    LOICOLLECTION_A_API   void remove(std::string_view table);
-    LOICOLLECTION_A_API   void set(std::string_view table, std::string_view key, std::string_view column, std::string_view value);
-    LOICOLLECTION_A_API   void set(std::string_view table, std::string_view key, std::unordered_map<std::string, std::string> values);
-    LOICOLLECTION_A_API   void del(std::string_view table, std::string_view key);
-    LOICOLLECTION_A_API   void del(std::string_view table, std::vector<std::string> keys);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> exec(std::string_view sql);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> create(std::string_view table, CreateCallback callback);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> remove(std::string_view table);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> set(std::string_view table, std::string_view key, std::string_view column, std::string_view value);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> set(std::string_view table, std::string_view key, std::unordered_map<std::string, std::string> values);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> del(std::string_view table, std::string_view key);
+    LOICOLLECTION_A_NDAPI ll::Expected<void> del(std::string_view table, std::vector<std::string> keys);
     
-    LOICOLLECTION_A_NDAPI bool has(std::string_view table, std::string_view key);
-    LOICOLLECTION_A_NDAPI bool has(std::string_view table);
+    LOICOLLECTION_A_NDAPI ll::Expected<bool> has(std::string_view table, std::string_view key);
+    LOICOLLECTION_A_NDAPI ll::Expected<bool> has(std::string_view table);
 
-    LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::string> get(std::string_view table, std::string_view key);
-    LOICOLLECTION_A_NDAPI std::unordered_map<std::string, std::unordered_map<std::string, std::string>> get(std::string_view table, std::vector<std::string> keys);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::unordered_map<std::string, std::string>> get(std::string_view table, std::string_view key);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::unordered_map<std::string, std::unordered_map<std::string, std::string>>> get(std::string_view table, std::vector<std::string> keys);
 
-    LOICOLLECTION_A_NDAPI std::string get(std::string_view table, std::string_view key, std::string_view column, std::string_view defaultValue = "");
+    LOICOLLECTION_A_NDAPI ll::Expected<std::string> get(std::string_view table, std::string_view key, std::string_view column, std::string_view defaultValue = "");
 
-    LOICOLLECTION_A_NDAPI std::string find(std::string_view table, std::vector<std::pair<std::string, std::string>> conditions, std::string_view defaultValue = "", FindCondition match = FindCondition::AND);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::string> find(std::string_view table, std::vector<std::pair<std::string, std::string>> conditions, std::string_view defaultValue = "", FindCondition match = FindCondition::AND);
 
-    LOICOLLECTION_A_NDAPI std::vector<std::string> find(std::string_view table, std::vector<std::pair<std::string, std::string>> conditions, FindCondition match = FindCondition::AND);
-    LOICOLLECTION_A_NDAPI std::vector<std::string> find(std::string_view table, std::string_view column, std::vector<std::pair<std::string, std::string>> conditions, FindCondition match = FindCondition::AND);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> find(std::string_view table, std::vector<std::pair<std::string, std::string>> conditions, FindCondition match = FindCondition::AND);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> find(std::string_view table, std::string_view column, std::vector<std::pair<std::string, std::string>> conditions, FindCondition match = FindCondition::AND);
 
-    LOICOLLECTION_A_NDAPI std::vector<std::string> list(std::string_view table);
-    LOICOLLECTION_A_NDAPI std::vector<std::string> list();
+    LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> list(std::string_view table);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> list();
 
-    LOICOLLECTION_A_NDAPI std::vector<std::string> columns(std::string_view table);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::vector<std::string>> columns(std::string_view table);
 
 public:
     friend class SQLiteConnectionPool;
@@ -105,7 +106,7 @@ public:
     LOICOLLECTION_A_API   explicit SQLiteConnectionPool(const std::string& path, size_t size, size_t cacheSize = 100, bool readOnly = false);
     LOICOLLECTION_A_API   ~SQLiteConnectionPool();
     
-    LOICOLLECTION_A_NDAPI std::shared_ptr<SQLiteStorage::ConnectionContext> getConnection(int timeout = 5000);
+    LOICOLLECTION_A_NDAPI ll::Expected<std::shared_ptr<SQLiteStorage::ConnectionContext>> getConnection(int timeout = 5000);
     
     LOICOLLECTION_A_API   void returnConnection(std::shared_ptr<SQLiteStorage::ConnectionContext> conn);
 
@@ -122,15 +123,21 @@ private:
 
 class SQLiteStorageTransaction final {
 public:
-    LOICOLLECTION_A_API   explicit SQLiteStorageTransaction(SQLiteStorage& storage, bool readOnly = false);
+    SQLiteStorageTransaction(SQLiteStorageTransaction&&) noexcept = default;
+    SQLiteStorageTransaction& operator=(SQLiteStorageTransaction&&) = delete;
+
+    LOICOLLECTION_A_NDAPI static ll::Expected<SQLiteStorageTransaction> create(SQLiteStorage& storage);
+
     LOICOLLECTION_A_API   ~SQLiteStorageTransaction();
 
-    LOICOLLECTION_A_API   bool commit();
-    LOICOLLECTION_A_API   bool rollback();
+    LOICOLLECTION_A_API   ll::Expected<bool> commit();
+    LOICOLLECTION_A_API   ll::Expected<bool> rollback();
 
     LOICOLLECTION_A_NDAPI std::shared_ptr<SQLiteStorage::ConnectionContext> connection() const;
 
 private:
+    SQLiteStorageTransaction(SQLiteStorage& storage, std::shared_ptr<SQLiteStorage::ConnectionContext> conn);
+
     SQLiteStorage& mStorage;
 
     std::shared_ptr<SQLiteStorage::ConnectionContext> mConnection;

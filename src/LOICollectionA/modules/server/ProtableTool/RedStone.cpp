@@ -2,6 +2,7 @@
 #include <memory>
 #include <unordered_map>
 
+#include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
 
@@ -20,8 +21,6 @@
 #include <mc/world/level/BlockSource.h>
 #include <mc/world/level/block/BlockChangeContext.h>
 #include <mc/world/level/dimension/Dimension.h>
-
-#include "LOICollectionA/include/RegistryHelper.h"
 
 #include "LOICollectionA/include/server/Events/world/RedStoneEvent.h"
 
@@ -53,8 +52,8 @@ namespace LOICollection::server::ProtableTool {
     RedStone::RedStone() : mImpl(std::make_unique<Impl>()) {};
     RedStone::~RedStone() = default;
 
-    RedStone& RedStone::getInstance() {
-        static RedStone instance;
+    std::shared_ptr<RedStone> RedStone::getShared() {
+        static auto instance = std::shared_ptr<RedStone>(new RedStone());
         return instance;
     }
 
@@ -106,7 +105,15 @@ namespace LOICollection::server::ProtableTool {
         this->mImpl->RedStoneTaskSleep.interrupt();
     }
 
-    bool RedStone::load() {
+    std::string RedStone::getName() {
+        return "RedStone";
+    }
+
+    modules::ModulePriority RedStone::getPriority() {
+        return modules::ModulePriority::Normal;
+    }
+
+    ll::Expected<bool> RedStone::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.ProtableTool.RedStone)
             return false;
 
@@ -117,7 +124,7 @@ namespace LOICollection::server::ProtableTool {
         return true;
     }
 
-    bool RedStone::unload() {
+    ll::Expected<bool> RedStone::unload() {
         if (!this->mImpl->ModuleEnabled)
             return false;
         
@@ -130,7 +137,7 @@ namespace LOICollection::server::ProtableTool {
         return true;
     }
 
-    bool RedStone::registry() {
+    ll::Expected<bool> RedStone::registry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
@@ -141,7 +148,7 @@ namespace LOICollection::server::ProtableTool {
         return true;
     }
 
-    bool RedStone::unregistry() {
+    ll::Expected<bool> RedStone::unregistry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
@@ -152,5 +159,3 @@ namespace LOICollection::server::ProtableTool {
         return true;
     }
 }
-
-REGISTRY_HELPER(RedStone, LOICollection::server::ProtableTool::RedStone, LOICollection::server::ProtableTool::RedStone::getInstance(), LOICollection::modules::ModulePriority::Normal)

@@ -16,8 +16,8 @@
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
+#include "LOICollectionA/include/ModuleBase.h"
 #include "LOICollectionA/include/ModManager.h"
-#include "LOICollectionA/include/ModRegistry.h"
 
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"
@@ -54,7 +54,11 @@ namespace LOICollection {
             }
         }
 
-        Config::SynchronousPluginConfigType(this->config, configFilePath.string());
+        Config::SynchronousPluginConfigType(this->config, configFilePath.string()).or_else([&logger](const ll::Error& err) -> ll::Expected<void> { 
+            err.log(logger);
+            return {};
+        });
+
         if (!ll::config::loadConfig(this->config, configFilePath)) {
             logger.info("Plugin - Update configurations.");
 
@@ -78,14 +82,17 @@ namespace LOICollection {
 
         std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
         std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {
-            std::shared_ptr<modules::ModRegistry> mRegistry = modules::ModManager::getInstance().getRegistry(mod);
+            std::shared_ptr<modules::ModuleBase> mModule = modules::ModManager::getInstance().getModule(mod);
 
-            if (!mRegistry) {
-                logger.error("Failed to get mod registry for mod {}", mod);
+            if (!mModule) {
+                logger.error("Failed to get mod {}", mod);
                 return;
             }
 
-            mRegistry->onLoad();
+            mModule->load().or_else([&logger](const ll::Error& err) -> ll::Expected<bool> { 
+                err.log(logger);
+                return false;
+            });
         });
 
         logger.info("Initialization of database completed.");
@@ -104,14 +111,17 @@ namespace LOICollection {
 
         std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
         std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {
-            std::shared_ptr<modules::ModRegistry> mRegistry = modules::ModManager::getInstance().getRegistry(mod);
+            std::shared_ptr<modules::ModuleBase> mModule = modules::ModManager::getInstance().getModule(mod);
 
-            if (!mRegistry) {
-                logger.error("Failed to get mod registry for mod {}", mod);
+            if (!mModule) {
+                logger.error("Failed to get mod mod {}", mod);
                 return;
             }
 
-            mRegistry->onUnload();
+            mModule->unload().or_else([&logger](const ll::Error& err) -> ll::Expected<bool> { 
+                err.log(logger);
+                return false;
+            });
         });
 
         return true;
@@ -125,14 +135,17 @@ namespace LOICollection {
 
         std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
         std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {
-            std::shared_ptr<modules::ModRegistry> mRegistry = modules::ModManager::getInstance().getRegistry(mod);
+            std::shared_ptr<modules::ModuleBase> mModule = modules::ModManager::getInstance().getModule(mod);
 
-            if (!mRegistry) {
-                logger.error("Failed to get mod registry for mod {}", mod);
+            if (!mModule) {
+                logger.error("Failed to get mod {}", mod);
                 return;
             }
 
-            mRegistry->onRegistry();
+            mModule->registry().or_else([&logger](const ll::Error& err) -> ll::Expected<bool> { 
+                err.log(logger);
+                return false;
+            });
         });
 
         return true;
@@ -143,14 +156,17 @@ namespace LOICollection {
 
         std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
         std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {
-            std::shared_ptr<modules::ModRegistry> mRegistry = modules::ModManager::getInstance().getRegistry(mod);
+            std::shared_ptr<modules::ModuleBase> mModule = modules::ModManager::getInstance().getModule(mod);
 
-            if (!mRegistry) {
-                logger.error("Failed to get mod registry for mod {}", mod);
+            if (!mModule) {
+                logger.error("Failed to get mod {}", mod);
                 return;
             }
 
-            mRegistry->onUnregistry();
+            mModule->unregistry().or_else([&logger](const ll::Error& err) -> ll::Expected<bool> { 
+                err.log(logger);
+                return false;
+            });
         });
 
         return true;

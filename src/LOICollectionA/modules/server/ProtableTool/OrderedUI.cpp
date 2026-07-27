@@ -3,6 +3,7 @@
 #include <string>
 #include <unordered_map>
 
+#include <ll/api/Expected.h>
 #include <ll/api/event/EventBus.h>
 #include <ll/api/event/ListenerBase.h>
 #include <ll/api/event/player/PlayerDisconnectEvent.h>
@@ -16,8 +17,6 @@
 #include <mc/network/PacketHandlerDispatcherInstance.h>
 #include <mc/network/packet/ModalFormRequestPacket.h>
 #include <mc/network/packet/ModalFormResponsePacket.h>
-
-#include "LOICollectionA/include/RegistryHelper.h"
 
 #include "LOICollectionA/include/server/Events/server/NetworkPacketEvent.h"
 
@@ -45,8 +44,8 @@ namespace LOICollection::server::ProtableTool {
     OrderedUI::OrderedUI() : mImpl(std::make_unique<Impl>()) {};
     OrderedUI::~OrderedUI() = default;
 
-    OrderedUI& OrderedUI::getInstance() {
-        static OrderedUI instance;
+    std::shared_ptr<OrderedUI> OrderedUI::getShared() {
+        static auto instance = std::shared_ptr<OrderedUI>(new OrderedUI());
         return instance;
     }
 
@@ -126,7 +125,15 @@ namespace LOICollection::server::ProtableTool {
         eventBus.removeListener(this->mImpl->PlayerDisconnectEventListener);
     }
 
-    bool OrderedUI::load() {
+    std::string OrderedUI::getName() {
+        return "OrderedUI";
+    }
+
+    modules::ModulePriority OrderedUI::getPriority() {
+        return modules::ModulePriority::Normal;
+    }
+
+    ll::Expected<bool> OrderedUI::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.ProtableTool.OrderedUI)
             return false;
 
@@ -135,7 +142,7 @@ namespace LOICollection::server::ProtableTool {
         return true;
     }
 
-    bool OrderedUI::unload() {
+    ll::Expected<bool> OrderedUI::unload() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
@@ -147,7 +154,7 @@ namespace LOICollection::server::ProtableTool {
         return true;
     }
 
-    bool OrderedUI::registry() {
+    ll::Expected<bool> OrderedUI::registry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
@@ -158,7 +165,7 @@ namespace LOICollection::server::ProtableTool {
         return true;
     }
 
-    bool OrderedUI::unregistry() {
+    ll::Expected<bool> OrderedUI::unregistry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
@@ -169,5 +176,3 @@ namespace LOICollection::server::ProtableTool {
         return true;
     }
 }
-
-REGISTRY_HELPER(OrderedUI, LOICollection::server::ProtableTool::OrderedUI, LOICollection::server::ProtableTool::OrderedUI::getInstance(), LOICollection::modules::ModulePriority::Normal)

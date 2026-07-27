@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include <ll/api/Expected.h>
+
 #include "LOICollectionA/base/Macro.h"
 
 #include "LOICollectionA/include/server/Plugins/types/WalletType.h"
@@ -18,9 +20,9 @@ namespace LOICollection::server::Plugins {
     public:
         WalletGui(WalletPlugin& plugin) : mParent(plugin) {}
 
-        LOICOLLECTION_A_API void content(Player& player, const std::string& target, WalletTransferType type);
-        LOICOLLECTION_A_API void transfer(Player& player, WalletTransferType type);
-        LOICOLLECTION_A_API void redenvelope(Player& player);
-        LOICOLLECTION_A_API void open(Player& player);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> content(Player& player, const std::string& target, WalletTransferType type);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> transfer(Player& player, WalletTransferType type);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> redenvelope(Player& player);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> open(Player& player);
     };
 }

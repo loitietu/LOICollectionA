@@ -22,12 +22,14 @@ protected:
 
 protected:
     void SetUp() override {
-        if (!MutePlugin::getInstance().isValid())
+        if (!MutePlugin::getShared()->isValid())
             GTEST_SKIP() << "MutePlugin is not valid";
     }
 
     void TearDown() override {
-        MutePlugin::getInstance().getDatabase()->exec("DELETE FROM Mute;");
+        auto result = MutePlugin::getShared()->getDatabase()->exec("DELETE FROM Mute;");
+        if (!result.has_value())
+            GTEST_FAIL() << "Unable to clear data";
     }
 
     bool CreateMuteEntry() {
@@ -35,10 +37,18 @@ protected:
         if (!sp)
             return false;
 
-        MutePlugin::getInstance().addMute(*sp, "Test Cause", 3600);
+        auto addResult = MutePlugin::getShared()->addMute(*sp, "Test Cause", 3600);
+        if (!addResult.has_value()) return false;
 
-        this->mMuteId = MutePlugin::getInstance().getMute(*sp);
-        if (this->mMuteId.empty() || !MutePlugin::getInstance().hasMute(this->mMuteId))
+        auto id = MutePlugin::getShared()->getMute(*sp);
+        if (!id.has_value()) return false;
+
+        this->mMuteId = id.value();
+
+        auto has = MutePlugin::getShared()->hasMute(this->mMuteId);
+        if (!has.has_value()) return false;
+
+        if (this->mMuteId.empty() || !has.value())
             return false;
 
         return true;
@@ -52,28 +62,34 @@ TEST_F(MutePluginTest, AddPlayerToMute) {
 TEST_F(MutePluginTest, GetMuteData) {
     EXPECT_TRUE(CreateMuteEntry());
 
-    auto data = MutePlugin::getInstance().getMuteData(this->mMuteId);
+    auto data = MutePlugin::getShared()->getMuteData(this->mMuteId);
+    EXPECT_TRUE(data.has_value());
 
-    EXPECT_FALSE(data.empty());
-    EXPECT_TRUE(data.size() == 5);
-    EXPECT_TRUE(data["name"] == "test_player");
+    auto& maps = data.value();
+    EXPECT_FALSE(maps.empty());
+    EXPECT_TRUE(maps.size() == 5);
+    EXPECT_TRUE(maps["name"] == "test_player");
 }
 
 TEST_F(MutePluginTest, GetMutes) {
     EXPECT_TRUE(CreateMuteEntry());
 
-    auto mutes = MutePlugin::getInstance().getMutes();
+    auto mutes = MutePlugin::getShared()->getMutes();
+    EXPECT_TRUE(mutes.has_value());
 
-    EXPECT_FALSE(mutes.empty());
-    EXPECT_TRUE(mutes.size() >= 1);
+    auto& vecs = mutes.value();
+    EXPECT_FALSE(vecs.empty());
+    EXPECT_TRUE(vecs.size() >= 1);
 }
 
 TEST_F(MutePluginTest, DeleteMute) {
     EXPECT_TRUE(CreateMuteEntry());
 
-    MutePlugin::getInstance().delMute(this->mMuteId);
+    EXPECT_TRUE(MutePlugin::getShared()->delMute(this->mMuteId).has_value());
 
-    EXPECT_FALSE(MutePlugin::getInstance().hasMute(this->mMuteId));
+    auto has = MutePlugin::getShared()->hasMute(this->mMuteId);
+    EXPECT_TRUE(has.has_value());
+    EXPECT_FALSE(has.value());
 }
 
 TEST_F(MutePluginTest, InterceptPlayerMessage) {

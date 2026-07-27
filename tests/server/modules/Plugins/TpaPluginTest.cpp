@@ -33,16 +33,20 @@ protected:
 
 protected:
     void SetUp() override {
-        if (!TpaPlugin::getInstance().isValid())
+        if (!TpaPlugin::getShared()->isValid())
             GTEST_SKIP() << "TpaPlugin is not valid";
     }
 
     void TearDown() override {
-        TpaPlugin::getInstance().getDatabase()->exec("DELETE FROM Blacklist;");
+        auto r1 = TpaPlugin::getShared()->getDatabase()->exec("DELETE FROM Blacklist;");
+        if (!r1.has_value())
+            GTEST_FAIL() << "Unable to clear data";
 
-        ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->exec("DELETE FROM Tpa;");
+        auto r2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->exec("DELETE FROM Tpa;");
+        if (!r2.has_value())
+            GTEST_FAIL() << "Unable to clear data";
 
-        TpaPlugin::getInstance().setExecutor(ll::thread::ServerThreadExecutor::getDefault());
+        EXPECT_TRUE(TpaPlugin::getShared()->setExecutor(ll::thread::ServerThreadExecutor::getDefault()).has_value());
     }
 
     bool CreateBlacklistEntry() {
@@ -52,10 +56,18 @@ protected:
         if (!sp.create() || !sp2)
             return false;
 
-        TpaPlugin::getInstance().addBlacklist(*sp2, *sp.getPlayer());
+        auto addResult = TpaPlugin::getShared()->addBlacklist(*sp2, *sp.getPlayer());
+        if (!addResult.has_value()) return false;
 
-        this->mBlacklistId = TpaPlugin::getInstance().getBlacklist(*sp2, *sp.getPlayer());
-        if (this->mBlacklistId.empty() || !TpaPlugin::getInstance().hasBlacklist(*sp2, this->mBlacklistId))
+        auto id = TpaPlugin::getShared()->getBlacklist(*sp2, *sp.getPlayer());
+        if (!id.has_value()) return false;
+
+        this->mBlacklistId = id.value();
+
+        auto has = TpaPlugin::getShared()->hasBlacklist(*sp2, this->mBlacklistId);
+        if (!has.has_value()) return false;
+
+        if (this->mBlacklistId.empty() || !has.value())
             return false;
 
         return sp.destroy();
@@ -66,11 +78,15 @@ TEST_F(TpaPluginTest, InviteSetting) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    EXPECT_FALSE(TpaPlugin::getInstance().isInvite(*sp));
+    auto invite1 = TpaPlugin::getShared()->isInvite(*sp);
+    EXPECT_TRUE(invite1.has_value());
+    EXPECT_FALSE(invite1.value());
 
-    TpaPlugin::getInstance().setInvite(*sp, true);
+    EXPECT_TRUE(TpaPlugin::getShared()->setInvite(*sp, true).has_value());
 
-    EXPECT_TRUE(TpaPlugin::getInstance().isInvite(*sp));
+    auto invite2 = TpaPlugin::getShared()->isInvite(*sp);
+    EXPECT_TRUE(invite2.has_value());
+    EXPECT_TRUE(invite2.value());
 }
 
 TEST_F(TpaPluginTest, AddPlayerToBlacklist) {
@@ -83,9 +99,11 @@ TEST_F(TpaPluginTest, DeletePlayerFromBlacklist) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    TpaPlugin::getInstance().delBlacklist(*sp, this->mBlacklistId);
+    EXPECT_TRUE(TpaPlugin::getShared()->delBlacklist(*sp, this->mBlacklistId).has_value());
 
-    EXPECT_FALSE(TpaPlugin::getInstance().hasBlacklist(*sp, this->mBlacklistId));
+    auto has = TpaPlugin::getShared()->hasBlacklist(*sp, this->mBlacklistId);
+    EXPECT_TRUE(has.has_value());
+    EXPECT_FALSE(has.value());
 }
 
 TEST_F(TpaPluginTest, GetBlacklist) {
@@ -94,13 +112,17 @@ TEST_F(TpaPluginTest, GetBlacklist) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    EXPECT_TRUE(TpaPlugin::getInstance().getBlacklist(*sp).size() > 0);
+    auto blacklists = TpaPlugin::getShared()->getBlacklist(*sp);
+    EXPECT_TRUE(blacklists.has_value());
+    EXPECT_TRUE(blacklists.value().size() > 0);
 }
 
 TEST_F(TpaPluginTest, GetBlacklistFromTarget) {
     EXPECT_TRUE(CreateBlacklistEntry());
 
-    EXPECT_TRUE(TpaPlugin::getInstance().getBlacklistFromTarget({ this->mBlacklistId }).size() > 0);
+    auto blacklists = TpaPlugin::getShared()->getBlacklistFromTarget({ this->mBlacklistId });
+    EXPECT_TRUE(blacklists.has_value());
+    EXPECT_TRUE(blacklists.value().size() > 0);
 }
 
 TEST_F(TpaPluginTest, GetBlacklistData) {
@@ -109,9 +131,10 @@ TEST_F(TpaPluginTest, GetBlacklistData) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    auto data = TpaPlugin::getInstance().getBlacklistData(this->mBlacklistId);
-    EXPECT_FALSE(data.empty());
-    EXPECT_TRUE(data["author"] == sp->getUuid().asString());
+    auto data = TpaPlugin::getShared()->getBlacklistData(this->mBlacklistId);
+    EXPECT_TRUE(data.has_value());
+    EXPECT_FALSE(data.value().empty());
+    EXPECT_TRUE(data.value()["author"] == sp->getUuid().asString());
 }
 
 TEST_F(TpaPluginTest, ForTpaContent) {
@@ -129,8 +152,14 @@ TEST_F(TpaPluginTest, ForTpaContent) {
 
     ScoreboardUtils::setScore(*sp, config.TargetScoreboard, config.RequestRequired);
 
-    EXPECT_TRUE(TpaPlugin::getInstance().forTpaContent(*sp));
-    EXPECT_FALSE(TpaPlugin::getInstance().forTpaContent(*sp));
+    auto content1 = TpaPlugin::getShared()->forTpaContent(*sp);
+    EXPECT_TRUE(content1.has_value());
+    EXPECT_TRUE(content1.value());
+
+    auto content2 = TpaPlugin::getShared()->forTpaContent(*sp);
+    EXPECT_TRUE(content2.has_value());
+    EXPECT_FALSE(content2.value());
+
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, config.TargetScoreboard), 0);
 
     if (!hasScoreboard)
@@ -139,7 +168,7 @@ TEST_F(TpaPluginTest, ForTpaContent) {
 
 TEST_F(TpaPluginTest, SendRequest) {
     MockExecutor executor;
-    TpaPlugin::getInstance().setExecutor(executor);
+    EXPECT_TRUE(TpaPlugin::getShared()->setExecutor(executor).has_value());
 
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
@@ -147,13 +176,19 @@ TEST_F(TpaPluginTest, SendRequest) {
     TestSimulatedPlayer sp2("test_player2");
     EXPECT_TRUE(sp2.create());
 
-    TpaPlugin::getInstance().sendRequest(*sp, *sp2.getPlayer(), "test_request", TpaType::tpa);
-    EXPECT_TRUE(TpaPlugin::getInstance().hasRequest(sp->getUuid().asString(), sp2.getPlayer()->getUuid().asString()));
+    EXPECT_TRUE(TpaPlugin::getShared()->sendRequest(*sp, *sp2.getPlayer(), "test_request", TpaType::tpa).has_value());
+
+    auto has1 = TpaPlugin::getShared()->hasRequest(sp->getUuid().asString(), sp2.getPlayer()->getUuid().asString());
+    EXPECT_TRUE(has1.has_value());
+    EXPECT_TRUE(has1.value());
 
     Config::C_Tpa config = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Tpa;
 
     executor.advanceTime(std::chrono::seconds(config.RequestTimeout + 1));
-    EXPECT_FALSE(TpaPlugin::getInstance().hasRequest(sp->getUuid().asString(), sp2.getPlayer()->getUuid().asString()));
+
+    auto has2 = TpaPlugin::getShared()->hasRequest(sp->getUuid().asString(), sp2.getPlayer()->getUuid().asString());
+    EXPECT_TRUE(has2.has_value());
+    EXPECT_FALSE(has2.value());
 }
 
 TEST_F(TpaPluginTest, AcceptRequest) {
@@ -174,12 +209,17 @@ TEST_F(TpaPluginTest, AcceptRequest) {
 
     ScoreboardUtils::setScore(*sp, config.TargetScoreboard, config.RequestRequired);
 
-    TpaPlugin::getInstance().sendRequest(*sp, *sp2.getPlayer(), "test_request", TpaType::tpa);
+    EXPECT_TRUE(TpaPlugin::getShared()->sendRequest(*sp, *sp2.getPlayer(), "test_request", TpaType::tpa).has_value());
 
     sp2.getPlayer()->teleport(sp2.getPlayer()->getPosition() + Vec3(1, 1, 1), sp2.getPlayer()->getDimensionId());
 
-    EXPECT_TRUE(TpaPlugin::getInstance().acceptRequest(*sp2.getPlayer(), "test_request"));
-    EXPECT_FALSE(TpaPlugin::getInstance().hasRequest(sp->getUuid().asString(), sp2.getPlayer()->getUuid().asString()));
+    auto accept = TpaPlugin::getShared()->acceptRequest(*sp2.getPlayer(), "test_request");
+    EXPECT_TRUE(accept.has_value());
+    EXPECT_TRUE(accept.value());
+
+    auto has = TpaPlugin::getShared()->hasRequest(sp->getUuid().asString(), sp2.getPlayer()->getUuid().asString());
+    EXPECT_TRUE(has.has_value());
+    EXPECT_FALSE(has.value());
 
     Vec3 spPos = sp->getPosition();
     Vec3 sp2Pos = sp2.getPlayer()->getPosition();
@@ -199,12 +239,18 @@ TEST_F(TpaPluginTest, RejectRequest) {
     TestSimulatedPlayer sp2("test_player2");
     EXPECT_TRUE(sp2.create());
 
-    TpaPlugin::getInstance().sendRequest(*sp, *sp2.getPlayer(), "test_request", TpaType::tpa);
+    EXPECT_TRUE(TpaPlugin::getShared()->sendRequest(*sp, *sp2.getPlayer(), "test_request", TpaType::tpa).has_value());
 
     sp2.getPlayer()->teleport(sp2.getPlayer()->getPosition() + Vec3(1, 1, 1), sp2.getPlayer()->getDimensionId());
 
-    EXPECT_TRUE(TpaPlugin::getInstance().rejectRequest(*sp2.getPlayer(), "test_request"));
-    EXPECT_FALSE(TpaPlugin::getInstance().hasRequest(sp->getUuid().asString(), sp2.getPlayer()->getUuid().asString()));
+    auto reject = TpaPlugin::getShared()->rejectRequest(*sp2.getPlayer(), "test_request");
+    EXPECT_TRUE(reject.has_value());
+    EXPECT_TRUE(reject.value());
+
+    auto has = TpaPlugin::getShared()->hasRequest(sp->getUuid().asString(), sp2.getPlayer()->getUuid().asString());
+    EXPECT_TRUE(has.has_value());
+    EXPECT_FALSE(has.value());
+
     EXPECT_NE(sp->getPosition(), sp2.getPlayer()->getPosition());
 }
 
@@ -215,11 +261,17 @@ TEST_F(TpaPluginTest, CancelRequest) {
     TestSimulatedPlayer sp2("test_player2");
     EXPECT_TRUE(sp2.create());
 
-    TpaPlugin::getInstance().sendRequest(*sp, *sp2.getPlayer(), "test_request", TpaType::tpa);
+    EXPECT_TRUE(TpaPlugin::getShared()->sendRequest(*sp, *sp2.getPlayer(), "test_request", TpaType::tpa).has_value());
 
     sp2.getPlayer()->teleport(sp2.getPlayer()->getPosition() + Vec3(1, 1, 1), sp2.getPlayer()->getDimensionId());
 
-    EXPECT_TRUE(TpaPlugin::getInstance().cancelRequest("test_request"));
-    EXPECT_FALSE(TpaPlugin::getInstance().hasRequest(sp->getUuid().asString(), sp2.getPlayer()->getUuid().asString()));
+    auto cancel = TpaPlugin::getShared()->cancelRequest("test_request");
+    EXPECT_TRUE(cancel.has_value());
+    EXPECT_TRUE(cancel.value());
+
+    auto has = TpaPlugin::getShared()->hasRequest(sp->getUuid().asString(), sp2.getPlayer()->getUuid().asString());
+    EXPECT_TRUE(has.has_value());
+    EXPECT_FALSE(has.value());
+
     EXPECT_NE(sp->getPosition(), sp2.getPlayer()->getPosition());
 }

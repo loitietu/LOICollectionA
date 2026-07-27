@@ -4,6 +4,7 @@
 
 #include <fmt/core.h>
 
+#include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/form/CustomForm.h>
 
@@ -19,22 +20,23 @@
 using I18nUtilsTools::tr;
 
 namespace LOICollection::server::Plugins {
-    void LanguageGui::open(Player& player) {
-        std::string mObjectLanguage = this->mParent.getLanguage(player);
+    ll::Expected<void> LanguageGui::open(Player& player) {
+        return this->mParent.getLanguage(player)
+            .transform([this, &player](const std::string& language) -> void {
+                std::vector<std::string> keys = std::views::keys(I18nUtils::getInstance()->data)
+                    | std::ranges::to<std::vector<std::string>>();
+                
+                ll::form::CustomForm form(tr(language, "language.gui.title"));
+                form.appendLabel(tr(language, "language.gui.label"));
+                form.appendLabel(fmt::format(fmt::runtime(tr(language, "language.gui.lang")), tr(language, "name")));
+                form.appendDropdown("dropdown", tr(language, "language.gui.dropdown"), keys);
+                form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) mutable -> void {
+                    if (!dt) return;
 
-        std::vector<std::string> keys = std::views::keys(I18nUtils::getInstance()->data)
-            | std::ranges::to<std::vector<std::string>>();
-        
-        ll::form::CustomForm form(tr(mObjectLanguage, "language.gui.title"));
-        form.appendLabel(tr(mObjectLanguage, "language.gui.label"));
-        form.appendLabel(fmt::format(fmt::runtime(tr(mObjectLanguage, "language.gui.lang")), tr(mObjectLanguage, "name")));
-        form.appendDropdown("dropdown", tr(mObjectLanguage, "language.gui.dropdown"), keys);
-        form.sendTo(player, [this](Player& pl, ll::form::CustomFormResult const& dt, ll::form::FormCancelReason) mutable -> void {
-            if (!dt) return;
-
-            this->mParent.set(pl, std::get<std::string>(dt->at("dropdown")));
-            
-            this->mParent.getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "language.log"), pl));
-        });
+                    this->mParent.set(pl, std::get<std::string>(dt->at("dropdown"))).or_else(modules::defaultErrorHandler<LanguagePlugin>);
+                    
+                    this->mParent.getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "language.log"), pl));
+                });
+            });
     }
 }

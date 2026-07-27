@@ -3,6 +3,7 @@
 #include <string>
 
 #include "LOICollectionA/base/Macro.h"
+#include "LOICollectionA/frontend/DiagnosticEngine.h"
 
 namespace LOICollection::frontend {
     enum class TokenType {
@@ -18,16 +19,20 @@ namespace LOICollection::frontend {
     struct Token {
         TokenType type;
         std::string value;
-        size_t pos;
+        SourceLocation loc;
     };
     
     class Lexer {
         std::string input;
         size_t position;
+        size_t line;
+        size_t column;
         char currentChar;
+        
+        DiagnosticEngine& diagnostics;
 
     public:
-        LOICOLLECTION_A_API   Lexer(std::string str);
+        LOICOLLECTION_A_API   Lexer(std::string str, DiagnosticEngine& diag);
 
         LOICOLLECTION_A_API   void advance();
 

@@ -23,8 +23,6 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "LOICollectionA/include/RegistryHelper.h"
-
 #include "LOICollectionA/include/form/PaginatedForm.h"
 
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
@@ -75,9 +73,14 @@ namespace LOICollection::server::Plugins {
     NoticePlugin::NoticePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<NoticeGui>(*this)) {};
     NoticePlugin::~NoticePlugin() = default;
 
-    NoticePlugin& NoticePlugin::getInstance() {
-        static NoticePlugin instance;
+    std::shared_ptr<NoticePlugin> NoticePlugin::getShared() {
+        static auto instance = std::shared_ptr<NoticePlugin>(new NoticePlugin());
         return instance;
+    }
+
+    std::error_code NoticePlugin::makeErrorCode(NoticePluginErrorCode e) {
+        static NoticePluginErrorCategory cat;
+        return std::error_code{ static_cast<int>(e), cat };
     }
     
     std::shared_ptr<JsonStorage> NoticePlugin::getDatabase() {
@@ -100,7 +103,8 @@ namespace LOICollection::server::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
-                param.Object.empty() ? this->mGui->open(player) : this->mGui->notice(player, param.Object);
+                (param.Object.empty() ? this->mGui->open(player) : this->mGui->notice(player, param.Object))
+                    .or_else(modules::defaultErrorHandler<NoticePlugin>);
 
                 output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
             });
@@ -113,7 +117,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->edit(player);
+            this->mGui->edit(player).or_else(modules::defaultErrorHandler<NoticePlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -123,7 +127,7 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->setting(player);
+            this->mGui->setting(player).or_else(modules::defaultErrorHandler<NoticePlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -135,21 +139,31 @@ namespace LOICollection::server::Plugins {
             if (event.self().isSimulatedPlayer())
                 return;
 
-            std::string mObject = event.self().getUuid().asString();
+            std::string uuid = event.self().getUuid().asString();
 
-            if (!this->mImpl->db2->has("Notice", mObject)) {
-                std::unordered_map<std::string, std::string> mData = {
-                    { "name", event.self().getRealName() },
-                    { "close", "false" }
-                };
+            this->mImpl->db2->has("Notice", uuid)
+                .and_then([this, uuid, name = event.self().getRealName()](bool exists) -> ll::Expected<void> {
+                    if (!exists) {
+                        std::unordered_map<std::string, std::string> data = {
+                            { "name", name },
+                            { "close", "false" }
+                        };
 
-                this->mImpl->db2->set("Notice", mObject, mData);
-            }
+                        return this->mImpl->db2->set("Notice", uuid, data);
+                    }
+
+                    return {};
+                })
+                .or_else(modules::defaultErrorHandler<NoticePlugin>);
             
-            if (this->isClose(event.self()))
-                return;
+            this->isClose(event.self())
+                .and_then([this, &event](bool exists) -> ll::Expected<void> {
+                    if (exists)
+                        return {};
 
-            this->mGui->notice(event.self());
+                    return this->mGui->notice(event.self());
+                })
+                .or_else(modules::defaultErrorHandler<NoticePlugin>);
         });
 
         this->mImpl->NoticeCreateEventListener = eventBus.emplaceListener<LOICollection::server::Events::NoticeCreateEvent>([](LOICollection::server::Events::NoticeCreateEvent& event) mutable -> void {
@@ -168,9 +182,9 @@ namespace LOICollection::server::Plugins {
         eventBus.removeListener(this->mImpl->NoticeDeleteEventListener);
     }
 
-    void NoticePlugin::create(const std::string& id, const std::string& title, int priority, bool poiontout) {
+    ll::Expected<void> NoticePlugin::create(const std::string& id, const std::string& title, int priority, bool poiontout) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(NoticePluginErrorCode::Invalid));
 
         nlohmann::ordered_json data = {
             { "title", title },
@@ -180,52 +194,65 @@ namespace LOICollection::server::Plugins {
         };
 
         this->getDatabase()->set(id, data);
-        this->getDatabase()->save();
+
+        return this->getDatabase()->save();
     }
 
-    void NoticePlugin::remove(const std::string& id) {
+    ll::Expected<void> NoticePlugin::remove(const std::string& id) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(NoticePluginErrorCode::Invalid));
 
         this->getDatabase()->remove(id);
-        this->getDatabase()->save();
+
+        return this->getDatabase()->save();
     }
 
-    void NoticePlugin::setClose(Player& player, bool enable) {
+    ll::Expected<void> NoticePlugin::setClose(Player& player, bool enable) {
         if (!this->isValid())
-            return;
+            return ll::makeErrorCodeError(makeErrorCode(NoticePluginErrorCode::Invalid));
 
-        this->mImpl->db2->set("Notice", player.getUuid().asString(), "close", enable ? "true" : "false");
+        return this->mImpl->db2->set("Notice", player.getUuid().asString(), "close", enable ? "true" : "false");
     }
 
-    bool NoticePlugin::has(const std::string& id) {
+    ll::Expected<bool> NoticePlugin::has(const std::string& id) {
         if (!this->isValid())
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(NoticePluginErrorCode::Invalid));
 
         return this->getDatabase()->has(id);
     }
 
-    bool NoticePlugin::isClose(Player& player) {
+    ll::Expected<bool> NoticePlugin::isClose(Player& player) {
         if (!this->isValid()) 
-            return false;
+            return ll::makeErrorCodeError(makeErrorCode(NoticePluginErrorCode::Invalid));
 
-        std::string mObject = player.getUuid().asString();
+        std::string uuid = player.getUuid().asString();
 
-        if (this->mImpl->CloseCache.contains(mObject))
-            return *this->mImpl->CloseCache.get(mObject).value();
+        if (this->mImpl->CloseCache.contains(uuid))
+            return *this->mImpl->CloseCache.get(uuid).value();
 
-        bool result = this->mImpl->db2->get("Notice", mObject, "close", "false") == "true";
+        return this->mImpl->db2->get("Notice", uuid, "close", "false")
+            .transform([this, uuid](const std::string& value) -> bool {
+                bool result = (value == "true");
+                
+                this->mImpl->CloseCache.put(uuid, result);
 
-        this->mImpl->CloseCache.put(mObject, result);
-
-        return result;
+                return result;
+            });
     }
 
     bool NoticePlugin::isValid() {
         return this->getLogger() != nullptr && this->getDatabase() != nullptr && this->mImpl->db2 != nullptr;
     }
 
-    bool NoticePlugin::load() {
+    std::string NoticePlugin::getName() {
+        return "NoticePlugin";
+    }
+
+    modules::ModulePriority NoticePlugin::getPriority() {
+        return modules::ModulePriority::High;
+    }
+
+    ll::Expected<bool> NoticePlugin::load() {
         if (!ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Notice)
             return false;
 
@@ -236,10 +263,13 @@ namespace LOICollection::server::Plugins {
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
 
-        return true;
+        return this->mImpl->db->load()
+            .transform([]() -> bool {
+                return true;
+            });
     }
 
-    bool NoticePlugin::unload() {
+    ll::Expected<bool> NoticePlugin::unload() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
@@ -254,35 +284,34 @@ namespace LOICollection::server::Plugins {
         return true;
     }
 
-    bool NoticePlugin::registry() {
+    ll::Expected<bool> NoticePlugin::registry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
-        this->mImpl->db2->create("Notice", [](SQLiteStorage::ColumnCallback ctor) -> void {
+        return this->mImpl->db2->create("Notice", [](SQLiteStorage::ColumnCallback ctor) -> void {
             ctor("name");
             ctor("close");
+        }).transform([this]() -> bool {
+            this->registeryCommand();
+            this->listenEvent();
+
+            this->mImpl->mRegistered.store(true, std::memory_order_release);
+
+            return true;
         });
-
-        this->registeryCommand();
-        this->listenEvent();
-
-        this->mImpl->mRegistered.store(true, std::memory_order_release);
-
-        return true;
     }
 
-    bool NoticePlugin::unregistry() {
+    ll::Expected<bool> NoticePlugin::unregistry() {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
         this->unlistenEvent();
 
-        this->getDatabase()->save();
+        return this->getDatabase()->save()
+            .transform([this]() -> bool {
+                this->mImpl->mRegistered.store(false, std::memory_order_release);
 
-        this->mImpl->mRegistered.store(false, std::memory_order_release);
-
-        return true;
+                return true;
+            });
     }
 }
-
-REGISTRY_HELPER(NoticePlugin, LOICollection::server::Plugins::NoticePlugin, LOICollection::server::Plugins::NoticePlugin::getInstance(), LOICollection::modules::ModulePriority::High)

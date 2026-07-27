@@ -2,7 +2,9 @@
 
 #include <string>
 #include <memory>
+#include <stdexcept>
 
+#include "LOICollectionA/frontend/DiagnosticEngine.h"
 #include "LOICollectionA/frontend/Lexer.h"
 #include "LOICollectionA/frontend/Parser.h"
 #include "LOICollectionA/frontend/ir/Compiler.h"
@@ -10,16 +12,26 @@
 
 namespace LOICollection::frontend {
     inline std::string eval(const std::string& input, const Context& ctx = {}) {
-        Lexer lexer(input);
-        Parser parser(lexer);
+        DiagnosticEngine diagnostics;
+
+        Lexer lexer(input, diagnostics);
+        Parser parser(lexer, diagnostics);
 
         auto ast = parser.parse();
+        if (diagnostics.hasErrors())
+            throw std::runtime_error(diagnostics.getErrorMessage());
 
-        ir::Compiler compiler;
+        ir::Compiler compiler(diagnostics);
         ir::VM vm;
 
         auto bytecode = compiler.compile(*ast);
-        auto result = vm.run(bytecode, ctx);
+        if (diagnostics.hasErrors())
+            throw std::runtime_error(diagnostics.getErrorMessage());
+
+        auto result = vm.run(bytecode, ctx, diagnostics);
+        if (diagnostics.hasErrors())
+            throw std::runtime_error(diagnostics.getErrorMessage());
+
         return ir::VM::valueToString(result);
     }
 }

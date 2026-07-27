@@ -5,6 +5,7 @@
 
 #include "LOICollectionA/frontend/AST.h"
 #include "LOICollectionA/frontend/Lexer.h"
+#include "LOICollectionA/frontend/DiagnosticEngine.h"
 
 #include "LOICollectionA/base/Macro.h"
 
@@ -12,9 +13,11 @@ namespace LOICollection::frontend {
     class Parser {
         Lexer& lexer;
         Token currentToken;
+        
+        DiagnosticEngine& diagnostics;
 
     public:
-        LOICOLLECTION_A_API   Parser(Lexer& l);
+        LOICOLLECTION_A_API   Parser(Lexer& l, DiagnosticEngine& diag);
 
         LOICOLLECTION_A_NDAPI std::unique_ptr<ASTNode> parse();
     private:
@@ -46,7 +49,7 @@ namespace LOICollection::frontend {
 
         TokenType peek();
 
-        void eat(TokenType expected);
+        bool eat(TokenType expected);
 
         std::string getTokenName(TokenType type);
     };

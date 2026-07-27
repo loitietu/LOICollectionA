@@ -20,7 +20,9 @@ using namespace LOICollection::server::Plugins;
 class LanguagePluginTest : public testing::Test {
 protected:
     void TearDown() override {
-        ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->exec("DELETE FROM Language;");
+        auto result = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->exec("DELETE FROM Language;");
+        if (!result.has_value())
+            GTEST_FAIL() << "Unable to clear data";
     }
 };
 
@@ -28,9 +30,10 @@ TEST_F(LanguagePluginTest, SetAndGetLanguage) {
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    LanguagePlugin::getInstance().set(*sp, "en_US");
+    EXPECT_TRUE(LanguagePlugin::getShared()->set(*sp, "en_US").has_value());
 
-    std::string langcode = LanguagePlugin::getInstance().getLanguage(*sp);
-    EXPECT_FALSE(langcode.empty());
-    EXPECT_TRUE(langcode == "en_US");
+    auto langcode = LanguagePlugin::getShared()->getLanguage(*sp);
+    EXPECT_TRUE(langcode.has_value());
+    EXPECT_FALSE(langcode.value().empty());
+    EXPECT_TRUE(langcode.value() == "en_US");
 }
