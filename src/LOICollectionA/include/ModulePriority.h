@@ -2,7 +2,7 @@
 
 namespace LOICollection::modules {
     enum class ModulePriority : int {
-        Higest = 0,
+        Highest = 0,
         High = 1,
         Normal = 2,
         Low = 3,
