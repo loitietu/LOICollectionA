@@ -20,6 +20,9 @@ namespace LOICollection::frontend {
     struct MemberAccessNode;
     struct MethodCallNode;
     struct ThisNode;
+    struct SuperNode;
+    struct SuperCallNode;
+    struct InstanceOfNode;
     struct FunctionDefNode;
     struct FuncCallNode;
     struct LambdaNode;
@@ -45,6 +48,9 @@ namespace LOICollection::frontend {
         virtual void visit(MemberAccessNode& node) = 0;
         virtual void visit(MethodCallNode& node) = 0;
         virtual void visit(ThisNode& node) = 0;
+        virtual void visit(SuperNode& node) = 0;
+        virtual void visit(SuperCallNode& node) = 0;
+        virtual void visit(InstanceOfNode& node) = 0;
         virtual void visit(FunctionDefNode& node) = 0;
         virtual void visit(FuncCallNode& node) = 0;
         virtual void visit(LambdaNode& node) = 0;

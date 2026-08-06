@@ -118,9 +118,12 @@ namespace LOICollection::frontend {
         if (id == "func") return { TokenType::TOKEN_FUNC, std::move(id), startLoc };
         if (id == "new") return { TokenType::TOKEN_NEW, std::move(id), startLoc };
         if (id == "this") return { TokenType::TOKEN_THIS, std::move(id), startLoc };
+        if (id == "super") return { TokenType::TOKEN_SUPER, std::move(id), startLoc };
         if (id == "return") return { TokenType::TOKEN_RETURN, std::move(id), startLoc };
         if (id == "public") return { TokenType::TOKEN_PUBLIC, std::move(id), startLoc };
         if (id == "private") return { TokenType::TOKEN_PRIVATE, std::move(id), startLoc };
+        if (id == "extends") return { TokenType::TOKEN_EXTENDS, std::move(id), startLoc };
+        if (id == "instanceof") return { TokenType::TOKEN_INSTANCEOF, std::move(id), startLoc };
 
         return { TokenType::TOKEN_IDENT, std::move(id), startLoc };
     }

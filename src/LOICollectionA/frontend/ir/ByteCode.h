@@ -27,12 +27,25 @@ namespace LOICollection::frontend::ir {
 
     struct ClassMeta {
         std::string name;
+        int baseClassIndex = -1;
         std::vector<std::string> fieldNames;
         std::vector<ValueNode::ValueType> defaults;
         std::vector<bool> hasDefault;
         
         int constructorIndex = -1;
         std::vector<int> methods;
+        std::vector<std::string> methodSignatures;
+    };
+
+    struct VirtualCallMeta {
+        int classIndex = -1;
+        int ordinal = -1;
+        int argCount = 0;
+    };
+
+    struct SuperCallMeta {
+        int constructorIndex = -1;
+        int argCount = 0;
     };
 
     struct MethodMeta {
@@ -63,6 +76,8 @@ namespace LOICollection::frontend::ir {
         std::vector<ClassMeta> classes;
         std::vector<MethodMeta> methods;
         std::vector<NativeCallMeta> nativeCalls;
+        std::vector<VirtualCallMeta> virtualCalls;
+        std::vector<SuperCallMeta> superCalls;
         std::vector<LambdaMeta> lambdas;
         std::vector<BytecodeChunk> methodBodies;
 

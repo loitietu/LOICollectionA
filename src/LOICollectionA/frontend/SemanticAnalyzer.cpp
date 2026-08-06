@@ -2,7 +2,10 @@
 #include <vector>
 #include <optional>
 #include <functional>
+#include <limits>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
 
 #include "LOICollectionA/frontend/Callback.h"
 
@@ -59,10 +62,101 @@ namespace LOICollection::frontend {
                 registerFunction(*fn);
         }
 
+        resolveHierarchy();
+        buildMethodOrdinals();
+
         checkTopLevel(root);
         checkClassBodies();
         checkFunctionBodies();
+        validateConstructors();
         finalizePending();
+    }
+
+    void SemanticAnalyzer::resolveHierarchy() {
+        std::unordered_set<std::string> visiting;
+        std::unordered_set<std::string> visited;
+
+        std::function<void(ClassNode&)> visit = [&](ClassNode& cls) {
+            if (visited.contains(cls.name))
+                return;
+
+            if (visiting.contains(cls.name)) {
+                diagnostics.addError(cls.loc,
+                    "Circular inheritance involving class '" + cls.name + "'");
+                return;
+            }
+
+            visiting.insert(cls.name);
+
+            if (!cls.baseClassName.empty()) {
+                auto baseOpt = this->findClass(cls.baseClassName);
+                if (!baseOpt) {
+                    diagnostics.addError(cls.loc, "Unknown base class: " + cls.baseClassName);
+                } else {
+                    visit(baseOpt->get());
+                }
+            }
+
+            visiting.erase(cls.name);
+            visited.insert(cls.name);
+            this->orderedClasses.push_back(std::ref(cls));
+        };
+
+        for (auto cls : this->classes)
+            visit(cls.get());
+    }
+
+    void SemanticAnalyzer::buildMethodOrdinals() {
+        for (auto clsRef : this->orderedClasses) {
+            ClassNode& cls = clsRef.get();
+
+            std::vector<std::string> order;
+            std::unordered_map<std::string, int> ordinals;
+
+            if (!cls.baseClassName.empty()) {
+                order = this->classMethodOrder[cls.baseClassName];
+                ordinals = this->classMethodOrdinals[cls.baseClassName];
+            }
+
+            for (auto& method : cls.methods) {
+                if (method.isConstructor)
+                    continue;
+
+                std::string signature = this->methodSignature(method);
+                if (!ordinals.contains(signature)) {
+                    ordinals[signature] = static_cast<int>(order.size());
+                    order.push_back(signature);
+                }
+            }
+
+            this->classMethodOrder[cls.name] = std::move(order);
+            this->classMethodOrdinals[cls.name] = std::move(ordinals);
+        }
+    }
+
+    void SemanticAnalyzer::validateConstructors() {
+        for (auto clsRef : this->orderedClasses) {
+            ClassNode& cls = clsRef.get();
+            if (cls.baseClassName.empty())
+                continue;
+
+            auto baseOpt = this->findClass(cls.baseClassName);
+            if (!baseOpt)
+                continue;
+
+            ClassNode* ctorOwner = nullptr;
+            MethodDecl* baseCtor = this->findConstructor(baseOpt->get(), ctorOwner);
+            if (!baseCtor || baseCtor->params.empty())
+                continue;
+
+            if (cls.constructorIndex == -1) {
+                diagnostics.addError(cls.loc,
+                    "Class '" + cls.name + "' must define a constructor to call base constructor with arguments");
+            } else if (!cls.methods[cls.constructorIndex].hasSuperCall) {
+                diagnostics.addError(cls.loc,
+                    "Constructor of class '" + cls.name + "' must call super(...)");
+            }
+        }
     }
 
     std::optional<std::reference_wrapper<ClassNode>> SemanticAnalyzer::findClass(const std::string& name) const {
@@ -245,8 +339,21 @@ namespace LOICollection::frontend {
         if (auto value = dynamic_cast<ValueNode*>(&node))
             return typeOfValue(value->value);
 
-        if (auto var = dynamic_cast<VariableNode*>(&node))
-            return lookupName(var->name, scope);
+        if (auto var = dynamic_cast<VariableNode*>(&node)) {
+            TypeInfo type = lookupName(var->name, scope);
+
+            if (type.kind == TypeKind::Unknown && scope.hasClass()) {
+                ClassNode* owner = nullptr;
+                if (auto member = findField(scope.classRef(), var->name, owner)) {
+                    if (member->isPrivate && &scope.classRef() != owner) {
+                        diagnostics.addError(var->loc,
+                            "Cannot access private member '" + var->name + "'");
+                    }
+                }
+            }
+
+            return type;
+        }
 
         if (auto self = dynamic_cast<ThisNode*>(&node)) {
             if (!scope.hasMethod() || !scope.hasClass()) {
@@ -256,6 +363,27 @@ namespace LOICollection::frontend {
 
             return { TypeKind::Object, scope.classRef().name };
         }
+
+        if (auto superNode = dynamic_cast<SuperNode*>(&node)) {
+            if (!scope.hasMethod() || !scope.hasClass()) {
+                diagnostics.addError(superNode->loc, "'super' is only available inside class methods");
+                return {};
+            }
+
+            ClassNode& cls = scope.classRef();
+            if (cls.baseClassName.empty()) {
+                diagnostics.addError(superNode->loc, "Class '" + cls.name + "' has no base class");
+                return {};
+            }
+
+            return { TypeKind::Object, cls.baseClassName };
+        }
+
+        if (auto superCall = dynamic_cast<SuperCallNode*>(&node))
+            return checkSuperCall(*superCall, scope);
+
+        if (auto instanceOf = dynamic_cast<InstanceOfNode*>(&node))
+            return checkInstanceOf(*instanceOf, scope);
 
         if (auto newExpr = dynamic_cast<NewNode*>(&node))
             return checkNew(*newExpr, scope);
@@ -363,11 +491,15 @@ namespace LOICollection::frontend {
                 }
 
                 if (scope.hasClass()) {
-                    for (auto& member : scope.classRef().members) {
-                        if (member.name == var->name) {
-                            unify(member.type, rhs, node.loc, "member '" + var->name + "'");
-                            return rhs;
+                    ClassNode* owner = nullptr;
+                    if (auto member = findField(scope.classRef(), var->name, owner)) {
+                        if (member->isPrivate && &scope.classRef() != owner) {
+                            diagnostics.addError(node.loc,
+                                "Cannot access private member '" + member->name + "'");
                         }
+
+                        unify(member->type, rhs, node.loc, "member '" + var->name + "'");
+                        return rhs;
                     }
                 }
             }
@@ -409,15 +541,14 @@ namespace LOICollection::frontend {
             }
 
             ClassNode& cls = clsOpt->get();
-            for (auto& m : cls.members) {
-                if (m.name == member->memberName) {
-                    if (m.isPrivate && !(scope.hasMethod() && &scope.classRef() == &cls)) {
-                        diagnostics.addError(node.loc, "Cannot access private member '" + m.name + "'");
-                    }
-
-                    unify(m.type, rhs, node.loc, "member '" + m.name + "'");
-                    return rhs;
+            ClassNode* owner = nullptr;
+            if (auto m = findField(cls, member->memberName, owner)) {
+                if (m->isPrivate && !(scope.hasMethod() && &scope.classRef() == owner)) {
+                    diagnostics.addError(node.loc, "Cannot access private member '" + m->name + "'");
                 }
+
+                unify(m->type, rhs, node.loc, "member '" + m->name + "'");
+                return rhs;
             }
 
             diagnostics.addError(node.loc,
@@ -456,15 +587,14 @@ namespace LOICollection::frontend {
         }
 
         ClassNode& cls = clsOpt->get();
-        for (const auto& m : cls.members) {
-            if (m.name == node.memberName) {
-                if (m.isPrivate && !(scope.hasMethod() && &scope.classRef() == &cls)) {
-                    diagnostics.addError(node.loc,
-                        "Cannot access private member '" + m.name + "' of class '" + cls.name + "'");
-                }
-
-                return m.type;
+        ClassNode* owner = nullptr;
+        if (auto m = findField(cls, node.memberName, owner)) {
+            if (m->isPrivate && !(scope.hasMethod() && &scope.classRef() == owner)) {
+                diagnostics.addError(node.loc,
+                    "Cannot access private member '" + m->name + "' of class '" + owner->name + "'");
             }
+
+            return m->type;
         }
 
         diagnostics.addError(node.loc,
@@ -517,27 +647,43 @@ namespace LOICollection::frontend {
         }
 
         ClassNode& cls = clsOpt->get();
-        std::vector<size_t> candidates;
-        for (size_t i = 0; i < cls.methods.size(); ++i) {
-            const auto& m = cls.methods[i];
-            if (m.isConstructor || m.name != node.methodName)
-                continue;
-            if (m.params.size() != argCount)
-                continue;
 
-            bool match = true;
-            for (size_t j = 0; j < argCount; ++j) {
-                const TypeInfo& param = m.paramTypes[j];
-                if (param.kind != TypeKind::Unknown &&
-                    argTypes[j].kind != TypeKind::Unknown &&
-                    param != argTypes[j]) {
-                    match = false;
-                    break;
+        std::vector<std::pair<ClassNode*, MethodDecl*>> candidates;
+        ClassNode* walk = &cls;
+        for (size_t step = 0; step <= this->classes.size() && walk; ++step) {
+            for (auto& method : walk->methods) {
+                if (method.isConstructor || method.name != node.methodName)
+                    continue;
+                if (method.params.size() != argCount)
+                    continue;
+                if (method.isPrivate &&
+                    !(scope.hasMethod() && &scope.classRef() == walk)) {
+                    continue;
                 }
+
+                bool match = true;
+                for (size_t j = 0; j < argCount; ++j) {
+                    const TypeInfo& param = method.paramTypes[j];
+                    if (param.kind != TypeKind::Unknown &&
+                        argTypes[j].kind != TypeKind::Unknown &&
+                        !this->isTypeCompatible(param, argTypes[j])) {
+                        match = false;
+                        break;
+                    }
+                }
+
+                if (match)
+                    candidates.emplace_back(walk, &method);
             }
 
-            if (match)
-                candidates.push_back(i);
+            if (walk->baseClassName.empty())
+                break;
+
+            auto baseOpt = this->findClass(walk->baseClassName);
+            if (!baseOpt)
+                break;
+
+            walk = &baseOpt->get();
         }
 
         if (candidates.empty()) {
@@ -547,22 +693,41 @@ namespace LOICollection::frontend {
             return {};
         }
 
-        size_t best = candidates[0];
-        size_t bestScore = knownParamCount(cls.methods[best]);
+        auto depthOf = [&](ClassNode* owner) {
+            int depth = 0;
+            ClassNode* cur = &cls;
+            for (size_t step = 0; step <= this->classes.size() && cur && cur != owner; ++step) {
+                depth++;
+
+                if (cur->baseClassName.empty())
+                    return std::numeric_limits<int>::max();
+
+                auto baseOpt = this->findClass(cur->baseClassName);
+                if (!baseOpt)
+                    return std::numeric_limits<int>::max();
+
+                cur = &baseOpt->get();
+            }
+
+            return depth;
+        };
+
+        auto best = candidates[0];
+        int bestDepth = depthOf(best.first);
+        size_t bestScore = knownParamCount(*best.second);
+
         for (size_t i = 1; i < candidates.size(); ++i) {
-            size_t score = knownParamCount(cls.methods[candidates[i]]);
-            if (score > bestScore) {
+            int depth = depthOf(candidates[i].first);
+            size_t score = knownParamCount(*candidates[i].second);
+
+            if (depth < bestDepth || (depth == bestDepth && score > bestScore)) {
                 best = candidates[i];
+                bestDepth = depth;
                 bestScore = score;
             }
         }
 
-        MethodDecl& method = cls.methods[best];
-
-        if (method.isPrivate && !(scope.hasMethod() && &scope.classRef() == &cls)) {
-            diagnostics.addError(node.loc,
-                "Cannot access private method '" + method.name + "' of class '" + cls.name + "'");
-        }
+        MethodDecl& method = *best.second;
 
         for (size_t j = 0; j < argCount; ++j) {
             if (method.paramTypes[j].kind == TypeKind::Unknown &&
@@ -572,7 +737,7 @@ namespace LOICollection::frontend {
         }
 
         node.className = cls.name;
-        node.methodOrdinal = methodOrdinal(cls, best);
+        node.methodOrdinal = this->methodOrdinal(cls.name, this->methodSignature(method));
 
         return method.returnType;
     }
@@ -623,7 +788,7 @@ namespace LOICollection::frontend {
                 const TypeInfo& param = decl.paramTypes[j];
                 if (param.kind != TypeKind::Unknown &&
                     argTypes[j].kind != TypeKind::Unknown &&
-                    param != argTypes[j]) {
+                    !this->isTypeCompatible(param, argTypes[j])) {
                     match = false;
                     break;
                 }
@@ -708,7 +873,10 @@ namespace LOICollection::frontend {
         }
 
         ClassNode& cls = clsOpt->get();
-        if (cls.constructorIndex == -1) {
+        ClassNode* ctorOwner = nullptr;
+        MethodDecl* ctorPtr = this->findConstructor(cls, ctorOwner);
+
+        if (!ctorPtr) {
             if (argCount != 0) {
                 diagnostics.addError(node.loc,
                     "Class '" + cls.name + "' has no constructor");
@@ -717,7 +885,7 @@ namespace LOICollection::frontend {
             return { TypeKind::Object, cls.name };
         }
 
-        MethodDecl& ctor = cls.methods[cls.constructorIndex];
+        MethodDecl& ctor = *ctorPtr;
 
         if (ctor.params.size() != argCount) {
             diagnostics.addError(node.loc,
@@ -737,7 +905,7 @@ namespace LOICollection::frontend {
 
             if (ctor.paramTypes[j].kind == TypeKind::Unknown) {
                 ctor.paramTypes[j] = argTypes[j];
-            } else if (ctor.paramTypes[j] != argTypes[j]) {
+            } else if (!this->isTypeCompatible(ctor.paramTypes[j], argTypes[j])) {
                 diagnostics.addError(node.loc,
                     "Type mismatch for constructor parameter '" + ctor.params[j].name +
                     "': expected " + typeToString(ctor.paramTypes[j]) +
@@ -749,6 +917,95 @@ namespace LOICollection::frontend {
             pendingNewSites.push_back(std::ref(node));
 
         return { TypeKind::Object, cls.name };
+    }
+
+    TypeInfo SemanticAnalyzer::checkSuperCall(SuperCallNode& node, MethodScope& scope) {
+        if (!scope.hasMethod() || !scope.hasClass()) {
+            diagnostics.addError(node.loc, "'super(...)' is only available inside class methods");
+            return {};
+        }
+
+        MethodDecl& method = scope.methodRef();
+        if (!method.isConstructor) {
+            diagnostics.addError(node.loc, "'super(...)' is only available inside constructors");
+            return {};
+        }
+
+        ClassNode& cls = scope.classRef();
+        if (cls.baseClassName.empty()) {
+            diagnostics.addError(node.loc, "Class '" + cls.name + "' has no base class");
+            return {};
+        }
+
+        method.hasSuperCall = true;
+
+        size_t argCount = node.args ? node.args->parts.size() : 0;
+        std::vector<TypeInfo> argTypes;
+        argTypes.reserve(argCount);
+        if (node.args) {
+            for (auto& part : node.args->parts) {
+                if (auto expr = dynamic_cast<ExprNode*>(part.get()))
+                    argTypes.push_back(checkExpr(*expr, scope));
+            }
+        }
+
+        auto baseOpt = this->findClass(cls.baseClassName);
+        if (!baseOpt) {
+            diagnostics.addError(node.loc, "Unknown base class: " + cls.baseClassName);
+            return {};
+        }
+
+        ClassNode* ctorOwner = nullptr;
+        MethodDecl* ctor = this->findConstructor(baseOpt->get(), ctorOwner);
+
+        if (!ctor) {
+            if (argCount != 0) {
+                diagnostics.addError(node.loc, "Base class has no constructor");
+            }
+
+            node.constructorIndex = -1;
+            return {};
+        }
+
+        node.className = ctorOwner->name;
+        for (size_t i = 0; i < ctorOwner->methods.size(); ++i) {
+            if (&ctorOwner->methods[i] == ctor) {
+                node.constructorIndex = static_cast<int>(i);
+                break;
+            }
+        }
+
+        if (ctor->params.size() != argCount) {
+            diagnostics.addError(node.loc,
+                "Base constructor of class '" + cls.baseClassName + "' expects " +
+                std::to_string(ctor->params.size()) + " argument(s), got " +
+                std::to_string(argCount));
+            return {};
+        }
+
+        for (size_t j = 0; j < argCount; ++j) {
+            if (ctor->paramTypes[j].kind == TypeKind::Unknown) {
+                ctor->paramTypes[j] = argTypes[j];
+            } else if (argTypes[j].kind != TypeKind::Unknown &&
+                       !this->isTypeCompatible(ctor->paramTypes[j], argTypes[j])) {
+                diagnostics.addError(node.loc,
+                    "Type mismatch for base constructor parameter '" + ctor->params[j].name +
+                    "': expected " + typeToString(ctor->paramTypes[j]) +
+                    ", got " + typeToString(argTypes[j]));
+            }
+        }
+
+        return {};
+    }
+
+    TypeInfo SemanticAnalyzer::checkInstanceOf(InstanceOfNode& node, MethodScope& scope) {
+        checkExpr(*node.target, scope);
+
+        if (!this->findClass(node.className) && !isNativeClass(node.className)) {
+            diagnostics.addError(node.loc, "Unknown class: " + node.className);
+        }
+
+        return { TypeKind::Bool };
     }
 
     TypeInfo SemanticAnalyzer::checkReturn(ReturnNode& node, MethodScope& scope) {
@@ -776,7 +1033,7 @@ namespace LOICollection::frontend {
             method.returnType = valueType;
         } else if (method.returnType.kind != TypeKind::Unknown &&
                    valueType.kind != TypeKind::Unknown &&
-                   method.returnType != valueType) {
+                   !this->isTypeCompatible(method.returnType, valueType)) {
             diagnostics.addError(node.loc,
                 "Return type mismatch in function '" + method.name +
                 "': expected " + typeToString(method.returnType) +
@@ -824,9 +1081,12 @@ namespace LOICollection::frontend {
             }
 
             if (scope.hasClass()) {
-                for (const auto& member : scope.classRef().members) {
-                    if (member.name == name)
-                        return member.type;
+                ClassNode* owner = nullptr;
+                if (auto member = findField(scope.classRef(), name, owner)) {
+                    if (member->isPrivate && &scope.classRef() != owner)
+                        return {};
+
+                    return member->type;
                 }
             }
         }
@@ -847,10 +1107,9 @@ namespace LOICollection::frontend {
             }
 
             if (scope.hasClass()) {
-                for (const auto& member : scope.classRef().members) {
-                    if (member.name == name)
-                        return true;
-                }
+                ClassNode* owner = nullptr;
+                if (findField(scope.classRef(), name, owner))
+                    return true;
             }
         }
 
@@ -866,7 +1125,7 @@ namespace LOICollection::frontend {
             return;
         }
 
-        if (target != from) {
+        if (!this->isTypeCompatible(target, from)) {
             diagnostics.addError(loc,
                 "Type mismatch for " + what + ": expected " +
                 typeToString(target) + ", got " + typeToString(from));
@@ -882,31 +1141,128 @@ namespace LOICollection::frontend {
         return count;
     }
 
-    int SemanticAnalyzer::methodOrdinal(const ClassNode& cls, size_t methodIndex) const {
-        int ordinal = 0;
-        for (size_t i = 0; i < cls.methods.size(); ++i) {
-            if (i == methodIndex)
-                return ordinal;
-            if (!cls.methods[i].isConstructor)
-                ordinal++;
+    std::string SemanticAnalyzer::methodSignature(const MethodDecl& method) const {
+        std::string signature = method.name + "(";
+        for (size_t i = 0; i < method.paramTypes.size(); ++i) {
+            if (i != 0)
+                signature += ",";
+
+            TypeInfo paramType = method.params[i].hasType
+                ? this->typeFromName(method.params[i].typeName, method.loc, false)
+                : TypeInfo{};
+            signature += this->typeToString(paramType);
         }
-        return -1;
+        signature += ")";
+        return signature;
+    }
+
+    int SemanticAnalyzer::methodOrdinal(const std::string& className, const std::string& signature) const {
+        auto classIt = this->classMethodOrdinals.find(className);
+        if (classIt == this->classMethodOrdinals.end())
+            return -1;
+
+        auto sigIt = classIt->second.find(signature);
+        if (sigIt == classIt->second.end())
+            return -1;
+
+        return sigIt->second;
+    }
+
+    bool SemanticAnalyzer::isDerived(const std::string& derivedName, const std::string& baseName) const {
+        if (derivedName == baseName)
+            return true;
+
+        std::string current = derivedName;
+        for (size_t step = 0; step <= this->classes.size() && !current.empty(); ++step) {
+            auto clsOpt = this->findClass(current);
+            if (!clsOpt)
+                return false;
+
+            ClassNode& cls = clsOpt->get();
+            if (cls.baseClassName == baseName)
+                return true;
+
+            current = cls.baseClassName;
+        }
+
+        return false;
+    }
+
+    bool SemanticAnalyzer::isTypeCompatible(const TypeInfo& target, const TypeInfo& from) const {
+        if (target == from)
+            return true;
+
+        if (target.kind == TypeKind::Object && from.kind == TypeKind::Object)
+            return this->isDerived(from.className, target.className);
+
+        return false;
+    }
+
+    ClassMember* SemanticAnalyzer::findField(ClassNode& cls, const std::string& name, ClassNode*& owner) const {
+        ClassNode* current = &cls;
+        for (size_t step = 0; step <= this->classes.size() && current; ++step) {
+            for (auto& member : current->members) {
+                if (member.name == name) {
+                    owner = current;
+                    return &member;
+                }
+            }
+
+            if (current->baseClassName.empty())
+                break;
+
+            auto baseOpt = this->findClass(current->baseClassName);
+            if (!baseOpt)
+                break;
+
+            current = &baseOpt->get();
+        }
+
+        owner = nullptr;
+        return nullptr;
+    }
+
+    MethodDecl* SemanticAnalyzer::findConstructor(ClassNode& cls, ClassNode*& owner) const {
+        ClassNode* current = &cls;
+        for (size_t step = 0; step <= this->classes.size() && current; ++step) {
+            for (auto& method : current->methods) {
+                if (method.isConstructor) {
+                    owner = current;
+                    return &method;
+                }
+            }
+
+            if (current->baseClassName.empty())
+                break;
+
+            auto baseOpt = this->findClass(current->baseClassName);
+            if (!baseOpt)
+                break;
+
+            current = &baseOpt->get();
+        }
+
+        owner = nullptr;
+        return nullptr;
     }
 
     void SemanticAnalyzer::finalizePending() {
         for (auto node : pendingNewSites) {
             auto clsOpt = findClass(node.get().className);
-            if (!clsOpt || clsOpt->get().constructorIndex == -1)
+            if (!clsOpt)
                 continue;
 
             ClassNode& cls = clsOpt->get();
-            MethodDecl& ctor = cls.methods[cls.constructorIndex];
+            ClassNode* ctorOwner = nullptr;
+            MethodDecl* ctor = findConstructor(cls, ctorOwner);
+            if (!ctor)
+                continue;
 
-            for (size_t j = 0; j < ctor.params.size(); ++j) {
-                if (ctor.paramTypes[j].kind == TypeKind::Unknown) {
+            for (size_t j = 0; j < ctor->params.size(); ++j) {
+                if (ctor->paramTypes[j].kind == TypeKind::Unknown) {
                     diagnostics.addError(node.get().loc,
                         "Cannot infer type of constructor parameter '" +
-                        ctor.params[j].name + "' of class '" + cls.name + "'");
+                        ctor->params[j].name + "' of class '" + cls.name + "'");
                 }
             }
         }

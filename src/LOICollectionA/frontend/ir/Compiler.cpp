@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <iterator>
 #include <memory>
 #include <vector>
 #include <functional>
@@ -35,6 +37,7 @@ namespace LOICollection::frontend::ir {
             void visit(ValueNode&) override {}
             void visit(VariableNode&) override {}
             void visit(ThisNode&) override {}
+            void visit(SuperNode&) override {}
 
             void visit(AssignmentNode& node) override {
                 countNode(*node.target);
@@ -103,6 +106,14 @@ namespace LOICollection::frontend::ir {
                 countArgs(node.args.get());
             }
 
+            void visit(SuperCallNode& node) override {
+                countArgs(node.args.get());
+            }
+
+            void visit(InstanceOfNode& node) override {
+                countNode(*node.target);
+            }
+
             void visit(FunctionDefNode& node) override {
                 count++;
                 countBody(node.decl.body.get());
@@ -133,15 +144,20 @@ namespace LOICollection::frontend::ir {
         if (auto tpl = dynamic_cast<TemplateNode*>(&root)) {
             for (auto& part : tpl->parts) {
                 if (auto cls = dynamic_cast<ClassNode*>(part.get()))
+                    this->classNodes[cls->name] = cls;
+            }
+
+            for (auto& part : tpl->parts) {
+                if (auto cls = dynamic_cast<ClassNode*>(part.get()))
                     this->registerClassMeta(*cls);
                 else if (auto fn = dynamic_cast<FunctionDefNode*>(part.get()))
                     this->registerFunctionMeta(*fn);
             }
 
-            for (auto& part : tpl->parts) {
-                if (auto cls = dynamic_cast<ClassNode*>(part.get()))
+            for (auto* node : this->bodyOrder) {
+                if (auto cls = dynamic_cast<ClassNode*>(node))
                     this->compileClassBodies(*cls);
-                else if (auto fn = dynamic_cast<FunctionDefNode*>(part.get()))
+                else if (auto fn = dynamic_cast<FunctionDefNode*>(node))
                     this->compileFunctionBody(*fn);
             }
 
@@ -374,9 +390,31 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::registerClassMeta(ClassNode& node) {
-        if (classIndices.find(node.name) != classIndices.end()) {
-            this->diagnostics.addError(node.loc, "Duplicate class: " + node.name);
+        if (classIndices.contains(node.name))
             return;
+
+        int baseIdx = -1;
+        if (!node.baseClassName.empty()) {
+            if (this->registeringClasses.contains(node.name)) {
+                this->diagnostics.addError(node.loc,
+                    "Circular inheritance involving class '" + node.name + "'");
+                return;
+            }
+
+            this->registeringClasses.insert(node.name);
+
+            auto baseIt = this->classNodes.find(node.baseClassName);
+            if (baseIt == this->classNodes.end()) {
+                this->diagnostics.addError(node.loc, "Unknown base class: " + node.baseClassName);
+                this->registeringClasses.erase(node.name);
+                return;
+            }
+
+            if (!this->classIndices.contains(node.baseClassName))
+                this->registerClassMeta(*baseIt->second);
+
+            baseIdx = this->classIndices[node.baseClassName];
+            this->registeringClasses.erase(node.name);
         }
 
         int classIdx = static_cast<int>(this->chunk.classes.size());
@@ -385,8 +423,39 @@ namespace LOICollection::frontend::ir {
 
         ir::ClassMeta meta;
         meta.name = node.name;
+        meta.baseClassIndex = baseIdx;
+
+        if (baseIdx >= 0) {
+            const auto& base = this->chunk.classes[baseIdx];
+            meta.fieldNames = base.fieldNames;
+            meta.defaults = base.defaults;
+            meta.hasDefault = base.hasDefault;
+            meta.constructorIndex = base.constructorIndex;
+            meta.methods = base.methods;
+            meta.methodSignatures = base.methodSignatures;
+        }
 
         for (const auto& member : node.members) {
+            auto fieldIt = std::ranges::find(meta.fieldNames, member.name);
+            if (fieldIt != meta.fieldNames.end()) {
+                size_t fieldIdx = static_cast<size_t>(std::distance(meta.fieldNames.begin(), fieldIt));
+                meta.hasDefault[fieldIdx] = member.hasDefault;
+
+                if (member.hasDefault) {
+                    if (auto literal = dynamic_cast<const ValueNode*>(member.defaultExpr.get())) {
+                        meta.defaults[fieldIdx] = literal->value;
+                    } else {
+                        this->diagnostics.addError(node.loc,
+                            "Member default value of '" + member.name + "' must be a constant literal");
+                        meta.defaults[fieldIdx] = ValueNode::ValueType{};
+                    }
+                } else {
+                    meta.defaults[fieldIdx] = ValueNode::ValueType{};
+                }
+
+                continue;
+            }
+
             meta.fieldNames.push_back(member.name);
             meta.hasDefault.push_back(member.hasDefault);
 
@@ -394,8 +463,8 @@ namespace LOICollection::frontend::ir {
                 if (auto literal = dynamic_cast<const ValueNode*>(member.defaultExpr.get())) {
                     meta.defaults.push_back(literal->value);
                 } else {
-                    this->diagnostics.addError(node.loc, "Member default value of '" + member.name + "' must be a constant literal");
-
+                    this->diagnostics.addError(node.loc,
+                        "Member default value of '" + member.name + "' must be a constant literal");
                     meta.defaults.emplace_back();
                 }
             } else {
@@ -409,13 +478,22 @@ namespace LOICollection::frontend::ir {
             if (node.methods[i].isConstructor)
                 meta.constructorIndex = methodIdx;
             else {
-                meta.methods.push_back(methodIdx);
+                std::string signature = this->methodSignature(node.methods[i]);
+                auto sigIt = std::ranges::find(meta.methodSignatures, signature);
+                if (sigIt != meta.methodSignatures.end()) {
+                    size_t ordinal = static_cast<size_t>(std::distance(meta.methodSignatures.begin(), sigIt));
+                    meta.methods[ordinal] = methodIdx;
+                } else {
+                    meta.methodSignatures.push_back(signature);
+                    meta.methods.push_back(methodIdx);
+                }
 
-                this->classMethodIndices[node.name].push_back(methodIdx);
             }
         }
 
+        this->classMethodIndices[node.name] = meta.methods;
         this->chunk.classes.push_back(std::move(meta));
+        this->bodyOrder.push_back(&node);
     }
 
     void Compiler::compileClassBodies(ClassNode& node) {
@@ -438,6 +516,25 @@ namespace LOICollection::frontend::ir {
 
             std::reference_wrapper<BytecodeChunk> saved = this->current;
             this->current = std::ref(chunk.methodBodies.back());
+
+            if (method.isConstructor && !node.baseClassName.empty() && !method.hasSuperCall) {
+                int ctorIdx = -1;
+                int walkIdx = this->classIndices[node.baseClassName];
+                while (walkIdx >= 0) {
+                    const auto& walkCls = this->chunk.classes[walkIdx];
+                    if (walkCls.constructorIndex != -1) {
+                        ctorIdx = walkCls.constructorIndex;
+                        break;
+                    }
+                    walkIdx = walkCls.baseClassIndex;
+                }
+
+                int argCount = ctorIdx >= 0 ? this->chunk.methods[ctorIdx].argCount : 0;
+                int superIdx = this->addSuperCall(ctorIdx, argCount);
+                this->current.get().emit(OpCode::LOAD_THIS);
+                this->current.get().emit(OpCode::CALL_SUPER_CTOR, superIdx);
+                this->current.get().emit(OpCode::POP);
+            }
 
             if (method.body)
                 method.body->accept(*this);
@@ -507,7 +604,15 @@ namespace LOICollection::frontend::ir {
         auto it = classMethodIndices.find(node.className);
         if (it != classMethodIndices.end() && node.methodOrdinal >= 0 &&
             static_cast<size_t>(node.methodOrdinal) < it->second.size()) {
-            this->current.get().emit(OpCode::CALL_METHOD, it->second[node.methodOrdinal]);
+            int argCount = node.args ? static_cast<int>(node.args->parts.size()) : 0;
+
+            if (dynamic_cast<SuperNode*>(node.target.get())) {
+                this->current.get().emit(OpCode::CALL_METHOD, it->second[node.methodOrdinal]);
+            } else {
+                int classIdx = this->classIndices[node.className];
+                int metaIdx = this->addVirtualCall(classIdx, node.methodOrdinal, argCount);
+                this->current.get().emit(OpCode::CALL_METHOD_VIRTUAL, metaIdx);
+            }
             return;
         }
 
@@ -526,6 +631,37 @@ namespace LOICollection::frontend::ir {
         this->current.get().emit(OpCode::LOAD_THIS);
     }
 
+    void Compiler::visit(SuperNode&) {
+        this->current.get().emit(OpCode::LOAD_THIS);
+    }
+
+    void Compiler::visit(SuperCallNode& node) {
+        if (node.args) {
+            for (auto& part : node.args->parts)
+                part->accept(*this);
+        }
+
+        this->current.get().emit(OpCode::LOAD_THIS);
+
+        int constructorIndex = -1;
+        if (node.constructorIndex >= 0) {
+            auto classIt = this->classIndices.find(node.className);
+            if (classIt != this->classIndices.end())
+                constructorIndex = this->chunk.classes[classIt->second].constructorIndex;
+        }
+
+        int argCount = node.args ? static_cast<int>(node.args->parts.size()) : 0;
+        int metaIdx = this->addSuperCall(constructorIndex, argCount);
+        this->current.get().emit(OpCode::CALL_SUPER_CTOR, metaIdx);
+    }
+
+    void Compiler::visit(InstanceOfNode& node) {
+        node.target->accept(*this);
+
+        int nameIdx = this->addConstant(node.className);
+        this->current.get().emit(OpCode::INSTANCEOF, nameIdx);
+    }
+
     void Compiler::visit(FunctionDefNode& node) {
         this->registerFunctionMeta(node);
         this->compileFunctionBody(node);
@@ -534,6 +670,7 @@ namespace LOICollection::frontend::ir {
     void Compiler::registerFunctionMeta(FunctionDefNode& node) {
         int funcIdx = static_cast<int>(methodCount++);
         this->functionIndices[node.name].push_back(funcIdx);
+        this->bodyOrder.push_back(&node);
     }
 
     void Compiler::compileFunctionBody(FunctionDefNode& node) {
@@ -651,5 +788,35 @@ namespace LOICollection::frontend::ir {
     int Compiler::addLambda(int bodyIndex, int argCount, const std::vector<std::string>& paramNames) {
         this->current.get().lambdas.push_back({bodyIndex, argCount, paramNames});
         return static_cast<int>(this->current.get().lambdas.size() - 1);
+    }
+
+    int Compiler::addVirtualCall(int classIndex, int ordinal, int argCount) {
+        this->current.get().virtualCalls.push_back({classIndex, ordinal, argCount});
+        return static_cast<int>(this->current.get().virtualCalls.size() - 1);
+    }
+
+    int Compiler::addSuperCall(int constructorIndex, int argCount) {
+        this->current.get().superCalls.push_back({constructorIndex, argCount});
+        return static_cast<int>(this->current.get().superCalls.size() - 1);
+    }
+
+    std::string Compiler::methodSignature(const MethodDecl& method) const {
+        std::string signature = method.name + "(";
+        for (size_t i = 0; i < method.paramTypes.size(); ++i) {
+            if (i != 0)
+                signature += ",";
+
+            const std::string& typeName = method.params[i].typeName;
+            if (!method.params[i].hasType) {
+                signature += "unknown";
+            } else if (typeName == "int" || typeName == "float" || typeName == "string" ||
+                       typeName == "bool" || typeName == "void") {
+                signature += typeName;
+            } else {
+                signature += "class " + typeName;
+            }
+        }
+        signature += ")";
+        return signature;
     }
 }

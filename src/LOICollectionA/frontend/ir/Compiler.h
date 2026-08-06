@@ -28,9 +28,12 @@ namespace LOICollection::frontend::ir {
         DiagnosticEngine& diagnostics;
 
         std::unordered_map<std::string, int> classIndices;
+        std::unordered_map<std::string, ClassNode*> classNodes;
         std::unordered_set<int> registeredClasses;
+        std::unordered_set<std::string> registeringClasses;
         std::unordered_map<std::string, std::vector<int>> classMethodIndices;
         std::unordered_map<std::string, std::vector<int>> functionIndices;
+        std::vector<ASTNode*> bodyOrder;
         
         size_t methodCount = 0;
 
@@ -51,6 +54,9 @@ namespace LOICollection::frontend::ir {
         void visit(MemberAccessNode& node) override;
         void visit(MethodCallNode& node) override;
         void visit(ThisNode& node) override;
+        void visit(SuperNode& node) override;
+        void visit(SuperCallNode& node) override;
+        void visit(InstanceOfNode& node) override;
         void visit(FunctionDefNode& node) override;
         void visit(FuncCallNode& node) override;
         void visit(LambdaNode& node) override;
@@ -65,5 +71,9 @@ namespace LOICollection::frontend::ir {
         int addFunction(const std::string& name, int argCount);
         int addMacro(const std::string& name, int argCount);
         int addLambda(int bodyIndex, int argCount, const std::vector<std::string>& paramNames);
+        int addVirtualCall(int classIndex, int ordinal, int argCount);
+        int addSuperCall(int constructorIndex, int argCount);
+
+        [[nodiscard]] std::string methodSignature(const MethodDecl& method) const;
     };
 }

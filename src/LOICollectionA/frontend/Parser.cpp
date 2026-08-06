@@ -136,9 +136,22 @@ namespace LOICollection::frontend {
 
         std::string name = currentToken.value;
         if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
-        if (!eat(TokenType::TOKEN_LBRACE)) return nullptr;
 
         auto cls = std::make_unique<ClassNode>(loc, name);
+
+        if (currentToken.type == TokenType::TOKEN_EXTENDS) {
+            if (!eat(TokenType::TOKEN_EXTENDS)) return nullptr;
+            if (currentToken.type != TokenType::TOKEN_IDENT) {
+                diagnostics.addError(currentToken.loc, "Expected base class name after 'extends'");
+                return nullptr;
+            }
+
+            cls->baseClassName = currentToken.value;
+            if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+        }
+
+        if (!eat(TokenType::TOKEN_LBRACE)) return nullptr;
+
         bool privateSection = false;
 
         while (currentToken.type != TokenType::TOKEN_RBRACE && currentToken.type != TokenType::TOKEN_EOF) {
@@ -600,6 +613,21 @@ namespace LOICollection::frontend {
         auto left = parseAdditiveExpression();
         if (!left)
             return nullptr;
+
+        if (currentToken.type == TokenType::TOKEN_INSTANCEOF) {
+            SourceLocation loc = currentToken.loc;
+
+            if (!eat(TokenType::TOKEN_INSTANCEOF)) return nullptr;
+            if (currentToken.type != TokenType::TOKEN_IDENT) {
+                diagnostics.addError(currentToken.loc, "Expected class name after 'instanceof'");
+                return nullptr;
+            }
+
+            std::string className = currentToken.value;
+            if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+
+            return std::make_unique<InstanceOfNode>(loc, std::move(left), std::move(className));
+        }
         
         static const std::unordered_set<std::string> comparisonOps = {
             "==", "!=", ">", "<", ">=", "<="
@@ -783,6 +811,25 @@ namespace LOICollection::frontend {
                 if (!eat(TokenType::TOKEN_THIS)) return nullptr;
                 return std::make_unique<ThisNode>(loc);
             }
+            case TokenType::TOKEN_SUPER: {
+                SourceLocation loc = currentToken.loc;
+
+                if (!eat(TokenType::TOKEN_SUPER)) return nullptr;
+
+                if (currentToken.type == TokenType::TOKEN_LPAREN) {
+                    if (!eat(TokenType::TOKEN_LPAREN)) return nullptr;
+
+                    auto args = parseArgs();
+                    if (!args)
+                        return nullptr;
+
+                    if (!eat(TokenType::TOKEN_RPAREN)) return nullptr;
+
+                    return std::make_unique<SuperCallNode>(loc, std::move(args));
+                }
+
+                return std::make_unique<SuperNode>(loc);
+            }
             case TokenType::TOKEN_FUNC:
                 return parseLambda();
             case TokenType::TOKEN_LPAREN: {
@@ -796,11 +843,12 @@ namespace LOICollection::frontend {
                 return expr;
             }
             case TokenType::TOKEN_IDENT: {
+                SourceLocation loc = currentToken.loc;
+
                 if (peek() == TokenType::TOKEN_NAMESPACE)
                     return parseFunction();
 
                 if (peek() == TokenType::TOKEN_LPAREN) {
-                    SourceLocation loc = currentToken.loc;
                     std::string name = currentToken.value;
 
                     if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
@@ -819,7 +867,7 @@ namespace LOICollection::frontend {
 
                 if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
 
-                return std::make_unique<VariableNode>(std::move(name));
+                return std::make_unique<VariableNode>(loc, std::move(name));
             }
             case TokenType::TOKEN_TRANSPILE:
                 return parseTranspile();
@@ -928,9 +976,12 @@ namespace LOICollection::frontend {
             case TokenType::TOKEN_FUNC: return "FUNC";
             case TokenType::TOKEN_NEW: return "NEW";
             case TokenType::TOKEN_THIS: return "THIS";
+            case TokenType::TOKEN_SUPER: return "SUPER";
             case TokenType::TOKEN_RETURN: return "RETURN";
             case TokenType::TOKEN_PUBLIC: return "PUBLIC";
             case TokenType::TOKEN_PRIVATE: return "PRIVATE";
+            case TokenType::TOKEN_EXTENDS: return "EXTENDS";
+            case TokenType::TOKEN_INSTANCEOF: return "INSTANCEOF";
             case TokenType::TOKEN_EOF: return "EOF";
             default: return "UNKNOWN";
         }

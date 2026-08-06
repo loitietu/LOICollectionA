@@ -186,6 +186,18 @@ namespace LOICollection::frontend::ir {
         return v;
     }
 
+    bool VM::isDerived(const BytecodeChunk& chunk, int derivedClassIndex, int baseClassIndex) const {
+        int current = derivedClassIndex;
+        while (current >= 0 && current < static_cast<int>(chunk.classes.size())) {
+            if (current == baseClassIndex)
+                return true;
+
+            current = chunk.classes[current].baseClassIndex;
+        }
+
+        return false;
+    }
+
     ValueNode::ValueType VM::run(const BytecodeChunk& chunk, const Context& ctx, DiagnosticEngine& diagnostics) {
         this->stack.clear();
         this->frames.clear();
@@ -365,6 +377,34 @@ namespace LOICollection::frontend::ir {
                     this->push(func);
                     break;
                 }
+                case OpCode::INSTANCEOF: {
+                    const auto& name = std::get<std::string>(cur.constants[instr.operand]);
+                    auto value = this->pop(diagnostics);
+
+                    if (!std::holds_alternative<ObjectRef>(value)) {
+                        this->push(false);
+                        break;
+                    }
+
+                    auto obj = std::get<ObjectRef>(value);
+                    bool result = (obj->className == name);
+
+                    if (!result && obj->classIndex >= 0) {
+                        int targetIdx = -1;
+                        for (size_t i = 0; i < chunk.classes.size(); ++i) {
+                            if (chunk.classes[i].name == name) {
+                                targetIdx = static_cast<int>(i);
+                                break;
+                            }
+                        }
+
+                        if (targetIdx >= 0)
+                            result = this->isDerived(chunk, obj->classIndex, targetIdx);
+                    }
+
+                    this->push(result);
+                    break;
+                }
 
                 case OpCode::NEW: {
                     const auto& cls = chunk.classes[instr.operand];
@@ -438,7 +478,7 @@ namespace LOICollection::frontend::ir {
                     }
 
                     auto obj = std::get<ObjectRef>(receiver);
-                    if (obj->classIndex != meta.classIndex) {
+                    if (!this->isDerived(chunk, obj->classIndex, meta.classIndex)) {
                         diagnostics.addError({ 0, 0, 0 },
                             "Method '" + meta.name + "' does not belong to this object");
                         break;
@@ -454,6 +494,96 @@ namespace LOICollection::frontend::ir {
 
                     for (int i = 0; i < meta.argCount; ++i)
                         callee.locals[meta.paramNames[i]] = args[i];
+
+                    this->frames.push_back(std::move(callee));
+                    break;
+                }
+
+                case OpCode::CALL_METHOD_VIRTUAL: {
+                    const auto& meta = cur.virtualCalls[instr.operand];
+
+                    auto receiver = this->pop(diagnostics);
+                    if (!std::holds_alternative<ObjectRef>(receiver)) {
+                        diagnostics.addError({ 0, 0, 0 }, "Method call target is not an object");
+                        break;
+                    }
+
+                    auto obj = std::get<ObjectRef>(receiver);
+                    if (obj->classIndex < 0 || obj->classIndex >= static_cast<int>(chunk.classes.size())) {
+                        diagnostics.addError({ 0, 0, 0 }, "Invalid object class index");
+                        break;
+                    }
+
+                    if (!this->isDerived(chunk, obj->classIndex, meta.classIndex)) {
+                        diagnostics.addError({ 0, 0, 0 }, "Method call target is not an instance of the expected class");
+                        break;
+                    }
+
+                    const auto& actualClass = chunk.classes[obj->classIndex];
+                    if (meta.ordinal < 0 || meta.ordinal >= static_cast<int>(actualClass.methods.size())) {
+                        diagnostics.addError({ 0, 0, 0 }, "Invalid method ordinal");
+                        break;
+                    }
+
+                    const auto& method = chunk.methods[actualClass.methods[meta.ordinal]];
+                    if (method.argCount != meta.argCount) {
+                        diagnostics.addError({ 0, 0, 0 },
+                            "Method '" + method.name + "' expects " + std::to_string(method.argCount) +
+                            " argument(s), got " + std::to_string(meta.argCount));
+                        break;
+                    }
+
+                    std::vector<ValueNode::ValueType> args(method.argCount);
+                    for (int i = 0; i < method.argCount; ++i)
+                        args[method.argCount - 1 - i] = this->pop(diagnostics);
+
+                    Frame callee(chunk.methodBodies[method.bodyIndex]);
+                    callee.hasThis = true;
+                    callee.thisObj = receiver;
+
+                    for (int i = 0; i < method.argCount; ++i)
+                        callee.locals[method.paramNames[i]] = args[i];
+
+                    this->frames.push_back(std::move(callee));
+                    break;
+                }
+
+                case OpCode::CALL_SUPER_CTOR: {
+                    const auto& meta = cur.superCalls[instr.operand];
+
+                    auto receiver = this->pop(diagnostics);
+                    if (!std::holds_alternative<ObjectRef>(receiver)) {
+                        diagnostics.addError({ 0, 0, 0 }, "Super constructor call target is not an object");
+                        break;
+                    }
+
+                    if (meta.constructorIndex < 0) {
+                        if (meta.argCount != 0) {
+                            diagnostics.addError({ 0, 0, 0 }, "Base class has no constructor");
+                        } else {
+                            this->push(std::string(""));
+                        }
+                        break;
+                    }
+
+                    const auto& ctor = chunk.methods[meta.constructorIndex];
+                    if (ctor.argCount != meta.argCount) {
+                        diagnostics.addError({ 0, 0, 0 },
+                            "Base constructor expects " + std::to_string(ctor.argCount) +
+                            " argument(s), got " + std::to_string(meta.argCount));
+                        break;
+                    }
+
+                    std::vector<ValueNode::ValueType> args(ctor.argCount);
+                    for (int i = 0; i < ctor.argCount; ++i)
+                        args[ctor.argCount - 1 - i] = this->pop(diagnostics);
+
+                    Frame callee(chunk.methodBodies[ctor.bodyIndex]);
+                    callee.hasThis = true;
+                    callee.thisObj = receiver;
+
+                    for (int i = 0; i < ctor.argCount; ++i)
+                        callee.locals[ctor.paramNames[i]] = args[i];
 
                     this->frames.push_back(std::move(callee));
                     break;

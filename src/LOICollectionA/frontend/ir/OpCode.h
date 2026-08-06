@@ -20,15 +20,18 @@ namespace LOICollection::frontend::ir {
         CALL,
         CALL_MACRO,
         CALL_METHOD,
+        CALL_METHOD_VIRTUAL,
         CALL_FUNC,
         CALL_NATIVE_METHOD,
         CALL_LAMBDA,
+        CALL_SUPER_CTOR,
 
         NEW,
         NEW_NATIVE,
         LOAD_FIELD, STORE_FIELD,
         LOAD_THIS,
         MAKE_LAMBDA,
+        INSTANCEOF,
         RETURN,
 
         JMP_IF_FALSE, JMP_IF_TRUE, 

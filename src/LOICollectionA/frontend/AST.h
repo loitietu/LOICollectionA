@@ -38,7 +38,7 @@ namespace LOICollection::frontend {
             Value, Compare, Logical, If, Template, Expr,
             Arithmetic, Unary, Function, Macro, Variable, Assignment,
             Class, Return, New, MemberAccess, MethodCall, This,
-            FunctionDef, FuncCall, Lambda
+            Super, SuperCall, InstanceOf, FunctionDef, FuncCall, Lambda
         };
         [[nodiscard]] virtual Type getType() const = 0;
         
@@ -73,9 +73,10 @@ namespace LOICollection::frontend {
     };
 
     struct VariableNode : ExprNode {
+        SourceLocation loc;
         std::string name;
 
-        explicit VariableNode(std::string n) : name(std::move(n)) {}
+        VariableNode(SourceLocation location, std::string n) : loc(location), name(std::move(n)) {}
 
         [[nodiscard]] Type getType() const override { return Type::Variable; }
 
@@ -274,11 +275,13 @@ namespace LOICollection::frontend {
         std::vector<TypeInfo> paramTypes;
         TypeInfo returnType;
         bool hasReturnStatement = false;
+        bool hasSuperCall = false;
     };
 
     struct ClassNode : ASTNode {
         SourceLocation loc;
         std::string name;
+        std::string baseClassName;
         std::vector<ClassMember> members;
         std::vector<MethodDecl> methods;
         int constructorIndex = -1;
@@ -365,6 +368,50 @@ namespace LOICollection::frontend {
         explicit ThisNode(SourceLocation location) : loc(location) {}
 
         [[nodiscard]] Type getType() const override { return Type::This; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct SuperNode : ExprNode {
+        SourceLocation loc;
+
+        explicit SuperNode(SourceLocation location) : loc(location) {}
+
+        [[nodiscard]] Type getType() const override { return Type::Super; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct SuperCallNode : ExprNode {
+        SourceLocation loc;
+        std::unique_ptr<TemplateNode> args;
+
+        std::string className;
+        int constructorIndex = -1;
+
+        SuperCallNode(SourceLocation location, auto&& a)
+            : loc(location), args(std::forward<decltype(a)>(a)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::SuperCall; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct InstanceOfNode : ExprNode {
+        SourceLocation loc;
+        std::unique_ptr<ExprNode> target;
+        std::string className;
+
+        InstanceOfNode(SourceLocation location, auto&& t, std::string name)
+            : loc(location), target(std::forward<decltype(t)>(t)), className(std::move(name)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::InstanceOf; }
 
         void accept(ASTVisitor& visitor) override {
             visitor.visit(*this);

@@ -44,5 +44,7 @@ namespace LOICollection::frontend::ir {
 
         void push(const ValueNode::ValueType& v);
         ValueNode::ValueType pop(DiagnosticEngine& diagnostics);
+
+        [[nodiscard]] bool isDerived(const BytecodeChunk& chunk, int derivedClassIndex, int baseClassIndex) const;
     };
 }
