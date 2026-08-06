@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 #include <unordered_map>
 
 #include "LOICollectionA/base/Macro.h"
@@ -22,10 +23,24 @@ namespace LOICollection::frontend::ir {
         LOICOLLECTION_A_NDAPI static bool applyComparison(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op, DiagnosticEngine& diagnostics);
 
     private:
+        struct Frame {
+            std::reference_wrapper<const BytecodeChunk> chunk;
+
+            size_t ip = 0;
+            std::unordered_map<std::string, ValueNode::ValueType> locals;
+
+            ValueNode::ValueType thisObj;
+            bool hasThis = false;
+            
+            ValueNode::ValueType pendingPush;
+            bool hasPending = false;
+
+            explicit Frame(const BytecodeChunk& chunkRef) : chunk(chunkRef) {}
+        };
+
+        std::vector<Frame> frames;
         std::vector<ValueNode::ValueType> stack;
         std::unordered_map<std::string, ValueNode::ValueType> variables;
-
-        size_t ip;
 
         void push(const ValueNode::ValueType& v);
         ValueNode::ValueType pop(DiagnosticEngine& diagnostics);

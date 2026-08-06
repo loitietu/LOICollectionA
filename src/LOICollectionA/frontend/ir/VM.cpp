@@ -31,6 +31,8 @@ namespace LOICollection::frontend::ir {
                 return arg;
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
                 return arg ? "true" : "false";
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, ObjectRef>)
+                return "instance of " + arg->className;
         }, val);
     }
 
@@ -43,9 +45,21 @@ namespace LOICollection::frontend::ir {
                 auto dl = static_cast<double>(l);
                 auto dr = static_cast<double>(r);
 
-                if (op == "+") return static_cast<float>(dl + dr);
-                if (op == "-") return static_cast<float>(dl - dr);
-                if (op == "*") return static_cast<float>(dl * dr);
+                if (op == "+") {
+                    if constexpr (std::is_integral_v<T> && std::is_integral_v<U>)
+                        return l + r;
+                    return static_cast<float>(dl + dr);
+                }
+                if (op == "-") {
+                    if constexpr (std::is_integral_v<T> && std::is_integral_v<U>)
+                        return l - r;
+                    return static_cast<float>(dl - dr);
+                }
+                if (op == "*") {
+                    if constexpr (std::is_integral_v<T> && std::is_integral_v<U>)
+                        return l * r;
+                    return static_cast<float>(dl * dr);
+                }
                 if (op == "/") return static_cast<float>(dl / dr);
                 if (op == "^") return static_cast<float>(MathUtils::pow(dl, dr));
                 if (op == "%") {
@@ -99,6 +113,8 @@ namespace LOICollection::frontend::ir {
             }
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
                 return arg;
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, ObjectRef>)
+                return true;
         }, val);
     }
 
@@ -116,6 +132,12 @@ namespace LOICollection::frontend::ir {
                 if (op == "<") return cmp < 0;
                 if (op == ">=") return cmp >= 0;
                 if (op == "<=") return cmp <= 0;
+
+                diagnostics.addError({ 0, 0, 0 }, "Unknown comparison op: " + op);
+                return false;
+            } else if constexpr (std::is_same_v<T, ObjectRef> && std::is_same_v<U, ObjectRef>) {
+                if (op == "==") return l == r;
+                if (op == "!=") return l != r;
 
                 diagnostics.addError({ 0, 0, 0 }, "Unknown comparison op: " + op);
                 return false;
@@ -155,8 +177,11 @@ namespace LOICollection::frontend::ir {
     }
 
     ValueNode::ValueType VM::run(const BytecodeChunk& chunk, const Context& ctx, DiagnosticEngine& diagnostics) {
-        this->ip = 0;
         this->stack.clear();
+        this->frames.clear();
+        this->variables.clear();
+
+        this->frames.emplace_back(chunk);
 
         size_t executed = 0;
         while (true) {
@@ -165,13 +190,21 @@ namespace LOICollection::frontend::ir {
                 return ValueNode::ValueType{};
             }
 
-            const auto& instr = chunk.code[ip++];
+            Frame& frame = this->frames.back();
+            const BytecodeChunk& cur = frame.chunk.get();
+
+            if (frame.ip >= cur.code.size()) {
+                diagnostics.addError({ 0, 0, 0 }, "Invalid instruction pointer");
+                return ValueNode::ValueType{};
+            }
+
+            const auto& instr = cur.code[frame.ip++];
             switch (instr.op) {
                 case OpCode::PUSH_INT:
                 case OpCode::PUSH_FLOAT:
                 case OpCode::PUSH_STR:
                 case OpCode::PUSH_BOOL:
-                    this->push(chunk.constants[instr.operand]);
+                    this->push(cur.constants[instr.operand]);
                     break;
                 case OpCode::POP:
                     this->pop(diagnostics);
@@ -188,23 +221,280 @@ namespace LOICollection::frontend::ir {
                 }
 
                 case OpCode::LOAD_VAR: {
-                    const auto& name = std::get<std::string>(chunk.constants[instr.operand]);
+                    const auto& name = std::get<std::string>(cur.constants[instr.operand]);
 
-                    auto it = this->variables.find(name);
-                    if (it == this->variables.end()) {
+                    auto localIt = frame.locals.find(name);
+                    if (localIt != frame.locals.end()) {
+                        this->push(localIt->second);
+                        break;
+                    }
+
+                    if (frame.hasThis) {
+                        auto obj = std::get<ObjectRef>(frame.thisObj);
+
+                        if (obj->classIndex >= 0) {
+                            const auto& cls = chunk.classes[obj->classIndex];
+                            bool isField = std::ranges::find(cls.fieldNames, name) != cls.fieldNames.end();
+
+                            if (isField) {
+                                auto fieldIt = obj->fields.find(name);
+                                if (fieldIt == obj->fields.end()) {
+                                    diagnostics.addError({ 0, 0, 0 }, "Object has no field: " + name);
+                                    break;
+                                }
+
+                                this->push(fieldIt->second);
+                                break;
+                            }
+                        }
+
+                        auto existingIt = obj->fields.find(name);
+                        if (existingIt != obj->fields.end()) {
+                            this->push(existingIt->second);
+                            break;
+                        }
+                    }
+
+                    auto globalIt = this->variables.find(name);
+                    if (globalIt == this->variables.end()) {
                         diagnostics.addError({ 0, 0, 0 }, "Undefined variable: " + name);
+                        break;
+                    }
+
+                    this->push(globalIt->second);
+                    break;
+                }
+                case OpCode::STORE_VAR: {
+                    const auto& name = std::get<std::string>(cur.constants[instr.operand]);
+
+                    auto val = this->pop(diagnostics);
+
+                    auto localIt = frame.locals.find(name);
+                    if (localIt != frame.locals.end()) {
+                        localIt->second = val;
+                        break;
+                    }
+
+                    if (frame.hasThis) {
+                        auto obj = std::get<ObjectRef>(frame.thisObj);
+
+                        if (obj->classIndex >= 0) {
+                            const auto& cls = chunk.classes[obj->classIndex];
+                            bool isField = std::ranges::find(cls.fieldNames, name) != cls.fieldNames.end();
+
+                            if (isField) {
+                                obj->fields[name] = val;
+                                break;
+                            }
+                        }
+
+                        auto existingIt = obj->fields.find(name);
+                        if (existingIt != obj->fields.end()) {
+                            existingIt->second = val;
+                            break;
+                        }
+                    }
+
+                    this->variables[name] = val;
+                    break;
+                }
+
+                case OpCode::LOAD_FIELD: {
+                    const auto& name = std::get<std::string>(cur.constants[instr.operand]);
+                    auto objValue = this->pop(diagnostics);
+
+                    if (!std::holds_alternative<ObjectRef>(objValue)) {
+                        diagnostics.addError({ 0, 0, 0 }, "Cannot load field '" + name + "' from a non-object value");
+                        break;
+                    }
+
+                    auto obj = std::get<ObjectRef>(objValue);
+                    auto it = obj->fields.find(name);
+                    if (it == obj->fields.end()) {
+                        diagnostics.addError({ 0, 0, 0 }, "Object has no field: " + name);
                         break;
                     }
 
                     this->push(it->second);
                     break;
                 }
-                case OpCode::STORE_VAR: {
-                    const auto& name = std::get<std::string>(chunk.constants[instr.operand]);
-
+                case OpCode::STORE_FIELD: {
+                    const auto& name = std::get<std::string>(cur.constants[instr.operand]);
+                    auto objValue = this->pop(diagnostics);
                     auto val = this->pop(diagnostics);
 
-                    this->variables[name] = val;
+                    if (!std::holds_alternative<ObjectRef>(objValue)) {
+                        diagnostics.addError({ 0, 0, 0 }, "Cannot store field '" + name + "' on a non-object value");
+                        break;
+                    }
+
+                    std::get<ObjectRef>(objValue)->fields[name] = val;
+                    break;
+                }
+                case OpCode::LOAD_THIS: {
+                    if (!frame.hasThis) {
+                        diagnostics.addError({ 0, 0, 0 }, "'this' is not available in the current context");
+                        break;
+                    }
+
+                    this->push(frame.thisObj);
+                    break;
+                }
+
+                case OpCode::NEW: {
+                    const auto& cls = chunk.classes[instr.operand];
+
+                    std::vector<ValueNode::ValueType> args;
+
+                    if (cls.constructorIndex != -1) {
+                        const auto& ctor = chunk.methods[cls.constructorIndex];
+                        args.resize(ctor.argCount);
+
+                        for (int i = 0; i < ctor.argCount; ++i)
+                            args[ctor.argCount - 1 - i] = this->pop(diagnostics);
+                    }
+
+                    auto obj = std::make_shared<Object>();
+                    obj->className = cls.name;
+                    obj->classIndex = instr.operand;
+
+                    for (size_t i = 0; i < cls.fieldNames.size(); ++i) {
+                        if (cls.hasDefault[i])
+                            obj->fields[cls.fieldNames[i]] = cls.defaults[i];
+                    }
+
+                    if (cls.constructorIndex != -1) {
+                        const auto& ctor = chunk.methods[cls.constructorIndex];
+
+                        Frame callee(chunk.methodBodies[ctor.bodyIndex]);
+                        callee.hasThis = true;
+                        callee.thisObj = obj;
+                        callee.hasPending = true;
+                        callee.pendingPush = obj;
+
+                        for (int i = 0; i < ctor.argCount; ++i)
+                            callee.locals[ctor.paramNames[i]] = args[i];
+
+                        this->frames.push_back(std::move(callee));
+                    } else {
+                        this->push(obj);
+                    }
+                    break;
+                }
+
+                case OpCode::NEW_NATIVE: {
+                    const auto& meta = chunk.nativeCalls[instr.operand];
+
+                    std::vector<ValueNode::ValueType> args(meta.argCount);
+                    for (int i = 0; i < meta.argCount; ++i)
+                        args[meta.argCount - 1 - i] = this->pop(diagnostics);
+
+                    auto result = ClassCall::getInstance().create(
+                        meta.className, args, ctx.params, diagnostics
+                    );
+
+                    if (!result.has_value()) {
+                        diagnostics.addError({ 0, 0, 0 },
+                            "Failed to create native class '" + meta.className + "': " + result.error().message());
+                        break;
+                    }
+
+                    this->push(result.value());
+                    break;
+                }
+
+                case OpCode::CALL_METHOD: {
+                    const auto& meta = chunk.methods[instr.operand];
+
+                    auto receiver = this->pop(diagnostics);
+                    if (!std::holds_alternative<ObjectRef>(receiver)) {
+                        diagnostics.addError({ 0, 0, 0 }, "Method call target is not an object");
+                        break;
+                    }
+
+                    auto obj = std::get<ObjectRef>(receiver);
+                    if (obj->classIndex != meta.classIndex) {
+                        diagnostics.addError({ 0, 0, 0 },
+                            "Method '" + meta.name + "' does not belong to this object");
+                        break;
+                    }
+
+                    std::vector<ValueNode::ValueType> args(meta.argCount);
+                    for (int i = 0; i < meta.argCount; ++i)
+                        args[meta.argCount - 1 - i] = this->pop(diagnostics);
+
+                    Frame callee(chunk.methodBodies[meta.bodyIndex]);
+                    callee.hasThis = true;
+                    callee.thisObj = receiver;
+
+                    for (int i = 0; i < meta.argCount; ++i)
+                        callee.locals[meta.paramNames[i]] = args[i];
+
+                    this->frames.push_back(std::move(callee));
+                    break;
+                }
+
+                case OpCode::CALL_NATIVE_METHOD: {
+                    const auto& meta = chunk.nativeCalls[instr.operand];
+
+                    auto receiver = this->pop(diagnostics);
+                    if (!std::holds_alternative<ObjectRef>(receiver)) {
+                        diagnostics.addError({ 0, 0, 0 }, "Native method call target is not an object");
+                        break;
+                    }
+
+                    auto obj = std::get<ObjectRef>(receiver);
+
+                    std::vector<ValueNode::ValueType> args(meta.argCount);
+                    for (int i = 0; i < meta.argCount; ++i)
+                        args[meta.argCount - 1 - i] = this->pop(diagnostics);
+
+                    auto result = ClassCall::getInstance().callMethod(
+                        obj->className, meta.name, args, obj, ctx.params, diagnostics
+                    );
+
+                    if (!result.has_value()) {
+                        diagnostics.addError({ 0, 0, 0 },
+                            "Native method call failed '" + meta.className + "::" + meta.name +
+                            "': " + result.error().message());
+                        break;
+                    }
+
+                    this->push(result.value());
+                    break;
+                }
+
+                case OpCode::CALL_FUNC: {
+                    const auto& meta = chunk.methods[instr.operand];
+
+                    std::vector<ValueNode::ValueType> args(meta.argCount);
+                    for (int i = 0; i < meta.argCount; ++i)
+                        args[meta.argCount - 1 - i] = this->pop(diagnostics);
+
+                    Frame callee(chunk.methodBodies[meta.bodyIndex]);
+                    callee.hasThis = false;
+
+                    for (int i = 0; i < meta.argCount; ++i)
+                        callee.locals[meta.paramNames[i]] = args[i];
+
+                    this->frames.push_back(std::move(callee));
+                    break;
+                }
+
+                case OpCode::RETURN: {
+                    auto result = this->pop(diagnostics);
+
+                    Frame finished = std::move(this->frames.back());
+                    this->frames.pop_back();
+
+                    if (this->frames.empty())
+                        return result;
+
+                    if (finished.hasPending)
+                        this->push(finished.pendingPush);
+                    else
+                        this->push(result);
+
                     break;
                 }
 
@@ -323,7 +613,7 @@ namespace LOICollection::frontend::ir {
                 }
 
                 case OpCode::CALL: {
-                    const auto& meta = chunk.functions[instr.operand];
+                    const auto& meta = cur.functions[instr.operand];
 
                     CallbackTypeValues args;
                     args.reserve(meta.argCount);
@@ -347,7 +637,7 @@ namespace LOICollection::frontend::ir {
                     break;
                 }
                 case OpCode::CALL_MACRO: {
-                    const auto& meta = chunk.macros[instr.operand];
+                    const auto& meta = cur.macros[instr.operand];
 
                     CallbackTypeValues args;
                     args.reserve(meta.argCount);
@@ -372,23 +662,28 @@ namespace LOICollection::frontend::ir {
                 case OpCode::JMP_IF_FALSE: {
                     auto cond = this->pop(diagnostics);
                     if (!VM::valueToBool(cond))
-                        this->ip += instr.operand;
+                        frame.ip += instr.operand;
 
                     break;
                 }
                 case OpCode::JMP_IF_TRUE: {
                     auto cond = this->pop(diagnostics);
                     if (VM::valueToBool(cond))
-                        this->ip += instr.operand;
+                        frame.ip += instr.operand;
                     
                     break;
                 }
                 case OpCode::JMP:
-                    this->ip += instr.operand;
+                    frame.ip += instr.operand;
                     break;
 
-                case OpCode::HALT:
+                case OpCode::HALT: {
+                    if (this->stack.empty()) {
+                        return std::string("");
+                    }
+
                     return this->stack.back();
+                }
             }
         }
     }

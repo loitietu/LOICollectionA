@@ -128,3 +128,29 @@ TEST_F(ShortCircuitTest, NestedShortCircuit) {
         EXPECT_TRUE(side_called);
     });
 }
+
+TEST_F(ShortCircuitTest, FalsyValuesShortCircuit) {
+    EXPECT_NO_THROW({
+        auto result = eval("0 && {test_fail}");
+        EXPECT_EQ(result, "false");
+        EXPECT_FALSE(fail_called);
+    });
+    EXPECT_NO_THROW({
+        auto result = eval("\"false\" && {test_fail}");
+        EXPECT_EQ(result, "false");
+        EXPECT_FALSE(fail_called);
+    });
+}
+
+TEST_F(ShortCircuitTest, TruthyValuesShortCircuit) {
+    EXPECT_NO_THROW({
+        auto result = eval("1 || {test_fail}");
+        EXPECT_EQ(result, "true");
+        EXPECT_FALSE(fail_called);
+    });
+    EXPECT_NO_THROW({
+        auto result = eval("\"true\" || {test_fail}");
+        EXPECT_EQ(result, "true");
+        EXPECT_FALSE(fail_called);
+    });
+}

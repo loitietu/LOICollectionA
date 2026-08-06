@@ -1,0 +1,125 @@
+#include <gtest/gtest.h>
+
+#include <memory>
+#include <string>
+
+#include "LOICollectionA/frontend/DiagnosticEngine.h"
+#include "LOICollectionA/frontend/ir/VM.h"
+
+using namespace LOICollection::frontend;
+using namespace LOICollection::frontend::ir;
+
+TEST(VMValueTest, ValueToString) {
+    EXPECT_EQ(VM::valueToString(ValueNode::ValueType(42)), "42");
+    EXPECT_EQ(VM::valueToString(ValueNode::ValueType(3.5f)), "3.5");
+    EXPECT_EQ(VM::valueToString(ValueNode::ValueType(std::string("hi"))), "hi");
+    EXPECT_EQ(VM::valueToString(ValueNode::ValueType(true)), "true");
+
+    auto obj = std::make_shared<Object>();
+    obj->className = "Foo";
+    EXPECT_EQ(VM::valueToString(ValueNode::ValueType(obj)), "instance of Foo");
+}
+
+TEST(VMArithmeticTest, Arithmetic) {
+    DiagnosticEngine diag;
+
+    auto intResult = VM::applyArithmetic(2, 3, "+", diag);
+    ASSERT_TRUE(std::holds_alternative<int>(intResult));
+    EXPECT_EQ(std::get<int>(intResult), 5);
+
+    auto floatResult = VM::applyArithmetic(1, 2.5f, "+", diag);
+    ASSERT_TRUE(std::holds_alternative<float>(floatResult));
+    EXPECT_FLOAT_EQ(std::get<float>(floatResult), 3.5f);
+
+    auto strResult = VM::applyArithmetic(std::string("a"), 1, "+", diag);
+    ASSERT_TRUE(std::holds_alternative<std::string>(strResult));
+    EXPECT_EQ(std::get<std::string>(strResult), "a1");
+
+    EXPECT_FALSE(diag.hasErrors());
+}
+
+TEST(VMArithmeticTest, ModuloRequiresIntegers) {
+    DiagnosticEngine diag;
+
+    [[maybe_unused]] auto result = VM::applyArithmetic(5.0f, 2.0f, "%", diag);
+    EXPECT_TRUE(diag.hasErrors());
+    EXPECT_NE(diag.getErrorMessage().find("Modulo requires integral types"), std::string::npos);
+}
+
+TEST(VMArithmeticTest, UnknownOperator) {
+    DiagnosticEngine diag;
+
+    [[maybe_unused]] auto result = VM::applyArithmetic(1, 2, "??", diag);
+    EXPECT_TRUE(diag.hasErrors());
+}
+
+TEST(VMUnaryTest, Unary) {
+    DiagnosticEngine diag;
+
+    EXPECT_EQ(std::get<int>(VM::applyUnary(5, "-", diag)), -5);
+    EXPECT_EQ(std::get<int>(VM::applyUnary(5, "+", diag)), 5);
+    EXPECT_EQ(std::get<bool>(VM::applyUnary(true, "!", diag)), false);
+    EXPECT_EQ(std::get<bool>(VM::applyUnary(0, "!", diag)), true);
+    EXPECT_FALSE(diag.hasErrors());
+}
+
+TEST(VMUnaryTest, UnknownOperator) {
+    DiagnosticEngine diag;
+
+    [[maybe_unused]] auto result = VM::applyUnary(1, "~", diag);
+    EXPECT_TRUE(diag.hasErrors());
+}
+
+TEST(VMTruthTest, ValueToBool) {
+    EXPECT_FALSE(VM::valueToBool(0));
+    EXPECT_TRUE(VM::valueToBool(1));
+    EXPECT_FALSE(VM::valueToBool(0.0f));
+    EXPECT_TRUE(VM::valueToBool(0.5f));
+    EXPECT_FALSE(VM::valueToBool(std::string("")));
+    EXPECT_FALSE(VM::valueToBool(std::string("false")));
+    EXPECT_FALSE(VM::valueToBool(std::string("FALSE")));
+    EXPECT_TRUE(VM::valueToBool(std::string("true")));
+    EXPECT_TRUE(VM::valueToBool(std::string("hello")));
+    EXPECT_FALSE(VM::valueToBool(false));
+    EXPECT_TRUE(VM::valueToBool(true));
+
+    auto obj = std::make_shared<Object>();
+    EXPECT_TRUE(VM::valueToBool(obj));
+}
+
+TEST(VMComparisonTest, Comparisons) {
+    DiagnosticEngine diag;
+
+    EXPECT_TRUE(VM::applyComparison(1, 2, "<", diag));
+    EXPECT_TRUE(VM::applyComparison(2, 1, ">", diag));
+    EXPECT_TRUE(VM::applyComparison(1, 1, "==", diag));
+    EXPECT_TRUE(VM::applyComparison(1.0f, 1, "==", diag));
+    EXPECT_TRUE(VM::applyComparison(std::string("abc"), std::string("abd"), "<", diag));
+    EXPECT_TRUE(VM::applyComparison(true, false, "!=", diag));
+    EXPECT_FALSE(diag.hasErrors());
+}
+
+TEST(VMComparisonTest, ObjectEquality) {
+    DiagnosticEngine diag;
+
+    auto obj = std::make_shared<Object>();
+    auto other = std::make_shared<Object>();
+
+    EXPECT_TRUE(VM::applyComparison(obj, obj, "==", diag));
+    EXPECT_TRUE(VM::applyComparison(obj, other, "!=", diag));
+    EXPECT_FALSE(diag.hasErrors());
+}
+
+TEST(VMComparisonTest, TypeMismatch) {
+    DiagnosticEngine diag;
+
+    EXPECT_FALSE(VM::applyComparison(1, std::string("1"), "==", diag));
+    EXPECT_TRUE(diag.hasErrors());
+}
+
+TEST(VMComparisonTest, UnknownOperator) {
+    DiagnosticEngine diag;
+
+    EXPECT_FALSE(VM::applyComparison(1, 2, "~", diag));
+    EXPECT_TRUE(diag.hasErrors());
+}

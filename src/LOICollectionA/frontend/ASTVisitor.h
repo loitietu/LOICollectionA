@@ -14,6 +14,14 @@ namespace LOICollection::frontend {
     struct ArithmeticNode;
     struct UnaryNode;
     struct TemplateNode;
+    struct ClassNode;
+    struct ReturnNode;
+    struct NewNode;
+    struct MemberAccessNode;
+    struct MethodCallNode;
+    struct ThisNode;
+    struct FunctionDefNode;
+    struct FuncCallNode;
 
     class ASTVisitor {
     public:
@@ -30,5 +38,13 @@ namespace LOICollection::frontend {
         virtual void visit(ArithmeticNode& node) = 0;
         virtual void visit(UnaryNode& node) = 0;
         virtual void visit(TemplateNode& node) = 0;
+        virtual void visit(ClassNode& node) = 0;
+        virtual void visit(ReturnNode& node) = 0;
+        virtual void visit(NewNode& node) = 0;
+        virtual void visit(MemberAccessNode& node) = 0;
+        virtual void visit(MethodCallNode& node) = 0;
+        virtual void visit(ThisNode& node) = 0;
+        virtual void visit(FunctionDefNode& node) = 0;
+        virtual void visit(FuncCallNode& node) = 0;
     };
 }

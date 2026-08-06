@@ -1,12 +1,17 @@
 #pragma once
 
 #include <string>
+#include <vector>
+#include <functional>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "LOICollectionA/base/Macro.h"
 
 #include "LOICollectionA/frontend/AST.h"
-#include "LOICollectionA/frontend/ir/ByteCode.h"
 #include "LOICollectionA/frontend/DiagnosticEngine.h"
+
+#include "LOICollectionA/frontend/ir/ByteCode.h"
 
 namespace LOICollection::frontend::ir {
     class Compiler : public ASTVisitor {
@@ -17,8 +22,17 @@ namespace LOICollection::frontend::ir {
 
     private:
         BytecodeChunk chunk;
+        
+        std::reference_wrapper<BytecodeChunk> current;
 
         DiagnosticEngine& diagnostics;
+
+        std::unordered_map<std::string, int> classIndices;
+        std::unordered_set<int> registeredClasses;
+        std::unordered_map<std::string, std::vector<int>> classMethodIndices;
+        std::unordered_map<std::string, std::vector<int>> functionIndices;
+        
+        size_t methodCount = 0;
 
         void visit(ValueNode& node) override;
         void visit(VariableNode& node) override;
@@ -31,7 +45,21 @@ namespace LOICollection::frontend::ir {
         void visit(ArithmeticNode& node) override;
         void visit(UnaryNode& node) override;
         void visit(TemplateNode& node) override;
+        void visit(ClassNode& node) override;
+        void visit(ReturnNode& node) override;
+        void visit(NewNode& node) override;
+        void visit(MemberAccessNode& node) override;
+        void visit(MethodCallNode& node) override;
+        void visit(ThisNode& node) override;
+        void visit(FunctionDefNode& node) override;
+        void visit(FuncCallNode& node) override;
 
+        void registerClassMeta(ClassNode& node);
+        void compileClassBodies(ClassNode& node);
+        void registerFunctionMeta(FunctionDefNode& node);
+        void compileFunctionBody(FunctionDefNode& node);
+
+        int addNativeCall(const std::string& className, const std::string& name, int argCount);
         int addConstant(const ValueNode::ValueType& val);
         int addFunction(const std::string& name, int argCount);
         int addMacro(const std::string& name, int argCount);

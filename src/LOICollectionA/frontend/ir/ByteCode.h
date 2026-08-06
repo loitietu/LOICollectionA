@@ -4,7 +4,6 @@
 #include <string>
 
 #include "LOICollectionA/frontend/AST.h"
-
 #include "LOICollectionA/frontend/ir/OpCode.h"
 
 namespace LOICollection::frontend::ir {
@@ -26,11 +25,39 @@ namespace LOICollection::frontend::ir {
         int argCount;
     };
 
+    struct ClassMeta {
+        std::string name;
+        std::vector<std::string> fieldNames;
+        std::vector<ValueNode::ValueType> defaults;
+        std::vector<bool> hasDefault;
+        
+        int constructorIndex = -1;
+        std::vector<int> methods;
+    };
+
+    struct MethodMeta {
+        std::string name;
+        std::vector<std::string> paramNames;
+        int argCount = 0;
+        int classIndex = -1;
+        int bodyIndex = -1;
+    };
+
+    struct NativeCallMeta {
+        std::string className;
+        std::string name;
+        int argCount = 0;
+    };
+
     struct BytecodeChunk {
         std::vector<Instruction> code;
         std::vector<ValueNode::ValueType> constants;
         std::vector<FuncMeta> functions;
         std::vector<MacroMeta> macros;
+        std::vector<ClassMeta> classes;
+        std::vector<MethodMeta> methods;
+        std::vector<NativeCallMeta> nativeCalls;
+        std::vector<BytecodeChunk> methodBodies;
 
         size_t emit(OpCode op, int operand = 0) {
             this->code.push_back({op, operand});

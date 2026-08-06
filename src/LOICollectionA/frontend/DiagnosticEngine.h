@@ -50,11 +50,35 @@ namespace LOICollection::frontend {
             });
         }
 
+        [[nodiscard]] bool hasWarnings() const {
+            return std::ranges::any_of(diagnostics, [](const Diagnostic& d) -> bool {
+                return d.level == DiagnosticLevel::Warning;
+            });
+        }
+
         [[nodiscard]] std::string getErrorMessage() const {
             std::ostringstream oss;
             for (const auto& d : diagnostics) {
                 if (d.level == DiagnosticLevel::Error) {
                     oss << d.message;
+                    if (d.loc.line > 1 || d.loc.column > 1)
+                        oss << " (at line " << d.loc.line << ", col " << d.loc.column << ")";
+                    oss << "; ";
+                }
+            }
+            auto result = oss.str();
+            if (!result.empty()) {
+                result.pop_back();
+                result.pop_back();
+            }
+            return result;
+        }
+
+        [[nodiscard]] std::string getWarningMessage() const {
+            std::ostringstream oss;
+            for (const auto& d : diagnostics) {
+                if (d.level == DiagnosticLevel::Warning) {
+                    oss << "Warning: " << d.message;
                     if (d.loc.line > 1 || d.loc.column > 1)
                         oss << " (at line " << d.loc.line << ", col " << d.loc.column << ")";
                     oss << "; ";

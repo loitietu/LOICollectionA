@@ -16,6 +16,23 @@ TEST(MathBuiltinsTest, BasicMath) {
     EXPECT_EQ(eval("math::cos(0)"), "1");
 }
 
+TEST(MathBuiltinsTest, MoreMath) {
+    EXPECT_EQ(eval("math::abs(-3.5)"), "3.5");
+    EXPECT_EQ(eval("math::min(2.5, 1.5)"), "1.5");
+    EXPECT_EQ(eval("math::max(2.5, 1.5)"), "2.5");
+    EXPECT_EQ(eval("math::sqrt(16)"), "4");
+    EXPECT_EQ(eval("math::log(1)"), "0");
+    EXPECT_EQ(eval("math::pow(2.5, 2.0)"), "6.25");
+}
+
+TEST(MathBuiltinsTest, RandomInRange) {
+    for (int i = 0; i < 20; ++i) {
+        int value = std::stoi(eval("math::random(5, 7)"));
+        EXPECT_GE(value, 5);
+        EXPECT_LE(value, 7);
+    }
+}
+
 TEST(StringBuiltinsTest, BasicString) {
     EXPECT_EQ(eval("string::length(\"hello\")"), "5");
     EXPECT_EQ(eval("string::upper(\"abc\")"), "ABC");
@@ -25,9 +42,25 @@ TEST(StringBuiltinsTest, BasicString) {
     EXPECT_EQ(eval("string::replace(\"abcabc\", \"a\", \"x\")"), "xbcxbc");
 }
 
+TEST(StringBuiltinsTest, MoreString) {
+    EXPECT_EQ(eval("string::length(\"\")"), "0");
+    EXPECT_EQ(eval("string::substr(\"hello\", 0, 5)"), "hello");
+    EXPECT_EQ(eval("string::substr(\"hello\", 10, 2)"), "");
+    EXPECT_EQ(eval("string::substr(\"hello\", 1, -1)"), "");
+    EXPECT_EQ(eval("string::trim(\"\t hi \n\")"), "hi");
+    EXPECT_EQ(eval("string::replace(\"abc\", \"\", \"x\")"), "abc");
+    EXPECT_EQ(eval("string::upper(\"aBc\")"), "ABC");
+    EXPECT_EQ(eval("string::lower(\"XyZ\")"), "xyz");
+}
+
 TEST(BuiltinsTest, UnregisteredFunction) {
     EXPECT_THROW(eval("nonexistent::func()"), std::runtime_error);
     EXPECT_THROW(eval("math::nonexistent(1)"), std::runtime_error);
+}
+
+TEST(BuiltinsTest, WrongArgumentType) {
+    EXPECT_THROW(eval("math::abs(\"x\")"), std::runtime_error);
+    EXPECT_THROW(eval("string::length(123)"), std::runtime_error);
 }
 
 TEST(MacroTest, CustomMacro) {

@@ -12,27 +12,6 @@
 using namespace LOICollection::frontend;
 
 namespace MathBuiltin {
-    void registerFunctions(const std::string& namespaces) {
-        FunctionCall::getInstance().registerFunction(namespaces, "abs", abs, { ParamType::INT });
-        FunctionCall::getInstance().registerFunction(namespaces, "abs", abs, { ParamType::FLOAT });
-        FunctionCall::getInstance().registerFunction(namespaces, "min", min, { ParamType::INT, ParamType::INT });
-        FunctionCall::getInstance().registerFunction(namespaces, "min", min, { ParamType::FLOAT, ParamType::FLOAT });
-        FunctionCall::getInstance().registerFunction(namespaces, "max", max, { ParamType::INT, ParamType::INT });
-        FunctionCall::getInstance().registerFunction(namespaces, "max", max, { ParamType::FLOAT, ParamType::FLOAT });
-        FunctionCall::getInstance().registerFunction(namespaces, "sqrt", sqrt, { ParamType::INT });
-        FunctionCall::getInstance().registerFunction(namespaces, "sqrt", sqrt, { ParamType::FLOAT });
-        FunctionCall::getInstance().registerFunction(namespaces, "pow", pow, { ParamType::INT, ParamType::INT });
-        FunctionCall::getInstance().registerFunction(namespaces, "pow", pow, { ParamType::FLOAT, ParamType::FLOAT });
-        FunctionCall::getInstance().registerFunction(namespaces, "log", log, { ParamType::INT });
-        FunctionCall::getInstance().registerFunction(namespaces, "log", log, { ParamType::FLOAT });
-        FunctionCall::getInstance().registerFunction(namespaces, "sin", sin, { ParamType::INT });
-        FunctionCall::getInstance().registerFunction(namespaces, "sin", sin, { ParamType::FLOAT });
-        FunctionCall::getInstance().registerFunction(namespaces, "cos", cos, { ParamType::INT });
-        FunctionCall::getInstance().registerFunction(namespaces, "cos", cos, { ParamType::FLOAT });
-        FunctionCall::getInstance().registerFunction(namespaces, "random", random, { ParamType::INT, ParamType::INT });
-        FunctionCall::getInstance().registerFunction(namespaces, "random", random, { ParamType::FLOAT, ParamType::FLOAT });
-    }
-
     LOICollection::frontend::TypedValue abs(const LOICollection::frontend::CallbackTypeValues& args) {
         return std::visit([](auto&& arg) -> LOICollection::frontend::TypedValue {
             using T = std::decay_t<decltype(arg)>;
@@ -149,6 +128,27 @@ namespace MathBuiltin {
             return {};
         }, args[0], args[1]);
     }
+
+    void registerFunctions(const std::string& namespaces) {
+        FunctionCall::getInstance().registerFunction(namespaces, "abs", abs, { ParamType::INT });
+        FunctionCall::getInstance().registerFunction(namespaces, "abs", abs, { ParamType::FLOAT });
+        FunctionCall::getInstance().registerFunction(namespaces, "min", min, { ParamType::INT, ParamType::INT });
+        FunctionCall::getInstance().registerFunction(namespaces, "min", min, { ParamType::FLOAT, ParamType::FLOAT });
+        FunctionCall::getInstance().registerFunction(namespaces, "max", max, { ParamType::INT, ParamType::INT });
+        FunctionCall::getInstance().registerFunction(namespaces, "max", max, { ParamType::FLOAT, ParamType::FLOAT });
+        FunctionCall::getInstance().registerFunction(namespaces, "sqrt", sqrt, { ParamType::INT });
+        FunctionCall::getInstance().registerFunction(namespaces, "sqrt", sqrt, { ParamType::FLOAT });
+        FunctionCall::getInstance().registerFunction(namespaces, "pow", pow, { ParamType::INT, ParamType::INT });
+        FunctionCall::getInstance().registerFunction(namespaces, "pow", pow, { ParamType::FLOAT, ParamType::FLOAT });
+        FunctionCall::getInstance().registerFunction(namespaces, "log", log, { ParamType::INT });
+        FunctionCall::getInstance().registerFunction(namespaces, "log", log, { ParamType::FLOAT });
+        FunctionCall::getInstance().registerFunction(namespaces, "sin", sin, { ParamType::INT });
+        FunctionCall::getInstance().registerFunction(namespaces, "sin", sin, { ParamType::FLOAT });
+        FunctionCall::getInstance().registerFunction(namespaces, "cos", cos, { ParamType::INT });
+        FunctionCall::getInstance().registerFunction(namespaces, "cos", cos, { ParamType::FLOAT });
+        FunctionCall::getInstance().registerFunction(namespaces, "random", random, { ParamType::INT, ParamType::INT });
+        FunctionCall::getInstance().registerFunction(namespaces, "random", random, { ParamType::FLOAT, ParamType::FLOAT });
+    }
 }
 
-REGISTER_NAMESPACE(math, MathBuiltin::registerFunctions)
+REGISTER_CALLBACK(math, MathBuiltin::registerFunctions)

@@ -19,7 +19,8 @@ namespace LOICollection::frontend {
         INT,
         FLOAT,
         STRING,
-        BOOL
+        BOOL,
+        OBJECT
     };
 
     using TypedValue = ValueNode::ValueType;
@@ -30,6 +31,11 @@ namespace LOICollection::frontend {
 
     using CallbackFunc = std::function<ll::Expected<TypedValue>(const CallbackTypeValues&)>;
     using CallbackFuncCombination = std::function<ll::Expected<TypedValue>(const CallbackTypeValues&, const CallbackTypePlaces&)>;
+
+    using NativeConstructor = std::function<ll::Expected<ObjectRef>(const CallbackTypeValues&)>;
+    using NativeConstructorCombination = std::function<ll::Expected<ObjectRef>(const CallbackTypeValues&, const CallbackTypePlaces&)>;
+    using NativeMethod = std::function<ll::Expected<TypedValue>(const ObjectRef&, const CallbackTypeValues&)>;
+    using NativeMethodCombination = std::function<ll::Expected<TypedValue>(const ObjectRef&, const CallbackTypeValues&, const CallbackTypePlaces&)>;
 
     struct Signature {
         std::string name;
@@ -95,10 +101,42 @@ namespace LOICollection::frontend {
         struct Impl;
         std::unique_ptr<Impl> mImpl;
     };
+
+    class ClassCall {
+    public:
+        LOICOLLECTION_A_NDAPI static ClassCall& getInstance();
+
+        LOICOLLECTION_A_API   void registerClass(const std::string& name, const std::vector<std::string>& fields);
+        LOICOLLECTION_A_API   void registerConstructor(const std::string& name, NativeConstructor callback, const CallbackTypeArgs& args);
+        LOICOLLECTION_A_API   void registerConstructor(const std::string& name, NativeConstructorCombination callback, const CallbackTypeArgs& args);
+        LOICOLLECTION_A_API   void registerMethod(const std::string& className, const std::string& method, NativeMethod callback, const CallbackTypeArgs& args);
+        LOICOLLECTION_A_API   void registerMethod(const std::string& className, const std::string& method, NativeMethodCombination callback, const CallbackTypeArgs& args);
+
+        LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& name) const;
+        LOICOLLECTION_A_NDAPI bool hasField(const std::string& name, const std::string& field) const;
+        LOICOLLECTION_A_NDAPI std::vector<std::string> getFields(const std::string& name) const;
+        LOICOLLECTION_A_NDAPI std::vector<CallbackTypeArgs> getConstructorSignatures(const std::string& name) const;
+        LOICOLLECTION_A_NDAPI std::vector<CallbackTypeArgs> getMethodSignatures(const std::string& className, const std::string& method) const;
+
+        LOICOLLECTION_A_NDAPI ll::Expected<ObjectRef> create(
+            const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics
+        );
+        LOICOLLECTION_A_NDAPI ll::Expected<TypedValue> callMethod(
+            const std::string& className, const std::string& method, const CallbackTypeValues& args,
+            const ObjectRef& object, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics
+        );
+
+    private:
+        ClassCall();
+        ~ClassCall();
+
+        struct Impl;
+        std::unique_ptr<Impl> mImpl;
+    };
 }
 
-#define REGISTER_NAMESPACE(NAMESPACE, BINDER)               \
-const auto NAMESPACE##_RegisterHelper = []() -> bool {      \
-    BINDER(#NAMESPACE);                                     \
+#define REGISTER_CALLBACK(NAME, BINDER)                     \
+const auto NAME##_RegisterHelper = []() -> bool {           \
+    BINDER(#NAME);                                          \
     return true;                                            \
 }();                                                        \

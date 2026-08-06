@@ -1,5 +1,6 @@
 #include <memory>
 #include <string>
+#include <charconv>
 #include <unordered_set>
 
 #include "LOICollectionA/frontend/AST.h"
@@ -16,16 +17,24 @@ namespace LOICollection::frontend {
         std::unique_ptr<TemplateNode> tpl = std::make_unique<TemplateNode>();
 
         while (currentToken.type != TokenType::TOKEN_EOF) {
+            size_t stmtStartLine = currentToken.loc.line;
+
             auto stmt = parseStatement();
             if (!stmt)
                 return nullptr;
+
+            ASTNode::Type stmtType = stmt->getType();
 
             tpl->addPart(std::move(stmt));
 
             if (currentToken.type == TokenType::TOKEN_SEMICOLON) {
                 if (!eat(TokenType::TOKEN_SEMICOLON))
                     return nullptr;
+            } else if (stmtType == ASTNode::Type::Class || stmtType == ASTNode::Type::FunctionDef) {
             } else if (currentToken.type != TokenType::TOKEN_EOF) {
+                if (currentToken.loc.line > stmtStartLine)
+                    continue;
+
                 diagnostics.addError(currentToken.loc,
                     "Expected ';' or EOF after statement, got " + getTokenName(currentToken.type) + " (" + currentToken.value + ")");
                 
@@ -116,6 +125,274 @@ namespace LOICollection::frontend {
         );
     }
 
+    std::unique_ptr<ClassNode> Parser::parseClass() {
+        SourceLocation loc = currentToken.loc;
+
+        if (!eat(TokenType::TOKEN_CLASS)) return nullptr;
+        if (currentToken.type != TokenType::TOKEN_IDENT) {
+            diagnostics.addError(currentToken.loc, "Expected class name");
+            return nullptr;
+        }
+
+        std::string name = currentToken.value;
+        if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+        if (!eat(TokenType::TOKEN_LBRACE)) return nullptr;
+
+        auto cls = std::make_unique<ClassNode>(loc, name);
+        bool privateSection = false;
+
+        while (currentToken.type != TokenType::TOKEN_RBRACE && currentToken.type != TokenType::TOKEN_EOF) {
+            if (currentToken.type == TokenType::TOKEN_PUBLIC) {
+                if (!eat(TokenType::TOKEN_PUBLIC)) return nullptr;
+                if (!eat(TokenType::TOKEN_COLON)) return nullptr;
+
+                privateSection = false;
+                continue;
+            }
+
+            if (currentToken.type == TokenType::TOKEN_PRIVATE) {
+                if (!eat(TokenType::TOKEN_PRIVATE)) return nullptr;
+                if (!eat(TokenType::TOKEN_COLON)) return nullptr;
+
+                privateSection = true;
+                continue;
+            }
+
+            if (currentToken.type == TokenType::TOKEN_FUNC) {
+                auto method = parseMethod(privateSection);
+                if (!method)
+                    return nullptr;
+
+                cls->methods.push_back(std::move(*method));
+                continue;
+            }
+
+            if (currentToken.type == TokenType::TOKEN_IDENT) {
+                Token next = lexer.peekNextToken();
+
+                if (currentToken.value == cls->name && next.type == TokenType::TOKEN_LPAREN) {
+                    auto method = parseConstructor(cls->name, privateSection);
+                    if (!method)
+                        return nullptr;
+
+                    if (cls->constructorIndex != -1) {
+                        diagnostics.addError(currentToken.loc, "Duplicate constructor in class '" + cls->name + "'");
+                        return nullptr;
+                    }
+
+                    cls->constructorIndex = static_cast<int>(cls->methods.size());
+                    cls->methods.push_back(std::move(*method));
+                    continue;
+                }
+
+                ClassMember member;
+                member.loc = currentToken.loc;
+                member.name = currentToken.value;
+                member.isPrivate = privateSection;
+
+                if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+
+                if (currentToken.type == TokenType::TOKEN_OP && currentToken.value == "=") {
+                    if (!eat(TokenType::TOKEN_OP)) return nullptr;
+
+                    member.defaultExpr = parseBaseExpression();
+                    if (!member.defaultExpr)
+                        return nullptr;
+
+                    member.hasDefault = true;
+                }
+
+                if (!eat(TokenType::TOKEN_SEMICOLON)) return nullptr;
+
+                cls->members.push_back(std::move(member));
+                continue;
+            }
+
+            diagnostics.addError(currentToken.loc,
+                "Unexpected token in class body: " + getTokenName(currentToken.type) + " (" + currentToken.value + ")");
+            return nullptr;
+        }
+
+        if (!eat(TokenType::TOKEN_RBRACE)) return nullptr;
+
+        return cls;
+    }
+
+    std::unique_ptr<FunctionDefNode> Parser::parseFunctionDefinition() {
+        SourceLocation loc = currentToken.loc;
+
+        if (!eat(TokenType::TOKEN_FUNC)) return nullptr;
+        if (currentToken.type != TokenType::TOKEN_IDENT) {
+            diagnostics.addError(currentToken.loc, "Expected function name");
+            return nullptr;
+        }
+
+        auto fn = std::make_unique<FunctionDefNode>(loc, currentToken.value);
+        fn->decl.loc = loc;
+        fn->decl.name = currentToken.value;
+
+        if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+        if (!eat(TokenType::TOKEN_LPAREN)) return nullptr;
+
+        fn->decl.params = parseParams();
+
+        if (!eat(TokenType::TOKEN_RPAREN)) return nullptr;
+
+        if (currentToken.type == TokenType::TOKEN_ARROW) {
+            if (!eat(TokenType::TOKEN_ARROW)) return nullptr;
+            if (currentToken.type != TokenType::TOKEN_IDENT) {
+                diagnostics.addError(currentToken.loc, "Expected return type after '->'");
+                return nullptr;
+            }
+
+            fn->decl.returnTypeName = currentToken.value;
+            fn->decl.hasReturnType = true;
+
+            if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+        }
+
+        if (!eat(TokenType::TOKEN_LBRACE)) return nullptr;
+
+        fn->decl.body = parseTemplateUntil(TokenType::TOKEN_RBRACE, false);
+        if (!fn->decl.body)
+            return nullptr;
+
+        if (!eat(TokenType::TOKEN_RBRACE)) return nullptr;
+
+        return fn;
+    }
+
+    std::unique_ptr<MethodDecl> Parser::parseMethod(bool isPrivate) {
+        SourceLocation loc = currentToken.loc;
+
+        if (!eat(TokenType::TOKEN_FUNC)) return nullptr;
+        if (currentToken.type != TokenType::TOKEN_IDENT) {
+            diagnostics.addError(currentToken.loc, "Expected method name");
+            return nullptr;
+        }
+
+        auto method = std::make_unique<MethodDecl>();
+        method->loc = loc;
+        method->name = currentToken.value;
+        method->isPrivate = isPrivate;
+
+        if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+        if (!eat(TokenType::TOKEN_LPAREN)) return nullptr;
+
+        method->params = parseParams();
+
+        if (!eat(TokenType::TOKEN_RPAREN)) return nullptr;
+
+        if (currentToken.type == TokenType::TOKEN_ARROW) {
+            if (!eat(TokenType::TOKEN_ARROW)) return nullptr;
+            if (currentToken.type != TokenType::TOKEN_IDENT) {
+                diagnostics.addError(currentToken.loc, "Expected return type after '->'");
+                return nullptr;
+            }
+
+            method->returnTypeName = currentToken.value;
+            method->hasReturnType = true;
+            if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+        }
+
+        if (!eat(TokenType::TOKEN_LBRACE)) return nullptr;
+
+        method->body = parseTemplateUntil(TokenType::TOKEN_RBRACE, false);
+        if (!method->body)
+            return nullptr;
+
+        if (!eat(TokenType::TOKEN_RBRACE)) return nullptr;
+
+        return method;
+    }
+
+    std::unique_ptr<MethodDecl> Parser::parseConstructor(const std::string& className, bool isPrivate) {
+        SourceLocation loc = currentToken.loc;
+
+        if (currentToken.type != TokenType::TOKEN_IDENT || currentToken.value != className) {
+            diagnostics.addError(currentToken.loc, "Expected constructor name '" + className + "'");
+            return nullptr;
+        }
+
+        auto method = std::make_unique<MethodDecl>();
+        method->loc = loc;
+        method->name = className;
+        method->isConstructor = true;
+        method->isPrivate = isPrivate;
+
+        if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+        if (!eat(TokenType::TOKEN_LPAREN)) return nullptr;
+
+        method->params = parseParams();
+
+        if (!eat(TokenType::TOKEN_RPAREN)) return nullptr;
+        if (!eat(TokenType::TOKEN_LBRACE)) return nullptr;
+
+        method->body = parseTemplateUntil(TokenType::TOKEN_RBRACE, false);
+        if (!method->body)
+            return nullptr;
+
+        if (!eat(TokenType::TOKEN_RBRACE)) return nullptr;
+
+        return method;
+    }
+
+    std::vector<MethodParam> Parser::parseParams() {
+        std::vector<MethodParam> params;
+
+        while (currentToken.type != TokenType::TOKEN_RPAREN) {
+            if (currentToken.type != TokenType::TOKEN_IDENT) {
+                diagnostics.addError(currentToken.loc, "Expected parameter name");
+                return {};
+            }
+
+            MethodParam param;
+            param.name = currentToken.value;
+
+            if (!eat(TokenType::TOKEN_IDENT)) return {};
+
+            if (currentToken.type == TokenType::TOKEN_COLON) {
+                if (!eat(TokenType::TOKEN_COLON)) return {};
+                if (currentToken.type != TokenType::TOKEN_IDENT) {
+                    diagnostics.addError(currentToken.loc, "Expected parameter type after ':'");
+                    return {};
+                }
+
+                param.typeName = currentToken.value;
+                param.hasType = true;
+
+                if (!eat(TokenType::TOKEN_IDENT)) return {};
+            }
+
+            params.push_back(std::move(param));
+
+            if (currentToken.type == TokenType::TOKEN_COMMA) {
+                if (!eat(TokenType::TOKEN_COMMA)) return {};
+            } else if (currentToken.type != TokenType::TOKEN_RPAREN) {
+                diagnostics.addError(currentToken.loc,
+                    "Expected ',' or ')' in parameter list, got " + getTokenName(currentToken.type));
+                return {};
+            }
+        }
+
+        return params;
+    }
+
+    std::unique_ptr<ReturnNode> Parser::parseReturn() {
+        SourceLocation loc = currentToken.loc;
+
+        if (!eat(TokenType::TOKEN_RETURN)) return nullptr;
+
+        std::unique_ptr<ExprNode> value;
+        if (currentToken.type != TokenType::TOKEN_SEMICOLON) {
+            value = parseBaseExpression();
+            if (!value)
+                return nullptr;
+        }
+
+        return std::make_unique<ReturnNode>(loc, std::move(value));
+    }
+
     std::unique_ptr<ASTNode> Parser::parseTemplateUntil(TokenType stopToken, bool stopOnColon) {
         auto tpl = std::make_unique<TemplateNode>();
 
@@ -138,13 +415,19 @@ namespace LOICollection::frontend {
                     break;
             }
 
+            size_t stmtStartLine = currentToken.loc.line;
             auto stmt = parseStatement();
             if (!stmt)
                 return nullptr;
 
             tpl->addPart(std::move(stmt));
 
-            if (currentToken.type != TokenType::TOKEN_COLON && currentToken.type != TokenType::TOKEN_RBRCKET) {
+            if (currentToken.type != TokenType::TOKEN_COLON &&
+                currentToken.type != TokenType::TOKEN_RBRCKET &&
+                currentToken.type != TokenType::TOKEN_RBRACE) {
+                if (currentToken.loc.line > stmtStartLine)
+                    continue;
+
                 if (!eat(TokenType::TOKEN_SEMICOLON))
                     return nullptr;
             }
@@ -204,23 +487,32 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<ASTNode> Parser::parseStatement() {
-        if (currentToken.type == TokenType::TOKEN_IDENT) {
-            Token next = lexer.peekNextToken();
-            if (next.type == TokenType::TOKEN_OP && next.value == "=") {
-                std::string varName = currentToken.value;
+        if (currentToken.type == TokenType::TOKEN_FUNC)
+            return parseFunctionDefinition();
 
-                if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
-                if (!eat(TokenType::TOKEN_OP)) return nullptr;
+        if (currentToken.type == TokenType::TOKEN_CLASS)
+            return parseClass();
 
-                auto right = parseBaseExpression();
-                if (!right)
-                    return nullptr;
+        if (currentToken.type == TokenType::TOKEN_RETURN)
+            return parseReturn();
 
-                return std::make_unique<AssignmentNode>(varName, std::move(right));
-            }
+        SourceLocation exprLoc = currentToken.loc;
+        
+        auto expr = parseBaseExpression();
+        if (!expr)
+            return nullptr;
+
+        if (currentToken.type == TokenType::TOKEN_OP && currentToken.value == "=") {
+            if (!eat(TokenType::TOKEN_OP)) return nullptr;
+
+            auto right = parseBaseExpression();
+            if (!right)
+                return nullptr;
+
+            return std::make_unique<AssignmentNode>(exprLoc, std::move(expr), std::move(right));
         }
 
-        return parseBaseExpression();
+        return expr;
     }
 
     std::unique_ptr<ExprNode> Parser::parseBaseExpression() {
@@ -381,13 +673,79 @@ namespace LOICollection::frontend {
             return std::make_unique<UnaryNode>(std::move(operand), op);
         }
         
-        return parsePrimary();
+        return parsePostfix();
+    }
+
+    std::unique_ptr<ExprNode> Parser::parsePostfix() {
+        auto expr = parsePrimary();
+        if (!expr)
+            return nullptr;
+
+        while (currentToken.type == TokenType::TOKEN_DOT) {
+            SourceLocation loc = currentToken.loc;
+
+            if (!eat(TokenType::TOKEN_DOT)) return nullptr;
+            if (currentToken.type != TokenType::TOKEN_IDENT) {
+                diagnostics.addError(currentToken.loc, "Expected member name after '.'");
+                return nullptr;
+            }
+
+            std::string member = currentToken.value;
+            if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+
+            if (currentToken.type == TokenType::TOKEN_LPAREN) {
+                if (!eat(TokenType::TOKEN_LPAREN)) return nullptr;
+
+                auto args = parseArgs();
+                if (!args)
+                    return nullptr;
+
+                if (!eat(TokenType::TOKEN_RPAREN)) return nullptr;
+
+                expr = std::make_unique<MethodCallNode>(
+                    loc, std::move(expr), std::move(member), std::move(args)
+                );
+            } else {
+                expr = std::make_unique<MemberAccessNode>(
+                    loc, std::move(expr), std::move(member)
+                );
+            }
+        }
+
+        return expr;
     }
 
     std::unique_ptr<ExprNode> Parser::parsePrimary() {
         switch (currentToken.type) {
             case TokenType::TOKEN_IF:
                 return parseIfStatement();
+            case TokenType::TOKEN_NEW: {
+                SourceLocation loc = currentToken.loc;
+
+                if (!eat(TokenType::TOKEN_NEW)) return nullptr;
+                if (currentToken.type != TokenType::TOKEN_IDENT) {
+                    diagnostics.addError(currentToken.loc, "Expected class name after 'new'");
+                    return nullptr;
+                }
+
+                std::string className = currentToken.value;
+                if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+                if (!eat(TokenType::TOKEN_LPAREN)) return nullptr;
+
+                auto args = parseArgs();
+                if (!args)
+                    return nullptr;
+
+                if (!eat(TokenType::TOKEN_RPAREN)) return nullptr;
+
+                return std::make_unique<NewNode>(loc, std::move(className), std::move(args));
+            }
+            case TokenType::TOKEN_THIS: {
+                SourceLocation loc = currentToken.loc;
+
+                if (!eat(TokenType::TOKEN_THIS)) return nullptr;
+                return std::make_unique<ThisNode>(loc);
+            }
             case TokenType::TOKEN_LPAREN: {
                 if (!eat(TokenType::TOKEN_LPAREN)) return nullptr;
                 
@@ -401,6 +759,22 @@ namespace LOICollection::frontend {
             case TokenType::TOKEN_IDENT: {
                 if (peek() == TokenType::TOKEN_NAMESPACE)
                     return parseFunction();
+
+                if (peek() == TokenType::TOKEN_LPAREN) {
+                    SourceLocation loc = currentToken.loc;
+                    std::string name = currentToken.value;
+
+                    if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+                    if (!eat(TokenType::TOKEN_LPAREN)) return nullptr;
+
+                    auto args = parseArgs();
+                    if (!args)
+                        return nullptr;
+
+                    if (!eat(TokenType::TOKEN_RPAREN)) return nullptr;
+
+                    return std::make_unique<FuncCallNode>(loc, std::move(name), std::move(args));
+                }
 
                 std::string name = currentToken.value;
 
@@ -509,6 +883,15 @@ namespace LOICollection::frontend {
             case TokenType::TOKEN_COMMA: return ",";
             case TokenType::TOKEN_TRANSPILE: return "TRANSPILE";
             case TokenType::TOKEN_SEMICOLON: return ";";
+            case TokenType::TOKEN_DOT: return ".";
+            case TokenType::TOKEN_ARROW: return "->";
+            case TokenType::TOKEN_CLASS: return "CLASS";
+            case TokenType::TOKEN_FUNC: return "FUNC";
+            case TokenType::TOKEN_NEW: return "NEW";
+            case TokenType::TOKEN_THIS: return "THIS";
+            case TokenType::TOKEN_RETURN: return "RETURN";
+            case TokenType::TOKEN_PUBLIC: return "PUBLIC";
+            case TokenType::TOKEN_PRIVATE: return "PRIVATE";
             case TokenType::TOKEN_EOF: return "EOF";
             default: return "UNKNOWN";
         }

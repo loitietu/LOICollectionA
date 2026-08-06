@@ -30,6 +30,25 @@ TEST(LexerTest, ParseString) {
     EXPECT_EQ(t.value, "hello world");
 }
 
+TEST(LexerTest, ParseSingleQuotedString) {
+    DiagnosticEngine diagnostics;
+    Lexer lexer("'hello'", diagnostics);
+
+    Token t = lexer.getNextToken();
+    EXPECT_EQ(t.type, TokenType::TOKEN_STRING);
+    EXPECT_EQ(t.value, "hello");
+}
+
+TEST(LexerTest, UnclosedString) {
+    DiagnosticEngine diagnostics;
+    Lexer lexer("\"abc", diagnostics);
+
+    Token t = lexer.getNextToken();
+    EXPECT_EQ(t.type, TokenType::TOKEN_EOF);
+    EXPECT_TRUE(diagnostics.hasErrors());
+    EXPECT_NE(diagnostics.getErrorMessage().find("Unclosed string"), std::string::npos);
+}
+
 TEST(LexerTest, ParseIdentifiersAndKeywords) {
     DiagnosticEngine diagnostics;
     Lexer lexer("if true false myVar", diagnostics);
@@ -50,6 +69,24 @@ TEST(LexerTest, ParseIdentifiersAndKeywords) {
     EXPECT_EQ(t4.value, "myVar");
 }
 
+TEST(LexerTest, ParseAllKeywords) {
+    DiagnosticEngine diagnostics;
+    Lexer lexer("class func new this return public private", diagnostics);
+
+    std::vector<TokenType> expected = {
+        TokenType::TOKEN_CLASS, TokenType::TOKEN_FUNC, TokenType::TOKEN_NEW,
+        TokenType::TOKEN_THIS, TokenType::TOKEN_RETURN, TokenType::TOKEN_PUBLIC,
+        TokenType::TOKEN_PRIVATE
+    };
+
+    for (auto expectedType : expected) {
+        auto t = lexer.getNextToken();
+        EXPECT_EQ(t.type, expectedType);
+    }
+
+    EXPECT_EQ(lexer.getNextToken().type, TokenType::TOKEN_EOF);
+}
+
 TEST(LexerTest, ParseOperators) {
     DiagnosticEngine diagnostics;
     Lexer lexer("+ - * / % ^ == != > < >= <= && || !", diagnostics);
@@ -65,6 +102,99 @@ TEST(LexerTest, ParseOperators) {
         auto t = lexer.getNextToken();
         EXPECT_EQ(t.type, expectedType);
     }
+}
+
+TEST(LexerTest, ParseAdvancedOperators) {
+    DiagnosticEngine diagnostics;
+    Lexer lexer("-> && || == != >= <= = ! & | > <", diagnostics);
+
+    struct Expected { TokenType type; std::string value; };
+    std::vector<Expected> expected = {
+        { TokenType::TOKEN_ARROW, "->" },
+        { TokenType::TOKEN_BOOL_OP, "&&" },
+        { TokenType::TOKEN_BOOL_OP, "||" },
+        { TokenType::TOKEN_OP, "==" },
+        { TokenType::TOKEN_OP, "!=" },
+        { TokenType::TOKEN_OP, ">=" },
+        { TokenType::TOKEN_OP, "<=" },
+        { TokenType::TOKEN_OP, "=" },
+        { TokenType::TOKEN_OP, "!" },
+        { TokenType::TOKEN_OP, "&" },
+        { TokenType::TOKEN_OP, "|" },
+        { TokenType::TOKEN_OP, ">" },
+        { TokenType::TOKEN_OP, "<" }
+    };
+
+    for (const auto& e : expected) {
+        auto t = lexer.getNextToken();
+        EXPECT_EQ(t.type, e.type);
+        EXPECT_EQ(t.value, e.value);
+    }
+}
+
+TEST(LexerTest, SkipLineComment) {
+    DiagnosticEngine diagnostics;
+    Lexer lexer("// comment\n42", diagnostics);
+
+    auto t = lexer.getNextToken();
+    EXPECT_EQ(t.type, TokenType::TOKEN_INT);
+    EXPECT_EQ(t.value, "42");
+    EXPECT_FALSE(diagnostics.hasErrors());
+}
+
+TEST(LexerTest, SkipBlockComment) {
+    DiagnosticEngine diagnostics;
+    Lexer lexer("/* multi\nline */ 3.14", diagnostics);
+
+    auto t = lexer.getNextToken();
+    EXPECT_EQ(t.type, TokenType::TOKEN_FLOAT);
+    EXPECT_EQ(t.value, "3.14");
+    EXPECT_FALSE(diagnostics.hasErrors());
+}
+
+TEST(LexerTest, UnclosedBlockComment) {
+    DiagnosticEngine diagnostics;
+    Lexer lexer("/* abc", diagnostics);
+
+    auto t = lexer.getNextToken();
+    EXPECT_EQ(t.type, TokenType::TOKEN_EOF);
+    EXPECT_TRUE(diagnostics.hasErrors());
+    EXPECT_NE(diagnostics.getErrorMessage().find("Unclosed block comment"), std::string::npos);
+}
+
+TEST(LexerTest, NumbersWithLeadingAndTrailingDot) {
+    DiagnosticEngine diagnostics;
+    Lexer lexer(".5 5.", diagnostics);
+
+    auto t1 = lexer.getNextToken();
+    EXPECT_EQ(t1.type, TokenType::TOKEN_FLOAT);
+    EXPECT_EQ(t1.value, ".5");
+
+    auto t2 = lexer.getNextToken();
+    EXPECT_EQ(t2.type, TokenType::TOKEN_FLOAT);
+    EXPECT_EQ(t2.value, "5.");
+}
+
+TEST(LexerTest, EmptyInput) {
+    DiagnosticEngine diagnostics;
+    Lexer lexer("", diagnostics);
+
+    EXPECT_EQ(lexer.getNextToken().type, TokenType::TOKEN_EOF);
+}
+
+TEST(LexerTest, TrackLineAndColumn) {
+    DiagnosticEngine diagnostics;
+    Lexer lexer("1\n  2", diagnostics);
+
+    auto t1 = lexer.getNextToken();
+    EXPECT_EQ(t1.type, TokenType::TOKEN_INT);
+    EXPECT_EQ(t1.loc.line, 1u);
+    EXPECT_EQ(t1.loc.column, 1u);
+
+    auto t2 = lexer.getNextToken();
+    EXPECT_EQ(t2.type, TokenType::TOKEN_INT);
+    EXPECT_EQ(t2.loc.line, 2u);
+    EXPECT_EQ(t2.loc.column, 3u);
 }
 
 TEST(LexerTest, ParseColonAndNamespace) {

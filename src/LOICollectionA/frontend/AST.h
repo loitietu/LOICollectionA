@@ -4,14 +4,38 @@
 #include <string>
 #include <vector>
 #include <variant>
+#include <unordered_map>
 
 #include "LOICollectionA/frontend/ASTVisitor.h"
+#include "LOICollectionA/frontend/DiagnosticEngine.h"
 
 namespace LOICollection::frontend {
+    struct Object;
+    using ObjectRef = std::shared_ptr<Object>;
+
+    enum class TypeKind {
+        Unknown,
+        Int,
+        Float,
+        String,
+        Bool,
+        Object,
+        Void
+    };
+
+    struct TypeInfo {
+        TypeKind kind = TypeKind::Unknown;
+        std::string className;
+
+        bool operator==(const TypeInfo&) const = default;
+    };
+
     struct ASTNode {
         enum class Type { 
             Value, Compare, Logical, If, Template, Expr,
-            Arithmetic, Unary, Function, Macro, Variable, Assignment
+            Arithmetic, Unary, Function, Macro, Variable, Assignment,
+            Class, Return, New, MemberAccess, MethodCall, This,
+            FunctionDef, FuncCall
         };
         [[nodiscard]] virtual Type getType() const = 0;
         
@@ -27,7 +51,7 @@ namespace LOICollection::frontend {
     };
 
     struct ValueNode : ExprNode {
-        using ValueType = std::variant<int, float, std::string, bool>;
+        using ValueType = std::variant<int, float, std::string, bool, ObjectRef>;
 
         ValueType value;
         
@@ -58,11 +82,14 @@ namespace LOICollection::frontend {
     };
 
     struct AssignmentNode : ExprNode {
-        std::string varName;
+        SourceLocation loc;
+        std::unique_ptr<ExprNode> target;
         std::unique_ptr<ExprNode> value;
 
-        AssignmentNode(std::string name, auto&& val)
-            : varName(std::move(name)), value(std::forward<decltype(val)>(val)) {}
+        AssignmentNode(SourceLocation location, auto&& t, auto&& val)
+            : loc(location),
+              target(std::forward<decltype(t)>(t)),
+              value(std::forward<decltype(val)>(val)) {}
 
         [[nodiscard]] Type getType() const override { return Type::Assignment; }
 
@@ -214,5 +241,169 @@ namespace LOICollection::frontend {
         void accept(ASTVisitor& visitor) override {
             visitor.visit(*this);
         }
+    };
+
+    struct ClassMember {
+        SourceLocation loc;
+        std::string name;
+        bool isPrivate = false;
+        std::unique_ptr<ExprNode> defaultExpr;
+        TypeInfo type;
+        bool hasDefault = false;
+    };
+
+    struct MethodParam {
+        std::string name;
+        std::string typeName;
+        bool hasType = false;
+    };
+
+    struct MethodDecl {
+        SourceLocation loc;
+        std::string name;
+        std::vector<MethodParam> params;
+        std::string returnTypeName;
+        bool hasReturnType = false;
+        bool isConstructor = false;
+        bool isPrivate = false;
+        std::unique_ptr<ASTNode> body;
+
+        std::vector<TypeInfo> paramTypes;
+        TypeInfo returnType;
+        bool hasReturnStatement = false;
+    };
+
+    struct ClassNode : ASTNode {
+        SourceLocation loc;
+        std::string name;
+        std::vector<ClassMember> members;
+        std::vector<MethodDecl> methods;
+        int constructorIndex = -1;
+
+        ClassNode(SourceLocation location, std::string n)
+            : loc(location), name(std::move(n)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::Class; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct ReturnNode : ASTNode {
+        SourceLocation loc;
+        std::unique_ptr<ExprNode> value;
+
+        ReturnNode(SourceLocation location, auto&& val)
+            : loc(location), value(std::forward<decltype(val)>(val)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::Return; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct NewNode : ExprNode {
+        SourceLocation loc;
+        std::string className;
+        std::unique_ptr<TemplateNode> args;
+
+        NewNode(SourceLocation location, std::string name, auto&& a)
+            : loc(location), className(std::move(name)), args(std::forward<decltype(a)>(a)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::New; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct MemberAccessNode : ExprNode {
+        SourceLocation loc;
+        std::unique_ptr<ExprNode> target;
+        std::string memberName;
+
+        MemberAccessNode(SourceLocation location, auto&& t, std::string member)
+            : loc(location), target(std::forward<decltype(t)>(t)), memberName(std::move(member)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::MemberAccess; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct MethodCallNode : ExprNode {
+        SourceLocation loc;
+        std::unique_ptr<ExprNode> target;
+        std::string methodName;
+        std::unique_ptr<TemplateNode> args;
+
+        std::string className;
+        int methodOrdinal = -1;
+
+        MethodCallNode(SourceLocation location, auto&& t, std::string name, auto&& a)
+            : loc(location),
+              target(std::forward<decltype(t)>(t)),
+              methodName(std::move(name)),
+              args(std::forward<decltype(a)>(a)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::MethodCall; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct ThisNode : ExprNode {
+        SourceLocation loc;
+
+        explicit ThisNode(SourceLocation location) : loc(location) {}
+
+        [[nodiscard]] Type getType() const override { return Type::This; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct FunctionDefNode : ASTNode {
+        SourceLocation loc;
+        std::string name;
+        MethodDecl decl;
+
+        FunctionDefNode(SourceLocation location, std::string n)
+            : loc(location), name(std::move(n)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::FunctionDef; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct FuncCallNode : ExprNode {
+        SourceLocation loc;
+        std::string name;
+        std::unique_ptr<TemplateNode> args;
+
+        std::string resolvedName;
+        int functionOrdinal = -1;
+
+        FuncCallNode(SourceLocation location, std::string n, auto&& a)
+            : loc(location), name(std::move(n)), args(std::forward<decltype(a)>(a)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::FuncCall; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct Object {
+        std::string className;
+        int classIndex = -1;
+        std::unordered_map<std::string, ValueNode::ValueType> fields;
     };
 }

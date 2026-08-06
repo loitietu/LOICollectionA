@@ -36,7 +36,9 @@
 #include "LOICollectionA/frontend/Lexer.h"
 #include "LOICollectionA/frontend/Parser.h"
 #include "LOICollectionA/frontend/Callback.h"
+#include "LOICollectionA/frontend/SemanticAnalyzer.h"
 #include "LOICollectionA/frontend/ir/Compiler.h"
+#include "LOICollectionA/frontend/ir/Optimizer.h"
 #include "LOICollectionA/frontend/ir/VM.h"
 
 #include "LOICollectionA/include/server/Plugins/PvpPlugin.h"
@@ -53,7 +55,7 @@
 
 namespace LOICollection::server::LOICollectionAPI {
     struct APIUtils::Impl {
-        LRUKCache<std::string, frontend::ASTNode> mAstCache;
+        LRUKCache<std::string, frontend::ir::BytecodeChunk> mAstCache;
 
         std::shared_ptr<ll::io::Logger> logger;
 
@@ -374,28 +376,23 @@ namespace LOICollection::server::LOICollectionAPI {
     std::string APIUtils::translate(const std::string& str, Player& player) {
         frontend::DiagnosticEngine diagnostics;
 
-        frontend::ir::Compiler mCompiler(diagnostics);
         frontend::ir::VM mVM;
 
         if (this->mImpl->mAstCache.contains(str)) {
             auto mCached = this->mImpl->mAstCache.get(str);
 
             if (mCached.has_value()) {
-                auto bytecode = mCompiler.compile(*mCached.value());
+                auto result = mVM.run(*mCached.value(), { std::ref(player) }, diagnostics);
                 if (diagnostics.hasErrors()) {
                     this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
                     diagnostics.clear();
-                } else {
-                    auto result = mVM.run(bytecode, { std::ref(player) }, diagnostics);
-                    if (diagnostics.hasErrors()) {
-                        this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
-                        diagnostics.clear();
-                    } else {
-                        return frontend::ir::VM::valueToString(result);
-                    }
                 }
+                
+                return frontend::ir::VM::valueToString(result);
             }
         }
+
+        frontend::ir::Compiler mCompiler(diagnostics);
 
         frontend::Lexer mLexer(str, diagnostics);
         frontend::Parser mParser(mLexer, diagnostics);
@@ -406,11 +403,28 @@ namespace LOICollection::server::LOICollectionAPI {
             return str;
         }
 
+        frontend::SemanticAnalyzer analyzer(diagnostics);
+        if (auto tpl = dynamic_cast<frontend::TemplateNode*>(mAst.get()))
+            analyzer.analyze(*tpl);
+
+        if (diagnostics.hasErrors()) {
+            this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
+            return str;
+        }
+
+        if (diagnostics.hasWarnings()) {
+            this->mImpl->logger->warn("APIUtils: {}", diagnostics.getWarningMessage());
+            return str;
+        }
+
         auto bytecode = mCompiler.compile(*mAst);
         if (diagnostics.hasErrors()) {
             this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
             return str;
         }
+
+        frontend::ir::Optimizer optimizer;
+        optimizer.optimize(bytecode);
 
         auto result = mVM.run(bytecode, { std::ref(player) }, diagnostics);
         if (diagnostics.hasErrors()) {
@@ -418,38 +432,30 @@ namespace LOICollection::server::LOICollectionAPI {
             return str;
         }
 
-        std::shared_ptr<frontend::TemplateNode> mTemplate = std::make_shared<frontend::TemplateNode>();
-        mTemplate->parts = std::move(static_cast<frontend::TemplateNode*>(mAst.release())->parts);
-
-        this->mImpl->mAstCache.put(str, mTemplate);
+        this->mImpl->mAstCache.put(str, bytecode);
         return frontend::ir::VM::valueToString(result);
     }
 
     std::string APIUtils::translate(const std::string& str) {
         frontend::DiagnosticEngine diagnostics;
 
-        frontend::ir::Compiler mCompiler(diagnostics);
         frontend::ir::VM mVM;
 
         if (this->mImpl->mAstCache.contains(str)) {
             auto mCached = this->mImpl->mAstCache.get(str);
 
             if (mCached.has_value()) {
-                auto bytecode = mCompiler.compile(*mCached.value());
+                auto result = mVM.run(*mCached.value(), {}, diagnostics);
                 if (diagnostics.hasErrors()) {
                     this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
                     diagnostics.clear();
-                } else {
-                    auto result = mVM.run(bytecode, {}, diagnostics);
-                    if (diagnostics.hasErrors()) {
-                        this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
-                        diagnostics.clear();
-                    } else {
-                        return frontend::ir::VM::valueToString(result);
-                    }
                 }
+
+                return frontend::ir::VM::valueToString(result);
             }
         }
+
+        frontend::ir::Compiler mCompiler(diagnostics);
 
         frontend::Lexer mLexer(str, diagnostics);
         frontend::Parser mParser(mLexer, diagnostics);
@@ -460,11 +466,28 @@ namespace LOICollection::server::LOICollectionAPI {
             return str;
         }
 
+        frontend::SemanticAnalyzer analyzer(diagnostics);
+        if (auto tpl = dynamic_cast<frontend::TemplateNode*>(mAst.get()))
+            analyzer.analyze(*tpl);
+
+        if (diagnostics.hasErrors()) {
+            this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
+            return str;
+        }
+
+        if (diagnostics.hasWarnings()) {
+            this->mImpl->logger->warn("APIUtils: {}", diagnostics.getWarningMessage());
+            return str;
+        }
+
         auto bytecode = mCompiler.compile(*mAst);
         if (diagnostics.hasErrors()) {
             this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
             return str;
         }
+
+        frontend::ir::Optimizer optimizer;
+        optimizer.optimize(bytecode);
 
         auto result = mVM.run(bytecode, {}, diagnostics);
         if (diagnostics.hasErrors()) {
@@ -472,10 +495,7 @@ namespace LOICollection::server::LOICollectionAPI {
             return str;
         }
 
-        std::shared_ptr<frontend::TemplateNode> mTemplate = std::make_shared<frontend::TemplateNode>();
-        mTemplate->parts = std::move(static_cast<frontend::TemplateNode*>(mAst.release())->parts);
-
-        this->mImpl->mAstCache.put(str, mTemplate);
+        this->mImpl->mAstCache.put(str, bytecode);
         return frontend::ir::VM::valueToString(result);
     }
 }

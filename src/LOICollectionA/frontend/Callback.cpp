@@ -1,7 +1,10 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <algorithm>
 #include <unordered_map>
+
+#include <ll/api/Expected.h>
 
 #include "LOICollectionA/frontend/Callback.h"
 
@@ -20,6 +23,8 @@ namespace LOICollection::frontend {
                     argTypes.push_back(ParamType::STRING);
                 else if constexpr (std::is_same_v<T, bool>)
                     argTypes.push_back(ParamType::BOOL);
+                else if constexpr (std::is_same_v<T, ObjectRef>)
+                    argTypes.push_back(ParamType::OBJECT);
                 else
                     diagnostics.addError({0, 0, 0}, "Unsupported argument type");
             }, arg);
@@ -68,7 +73,7 @@ namespace LOICollection::frontend {
         return result || this->mImpl->mFunctionCombinations[namespaces].find(sig) != this->mImpl->mFunctionCombinations[namespaces].end();
     }
 
-    ll::Expected<TypedValue> FunctionCall::callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics) {
+   ll::Expected<TypedValue> FunctionCall::callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics) {
         std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics);
 
         if (!this->isRegistered(namespaces, function, argTypes)) {
@@ -138,5 +143,154 @@ namespace LOICollection::frontend {
 
         sig.isCombination = true;
         return this->mImpl->mMacroCombinations[sig](args, placeholders);
+    }
+
+    struct ClassCall::Impl {
+        struct NativeClassInfo {
+            std::vector<std::string> fields;
+            std::unordered_map<Signature, NativeConstructor, SignatureHasher> constructors;
+            std::unordered_map<Signature, NativeConstructorCombination, SignatureHasher> constructorCombinations;
+            std::unordered_map<Signature, NativeMethod, SignatureHasher> methods;
+            std::unordered_map<Signature, NativeMethodCombination, SignatureHasher> methodCombinations;
+        };
+
+        std::unordered_map<std::string, NativeClassInfo> classes;
+    };
+
+    ClassCall::ClassCall() : mImpl(std::make_unique<Impl>()) {}
+    ClassCall::~ClassCall() = default;
+
+    ClassCall& ClassCall::getInstance() {
+        static ClassCall instance;
+        return instance;
+    }
+
+    void ClassCall::registerClass(const std::string& name, const std::vector<std::string>& fields) {
+        this->mImpl->classes[name].fields = fields;
+    }
+
+    void ClassCall::registerConstructor(const std::string& name, NativeConstructor callback, const CallbackTypeArgs& args) {
+        Signature sig{ name, args.size(), args, false };
+        this->mImpl->classes[name].constructors[sig] = std::move(callback);
+    }
+
+    void ClassCall::registerConstructor(const std::string& name, NativeConstructorCombination callback, const CallbackTypeArgs& args) {
+        Signature sig{ name, args.size(), args, true };
+        this->mImpl->classes[name].constructorCombinations[sig] = std::move(callback);
+    }
+
+    void ClassCall::registerMethod(const std::string& className, const std::string& method, NativeMethod callback, const CallbackTypeArgs& args) {
+        Signature sig{ method, args.size(), args, false };
+        this->mImpl->classes[className].methods[sig] = std::move(callback);
+    }
+
+    void ClassCall::registerMethod(const std::string& className, const std::string& method, NativeMethodCombination callback, const CallbackTypeArgs& args) {
+        Signature sig{ method, args.size(), args, true };
+        this->mImpl->classes[className].methodCombinations[sig] = std::move(callback);
+    }
+
+    bool ClassCall::isRegistered(const std::string& name) const {
+        return this->mImpl->classes.find(name) != this->mImpl->classes.end();
+    }
+
+    bool ClassCall::hasField(const std::string& name, const std::string& field) const {
+        auto it = this->mImpl->classes.find(name);
+        if (it == this->mImpl->classes.end())
+            return false;
+
+        const auto& fields = it->second.fields;
+        return std::ranges::find(fields, field) != fields.end();
+    }
+
+    std::vector<std::string> ClassCall::getFields(const std::string& name) const {
+        auto it = this->mImpl->classes.find(name);
+        return it == this->mImpl->classes.end() ? std::vector<std::string>{} : it->second.fields;
+    }
+
+    std::vector<CallbackTypeArgs> ClassCall::getConstructorSignatures(const std::string& name) const {
+        std::vector<CallbackTypeArgs> result;
+        auto it = this->mImpl->classes.find(name);
+        if (it == this->mImpl->classes.end())
+            return result;
+
+        for (const auto& [sig, callback] : it->second.constructors)
+            result.push_back(sig.args);
+        for (const auto& [sig, callback] : it->second.constructorCombinations)
+            result.push_back(sig.args);
+
+        return result;
+    }
+
+    std::vector<CallbackTypeArgs> ClassCall::getMethodSignatures(const std::string& className, const std::string& method) const {
+        std::vector<CallbackTypeArgs> result;
+        auto it = this->mImpl->classes.find(className);
+        if (it == this->mImpl->classes.end())
+            return result;
+
+        for (const auto& [sig, callback] : it->second.methods) {
+            if (sig.name == method)
+                result.push_back(sig.args);
+        }
+        for (const auto& [sig, callback] : it->second.methodCombinations) {
+            if (sig.name == method)
+                result.push_back(sig.args);
+        }
+
+        return result;
+    }
+
+    ll::Expected<ObjectRef> ClassCall::create(
+        const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics
+    ) {
+        auto it = this->mImpl->classes.find(name);
+        if (it == this->mImpl->classes.end())
+            return ll::makeErrorCodeError(std::make_error_code(std::errc::invalid_argument));
+
+        auto& info = it->second;
+        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics);
+
+        Signature sig{ name, argTypes.size(), argTypes, false };
+
+        if (info.constructors.find(sig) != info.constructors.end())
+            return info.constructors[sig](args);
+
+        sig.isCombination = true;
+        if (info.constructorCombinations.find(sig) != info.constructorCombinations.end())
+            return info.constructorCombinations[sig](args, placeholders);
+
+        if (info.constructors.empty() && info.constructorCombinations.empty() && args.empty()) {
+            auto obj = std::make_shared<Object>();
+            obj->className = name;
+            obj->classIndex = -1;
+            for (const auto& field : info.fields)
+                obj->fields[field] = 0;
+
+            return obj;
+        }
+
+        return ll::makeErrorCodeError(std::make_error_code(std::errc::invalid_argument));
+    }
+
+    ll::Expected<TypedValue> ClassCall::callMethod(
+        const std::string& className, const std::string& method, const CallbackTypeValues& args,
+        const ObjectRef& object, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics
+    ) {
+        auto it = this->mImpl->classes.find(className);
+        if (it == this->mImpl->classes.end())
+            return ll::makeErrorCodeError(std::make_error_code(std::errc::invalid_argument));
+
+        auto& info = it->second;
+        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics);
+
+        Signature sig{ method, argTypes.size(), argTypes, false };
+
+        if (info.methods.find(sig) != info.methods.end())
+            return info.methods[sig](object, args);
+
+        sig.isCombination = true;
+        if (info.methodCombinations.find(sig) != info.methodCombinations.end())
+            return info.methodCombinations[sig](object, args, placeholders);
+
+        return ll::makeErrorCodeError(std::make_error_code(std::errc::invalid_argument));
     }
 }

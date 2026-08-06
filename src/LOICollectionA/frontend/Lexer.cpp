@@ -29,6 +29,11 @@ namespace LOICollection::frontend {
                 continue;
             }
 
+            if (currentChar == '/' && (peekChar() == '/' || peekChar() == '*')) {
+                skipComment();
+                continue;
+            }
+
             switch (currentChar) {
                 case '"': return parseString('"');
                 case '\'': return parseString('\'');
@@ -40,7 +45,6 @@ namespace LOICollection::frontend {
                 case '}': return makeToken(TokenType::TOKEN_RBRACE);
                 case ':': return parseColon();
                 case '+': return makeToken(TokenType::TOKEN_PLUS);
-                case '-': return makeToken(TokenType::TOKEN_MINUS);
                 case '*': return makeToken(TokenType::TOKEN_MULTIPLY);
                 case '/': return makeToken(TokenType::TOKEN_DIVIDE);
                 case '%': return makeToken(TokenType::TOKEN_MOD);
@@ -48,10 +52,16 @@ namespace LOICollection::frontend {
                 case ',': return makeToken(TokenType::TOKEN_COMMA);
                 case '$': return makeToken(TokenType::TOKEN_TRANSPILE);
                 case ';': return makeToken(TokenType::TOKEN_SEMICOLON);
+                case '.': {
+                    if (std::isdigit(peekChar()))
+                        return parseNumber();
+
+                    return makeToken(TokenType::TOKEN_DOT);
+                }
             }
 
-            if (std::isdigit(currentChar) || currentChar == '.') return parseNumber();
-            if (std::strchr("=><!&|", currentChar)) return parseOperator();
+            if (std::isdigit(currentChar)) return parseNumber();
+            if (std::strchr("=><!&|-", currentChar)) return parseOperator();
 
             return parseIdentifier();
         }
@@ -97,14 +107,21 @@ namespace LOICollection::frontend {
         size_t start = position;
 
         SourceLocation startLoc(line, column, start);
-        while (currentChar != 0 && !std::isspace(currentChar) && !std::strchr("()[]{}=><!&|.:;", currentChar))
+        while (currentChar != 0 && !std::isspace(currentChar) && !std::strchr("()[]{}=><!&|.:;,", currentChar))
             advance();
 
         std::string id = input.substr(start, position - start);
 
         if (id == "if") return { TokenType::TOKEN_IF, std::move(id), startLoc };
         if (id == "true" || id == "false") return { TokenType::TOKEN_BOOL_LIT, std::move(id), startLoc };
-        
+        if (id == "class") return { TokenType::TOKEN_CLASS, std::move(id), startLoc };
+        if (id == "func") return { TokenType::TOKEN_FUNC, std::move(id), startLoc };
+        if (id == "new") return { TokenType::TOKEN_NEW, std::move(id), startLoc };
+        if (id == "this") return { TokenType::TOKEN_THIS, std::move(id), startLoc };
+        if (id == "return") return { TokenType::TOKEN_RETURN, std::move(id), startLoc };
+        if (id == "public") return { TokenType::TOKEN_PUBLIC, std::move(id), startLoc };
+        if (id == "private") return { TokenType::TOKEN_PRIVATE, std::move(id), startLoc };
+
         return { TokenType::TOKEN_IDENT, std::move(id), startLoc };
     }
 
@@ -158,6 +175,12 @@ namespace LOICollection::frontend {
 
         advance();
 
+        if (first == '-' && currentChar == '>') {
+            advance();
+
+            return { TokenType::TOKEN_ARROW, "->", startLoc };
+        }
+
         if ((first == '&' && currentChar == '&') || (first == '|' && currentChar == '|')) {
             std::string op(1, first);
             op += currentChar;
@@ -174,12 +197,44 @@ namespace LOICollection::frontend {
             return { TokenType::TOKEN_OP, op, startLoc };
         }
 
+        if (first == '-')
+            return { TokenType::TOKEN_MINUS, "-", startLoc };
+
         return { TokenType::TOKEN_OP, std::string(1, first), startLoc };
     }
 
     void Lexer::skipWhitespace() {
         while (std::isspace(currentChar))
             advance();
+    }
+
+    void Lexer::skipComment() {
+        SourceLocation startLoc(line, column, position);
+
+        if (peekChar() == '/') {
+            while (currentChar != '\n' && currentChar != 0)
+                advance();
+
+            return;
+        }
+
+        advance();
+        advance();
+
+        while (currentChar != 0 && !(currentChar == '*' && peekChar() == '/'))
+            advance();
+
+        if (currentChar == 0) {
+            diagnostics.addError(startLoc, "Unclosed block comment");
+            return;
+        }
+
+        advance();
+        advance();
+    }
+
+    char Lexer::peekChar() const {
+        return (position + 1 < input.size()) ? input[position + 1] : static_cast<char>(0);
     }
 
     Token Lexer::makeToken(TokenType type) {

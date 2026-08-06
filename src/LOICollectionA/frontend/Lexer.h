@@ -13,7 +13,9 @@ namespace LOICollection::frontend {
         TOKEN_BOOL_OP, TOKEN_COLON, TOKEN_BOOL_LIT, TOKEN_PLUS,
         TOKEN_MINUS, TOKEN_MULTIPLY, TOKEN_DIVIDE, TOKEN_MOD,
         TOKEN_POWER, TOKEN_NAMESPACE, TOKEN_COMMA, TOKEN_TRANSPILE,
-        TOKEN_SEMICOLON, TOKEN_EOF
+        TOKEN_SEMICOLON, TOKEN_DOT, TOKEN_ARROW, TOKEN_CLASS,
+        TOKEN_FUNC, TOKEN_NEW, TOKEN_THIS, TOKEN_RETURN,
+        TOKEN_PUBLIC, TOKEN_PRIVATE, TOKEN_EOF
     };
     
     struct Token {
@@ -47,6 +49,9 @@ namespace LOICollection::frontend {
         Token parseOperator();
 
         void skipWhitespace();
+        void skipComment();
+
+        char peekChar() const;
 
         Token makeToken(TokenType type);
     };

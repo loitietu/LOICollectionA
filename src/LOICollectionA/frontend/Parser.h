@@ -24,6 +24,14 @@ namespace LOICollection::frontend {
         std::unique_ptr<IfNode> parseIfStatement();
         std::unique_ptr<FunctionNode> parseFunction();
         std::unique_ptr<MacroNode> parseMacro();
+        std::unique_ptr<ClassNode> parseClass();
+        std::unique_ptr<FunctionDefNode> parseFunctionDefinition();
+        std::unique_ptr<MethodDecl> parseMethod(bool isPrivate);
+        std::unique_ptr<MethodDecl> parseConstructor(const std::string& className, bool isPrivate);
+
+        std::vector<MethodParam> parseParams();
+        
+        std::unique_ptr<ReturnNode> parseReturn();
 
         std::unique_ptr<ASTNode> parseTemplateUntil(TokenType stopToken, bool stopOnColon = false);
 
@@ -43,6 +51,7 @@ namespace LOICollection::frontend {
         std::unique_ptr<ExprNode> parseMultiplicativeExpression();
         std::unique_ptr<ExprNode> parsePowerExpression();
         std::unique_ptr<ExprNode> parseUnaryExpression();
+        std::unique_ptr<ExprNode> parsePostfix();
         std::unique_ptr<ExprNode> parsePrimary();
 
         std::unique_ptr<ValueNode> parseValue();

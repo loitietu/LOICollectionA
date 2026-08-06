@@ -9,15 +9,6 @@
 using namespace LOICollection::frontend;
 
 namespace StringBuiltin {
-    void registerFunctions(const std::string& namespaces) {
-        FunctionCall::getInstance().registerFunction(namespaces, "length", length, { ParamType::STRING });
-        FunctionCall::getInstance().registerFunction(namespaces, "upper", upper, { ParamType::STRING });
-        FunctionCall::getInstance().registerFunction(namespaces, "lower", lower, { ParamType::STRING });
-        FunctionCall::getInstance().registerFunction(namespaces, "substr", substr, { ParamType::STRING, ParamType::INT, ParamType::INT });
-        FunctionCall::getInstance().registerFunction(namespaces, "trim", trim, { ParamType::STRING });
-        FunctionCall::getInstance().registerFunction(namespaces, "replace", replace, { ParamType::STRING, ParamType::STRING, ParamType::STRING });
-    }
-
     std::string length(const LOICollection::frontend::CallbackTypeValues& args) {
         return std::visit([](auto&& arg) -> std::string {
             using T = std::decay_t<decltype(arg)>;
@@ -115,6 +106,15 @@ namespace StringBuiltin {
             return {};
         }, args[0], args[1], args[2]);
     }
+
+    void registerFunctions(const std::string& namespaces) {
+        FunctionCall::getInstance().registerFunction(namespaces, "length", length, { ParamType::STRING });
+        FunctionCall::getInstance().registerFunction(namespaces, "upper", upper, { ParamType::STRING });
+        FunctionCall::getInstance().registerFunction(namespaces, "lower", lower, { ParamType::STRING });
+        FunctionCall::getInstance().registerFunction(namespaces, "substr", substr, { ParamType::STRING, ParamType::INT, ParamType::INT });
+        FunctionCall::getInstance().registerFunction(namespaces, "trim", trim, { ParamType::STRING });
+        FunctionCall::getInstance().registerFunction(namespaces, "replace", replace, { ParamType::STRING, ParamType::STRING, ParamType::STRING });
+    }
 }
 
-REGISTER_NAMESPACE(string, StringBuiltin::registerFunctions);
+REGISTER_CALLBACK(string, StringBuiltin::registerFunctions);

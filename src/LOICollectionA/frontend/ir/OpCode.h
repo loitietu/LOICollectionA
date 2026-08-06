@@ -19,6 +19,15 @@ namespace LOICollection::frontend::ir {
 
         CALL,
         CALL_MACRO,
+        CALL_METHOD,
+        CALL_FUNC,
+        CALL_NATIVE_METHOD,
+
+        NEW,
+        NEW_NATIVE,
+        LOAD_FIELD, STORE_FIELD,
+        LOAD_THIS,
+        RETURN,
 
         JMP_IF_FALSE, JMP_IF_TRUE, 
         JMP,
