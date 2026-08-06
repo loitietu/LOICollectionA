@@ -61,4 +61,4 @@ namespace CounterClassBuiltin {
     }
 }
 
-REGISTER_CALLBACK(Counter, NativeClassBuiltin::registerClasses)
+REGISTER_CALLBACK(Counter, CounterClassBuiltin::registerClasses)
