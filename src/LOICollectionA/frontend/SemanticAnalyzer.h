@@ -44,6 +44,7 @@ namespace LOICollection::frontend {
         [[nodiscard]] TypeInfo typeFromName(const std::string& name, SourceLocation loc, bool reportError) const;
         [[nodiscard]] std::string typeToString(const TypeInfo& type) const;
         [[nodiscard]] bool isNumeric(const TypeInfo& type) const;
+        [[nodiscard]] bool isNameDefined(const std::string& name, MethodScope& scope) const;
 
         void registerClass(ClassNode& node);
         void registerFunction(FunctionDefNode& node);
@@ -61,6 +62,7 @@ namespace LOICollection::frontend {
         TypeInfo checkFuncCall(FuncCallNode& node, MethodScope& scope);
         TypeInfo checkNew(NewNode& node, MethodScope& scope);
         TypeInfo checkReturn(ReturnNode& node, MethodScope& scope);
+        TypeInfo checkLambda(LambdaNode& node, MethodScope& scope);
 
         TypeInfo lookupName(const std::string& name, MethodScope& scope);
         void unify(TypeInfo& target, const TypeInfo& from, SourceLocation loc, const std::string& what);

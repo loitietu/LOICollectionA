@@ -25,6 +25,8 @@ namespace LOICollection::frontend {
                     argTypes.push_back(ParamType::BOOL);
                 else if constexpr (std::is_same_v<T, ObjectRef>)
                     argTypes.push_back(ParamType::OBJECT);
+                else if constexpr (std::is_same_v<T, FunctionRefPtr>)
+                    argTypes.push_back(ParamType::FUNCTION);
                 else
                     diagnostics.addError({0, 0, 0}, "Unsupported argument type");
             }, arg);

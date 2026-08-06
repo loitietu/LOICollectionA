@@ -43,6 +43,12 @@ namespace LOICollection::frontend::ir {
         int bodyIndex = -1;
     };
 
+    struct LambdaMeta {
+        int bodyIndex = -1;
+        int argCount = 0;
+        std::vector<std::string> paramNames;
+    };
+
     struct NativeCallMeta {
         std::string className;
         std::string name;
@@ -57,6 +63,7 @@ namespace LOICollection::frontend::ir {
         std::vector<ClassMeta> classes;
         std::vector<MethodMeta> methods;
         std::vector<NativeCallMeta> nativeCalls;
+        std::vector<LambdaMeta> lambdas;
         std::vector<BytecodeChunk> methodBodies;
 
         size_t emit(OpCode op, int operand = 0) {

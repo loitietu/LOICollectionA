@@ -10,9 +10,126 @@
 #include "LOICollectionA/frontend/ir/Compiler.h"
 
 namespace LOICollection::frontend::ir {
+    namespace {
+        class MethodBodyCounter : public ASTVisitor {
+        public:
+            size_t count = 0;
+
+            void countNode(ASTNode& node) {
+                node.accept(*this);
+            }
+
+            void countArgs(TemplateNode* args) {
+                if (!args)
+                    return;
+
+                for (auto& part : args->parts)
+                    countNode(*part);
+            }
+
+            void countBody(ASTNode* body) {
+                if (body)
+                    countNode(*body);
+            }
+
+            void visit(ValueNode&) override {}
+            void visit(VariableNode&) override {}
+            void visit(ThisNode&) override {}
+
+            void visit(AssignmentNode& node) override {
+                countNode(*node.target);
+                countNode(*node.value);
+            }
+
+            void visit(IfNode& node) override {
+                countNode(*node.condition);
+                countBody(node.trueBranch.get());
+                countBody(node.falseBranch.get());
+            }
+
+            void visit(CompareNode& node) override {
+                countNode(*node.left);
+                countNode(*node.right);
+            }
+
+            void visit(LogicalNode& node) override {
+                countNode(*node.left);
+                countNode(*node.right);
+            }
+
+            void visit(FunctionNode& node) override {
+                countArgs(node.args.get());
+            }
+
+            void visit(MacroNode& node) override {
+                countArgs(node.args.get());
+            }
+
+            void visit(ArithmeticNode& node) override {
+                countNode(*node.left);
+                countNode(*node.right);
+            }
+
+            void visit(UnaryNode& node) override {
+                countNode(*node.operand);
+            }
+
+            void visit(TemplateNode& node) override {
+                for (auto& part : node.parts)
+                    countNode(*part);
+            }
+
+            void visit(ClassNode& node) override {
+                count += node.methods.size();
+
+                for (const auto& method : node.methods)
+                    countBody(method.body.get());
+            }
+
+            void visit(ReturnNode& node) override {
+                countBody(node.value.get());
+            }
+
+            void visit(NewNode& node) override {
+                countArgs(node.args.get());
+            }
+
+            void visit(MemberAccessNode& node) override {
+                countNode(*node.target);
+            }
+
+            void visit(MethodCallNode& node) override {
+                countNode(*node.target);
+                countArgs(node.args.get());
+            }
+
+            void visit(FunctionDefNode& node) override {
+                count++;
+                countBody(node.decl.body.get());
+            }
+
+            void visit(FuncCallNode& node) override {
+                countArgs(node.args.get());
+            }
+
+            void visit(LambdaNode& node) override {
+                count++;
+                countBody(node.decl.body.get());
+            }
+        };
+
+        size_t countMethodBodies(ASTNode& root) {
+            MethodBodyCounter counter;
+            counter.countNode(root);
+            return counter.count;
+        }
+    }
+
     Compiler::Compiler(DiagnosticEngine& diag) : current(std::ref(chunk)), diagnostics(diag) {}
 
     BytecodeChunk Compiler::compile(ASTNode& root) {
+        this->chunk.methodBodies.reserve(countMethodBodies(root));
+
         if (auto tpl = dynamic_cast<TemplateNode*>(&root)) {
             for (auto& part : tpl->parts) {
                 if (auto cls = dynamic_cast<ClassNode*>(part.get()))
@@ -63,6 +180,9 @@ namespace LOICollection::frontend::ir {
             case 1: current.get().emit(OpCode::PUSH_FLOAT, idx); break;
             case 2: current.get().emit(OpCode::PUSH_STR, idx); break;
             case 3: current.get().emit(OpCode::PUSH_BOOL, idx); break;
+            default:
+                this->diagnostics.addError({0, 0, 0}, "Unsupported constant value type");
+                break;
         }
     }
 
@@ -446,6 +566,20 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(FuncCallNode& node) {
+        if (node.isCallable) {
+            if (node.args) {
+                for (auto& part : node.args->parts)
+                    part->accept(*this);
+            }
+
+            int idx = this->addConstant(node.resolvedName);
+            this->current.get().emit(OpCode::LOAD_VAR, idx);
+
+            int argCount = node.args ? static_cast<int>(node.args->parts.size()) : 0;
+            this->current.get().emit(OpCode::CALL_LAMBDA, argCount);
+            return;
+        }
+
         if (node.args) {
             for (auto& part : node.args->parts)
                 part->accept(*this);
@@ -459,6 +593,33 @@ namespace LOICollection::frontend::ir {
         }
 
         this->current.get().emit(OpCode::CALL_FUNC, it->second[node.functionOrdinal]);
+    }
+
+    void Compiler::visit(LambdaNode& node) {
+        int bodyIdx = static_cast<int>(this->chunk.methodBodies.size());
+        this->chunk.methodBodies.push_back(BytecodeChunk{});
+
+        std::reference_wrapper<BytecodeChunk> saved = this->current;
+        this->current = std::ref(this->chunk.methodBodies.back());
+
+        if (node.decl.body)
+            node.decl.body->accept(*this);
+
+        this->current.get().emit(OpCode::POP);
+
+        int emptyIdx = this->addConstant(std::string(""));
+        this->current.get().emit(OpCode::PUSH_STR, emptyIdx);
+        this->current.get().emit(OpCode::RETURN);
+
+        this->current = saved;
+
+        std::vector<std::string> paramNames;
+        paramNames.reserve(node.decl.params.size());
+        for (const auto& param : node.decl.params)
+            paramNames.push_back(param.name);
+
+        int lambdaIdx = this->addLambda(bodyIdx, static_cast<int>(node.decl.params.size()), paramNames);
+        this->current.get().emit(OpCode::MAKE_LAMBDA, lambdaIdx);
     }
 
     int Compiler::addNativeCall(const std::string& className, const std::string& name, int argCount) {
@@ -485,5 +646,10 @@ namespace LOICollection::frontend::ir {
     int Compiler::addMacro(const std::string& name, int argCount) {
         this->current.get().macros.push_back({name, argCount});
         return static_cast<int>(this->current.get().macros.size() - 1);
+    }
+
+    int Compiler::addLambda(int bodyIndex, int argCount, const std::vector<std::string>& paramNames) {
+        this->current.get().lambdas.push_back({bodyIndex, argCount, paramNames});
+        return static_cast<int>(this->current.get().lambdas.size() - 1);
     }
 }

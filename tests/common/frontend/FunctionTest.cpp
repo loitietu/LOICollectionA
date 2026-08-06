@@ -43,6 +43,17 @@ TEST(FunctionTest, FunctionWithoutExplicitReturnType) {
     EXPECT_EQ(eval("func pick(x) { return x; } pick(42)"), "42");
 }
 
+TEST(FunctionTest, ClassObjectParameter) {
+    EXPECT_EQ(eval(
+        "class A { "
+        "public: "
+        "x = 1; "
+        "} "
+        "func getX(a: A) -> int { return a.x; } "
+        "getX(new A())"),
+        "1");
+}
+
 TEST(FunctionTest, ImplicitEmptyReturn) {
     EXPECT_EQ(eval("func noret() { a = 1; } noret()"), "");
 }

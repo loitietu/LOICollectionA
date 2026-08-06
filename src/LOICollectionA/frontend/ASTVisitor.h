@@ -22,6 +22,7 @@ namespace LOICollection::frontend {
     struct ThisNode;
     struct FunctionDefNode;
     struct FuncCallNode;
+    struct LambdaNode;
 
     class ASTVisitor {
     public:
@@ -46,5 +47,6 @@ namespace LOICollection::frontend {
         virtual void visit(ThisNode& node) = 0;
         virtual void visit(FunctionDefNode& node) = 0;
         virtual void visit(FuncCallNode& node) = 0;
+        virtual void visit(LambdaNode& node) = 0;
     };
 }

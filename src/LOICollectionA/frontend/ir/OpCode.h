@@ -22,11 +22,13 @@ namespace LOICollection::frontend::ir {
         CALL_METHOD,
         CALL_FUNC,
         CALL_NATIVE_METHOD,
+        CALL_LAMBDA,
 
         NEW,
         NEW_NATIVE,
         LOAD_FIELD, STORE_FIELD,
         LOAD_THIS,
+        MAKE_LAMBDA,
         RETURN,
 
         JMP_IF_FALSE, JMP_IF_TRUE, 

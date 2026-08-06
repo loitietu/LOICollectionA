@@ -26,6 +26,7 @@ namespace LOICollection::frontend {
         std::unique_ptr<MacroNode> parseMacro();
         std::unique_ptr<ClassNode> parseClass();
         std::unique_ptr<FunctionDefNode> parseFunctionDefinition();
+        std::unique_ptr<LambdaNode> parseLambda();
         std::unique_ptr<MethodDecl> parseMethod(bool isPrivate);
         std::unique_ptr<MethodDecl> parseConstructor(const std::string& className, bool isPrivate);
 

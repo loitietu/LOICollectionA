@@ -20,7 +20,8 @@ namespace LOICollection::frontend {
         FLOAT,
         STRING,
         BOOL,
-        OBJECT
+        OBJECT,
+        FUNCTION
     };
 
     using TypedValue = ValueNode::ValueType;

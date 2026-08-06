@@ -262,6 +262,43 @@ namespace LOICollection::frontend {
         return fn;
     }
 
+    std::unique_ptr<LambdaNode> Parser::parseLambda() {
+        SourceLocation loc = currentToken.loc;
+
+        if (!eat(TokenType::TOKEN_FUNC)) return nullptr;
+        if (!eat(TokenType::TOKEN_LPAREN)) return nullptr;
+
+        auto lambda = std::make_unique<LambdaNode>(loc);
+        lambda->decl.loc = loc;
+        lambda->decl.name = "lambda";
+        lambda->decl.params = parseParams();
+
+        if (!eat(TokenType::TOKEN_RPAREN)) return nullptr;
+
+        if (currentToken.type == TokenType::TOKEN_ARROW) {
+            if (!eat(TokenType::TOKEN_ARROW)) return nullptr;
+            if (currentToken.type != TokenType::TOKEN_IDENT) {
+                diagnostics.addError(currentToken.loc, "Expected return type after '->'");
+                return nullptr;
+            }
+
+            lambda->decl.returnTypeName = currentToken.value;
+            lambda->decl.hasReturnType = true;
+
+            if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+        }
+
+        if (!eat(TokenType::TOKEN_LBRACE)) return nullptr;
+
+        lambda->decl.body = parseTemplateUntil(TokenType::TOKEN_RBRACE, false);
+        if (!lambda->decl.body)
+            return nullptr;
+
+        if (!eat(TokenType::TOKEN_RBRACE)) return nullptr;
+
+        return lambda;
+    }
+
     std::unique_ptr<MethodDecl> Parser::parseMethod(bool isPrivate) {
         SourceLocation loc = currentToken.loc;
 
@@ -487,7 +524,7 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<ASTNode> Parser::parseStatement() {
-        if (currentToken.type == TokenType::TOKEN_FUNC)
+        if (currentToken.type == TokenType::TOKEN_FUNC && peek() != TokenType::TOKEN_LPAREN)
             return parseFunctionDefinition();
 
         if (currentToken.type == TokenType::TOKEN_CLASS)
@@ -746,6 +783,8 @@ namespace LOICollection::frontend {
                 if (!eat(TokenType::TOKEN_THIS)) return nullptr;
                 return std::make_unique<ThisNode>(loc);
             }
+            case TokenType::TOKEN_FUNC:
+                return parseLambda();
             case TokenType::TOKEN_LPAREN: {
                 if (!eat(TokenType::TOKEN_LPAREN)) return nullptr;
                 

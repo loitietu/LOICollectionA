@@ -67,6 +67,7 @@ TEST(ASTTest, ExpressionNodeTypes) {
     EXPECT_EQ(firstPartType("obj.x"), ASTNode::Type::MemberAccess);
     EXPECT_EQ(firstPartType("obj.m()"), ASTNode::Type::MethodCall);
     EXPECT_EQ(firstPartType("this"), ASTNode::Type::This);
+    EXPECT_EQ(firstPartType("func (a) { return a; }"), ASTNode::Type::Lambda);
 }
 
 TEST(ASTTest, StatementNodeTypes) {

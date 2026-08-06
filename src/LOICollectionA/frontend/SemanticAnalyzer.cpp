@@ -16,6 +16,7 @@ namespace LOICollection::frontend {
             case ParamType::STRING: return { TypeKind::String };
             case ParamType::BOOL: return { TypeKind::Bool };
             case ParamType::OBJECT: return { TypeKind::Object };
+            case ParamType::FUNCTION: return { TypeKind::Function };
         }
 
         return {};
@@ -79,6 +80,7 @@ namespace LOICollection::frontend {
             case 2: return { TypeKind::String };
             case 3: return { TypeKind::Bool };
             case 4: return { TypeKind::Object };
+            case 5: return { TypeKind::Function };
             default: return {};
         }
     }
@@ -110,6 +112,7 @@ namespace LOICollection::frontend {
             case TypeKind::String: return "string";
             case TypeKind::Bool: return "bool";
             case TypeKind::Object: return "class " + type.className;
+            case TypeKind::Function: return "function";
             case TypeKind::Void: return "void";
         }
 
@@ -266,6 +269,9 @@ namespace LOICollection::frontend {
         if (auto funcCall = dynamic_cast<FuncCallNode*>(&node))
             return checkFuncCall(*funcCall, scope);
 
+        if (auto lambda = dynamic_cast<LambdaNode*>(&node))
+            return checkLambda(*lambda, scope);
+
         if (auto ifNode = dynamic_cast<IfNode*>(&node)) {
             if (ifNode->condition)
                 checkExpr(*ifNode->condition, scope);
@@ -378,6 +384,9 @@ namespace LOICollection::frontend {
         if (auto member = dynamic_cast<MemberAccessNode*>(node.target.get())) {
             TypeInfo targetType = checkExpr(*member->target, scope);
 
+            if (targetType.kind == TypeKind::Unknown)
+                return rhs;
+
             if (targetType.kind != TypeKind::Object) {
                 diagnostics.addError(node.loc, "Cannot access member of a non-object value");
                 return rhs;
@@ -422,6 +431,9 @@ namespace LOICollection::frontend {
 
     TypeInfo SemanticAnalyzer::checkMemberAccess(MemberAccessNode& node, MethodScope& scope) {
         TypeInfo targetType = checkExpr(*node.target, scope);
+
+        if (targetType.kind == TypeKind::Unknown)
+            return {};
 
         if (targetType.kind != TypeKind::Object) {
             diagnostics.addError(node.loc, "Cannot access member of a non-object value");
@@ -579,6 +591,21 @@ namespace LOICollection::frontend {
 
         auto it = functionsByName.find(node.name);
         if (it == functionsByName.end() || it->second.empty()) {
+            if (this->isNameDefined(node.name, scope)) {
+                TypeInfo variableType = this->lookupName(node.name, scope);
+
+                if (variableType.kind != TypeKind::Unknown &&
+                    variableType.kind != TypeKind::Function) {
+                    diagnostics.addError(node.loc,
+                        "Value '" + node.name + "' is not callable");
+                    return {};
+                }
+
+                node.isCallable = true;
+                node.resolvedName = node.name;
+                return {};
+            }
+
             diagnostics.addError(node.loc,
                 "No matching function '" + node.name + "' with " +
                 std::to_string(argCount) + " argument(s)");
@@ -759,6 +786,35 @@ namespace LOICollection::frontend {
         return valueType;
     }
 
+    TypeInfo SemanticAnalyzer::checkLambda(LambdaNode& node, MethodScope& scope) {
+        MethodDecl& decl = node.decl;
+        decl.paramTypes.resize(decl.params.size());
+
+        for (size_t i = 0; i < decl.params.size(); ++i) {
+            if (decl.params[i].hasType)
+                decl.paramTypes[i] = typeFromName(decl.params[i].typeName, decl.loc, true);
+        }
+
+        if (decl.hasReturnType)
+            decl.returnType = typeFromName(decl.returnTypeName, decl.loc, true);
+
+        MethodScope lambdaScope;
+        if (scope.hasClass())
+            lambdaScope.cls = scope.cls;
+        lambdaScope.method = std::ref(decl);
+
+        if (decl.body)
+            checkStatement(*decl.body, lambdaScope);
+
+        if (decl.hasReturnType &&
+            decl.returnType.kind != TypeKind::Void && !decl.hasReturnStatement) {
+            diagnostics.addWarning(decl.loc,
+                "Missing return statement in anonymous function");
+        }
+
+        return { TypeKind::Function };
+    }
+
     TypeInfo SemanticAnalyzer::lookupName(const std::string& name, MethodScope& scope) {
         if (scope.hasMethod()) {
             MethodDecl& method = scope.methodRef();
@@ -780,6 +836,25 @@ namespace LOICollection::frontend {
             return it->second;
 
         return {};
+    }
+
+    bool SemanticAnalyzer::isNameDefined(const std::string& name, MethodScope& scope) const {
+        if (scope.hasMethod()) {
+            const MethodDecl& method = scope.methodRef();
+            for (const auto& param : method.params) {
+                if (param.name == name)
+                    return true;
+            }
+
+            if (scope.hasClass()) {
+                for (const auto& member : scope.classRef().members) {
+                    if (member.name == name)
+                        return true;
+                }
+            }
+        }
+
+        return globalTypes.find(name) != globalTypes.end();
     }
 
     void SemanticAnalyzer::unify(TypeInfo& target, const TypeInfo& from, SourceLocation loc, const std::string& what) {

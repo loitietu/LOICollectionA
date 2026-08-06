@@ -53,6 +53,7 @@ namespace LOICollection::frontend::ir {
         void visit(ThisNode& node) override;
         void visit(FunctionDefNode& node) override;
         void visit(FuncCallNode& node) override;
+        void visit(LambdaNode& node) override;
 
         void registerClassMeta(ClassNode& node);
         void compileClassBodies(ClassNode& node);
@@ -63,5 +64,6 @@ namespace LOICollection::frontend::ir {
         int addConstant(const ValueNode::ValueType& val);
         int addFunction(const std::string& name, int argCount);
         int addMacro(const std::string& name, int argCount);
+        int addLambda(int bodyIndex, int argCount, const std::vector<std::string>& paramNames);
     };
 }

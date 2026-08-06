@@ -33,6 +33,8 @@ namespace LOICollection::frontend::ir {
                 return arg ? "true" : "false";
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, ObjectRef>)
                 return "instance of " + arg->className;
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, FunctionRefPtr>)
+                return "function";
         }, val);
     }
 
@@ -115,6 +117,8 @@ namespace LOICollection::frontend::ir {
                 return arg;
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, ObjectRef>)
                 return true;
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, FunctionRefPtr>)
+                return true;
         }, val);
     }
 
@@ -136,6 +140,12 @@ namespace LOICollection::frontend::ir {
                 diagnostics.addError({ 0, 0, 0 }, "Unknown comparison op: " + op);
                 return false;
             } else if constexpr (std::is_same_v<T, ObjectRef> && std::is_same_v<U, ObjectRef>) {
+                if (op == "==") return l == r;
+                if (op == "!=") return l != r;
+
+                diagnostics.addError({ 0, 0, 0 }, "Unknown comparison op: " + op);
+                return false;
+            } else if constexpr (std::is_same_v<T, FunctionRefPtr> && std::is_same_v<U, FunctionRefPtr>) {
                 if (op == "==") return l == r;
                 if (op == "!=") return l != r;
 
@@ -340,6 +350,21 @@ namespace LOICollection::frontend::ir {
                     this->push(frame.thisObj);
                     break;
                 }
+                case OpCode::MAKE_LAMBDA: {
+                    const auto& meta = cur.lambdas[instr.operand];
+
+                    auto func = std::make_shared<FunctionRef>();
+                    func->bodyIndex = meta.bodyIndex;
+                    func->argCount = meta.argCount;
+                    func->paramNames = meta.paramNames;
+                    func->hasThis = frame.hasThis;
+                    if (frame.hasThis)
+                        func->thisObj = std::get<ObjectRef>(frame.thisObj);
+                    func->captures = frame.locals;
+
+                    this->push(func);
+                    break;
+                }
 
                 case OpCode::NEW: {
                     const auto& cls = chunk.classes[instr.operand];
@@ -476,6 +501,44 @@ namespace LOICollection::frontend::ir {
 
                     for (int i = 0; i < meta.argCount; ++i)
                         callee.locals[meta.paramNames[i]] = args[i];
+
+                    this->frames.push_back(std::move(callee));
+                    break;
+                }
+
+                case OpCode::CALL_LAMBDA: {
+                    auto funcValue = this->pop(diagnostics);
+                    if (!std::holds_alternative<FunctionRefPtr>(funcValue)) {
+                        diagnostics.addError({ 0, 0, 0 }, "Attempted to call a non-function value");
+                        break;
+                    }
+
+                    auto func = std::get<FunctionRefPtr>(funcValue);
+                    if (instr.operand != func->argCount) {
+                        diagnostics.addError({ 0, 0, 0 },
+                            "Function expects " + std::to_string(func->argCount) +
+                            " argument(s), got " + std::to_string(instr.operand));
+                        break;
+                    }
+
+                    if (func->bodyIndex < 0 ||
+                        func->bodyIndex >= static_cast<int>(chunk.methodBodies.size())) {
+                        diagnostics.addError({ 0, 0, 0 }, "Invalid function body index");
+                        break;
+                    }
+
+                    std::vector<ValueNode::ValueType> args(func->argCount);
+                    for (int i = 0; i < func->argCount; ++i)
+                        args[func->argCount - 1 - i] = this->pop(diagnostics);
+
+                    Frame callee(chunk.methodBodies[func->bodyIndex]);
+                    callee.hasThis = func->hasThis;
+                    if (func->hasThis)
+                        callee.thisObj = func->thisObj;
+                    callee.locals = func->captures;
+
+                    for (int i = 0; i < func->argCount; ++i)
+                        callee.locals[func->paramNames[i]] = args[i];
 
                     this->frames.push_back(std::move(callee));
                     break;

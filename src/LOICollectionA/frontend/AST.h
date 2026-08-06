@@ -12,6 +12,8 @@
 namespace LOICollection::frontend {
     struct Object;
     using ObjectRef = std::shared_ptr<Object>;
+    struct FunctionRef;
+    using FunctionRefPtr = std::shared_ptr<FunctionRef>;
 
     enum class TypeKind {
         Unknown,
@@ -20,6 +22,7 @@ namespace LOICollection::frontend {
         String,
         Bool,
         Object,
+        Function,
         Void
     };
 
@@ -35,7 +38,7 @@ namespace LOICollection::frontend {
             Value, Compare, Logical, If, Template, Expr,
             Arithmetic, Unary, Function, Macro, Variable, Assignment,
             Class, Return, New, MemberAccess, MethodCall, This,
-            FunctionDef, FuncCall
+            FunctionDef, FuncCall, Lambda
         };
         [[nodiscard]] virtual Type getType() const = 0;
         
@@ -51,7 +54,7 @@ namespace LOICollection::frontend {
     };
 
     struct ValueNode : ExprNode {
-        using ValueType = std::variant<int, float, std::string, bool, ObjectRef>;
+        using ValueType = std::variant<int, float, std::string, bool, ObjectRef, FunctionRefPtr>;
 
         ValueType value;
         
@@ -383,6 +386,19 @@ namespace LOICollection::frontend {
         }
     };
 
+    struct LambdaNode : ExprNode {
+        SourceLocation loc;
+        MethodDecl decl;
+
+        explicit LambdaNode(SourceLocation location) : loc(location) {}
+
+        [[nodiscard]] Type getType() const override { return Type::Lambda; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
     struct FuncCallNode : ExprNode {
         SourceLocation loc;
         std::string name;
@@ -390,6 +406,7 @@ namespace LOICollection::frontend {
 
         std::string resolvedName;
         int functionOrdinal = -1;
+        bool isCallable = false;
 
         FuncCallNode(SourceLocation location, std::string n, auto&& a)
             : loc(location), name(std::move(n)), args(std::forward<decltype(a)>(a)) {}
@@ -405,5 +422,14 @@ namespace LOICollection::frontend {
         std::string className;
         int classIndex = -1;
         std::unordered_map<std::string, ValueNode::ValueType> fields;
+    };
+
+    struct FunctionRef {
+        int bodyIndex = -1;
+        int argCount = 0;
+        std::vector<std::string> paramNames;
+        bool hasThis = false;
+        ObjectRef thisObj;
+        std::unordered_map<std::string, ValueNode::ValueType> captures;
     };
 }

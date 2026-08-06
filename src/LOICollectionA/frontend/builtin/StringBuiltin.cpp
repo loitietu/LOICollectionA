@@ -108,12 +108,14 @@ namespace StringBuiltin {
     }
 
     void registerFunctions(const std::string& namespaces) {
-        FunctionCall::getInstance().registerFunction(namespaces, "length", length, { ParamType::STRING });
-        FunctionCall::getInstance().registerFunction(namespaces, "upper", upper, { ParamType::STRING });
-        FunctionCall::getInstance().registerFunction(namespaces, "lower", lower, { ParamType::STRING });
-        FunctionCall::getInstance().registerFunction(namespaces, "substr", substr, { ParamType::STRING, ParamType::INT, ParamType::INT });
-        FunctionCall::getInstance().registerFunction(namespaces, "trim", trim, { ParamType::STRING });
-        FunctionCall::getInstance().registerFunction(namespaces, "replace", replace, { ParamType::STRING, ParamType::STRING, ParamType::STRING });
+        FunctionCall& functions = FunctionCall::getInstance();
+        
+        functions.registerFunction(namespaces, "length", length, { ParamType::STRING });
+        functions.registerFunction(namespaces, "upper", upper, { ParamType::STRING });
+        functions.registerFunction(namespaces, "lower", lower, { ParamType::STRING });
+        functions.registerFunction(namespaces, "substr", substr, { ParamType::STRING, ParamType::INT, ParamType::INT });
+        functions.registerFunction(namespaces, "trim", trim, { ParamType::STRING });
+        functions.registerFunction(namespaces, "replace", replace, { ParamType::STRING, ParamType::STRING, ParamType::STRING });
     }
 }
 
