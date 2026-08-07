@@ -20,15 +20,17 @@ namespace LOICollection::frontend::ir {
             node.accept(*this);
         }
 
-        void countArgs(TemplateNode* args) {
-            if (!args)
-                return;
-
-            for (auto& part : args->parts)
-                countNode(*part);
+        void countArgs(const std::vector<std::unique_ptr<ExprNode>>& args) {
+            for (auto& arg : args)
+                countNode(*arg);
         }
 
-        void countBody(ASTNode* body) {
+        void countBody(const std::unique_ptr<ASTNode>& body) {
+            if (body)
+                countNode(*body);
+        }
+
+        void countBody(const std::unique_ptr<ExprNode>& body) {
             if (body)
                 countNode(*body);
         }
@@ -45,8 +47,8 @@ namespace LOICollection::frontend::ir {
 
         void visit(IfNode& node) override {
             countNode(*node.condition);
-            countBody(node.trueBranch.get());
-            countBody(node.falseBranch.get());
+            countBody(node.trueBranch);
+            countBody(node.falseBranch);
         }
 
         void visit(CompareNode& node) override {
@@ -60,11 +62,11 @@ namespace LOICollection::frontend::ir {
         }
 
         void visit(FunctionNode& node) override {
-            countArgs(node.args.get());
+            countArgs(node.args);
         }
 
         void visit(MacroNode& node) override {
-            countArgs(node.args.get());
+            countArgs(node.args);
         }
 
         void visit(ArithmeticNode& node) override {
@@ -76,7 +78,11 @@ namespace LOICollection::frontend::ir {
             countNode(*node.operand);
         }
 
-        void visit(TemplateNode& node) override {
+        void visit(ProgramNode& node) override {
+            for (auto& part : node.parts)
+                countNode(*part);
+        }
+        void visit(BlockNode& node) override {
             for (auto& part : node.parts)
                 countNode(*part);
         }
@@ -85,15 +91,15 @@ namespace LOICollection::frontend::ir {
             count += node.methods.size();
 
             for (const auto& method : node.methods)
-                countBody(method.body.get());
+                countBody(method.body);
         }
 
         void visit(ReturnNode& node) override {
-            countBody(node.value.get());
+            countBody(node.value);
         }
 
         void visit(NewNode& node) override {
-            countArgs(node.args.get());
+            countArgs(node.args);
         }
 
         void visit(MemberAccessNode& node) override {
@@ -102,11 +108,11 @@ namespace LOICollection::frontend::ir {
 
         void visit(MethodCallNode& node) override {
             countNode(*node.target);
-            countArgs(node.args.get());
+            countArgs(node.args);
         }
 
         void visit(SuperCallNode& node) override {
-            countArgs(node.args.get());
+            countArgs(node.args);
         }
 
         void visit(InstanceOfNode& node) override {
@@ -115,16 +121,16 @@ namespace LOICollection::frontend::ir {
 
         void visit(FunctionDefNode& node) override {
             count++;
-            countBody(node.decl.body.get());
+            countBody(node.decl.body);
         }
 
         void visit(FuncCallNode& node) override {
-            countArgs(node.args.get());
+            countArgs(node.args);
         }
 
         void visit(LambdaNode& node) override {
             count++;
-            countBody(node.decl.body.get());
+            countBody(node.decl.body);
         }
     };
 
@@ -139,39 +145,56 @@ namespace LOICollection::frontend::ir {
     BytecodeChunk Compiler::compile(ASTNode& root) {
         this->chunk.methodBodies.reserve(countMethodBodies(root));
 
-        if (auto tpl = dynamic_cast<TemplateNode*>(&root)) {
-            for (auto& part : tpl->parts) {
-                if (auto cls = dynamic_cast<ClassNode*>(part.get()))
-                    this->classNodes[cls->name] = cls;
+        if (root.getType() == ASTNode::Type::Program) {
+            auto& program = static_cast<ProgramNode&>(root);
+
+            for (auto& part : program.parts) {
+                if (part->getType() == ASTNode::Type::Class) {
+                    auto& cls = static_cast<ClassNode&>(*part);
+                    this->classNodes.insert_or_assign(cls.name, std::ref(cls));
+                }
             }
 
-            for (auto& part : tpl->parts) {
-                if (auto cls = dynamic_cast<ClassNode*>(part.get()))
-                    this->registerClassMeta(*cls);
-                else if (auto fn = dynamic_cast<FunctionDefNode*>(part.get()))
-                    this->registerFunctionMeta(*fn);
+            for (auto& part : program.parts) {
+                switch (part->getType()) {
+                    case ASTNode::Type::Class:
+                        this->registerClassMeta(static_cast<ClassNode&>(*part));
+                        break;
+                    case ASTNode::Type::FunctionDef:
+                        this->registerFunctionMeta(static_cast<FunctionDefNode&>(*part));
+                        break;
+                    default:
+                        break;
+                }
             }
 
-            for (auto* node : this->bodyOrder) {
-                if (auto cls = dynamic_cast<ClassNode*>(node))
-                    this->compileClassBodies(*cls);
-                else if (auto fn = dynamic_cast<FunctionDefNode*>(node))
-                    this->compileFunctionBody(*fn);
+            for (auto node : this->bodyOrder) {
+                ASTNode& current = node.get();
+                switch (current.getType()) {
+                    case ASTNode::Type::Class:
+                        this->compileClassBodies(static_cast<ClassNode&>(current));
+                        break;
+                    case ASTNode::Type::FunctionDef:
+                        this->compileFunctionBody(static_cast<FunctionDefNode&>(current));
+                        break;
+                    default:
+                        break;
+                }
             }
 
             size_t lastValuePart = SIZE_MAX;
-            for (size_t i = 0; i < tpl->parts.size(); ++i) {
-                if (!dynamic_cast<ClassNode*>(tpl->parts[i].get()) &&
-                    !dynamic_cast<FunctionDefNode*>(tpl->parts[i].get()))
+            for (size_t i = 0; i < program.parts.size(); ++i) {
+                auto type = program.parts[i]->getType();
+                if (type != ASTNode::Type::Class && type != ASTNode::Type::FunctionDef)
                     lastValuePart = i;
             }
 
-            for (size_t i = 0; i < tpl->parts.size(); ++i) {
-                if (dynamic_cast<ClassNode*>(tpl->parts[i].get()) ||
-                    dynamic_cast<FunctionDefNode*>(tpl->parts[i].get()))
+            for (size_t i = 0; i < program.parts.size(); ++i) {
+                auto type = program.parts[i]->getType();
+                if (type == ASTNode::Type::Class || type == ASTNode::Type::FunctionDef)
                     continue;
 
-                tpl->parts[i]->accept(*this);
+                program.parts[i]->accept(*this);
 
                 if (i != lastValuePart)
                     this->current.get().emit(OpCode::POP);
@@ -210,16 +233,24 @@ namespace LOICollection::frontend::ir {
 
         this->current.get().emit(OpCode::DUP);
 
-        if (auto var = dynamic_cast<VariableNode*>(node.target.get())) {
-            int idx = this->addConstant(var->name);
-            this->current.get().emit(OpCode::STORE_VAR, idx);
-        } else if (auto member = dynamic_cast<MemberAccessNode*>(node.target.get())) {
-            member->target->accept(*this);
+        switch (node.target->getType()) {
+            case ASTNode::Type::Variable: {
+                auto& var = static_cast<VariableNode&>(*node.target);
+                int idx = this->addConstant(var.name);
+                this->current.get().emit(OpCode::STORE_VAR, idx);
+                break;
+            }
+            case ASTNode::Type::MemberAccess: {
+                auto& member = static_cast<MemberAccessNode&>(*node.target);
+                member.target->accept(*this);
 
-            int idx = this->addConstant(member->memberName);
-            this->current.get().emit(OpCode::STORE_FIELD, idx);
-        } else {
-            this->diagnostics.addError(node.loc, "Invalid assignment target");
+                int idx = this->addConstant(member.memberName);
+                this->current.get().emit(OpCode::STORE_FIELD, idx);
+                break;
+            }
+            default:
+                this->diagnostics.addError(node.loc, "Invalid assignment target");
+                break;
         }
     }
 
@@ -314,27 +345,19 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(FunctionNode& node) {
-        int argCount = 0;
-        if (node.args) {
-            for (auto& part : node.args->parts) {
-                part->accept(*this);
-                argCount++;
-            }
-        }
+        for (auto& arg : node.args)
+            arg->accept(*this);
 
+        int argCount = static_cast<int>(node.args.size());
         int metaIdx = this->addFunction(node.namespaces + "::" + node.name, argCount);
         this->current.get().emit(OpCode::CALL, metaIdx);
     }
 
     void Compiler::visit(MacroNode& node) {
-        int argCount = 0;
-        if (node.args) {
-            for (auto& part : node.args->parts) {
-                part->accept(*this);
-                argCount++;
-            }
-        }
+        for (auto& arg : node.args)
+            arg->accept(*this);
 
+        int argCount = static_cast<int>(node.args.size());
         int metaIdx = addMacro(node.name, argCount);
         this->current.get().emit(OpCode::CALL_MACRO, metaIdx);
     }
@@ -363,7 +386,7 @@ namespace LOICollection::frontend::ir {
             this->diagnostics.addError({0, 0, 0}, "Unknown unary op: " + node.op);
     }
 
-    void Compiler::visit(TemplateNode& node) {
+    void Compiler::compileSequence(SequenceNode& node) {
         if (node.parts.empty()) {
             int idx = this->addConstant(std::string(""));
             this->current.get().emit(OpCode::PUSH_STR, idx);
@@ -380,6 +403,14 @@ namespace LOICollection::frontend::ir {
             if (i != node.parts.size() - 1 && producesValue)
                 this->current.get().emit(OpCode::POP);
         }
+    }
+
+    void Compiler::visit(ProgramNode& node) {
+        compileSequence(node);
+    }
+
+    void Compiler::visit(BlockNode& node) {
+        compileSequence(node);
     }
 
     void Compiler::visit(ClassNode& node) {
@@ -409,9 +440,16 @@ namespace LOICollection::frontend::ir {
             }
 
             if (!this->classIndices.contains(node.baseClassName))
-                this->registerClassMeta(*baseIt->second);
+                this->registerClassMeta(baseIt->second.get());
 
-            baseIdx = this->classIndices[node.baseClassName];
+            auto registeredIt = this->classIndices.find(node.baseClassName);
+            if (registeredIt == this->classIndices.end()) {
+                this->diagnostics.addError(node.loc, "Failed to register base class: " + node.baseClassName);
+                this->registeringClasses.erase(node.name);
+                return;
+            }
+
+            baseIdx = registeredIt->second;
             this->registeringClasses.erase(node.name);
         }
 
@@ -442,8 +480,8 @@ namespace LOICollection::frontend::ir {
                 meta.hasDefault[fieldIdx] = member.hasDefault;
 
                 if (member.hasDefault) {
-                    if (auto literal = dynamic_cast<const ValueNode*>(member.defaultExpr.get())) {
-                        meta.defaults[fieldIdx] = literal->value;
+                    if (member.defaultExpr && member.defaultExpr->getType() == ASTNode::Type::Value) {
+                        meta.defaults[fieldIdx] = static_cast<ValueNode&>(*member.defaultExpr).value;
                     } else {
                         this->diagnostics.addError(node.loc,
                             "Member default value of '" + member.name + "' must be a constant literal");
@@ -460,8 +498,8 @@ namespace LOICollection::frontend::ir {
             meta.hasDefault.push_back(member.hasDefault);
 
             if (member.hasDefault) {
-                if (auto literal = dynamic_cast<const ValueNode*>(member.defaultExpr.get())) {
-                    meta.defaults.push_back(literal->value);
+                if (member.defaultExpr && member.defaultExpr->getType() == ASTNode::Type::Value) {
+                    meta.defaults.push_back(static_cast<ValueNode&>(*member.defaultExpr).value);
                 } else {
                     this->diagnostics.addError(node.loc,
                         "Member default value of '" + member.name + "' must be a constant literal");
@@ -493,7 +531,7 @@ namespace LOICollection::frontend::ir {
 
         this->classMethodIndices[node.name] = meta.methods;
         this->chunk.classes.push_back(std::move(meta));
-        this->bodyOrder.push_back(&node);
+        this->bodyOrder.push_back(std::ref(node));
     }
 
     void Compiler::compileClassBodies(ClassNode& node) {
@@ -519,7 +557,8 @@ namespace LOICollection::frontend::ir {
 
             if (method.isConstructor && !node.baseClassName.empty() && !method.hasSuperCall) {
                 int ctorIdx = -1;
-                int walkIdx = this->classIndices[node.baseClassName];
+                auto baseIt = this->classIndices.find(node.baseClassName);
+                int walkIdx = baseIt == this->classIndices.end() ? -1 : baseIt->second;
                 while (walkIdx >= 0) {
                     const auto& walkCls = this->chunk.classes[walkIdx];
                     if (walkCls.constructorIndex != -1) {
@@ -564,15 +603,13 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(NewNode& node) {
-        if (node.args) {
-            for (auto& part : node.args->parts)
-                part->accept(*this);
-        }
+        for (auto& arg : node.args)
+            arg->accept(*this);
 
         auto it = this->classIndices.find(node.className);
         if (it == this->classIndices.end()) {
             if (ClassCall::getInstance().isRegistered(node.className)) {
-                int argCount = node.args ? static_cast<int>(node.args->parts.size()) : 0;
+                int argCount = static_cast<int>(node.args.size());
                 int metaIdx = this->addNativeCall(node.className, "", argCount);
 
                 this->current.get().emit(OpCode::NEW_NATIVE, metaIdx);
@@ -594,19 +631,17 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(MethodCallNode& node) {
-        if (node.args) {
-            for (auto& part : node.args->parts)
-                part->accept(*this);
-        }
+        for (auto& arg : node.args)
+            arg->accept(*this);
 
         node.target->accept(*this);
 
         auto it = classMethodIndices.find(node.className);
         if (it != classMethodIndices.end() && node.methodOrdinal >= 0 &&
             static_cast<size_t>(node.methodOrdinal) < it->second.size()) {
-            int argCount = node.args ? static_cast<int>(node.args->parts.size()) : 0;
+            int argCount = static_cast<int>(node.args.size());
 
-            if (dynamic_cast<SuperNode*>(node.target.get())) {
+            if (node.target->getType() == ASTNode::Type::Super) {
                 this->current.get().emit(OpCode::CALL_METHOD, it->second[node.methodOrdinal]);
             } else {
                 int classIdx = this->classIndices[node.className];
@@ -617,7 +652,7 @@ namespace LOICollection::frontend::ir {
         }
 
         if (ClassCall::getInstance().isRegistered(node.className)) {
-            int argCount = node.args ? static_cast<int>(node.args->parts.size()) : 0;
+            int argCount = static_cast<int>(node.args.size());
             int metaIdx = this->addNativeCall(node.className, node.methodName, argCount);
 
             this->current.get().emit(OpCode::CALL_NATIVE_METHOD, metaIdx);
@@ -636,10 +671,8 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(SuperCallNode& node) {
-        if (node.args) {
-            for (auto& part : node.args->parts)
-                part->accept(*this);
-        }
+        for (auto& arg : node.args)
+            arg->accept(*this);
 
         this->current.get().emit(OpCode::LOAD_THIS);
 
@@ -650,7 +683,7 @@ namespace LOICollection::frontend::ir {
                 constructorIndex = this->chunk.classes[classIt->second].constructorIndex;
         }
 
-        int argCount = node.args ? static_cast<int>(node.args->parts.size()) : 0;
+        int argCount = static_cast<int>(node.args.size());
         int metaIdx = this->addSuperCall(constructorIndex, argCount);
         this->current.get().emit(OpCode::CALL_SUPER_CTOR, metaIdx);
     }
@@ -670,7 +703,7 @@ namespace LOICollection::frontend::ir {
     void Compiler::registerFunctionMeta(FunctionDefNode& node) {
         int funcIdx = static_cast<int>(methodCount++);
         this->functionIndices[node.name].push_back(funcIdx);
-        this->bodyOrder.push_back(&node);
+        this->bodyOrder.push_back(std::ref(node));
     }
 
     void Compiler::compileFunctionBody(FunctionDefNode& node) {
@@ -704,23 +737,19 @@ namespace LOICollection::frontend::ir {
 
     void Compiler::visit(FuncCallNode& node) {
         if (node.isCallable) {
-            if (node.args) {
-                for (auto& part : node.args->parts)
-                    part->accept(*this);
-            }
+            for (auto& arg : node.args)
+                arg->accept(*this);
 
             int idx = this->addConstant(node.resolvedName);
             this->current.get().emit(OpCode::LOAD_VAR, idx);
 
-            int argCount = node.args ? static_cast<int>(node.args->parts.size()) : 0;
+            int argCount = static_cast<int>(node.args.size());
             this->current.get().emit(OpCode::CALL_LAMBDA, argCount);
             return;
         }
 
-        if (node.args) {
-            for (auto& part : node.args->parts)
-                part->accept(*this);
-        }
+        for (auto& arg : node.args)
+            arg->accept(*this);
 
         auto it = this->functionIndices.find(node.resolvedName);
         if (it == this->functionIndices.end() || node.functionOrdinal < 0 ||

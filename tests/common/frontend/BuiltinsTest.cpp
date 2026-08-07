@@ -33,6 +33,14 @@ TEST(MathBuiltinsTest, RandomInRange) {
     }
 }
 
+TEST(MathBuiltinsTest, AbsIntMinErrors) {
+    EXPECT_THROW(eval("math::abs(-2147483647 - 1)"), std::runtime_error);
+}
+
+TEST(MathBuiltinsTest, RandomInvalidRangeErrors) {
+    EXPECT_THROW(eval("math::random(5, 1)"), std::runtime_error);
+}
+
 TEST(StringBuiltinsTest, BasicString) {
     EXPECT_EQ(eval("string::length(\"hello\")"), "5");
     EXPECT_EQ(eval("string::upper(\"abc\")"), "ABC");
@@ -51,6 +59,11 @@ TEST(StringBuiltinsTest, MoreString) {
     EXPECT_EQ(eval("string::replace(\"abc\", \"\", \"x\")"), "abc");
     EXPECT_EQ(eval("string::upper(\"aBc\")"), "ABC");
     EXPECT_EQ(eval("string::lower(\"XyZ\")"), "xyz");
+}
+
+TEST(StringBuiltinsTest, Utf8CaseConversion) {
+    EXPECT_EQ(eval("string::upper(\"中文abc\")"), "中文ABC");
+    EXPECT_EQ(eval("string::lower(\"中文ABC\")"), "中文abc");
 }
 
 TEST(BuiltinsTest, UnregisteredFunction) {

@@ -65,6 +65,10 @@ namespace LOICollection::frontend::ir {
         void push(const ValueNode::ValueType& v);
         ValueNode::ValueType pop();
 
+        bool pushFrame(Frame&& frame);
+
         [[nodiscard]] bool isDerived(const BytecodeChunk& chunk, int derivedClassIndex, int baseClassIndex) const;
+
+        static constexpr size_t MAX_FRAMES = 1024;
     };
 }

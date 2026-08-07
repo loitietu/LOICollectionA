@@ -63,8 +63,13 @@ namespace LOICollection::frontend {
     void FunctionCall::unregisterFunction(const std::string& namespaces, const std::string& function, const CallbackTypeArgs& args, bool isCombination) {
         Signature sig{ function, args.size(), args, isCombination };
 
-        if (this->mImpl->mFunctions[namespaces].find(sig) != this->mImpl->mFunctions[namespaces].end())
-            this->mImpl->mFunctions[namespaces].erase(sig);
+        if (isCombination) {
+            this->mImpl->mFunctionCombinations[namespaces].erase(sig);
+
+            return;
+        }
+
+        this->mImpl->mFunctions[namespaces].erase(sig);
     }
 
     bool FunctionCall::isRegistered(const std::string& namespaces, const std::string& function, const CallbackTypeArgs& args) const {
@@ -84,11 +89,24 @@ namespace LOICollection::frontend {
         }
 
         Signature sig{ function, argTypes.size(), std::move(argTypes), false };
-        if (this->mImpl->mFunctions[namespaces].find(sig) != this->mImpl->mFunctions[namespaces].end())
-            return this->mImpl->mFunctions[namespaces][sig](args);
+        if (this->mImpl->mFunctions[namespaces].find(sig) != this->mImpl->mFunctions[namespaces].end()) {
+            auto result = this->mImpl->mFunctions[namespaces][sig](args);
+            if (!result.has_value())
+                return ll::makeStringError("Function callback threw: " + result.error().message());
+
+            return result;
+        }
 
         sig.isCombination = true;
-        return this->mImpl->mFunctionCombinations[namespaces][sig](args, placeholders);
+        if (this->mImpl->mFunctionCombinations[namespaces].find(sig) != this->mImpl->mFunctionCombinations[namespaces].end()) {
+            auto result = this->mImpl->mFunctionCombinations[namespaces][sig](args, placeholders);
+            if (!result.has_value())
+                return ll::makeStringError("Function callback threw: " + result.error().message());
+
+            return result;
+        }
+
+        return TypedValue{};
     }
     
     struct MacroCall::Impl {
@@ -119,8 +137,13 @@ namespace LOICollection::frontend {
     void MacroCall::unregisterMacro(const std::string& name, const CallbackTypeArgs& args, bool isCombination) {
         Signature sig{ name, args.size(), args, isCombination };
 
-        if (this->mImpl->mMacros.find(sig) != this->mImpl->mMacros.end())
-            this->mImpl->mMacros.erase(sig);
+        if (isCombination) {
+            this->mImpl->mMacroCombinations.erase(sig);
+
+            return;
+        }
+        
+        this->mImpl->mMacros.erase(sig);
     }
 
     bool MacroCall::isRegistered(const std::string& name, const CallbackTypeArgs& args) const {
@@ -140,11 +163,24 @@ namespace LOICollection::frontend {
         }
         
         Signature sig{ name, argTypes.size(), std::move(argTypes), false };
-        if (this->mImpl->mMacros.find(sig) != this->mImpl->mMacros.end())
-            return this->mImpl->mMacros[sig](args);
+        if (this->mImpl->mMacros.find(sig) != this->mImpl->mMacros.end()) {
+            auto result = this->mImpl->mMacros[sig](args);
+            if (!result.has_value())
+                return ll::makeStringError("Macro callback threw: " + result.error().message());
+
+            return result;
+        }
 
         sig.isCombination = true;
-        return this->mImpl->mMacroCombinations[sig](args, placeholders);
+        if (this->mImpl->mMacroCombinations.find(sig) != this->mImpl->mMacroCombinations.end()) {
+            auto result = this->mImpl->mMacroCombinations[sig](args, placeholders);
+            if (!result.has_value())
+                return ll::makeStringError("Macro callback threw: " + result.error().message());
+
+            return result;
+        }
+
+        return TypedValue{};
     }
 
     struct ClassCall::Impl {
@@ -233,6 +269,7 @@ namespace LOICollection::frontend {
             if (sig.name == method)
                 result.push_back(sig.args);
         }
+        
         for (const auto& [sig, callback] : it->second.methodCombinations) {
             if (sig.name == method)
                 result.push_back(sig.args);
@@ -253,12 +290,22 @@ namespace LOICollection::frontend {
 
         Signature sig{ name, argTypes.size(), argTypes, false };
 
-        if (info.constructors.find(sig) != info.constructors.end())
-            return info.constructors[sig](args);
+        if (info.constructors.find(sig) != info.constructors.end()) {
+            auto result = info.constructors[sig](args);
+            if (!result.has_value())
+                return ll::makeStringError("Constructor callback threw: " + result.error().message());
+
+            return result;
+        }
 
         sig.isCombination = true;
-        if (info.constructorCombinations.find(sig) != info.constructorCombinations.end())
-            return info.constructorCombinations[sig](args, placeholders);
+        if (info.constructorCombinations.find(sig) != info.constructorCombinations.end()) {
+            auto result = info.constructorCombinations[sig](args, placeholders);
+            if (!result.has_value())
+                return ll::makeStringError("Constructor callback threw: " + result.error().message());
+
+            return result;
+        }
 
         if (info.constructors.empty() && info.constructorCombinations.empty() && args.empty()) {
             auto obj = std::make_shared<Object>();
@@ -286,12 +333,22 @@ namespace LOICollection::frontend {
 
         Signature sig{ method, argTypes.size(), argTypes, false };
 
-        if (info.methods.find(sig) != info.methods.end())
-            return info.methods[sig](object, args);
+        if (info.methods.find(sig) != info.methods.end()) {
+            auto result = info.methods[sig](object, args);
+            if (!result.has_value()) 
+                return ll::makeStringError("Method callback threw: " + result.error().message());
+            
+            return result;
+        }
 
         sig.isCombination = true;
-        if (info.methodCombinations.find(sig) != info.methodCombinations.end())
-            return info.methodCombinations[sig](object, args, placeholders);
+        if (info.methodCombinations.find(sig) != info.methodCombinations.end()) {
+            auto result = info.methodCombinations[sig](object, args, placeholders);
+            if (!result.has_value()) 
+                return ll::makeStringError("Method callback threw: " + result.error().message());
+            
+            return result;
+        }
 
         return ll::makeErrorCodeError(std::make_error_code(std::errc::invalid_argument));
     }

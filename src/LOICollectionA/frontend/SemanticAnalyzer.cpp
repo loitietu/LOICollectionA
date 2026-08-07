@@ -54,12 +54,27 @@ namespace LOICollection::frontend {
 
     SemanticAnalyzer::SemanticAnalyzer(DiagnosticEngine& diag) : diagnostics(diag) {}
 
-    void SemanticAnalyzer::analyze(TemplateNode& root) {
+    void SemanticAnalyzer::analyze(ProgramNode& root) {
+        this->classes.clear();
+        this->orderedClasses.clear();
+        this->classByName.clear();
+        this->classMethodOrder.clear();
+        this->classMethodOrdinals.clear();
+        this->functions.clear();
+        this->functionsByName.clear();
+        this->globalTypes.clear();
+
         for (auto& part : root.parts) {
-            if (auto cls = dynamic_cast<ClassNode*>(part.get()))
-                registerClass(*cls);
-            else if (auto fn = dynamic_cast<FunctionDefNode*>(part.get()))
-                registerFunction(*fn);
+            switch (part->getType()) {
+                case ASTNode::Type::Class:
+                    registerClass(static_cast<ClassNode&>(*part));
+                    break;
+                case ASTNode::Type::FunctionDef:
+                    registerFunction(static_cast<FunctionDefNode&>(*part));
+                    break;
+                default:
+                    break;
+            }
         }
 
         resolveHierarchy();
@@ -69,7 +84,6 @@ namespace LOICollection::frontend {
         checkClassBodies();
         checkFunctionBodies();
         validateConstructors();
-        finalizePending();
     }
 
     void SemanticAnalyzer::resolveHierarchy() {
@@ -144,9 +158,8 @@ namespace LOICollection::frontend {
             if (!baseOpt)
                 continue;
 
-            ClassNode* ctorOwner = nullptr;
-            MethodDecl* baseCtor = this->findConstructor(baseOpt->get(), ctorOwner);
-            if (!baseCtor || baseCtor->params.empty())
+            auto baseCtor = this->findConstructor(baseOpt->get());
+            if (!baseCtor || baseCtor->method.get().params.empty())
                 continue;
 
             if (cls.constructorIndex == -1) {
@@ -226,15 +239,10 @@ namespace LOICollection::frontend {
         classByName.emplace(node.name, std::ref(node));
         classes.push_back(std::ref(node));
 
+        std::unordered_set<std::string> memberNames;
         for (const auto& member : node.members) {
-            for (const auto& prev : node.members) {
-                if (&prev == &member)
-                    break;
-                if (prev.name == member.name) {
-                    diagnostics.addError(member.loc, "Duplicate member variable: " + member.name);
-                    break;
-                }
-            }
+            if (!memberNames.insert(member.name).second)
+                diagnostics.addError(member.loc, "Duplicate member variable: " + member.name);
         }
 
         for (auto& member : node.members) {
@@ -273,14 +281,17 @@ namespace LOICollection::frontend {
             decl.returnType = typeFromName(decl.returnTypeName, decl.loc, true);
     }
 
-    void SemanticAnalyzer::checkTopLevel(TemplateNode& root) {
+    void SemanticAnalyzer::checkTopLevel(ProgramNode& root) {
         MethodScope emptyScope;
 
         for (auto& part : root.parts) {
-            if (dynamic_cast<ClassNode*>(part.get()) || dynamic_cast<FunctionDefNode*>(part.get()))
-                continue;
-
-            checkStatement(*part, emptyScope);
+            switch (part->getType()) {
+                case ASTNode::Type::Class:
+                case ASTNode::Type::FunctionDef:
+                    continue;
+                default:
+                    checkStatement(*part, emptyScope);
+            }
         }
     }
 
@@ -313,251 +324,252 @@ namespace LOICollection::frontend {
     }
 
     void SemanticAnalyzer::checkStatement(ASTNode& node, MethodScope& scope) {
-        if (dynamic_cast<ClassNode*>(&node) || dynamic_cast<FunctionDefNode*>(&node))
-            return;
-
-        if (auto ret = dynamic_cast<ReturnNode*>(&node)) {
-            checkReturn(*ret, scope);
-            return;
+        switch (node.getType()) {
+            case ASTNode::Type::Class:
+            case ASTNode::Type::FunctionDef:
+                return;
+            case ASTNode::Type::Return:
+                checkReturn(static_cast<ReturnNode&>(node), scope);
+                return;
+            case ASTNode::Type::Block:
+                for (auto& part : static_cast<BlockNode&>(node).parts)
+                    checkStatement(*part, scope);
+                return;
+            default:
+                checkExpr(static_cast<ExprNode&>(node), scope);
+                return;
         }
-
-        if (auto tpl = dynamic_cast<TemplateNode*>(&node)) {
-            for (auto& part : tpl->parts)
-                checkStatement(*part, scope);
-
-            return;
-        }
-
-        if (auto expr = dynamic_cast<ExprNode*>(&node))
-            checkExpr(*expr, scope);
     }
 
     TypeInfo SemanticAnalyzer::checkExpr(ExprNode& node, MethodScope& scope) {
-        if (auto assign = dynamic_cast<AssignmentNode*>(&node))
-            return checkAssignment(*assign, scope);
+        switch (node.getType()) {
+            case ASTNode::Type::Assignment:
+                return checkAssignment(static_cast<AssignmentNode&>(node), scope);
 
-        if (auto value = dynamic_cast<ValueNode*>(&node))
-            return typeOfValue(value->value);
+            case ASTNode::Type::Value:
+                return typeOfValue(static_cast<ValueNode&>(node).value);
 
-        if (auto var = dynamic_cast<VariableNode*>(&node)) {
-            TypeInfo type = lookupName(var->name, scope);
+            case ASTNode::Type::Variable: {
+                auto& var = static_cast<VariableNode&>(node);
+                TypeInfo type = lookupName(var.name, scope);
 
-            if (type.kind == TypeKind::Unknown && scope.hasClass()) {
-                ClassNode* owner = nullptr;
-                if (auto member = findField(scope.classRef(), var->name, owner)) {
-                    if (member->isPrivate && &scope.classRef() != owner) {
-                        diagnostics.addError(var->loc,
-                            "Cannot access private member '" + var->name + "'");
+                if (type.kind == TypeKind::Unknown && scope.hasClass()) {
+                    if (auto field = findField(scope.classRef(), var.name)) {
+                        if (field->member.get().isPrivate && &scope.classRef() != &field->owner.get()) {
+                            diagnostics.addError(var.loc,
+                                "Cannot access private member '" + var.name + "'");
+                        }
                     }
                 }
+
+                return type;
             }
 
-            return type;
-        }
+            case ASTNode::Type::This: {
+                auto& self = static_cast<ThisNode&>(node);
+                if (!scope.hasMethod() || !scope.hasClass()) {
+                    diagnostics.addError(self.loc, "'this' is only available inside class methods");
+                    return {};
+                }
 
-        if (auto self = dynamic_cast<ThisNode*>(&node)) {
-            if (!scope.hasMethod() || !scope.hasClass()) {
-                diagnostics.addError(self->loc, "'this' is only available inside class methods");
+                return { TypeKind::Object, scope.classRef().name };
+            }
+
+            case ASTNode::Type::Super: {
+                auto& superNode = static_cast<SuperNode&>(node);
+                if (!scope.hasMethod() || !scope.hasClass()) {
+                    diagnostics.addError(superNode.loc, "'super' is only available inside class methods");
+                    return {};
+                }
+
+                ClassNode& cls = scope.classRef();
+                if (cls.baseClassName.empty()) {
+                    diagnostics.addError(superNode.loc, "Class '" + cls.name + "' has no base class");
+                    return {};
+                }
+
+                return { TypeKind::Object, cls.baseClassName };
+            }
+
+            case ASTNode::Type::SuperCall:
+                return checkSuperCall(static_cast<SuperCallNode&>(node), scope);
+
+            case ASTNode::Type::InstanceOf:
+                return checkInstanceOf(static_cast<InstanceOfNode&>(node), scope);
+
+            case ASTNode::Type::New:
+                return checkNew(static_cast<NewNode&>(node), scope);
+
+            case ASTNode::Type::MemberAccess:
+                return checkMemberAccess(static_cast<MemberAccessNode&>(node), scope);
+
+            case ASTNode::Type::MethodCall:
+                return checkMethodCall(static_cast<MethodCallNode&>(node), scope);
+
+            case ASTNode::Type::FuncCall:
+                return checkFuncCall(static_cast<FuncCallNode&>(node), scope);
+
+            case ASTNode::Type::Lambda:
+                return checkLambda(static_cast<LambdaNode&>(node), scope);
+
+            case ASTNode::Type::If: {
+                auto& ifNode = static_cast<IfNode&>(node);
+                if (ifNode.condition)
+                    checkExpr(*ifNode.condition, scope);
+                if (ifNode.trueBranch)
+                    checkStatement(*ifNode.trueBranch, scope);
+                if (ifNode.falseBranch)
+                    checkStatement(*ifNode.falseBranch, scope);
+
                 return {};
             }
 
-            return { TypeKind::Object, scope.classRef().name };
-        }
+            case ASTNode::Type::Arithmetic: {
+                auto& arith = static_cast<ArithmeticNode&>(node);
+                TypeInfo left = checkExpr(*arith.left, scope);
+                TypeInfo right = checkExpr(*arith.right, scope);
 
-        if (auto superNode = dynamic_cast<SuperNode*>(&node)) {
-            if (!scope.hasMethod() || !scope.hasClass()) {
-                diagnostics.addError(superNode->loc, "'super' is only available inside class methods");
+                if (arith.op == "+" && (left.kind == TypeKind::String || right.kind == TypeKind::String))
+                    return { TypeKind::String };
+
+                if (isNumeric(left) && isNumeric(right)) {
+                    if ((arith.op == "+" || arith.op == "-" || arith.op == "*") &&
+                        left.kind == TypeKind::Int && right.kind == TypeKind::Int)
+                        return { TypeKind::Int };
+
+                    if (arith.op == "%" && left.kind == TypeKind::Int && right.kind == TypeKind::Int)
+                        return { TypeKind::Int };
+
+                    return { TypeKind::Float };
+                }
+
                 return {};
             }
 
-            ClassNode& cls = scope.classRef();
-            if (cls.baseClassName.empty()) {
-                diagnostics.addError(superNode->loc, "Class '" + cls.name + "' has no base class");
+            case ASTNode::Type::Compare: {
+                auto& cmp = static_cast<CompareNode&>(node);
+                checkExpr(*cmp.left, scope);
+                checkExpr(*cmp.right, scope);
+                return { TypeKind::Bool };
+            }
+
+            case ASTNode::Type::Logical: {
+                auto& logical = static_cast<LogicalNode&>(node);
+                checkExpr(*logical.left, scope);
+                checkExpr(*logical.right, scope);
+                return { TypeKind::Bool };
+            }
+
+            case ASTNode::Type::Unary: {
+                auto& unary = static_cast<UnaryNode&>(node);
+                TypeInfo operand = checkExpr(*unary.operand, scope);
+                return unary.op == "!" ? TypeInfo{ TypeKind::Bool } : operand;
+            }
+
+            case ASTNode::Type::Function:
+                for (auto& arg : static_cast<FunctionNode&>(node).args)
+                    checkExpr(*arg, scope);
                 return {};
-            }
 
-            return { TypeKind::Object, cls.baseClassName };
+            case ASTNode::Type::Macro:
+                for (auto& arg : static_cast<MacroNode&>(node).args)
+                    checkExpr(*arg, scope);
+                return {};
+
+            default:
+                return {};
         }
-
-        if (auto superCall = dynamic_cast<SuperCallNode*>(&node))
-            return checkSuperCall(*superCall, scope);
-
-        if (auto instanceOf = dynamic_cast<InstanceOfNode*>(&node))
-            return checkInstanceOf(*instanceOf, scope);
-
-        if (auto newExpr = dynamic_cast<NewNode*>(&node))
-            return checkNew(*newExpr, scope);
-
-        if (auto member = dynamic_cast<MemberAccessNode*>(&node))
-            return checkMemberAccess(*member, scope);
-
-        if (auto call = dynamic_cast<MethodCallNode*>(&node))
-            return checkMethodCall(*call, scope);
-
-        if (auto funcCall = dynamic_cast<FuncCallNode*>(&node))
-            return checkFuncCall(*funcCall, scope);
-
-        if (auto lambda = dynamic_cast<LambdaNode*>(&node))
-            return checkLambda(*lambda, scope);
-
-        if (auto ifNode = dynamic_cast<IfNode*>(&node)) {
-            if (ifNode->condition)
-                checkExpr(*ifNode->condition, scope);
-            if (ifNode->trueBranch)
-                checkStatement(*ifNode->trueBranch, scope);
-            if (ifNode->falseBranch)
-                checkStatement(*ifNode->falseBranch, scope);
-
-            return {};
-        }
-
-        if (auto arith = dynamic_cast<ArithmeticNode*>(&node)) {
-            TypeInfo left = checkExpr(*arith->left, scope);
-            TypeInfo right = checkExpr(*arith->right, scope);
-
-            if (arith->op == "+" && (left.kind == TypeKind::String || right.kind == TypeKind::String))
-                return { TypeKind::String };
-
-            if (isNumeric(left) && isNumeric(right)) {
-                if ((arith->op == "+" || arith->op == "-" || arith->op == "*") &&
-                    left.kind == TypeKind::Int && right.kind == TypeKind::Int)
-                    return { TypeKind::Int };
-
-                if (arith->op == "%" && left.kind == TypeKind::Int && right.kind == TypeKind::Int)
-                    return { TypeKind::Int };
-
-                return { TypeKind::Float };
-            }
-
-            return {};
-        }
-
-        if (auto cmp = dynamic_cast<CompareNode*>(&node)) {
-            checkExpr(*cmp->left, scope);
-            checkExpr(*cmp->right, scope);
-            return { TypeKind::Bool };
-        }
-
-        if (auto logical = dynamic_cast<LogicalNode*>(&node)) {
-            checkExpr(*logical->left, scope);
-            checkExpr(*logical->right, scope);
-            return { TypeKind::Bool };
-        }
-
-        if (auto unary = dynamic_cast<UnaryNode*>(&node)) {
-            TypeInfo operand = checkExpr(*unary->operand, scope);
-            return unary->op == "!" ? TypeInfo{ TypeKind::Bool } : operand;
-        }
-
-        if (auto func = dynamic_cast<FunctionNode*>(&node)) {
-            if (func->args) {
-                for (auto& part : func->args->parts)
-                    if (auto expr = dynamic_cast<ExprNode*>(part.get()))
-                        checkExpr(*expr, scope);
-            }
-            return {};
-        }
-
-        if (auto macro = dynamic_cast<MacroNode*>(&node)) {
-            if (macro->args) {
-                for (auto& part : macro->args->parts)
-                    if (auto expr = dynamic_cast<ExprNode*>(part.get()))
-                        checkExpr(*expr, scope);
-            }
-            return {};
-        }
-
-        if (auto tpl = dynamic_cast<TemplateNode*>(&node)) {
-            for (auto& part : tpl->parts)
-                checkStatement(*part, scope);
-
-            return {};
-        }
-
-        return {};
     }
 
     TypeInfo SemanticAnalyzer::checkAssignment(AssignmentNode& node, MethodScope& scope) {
         TypeInfo rhs = checkExpr(*node.value, scope);
 
-        if (auto var = dynamic_cast<VariableNode*>(node.target.get())) {
-            if (scope.hasMethod()) {
-                MethodDecl& method = scope.methodRef();
-                for (size_t i = 0; i < method.params.size(); ++i) {
-                    if (method.params[i].name == var->name) {
-                        unify(method.paramTypes[i], rhs, node.loc, "parameter '" + var->name + "'");
-                        return rhs;
-                    }
-                }
-
-                if (scope.hasClass()) {
-                    ClassNode* owner = nullptr;
-                    if (auto member = findField(scope.classRef(), var->name, owner)) {
-                        if (member->isPrivate && &scope.classRef() != owner) {
-                            diagnostics.addError(node.loc,
-                                "Cannot access private member '" + member->name + "'");
+        switch (node.target->getType()) {
+            case ASTNode::Type::Variable: {
+                auto& var = static_cast<VariableNode&>(*node.target);
+                if (scope.hasMethod()) {
+                    MethodDecl& method = scope.methodRef();
+                    for (size_t i = 0; i < method.params.size(); ++i) {
+                        if (method.params[i].name == var.name) {
+                            if (method.params[i].hasType)
+                                unify(method.paramTypes[i], rhs, node.loc, "parameter '" + var.name + "'");
+                            return rhs;
                         }
+                    }
 
-                        unify(member->type, rhs, node.loc, "member '" + var->name + "'");
-                        return rhs;
+                    if (scope.hasClass()) {
+                        if (auto field = findField(scope.classRef(), var.name)) {
+                            ClassMember& member = field->member.get();
+                            if (member.isPrivate && &scope.classRef() != &field->owner.get()) {
+                                diagnostics.addError(node.loc,
+                                    "Cannot access private member '" + member.name + "'");
+                            }
+
+                            if (member.hasDefault)
+                                unify(member.type, rhs, node.loc, "member '" + var.name + "'");
+                            return rhs;
+                        }
                     }
                 }
-            }
 
-            // 全局变量采用动态类型，直接更新
-            if (rhs.kind != TypeKind::Unknown)
-                globalTypes[var->name] = rhs;
-            else
-                globalTypes.try_emplace(var->name, rhs);
+                // 全局变量采用动态类型，直接更新
+                if (rhs.kind != TypeKind::Unknown)
+                    globalTypes[var.name] = rhs;
+                else
+                    globalTypes.try_emplace(var.name, rhs);
 
-            return rhs;
-        }
-
-        if (auto member = dynamic_cast<MemberAccessNode*>(node.target.get())) {
-            TypeInfo targetType = checkExpr(*member->target, scope);
-
-            if (targetType.kind == TypeKind::Unknown)
-                return rhs;
-
-            if (targetType.kind != TypeKind::Object) {
-                diagnostics.addError(node.loc, "Cannot access member of a non-object value");
                 return rhs;
             }
 
-            auto clsOpt = findClass(targetType.className);
-            if (!clsOpt) {
-                if (isNativeClass(targetType.className)) {
-                    if (ClassCall::getInstance().hasField(targetType.className, member->memberName)) {
-                        return rhs;
-                    }
+            case ASTNode::Type::MemberAccess: {
+                auto& member = static_cast<MemberAccessNode&>(*node.target);
+                TypeInfo targetType = checkExpr(*member.target, scope);
 
-                    diagnostics.addError(node.loc,
-                        "Class '" + targetType.className + "' has no member '" + member->memberName + "'");
+                if (targetType.kind == TypeKind::Unknown)
+                    return rhs;
+
+                if (targetType.kind != TypeKind::Object) {
+                    diagnostics.addError(node.loc, "Cannot access member of a non-object value");
                     return rhs;
                 }
 
-                diagnostics.addError(node.loc, "Unknown class: " + targetType.className);
-                return rhs;
-            }
+                auto clsOpt = findClass(targetType.className);
+                if (!clsOpt) {
+                    if (isNativeClass(targetType.className)) {
+                        if (ClassCall::getInstance().hasField(targetType.className, member.memberName)) {
+                            return rhs;
+                        }
 
-            ClassNode& cls = clsOpt->get();
-            ClassNode* owner = nullptr;
-            if (auto m = findField(cls, member->memberName, owner)) {
-                if (m->isPrivate && !(scope.hasMethod() && &scope.classRef() == owner)) {
-                    diagnostics.addError(node.loc, "Cannot access private member '" + m->name + "'");
+                        diagnostics.addError(node.loc,
+                            "Class '" + targetType.className + "' has no member '" + member.memberName + "'");
+                        return rhs;
+                    }
+
+                    diagnostics.addError(node.loc, "Unknown class: " + targetType.className);
+                    return rhs;
                 }
 
-                unify(m->type, rhs, node.loc, "member '" + m->name + "'");
+                ClassNode& cls = clsOpt->get();
+                if (auto field = findField(cls, member.memberName)) {
+                    ClassMember& m = field->member.get();
+                    if (m.isPrivate && !(scope.hasMethod() && &scope.classRef() == &field->owner.get())) {
+                        diagnostics.addError(node.loc, "Cannot access private member '" + m.name + "'");
+                    }
+
+                    if (m.hasDefault)
+                        unify(m.type, rhs, node.loc, "member '" + m.name + "'");
+                    return rhs;
+                }
+
+                diagnostics.addError(node.loc,
+                    "Class '" + cls.name + "' has no member '" + member.memberName + "'");
                 return rhs;
             }
 
-            diagnostics.addError(node.loc,
-                "Class '" + cls.name + "' has no member '" + member->memberName + "'");
-            return rhs;
+            default:
+                diagnostics.addError(node.loc, "Invalid assignment target");
+                return rhs;
         }
-
-        diagnostics.addError(node.loc, "Invalid assignment target");
-        return rhs;
     }
 
     TypeInfo SemanticAnalyzer::checkMemberAccess(MemberAccessNode& node, MethodScope& scope) {
@@ -587,14 +599,14 @@ namespace LOICollection::frontend {
         }
 
         ClassNode& cls = clsOpt->get();
-        ClassNode* owner = nullptr;
-        if (auto m = findField(cls, node.memberName, owner)) {
-            if (m->isPrivate && !(scope.hasMethod() && &scope.classRef() == owner)) {
+        if (auto field = findField(cls, node.memberName)) {
+            ClassMember& m = field->member.get();
+            if (m.isPrivate && !(scope.hasMethod() && &scope.classRef() == &field->owner.get())) {
                 diagnostics.addError(node.loc,
-                    "Cannot access private member '" + m->name + "' of class '" + owner->name + "'");
+                    "Cannot access private member '" + m.name + "' of class '" + field->owner.get().name + "'");
             }
 
-            return m->type;
+            return m.type;
         }
 
         diagnostics.addError(node.loc,
@@ -610,16 +622,12 @@ namespace LOICollection::frontend {
             return {};
         }
 
-        size_t argCount = node.args ? node.args->parts.size() : 0;
+        size_t argCount = node.args.size();
 
         std::vector<TypeInfo> argTypes;
         argTypes.reserve(argCount);
-        if (node.args) {
-            for (auto& part : node.args->parts) {
-                if (auto expr = dynamic_cast<ExprNode*>(part.get()))
-                    argTypes.push_back(checkExpr(*expr, scope));
-            }
-        }
+        for (auto& arg : node.args)
+            argTypes.push_back(checkExpr(*arg, scope));
 
         auto clsOpt = findClass(targetType.className);
         if (!clsOpt) {
@@ -648,16 +656,17 @@ namespace LOICollection::frontend {
 
         ClassNode& cls = clsOpt->get();
 
-        std::vector<std::pair<ClassNode*, MethodDecl*>> candidates;
-        ClassNode* walk = &cls;
+        std::vector<std::pair<std::reference_wrapper<ClassNode>, std::reference_wrapper<MethodDecl>>> candidates;
+        std::optional<std::reference_wrapper<ClassNode>> walk = std::ref(cls);
         for (size_t step = 0; step <= this->classes.size() && walk; ++step) {
-            for (auto& method : walk->methods) {
+            ClassNode& current = walk->get();
+            for (auto& method : current.methods) {
                 if (method.isConstructor || method.name != node.methodName)
                     continue;
                 if (method.params.size() != argCount)
                     continue;
                 if (method.isPrivate &&
-                    !(scope.hasMethod() && &scope.classRef() == walk)) {
+                    !(scope.hasMethod() && &scope.classRef() == &current)) {
                     continue;
                 }
 
@@ -673,17 +682,17 @@ namespace LOICollection::frontend {
                 }
 
                 if (match)
-                    candidates.emplace_back(walk, &method);
+                    candidates.emplace_back(std::ref(current), std::ref(method));
             }
 
-            if (walk->baseClassName.empty())
+            if (current.baseClassName.empty())
                 break;
 
-            auto baseOpt = this->findClass(walk->baseClassName);
+            auto baseOpt = this->findClass(current.baseClassName);
             if (!baseOpt)
                 break;
 
-            walk = &baseOpt->get();
+            walk = baseOpt;
         }
 
         if (candidates.empty()) {
@@ -693,32 +702,36 @@ namespace LOICollection::frontend {
             return {};
         }
 
-        auto depthOf = [&](ClassNode* owner) {
+        auto depthOf = [&](const ClassNode& owner) {
             int depth = 0;
-            ClassNode* cur = &cls;
-            for (size_t step = 0; step <= this->classes.size() && cur && cur != owner; ++step) {
+            std::optional<std::reference_wrapper<ClassNode>> cur = std::ref(cls);
+            for (size_t step = 0; step <= this->classes.size() && cur; ++step) {
+                ClassNode& current = cur->get();
+                if (&current == &owner)
+                    return depth;
+
                 depth++;
 
-                if (cur->baseClassName.empty())
+                if (current.baseClassName.empty())
                     return std::numeric_limits<int>::max();
 
-                auto baseOpt = this->findClass(cur->baseClassName);
+                auto baseOpt = this->findClass(current.baseClassName);
                 if (!baseOpt)
                     return std::numeric_limits<int>::max();
 
-                cur = &baseOpt->get();
+                cur = baseOpt;
             }
 
-            return depth;
+            return std::numeric_limits<int>::max();
         };
 
         auto best = candidates[0];
-        int bestDepth = depthOf(best.first);
-        size_t bestScore = knownParamCount(*best.second);
+        int bestDepth = depthOf(best.first.get());
+        size_t bestScore = knownParamCount(best.second.get());
 
         for (size_t i = 1; i < candidates.size(); ++i) {
-            int depth = depthOf(candidates[i].first);
-            size_t score = knownParamCount(*candidates[i].second);
+            int depth = depthOf(candidates[i].first.get());
+            size_t score = knownParamCount(candidates[i].second.get());
 
             if (depth < bestDepth || (depth == bestDepth && score > bestScore)) {
                 best = candidates[i];
@@ -727,14 +740,7 @@ namespace LOICollection::frontend {
             }
         }
 
-        MethodDecl& method = *best.second;
-
-        for (size_t j = 0; j < argCount; ++j) {
-            if (method.paramTypes[j].kind == TypeKind::Unknown &&
-                argTypes[j].kind != TypeKind::Unknown) {
-                method.paramTypes[j] = argTypes[j];
-            }
-        }
+        MethodDecl& method = best.second.get();
 
         node.className = cls.name;
         node.methodOrdinal = this->methodOrdinal(cls.name, this->methodSignature(method));
@@ -743,16 +749,12 @@ namespace LOICollection::frontend {
     }
 
     TypeInfo SemanticAnalyzer::checkFuncCall(FuncCallNode& node, MethodScope& scope) {
-        size_t argCount = node.args ? node.args->parts.size() : 0;
+        size_t argCount = node.args.size();
 
         std::vector<TypeInfo> argTypes;
         argTypes.reserve(argCount);
-        if (node.args) {
-            for (auto& part : node.args->parts) {
-                if (auto expr = dynamic_cast<ExprNode*>(part.get()))
-                    argTypes.push_back(checkExpr(*expr, scope));
-            }
-        }
+        for (auto& arg : node.args)
+            argTypes.push_back(checkExpr(*arg, scope));
 
         auto it = functionsByName.find(node.name);
         if (it == functionsByName.end() || it->second.empty()) {
@@ -817,13 +819,6 @@ namespace LOICollection::frontend {
 
         MethodDecl& decl = it->second[best].get().decl;
 
-        for (size_t j = 0; j < argCount; ++j) {
-            if (decl.paramTypes[j].kind == TypeKind::Unknown &&
-                argTypes[j].kind != TypeKind::Unknown) {
-                decl.paramTypes[j] = argTypes[j];
-            }
-        }
-
         node.resolvedName = node.name;
         node.functionOrdinal = static_cast<int>(best);
 
@@ -831,16 +826,12 @@ namespace LOICollection::frontend {
     }
 
     TypeInfo SemanticAnalyzer::checkNew(NewNode& node, MethodScope& scope) {
-        size_t argCount = node.args ? node.args->parts.size() : 0;
+        size_t argCount = node.args.size();
 
         std::vector<TypeInfo> argTypes;
         argTypes.reserve(argCount);
-        if (node.args) {
-            for (auto& part : node.args->parts) {
-                if (auto expr = dynamic_cast<ExprNode*>(part.get()))
-                    argTypes.push_back(checkExpr(*expr, scope));
-            }
-        }
+        for (auto& arg : node.args)
+            argTypes.push_back(checkExpr(*arg, scope));
 
         auto clsOpt = findClass(node.className);
         if (!clsOpt) {
@@ -873,10 +864,9 @@ namespace LOICollection::frontend {
         }
 
         ClassNode& cls = clsOpt->get();
-        ClassNode* ctorOwner = nullptr;
-        MethodDecl* ctorPtr = this->findConstructor(cls, ctorOwner);
+        auto ctorRef = this->findConstructor(cls);
 
-        if (!ctorPtr) {
+        if (!ctorRef) {
             if (argCount != 0) {
                 diagnostics.addError(node.loc,
                     "Class '" + cls.name + "' has no constructor");
@@ -885,7 +875,7 @@ namespace LOICollection::frontend {
             return { TypeKind::Object, cls.name };
         }
 
-        MethodDecl& ctor = *ctorPtr;
+        MethodDecl& ctor = ctorRef->method.get();
 
         if (ctor.params.size() != argCount) {
             diagnostics.addError(node.loc,
@@ -896,25 +886,18 @@ namespace LOICollection::frontend {
             return { TypeKind::Object, cls.name };
         }
 
-        bool hasUnknownArg = false;
         for (size_t j = 0; j < argCount; ++j) {
-            if (argTypes[j].kind == TypeKind::Unknown) {
-                hasUnknownArg = true;
+            if (ctor.paramTypes[j].kind == TypeKind::Unknown ||
+                argTypes[j].kind == TypeKind::Unknown)
                 continue;
-            }
 
-            if (ctor.paramTypes[j].kind == TypeKind::Unknown) {
-                ctor.paramTypes[j] = argTypes[j];
-            } else if (!this->isTypeCompatible(ctor.paramTypes[j], argTypes[j])) {
+            if (!this->isTypeCompatible(ctor.paramTypes[j], argTypes[j])) {
                 diagnostics.addError(node.loc,
                     "Type mismatch for constructor parameter '" + ctor.params[j].name +
                     "': expected " + typeToString(ctor.paramTypes[j]) +
                     ", got " + typeToString(argTypes[j]));
             }
         }
-
-        if (hasUnknownArg)
-            pendingNewSites.push_back(std::ref(node));
 
         return { TypeKind::Object, cls.name };
     }
@@ -939,15 +922,11 @@ namespace LOICollection::frontend {
 
         method.hasSuperCall = true;
 
-        size_t argCount = node.args ? node.args->parts.size() : 0;
+        size_t argCount = node.args.size();
         std::vector<TypeInfo> argTypes;
         argTypes.reserve(argCount);
-        if (node.args) {
-            for (auto& part : node.args->parts) {
-                if (auto expr = dynamic_cast<ExprNode*>(part.get()))
-                    argTypes.push_back(checkExpr(*expr, scope));
-            }
-        }
+        for (auto& arg : node.args)
+            argTypes.push_back(checkExpr(*arg, scope));
 
         auto baseOpt = this->findClass(cls.baseClassName);
         if (!baseOpt) {
@@ -955,10 +934,9 @@ namespace LOICollection::frontend {
             return {};
         }
 
-        ClassNode* ctorOwner = nullptr;
-        MethodDecl* ctor = this->findConstructor(baseOpt->get(), ctorOwner);
+        auto ctorRef = this->findConstructor(baseOpt->get());
 
-        if (!ctor) {
+        if (!ctorRef) {
             if (argCount != 0) {
                 diagnostics.addError(node.loc, "Base class has no constructor");
             }
@@ -967,30 +945,33 @@ namespace LOICollection::frontend {
             return {};
         }
 
-        node.className = ctorOwner->name;
-        for (size_t i = 0; i < ctorOwner->methods.size(); ++i) {
-            if (&ctorOwner->methods[i] == ctor) {
+        ClassNode& ctorOwner = ctorRef->owner.get();
+        MethodDecl& ctor = ctorRef->method.get();
+        node.className = ctorOwner.name;
+        for (size_t i = 0; i < ctorOwner.methods.size(); ++i) {
+            if (&ctorOwner.methods[i] == &ctor) {
                 node.constructorIndex = static_cast<int>(i);
                 break;
             }
         }
 
-        if (ctor->params.size() != argCount) {
+        if (ctor.params.size() != argCount) {
             diagnostics.addError(node.loc,
                 "Base constructor of class '" + cls.baseClassName + "' expects " +
-                std::to_string(ctor->params.size()) + " argument(s), got " +
+                std::to_string(ctor.params.size()) + " argument(s), got " +
                 std::to_string(argCount));
             return {};
         }
 
         for (size_t j = 0; j < argCount; ++j) {
-            if (ctor->paramTypes[j].kind == TypeKind::Unknown) {
-                ctor->paramTypes[j] = argTypes[j];
-            } else if (argTypes[j].kind != TypeKind::Unknown &&
-                       !this->isTypeCompatible(ctor->paramTypes[j], argTypes[j])) {
+            if (ctor.paramTypes[j].kind == TypeKind::Unknown ||
+                argTypes[j].kind == TypeKind::Unknown)
+                continue;
+
+            if (!this->isTypeCompatible(ctor.paramTypes[j], argTypes[j])) {
                 diagnostics.addError(node.loc,
-                    "Type mismatch for base constructor parameter '" + ctor->params[j].name +
-                    "': expected " + typeToString(ctor->paramTypes[j]) +
+                    "Type mismatch for base constructor parameter '" + ctor.params[j].name +
+                    "': expected " + typeToString(ctor.paramTypes[j]) +
                     ", got " + typeToString(argTypes[j]));
             }
         }
@@ -1026,18 +1007,16 @@ namespace LOICollection::frontend {
                     "Void function '" + method.name + "' cannot return a value");
                 return valueType;
             }
-        }
 
-        if (method.returnType.kind == TypeKind::Unknown &&
-            valueType.kind != TypeKind::Unknown) {
-            method.returnType = valueType;
-        } else if (method.returnType.kind != TypeKind::Unknown &&
-                   valueType.kind != TypeKind::Unknown &&
-                   !this->isTypeCompatible(method.returnType, valueType)) {
-            diagnostics.addError(node.loc,
-                "Return type mismatch in function '" + method.name +
-                "': expected " + typeToString(method.returnType) +
-                ", got " + typeToString(valueType));
+            if (method.hasReturnType &&
+                method.returnType.kind != TypeKind::Unknown &&
+                valueType.kind != TypeKind::Unknown &&
+                !this->isTypeCompatible(method.returnType, valueType)) {
+                diagnostics.addError(node.loc,
+                    "Return type mismatch in function '" + method.name +
+                    "': expected " + typeToString(method.returnType) +
+                    ", got " + typeToString(valueType));
+            }
         }
 
         return valueType;
@@ -1081,12 +1060,11 @@ namespace LOICollection::frontend {
             }
 
             if (scope.hasClass()) {
-                ClassNode* owner = nullptr;
-                if (auto member = findField(scope.classRef(), name, owner)) {
-                    if (member->isPrivate && &scope.classRef() != owner)
+                if (auto field = findField(scope.classRef(), name)) {
+                    if (field->member.get().isPrivate && &scope.classRef() != &field->owner.get())
                         return {};
 
-                    return member->type;
+                    return field->member.get().type;
                 }
             }
         }
@@ -1106,11 +1084,8 @@ namespace LOICollection::frontend {
                     return true;
             }
 
-            if (scope.hasClass()) {
-                ClassNode* owner = nullptr;
-                if (findField(scope.classRef(), name, owner))
-                    return true;
-            }
+            if (scope.hasClass() && findField(scope.classRef(), name))
+                return true;
         }
 
         return globalTypes.find(name) != globalTypes.end();
@@ -1198,73 +1173,50 @@ namespace LOICollection::frontend {
         return false;
     }
 
-    ClassMember* SemanticAnalyzer::findField(ClassNode& cls, const std::string& name, ClassNode*& owner) const {
-        ClassNode* current = &cls;
+    std::optional<SemanticAnalyzer::FieldRef> SemanticAnalyzer::findField(ClassNode& cls, const std::string& name) const {
+        std::optional<std::reference_wrapper<ClassNode>> current = std::ref(cls);
         for (size_t step = 0; step <= this->classes.size() && current; ++step) {
-            for (auto& member : current->members) {
+            ClassNode& clsRef = current->get();
+            for (auto& member : clsRef.members) {
                 if (member.name == name) {
-                    owner = current;
-                    return &member;
+                    return FieldRef{ std::ref(member), std::ref(clsRef) };
                 }
             }
 
-            if (current->baseClassName.empty())
+            if (clsRef.baseClassName.empty())
                 break;
 
-            auto baseOpt = this->findClass(current->baseClassName);
+            auto baseOpt = this->findClass(clsRef.baseClassName);
             if (!baseOpt)
                 break;
 
-            current = &baseOpt->get();
+            current = baseOpt;
         }
 
-        owner = nullptr;
-        return nullptr;
+        return std::nullopt;
     }
 
-    MethodDecl* SemanticAnalyzer::findConstructor(ClassNode& cls, ClassNode*& owner) const {
-        ClassNode* current = &cls;
+    std::optional<SemanticAnalyzer::ConstructorRef> SemanticAnalyzer::findConstructor(ClassNode& cls) const {
+        std::optional<std::reference_wrapper<ClassNode>> current = std::ref(cls);
         for (size_t step = 0; step <= this->classes.size() && current; ++step) {
-            for (auto& method : current->methods) {
+            ClassNode& clsRef = current->get();
+            for (auto& method : clsRef.methods) {
                 if (method.isConstructor) {
-                    owner = current;
-                    return &method;
+                    return ConstructorRef{ std::ref(method), std::ref(clsRef) };
                 }
             }
 
-            if (current->baseClassName.empty())
+            if (clsRef.baseClassName.empty())
                 break;
 
-            auto baseOpt = this->findClass(current->baseClassName);
+            auto baseOpt = this->findClass(clsRef.baseClassName);
             if (!baseOpt)
                 break;
 
-            current = &baseOpt->get();
+            current = baseOpt;
         }
 
-        owner = nullptr;
-        return nullptr;
+        return std::nullopt;
     }
 
-    void SemanticAnalyzer::finalizePending() {
-        for (auto node : pendingNewSites) {
-            auto clsOpt = findClass(node.get().className);
-            if (!clsOpt)
-                continue;
-
-            ClassNode& cls = clsOpt->get();
-            ClassNode* ctorOwner = nullptr;
-            MethodDecl* ctor = findConstructor(cls, ctorOwner);
-            if (!ctor)
-                continue;
-
-            for (size_t j = 0; j < ctor->params.size(); ++j) {
-                if (ctor->paramTypes[j].kind == TypeKind::Unknown) {
-                    diagnostics.addError(node.get().loc,
-                        "Cannot infer type of constructor parameter '" +
-                        ctor->params[j].name + "' of class '" + cls.name + "'");
-                }
-            }
-        }
-    }
 }

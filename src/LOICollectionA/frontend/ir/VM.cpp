@@ -1,4 +1,6 @@
 #include <cmath>
+#include <cctype>
+#include <limits>
 #include <ranges>
 #include <string>
 #include <vector>
@@ -48,25 +50,49 @@ namespace LOICollection::frontend::ir {
                 auto dr = static_cast<double>(r);
 
                 if (op == "+") {
-                    if constexpr (std::is_integral_v<T> && std::is_integral_v<U>)
-                        return l + r;
+                    if constexpr (std::is_integral_v<T> && std::is_integral_v<U>) {
+                        long long result = static_cast<long long>(l) + static_cast<long long>(r);
+                        if (result < std::numeric_limits<int>::min() || result > std::numeric_limits<int>::max()) {
+                            diagnostics.addError({ 0, 0, 0 }, "Integer overflow in addition");
+                            return 0;
+                        }
+                        return static_cast<int>(result);
+                    }
                     return static_cast<float>(dl + dr);
                 }
                 if (op == "-") {
-                    if constexpr (std::is_integral_v<T> && std::is_integral_v<U>)
-                        return l - r;
+                    if constexpr (std::is_integral_v<T> && std::is_integral_v<U>) {
+                        long long result = static_cast<long long>(l) - static_cast<long long>(r);
+                        if (result < std::numeric_limits<int>::min() || result > std::numeric_limits<int>::max()) {
+                            diagnostics.addError({ 0, 0, 0 }, "Integer overflow in subtraction");
+                            return 0;
+                        }
+                        return static_cast<int>(result);
+                    }
                     return static_cast<float>(dl - dr);
                 }
                 if (op == "*") {
-                    if constexpr (std::is_integral_v<T> && std::is_integral_v<U>)
-                        return l * r;
+                    if constexpr (std::is_integral_v<T> && std::is_integral_v<U>) {
+                        long long result = static_cast<long long>(l) * static_cast<long long>(r);
+                        if (result < std::numeric_limits<int>::min() || result > std::numeric_limits<int>::max()) {
+                            diagnostics.addError({ 0, 0, 0 }, "Integer overflow in multiplication");
+                            return 0;
+                        }
+                        return static_cast<int>(result);
+                    }
                     return static_cast<float>(dl * dr);
                 }
                 if (op == "/") return static_cast<float>(dl / dr);
                 if (op == "^") return static_cast<float>(MathUtils::pow(dl, dr));
                 if (op == "%") {
-                    if constexpr (std::is_integral_v<T> && std::is_integral_v<U>)
-                        return l % r;
+                    if constexpr (std::is_integral_v<T> && std::is_integral_v<U>) {
+                        auto divisor = static_cast<long long>(r);
+                        if (divisor == 0) {
+                            diagnostics.addError({ 0, 0, 0 }, "Modulo by zero");
+                            return 0;
+                        }
+                        return static_cast<int>(static_cast<long long>(l) % divisor);
+                    }
                         
                     diagnostics.addError({ 0, 0, 0 }, "Modulo requires integral types");
                     return 0;
@@ -89,7 +115,15 @@ namespace LOICollection::frontend::ir {
 
             if constexpr (std::is_arithmetic_v<T>) {
                 if (op == "+") return arg;
-                if (op == "-") return -arg;
+                if (op == "-") {
+                    if constexpr (std::is_integral_v<T>) {
+                        if (arg == std::numeric_limits<int>::min()) {
+                            diagnostics.addError({ 0, 0, 0 }, "Integer overflow in unary negation");
+                            return 0;
+                        }
+                    }
+                    return -arg;
+                }
             }
             if (op == "!") return !VM::valueToBool(arg);
 
@@ -107,7 +141,11 @@ namespace LOICollection::frontend::ir {
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, float>)
                 return std::abs(arg) > std::numeric_limits<float>::epsilon();
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::string>) {
-                auto lower = arg | std::views::transform(::tolower) | std::ranges::to<std::string>();
+                auto lower = arg
+                    | std::views::transform([](char c) {
+                          return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                      })
+                    | std::ranges::to<std::string>();
                 if (lower == "false") return false;
                 if (lower == "true") return true;
                 
@@ -181,6 +219,16 @@ namespace LOICollection::frontend::ir {
         return v;
     }
 
+    bool VM::pushFrame(Frame&& frame) {
+        if (this->frames.size() >= VM::MAX_FRAMES) {
+            this->diagnostics.addError({ 0, 0, 0 }, "Call stack depth limit exceeded");
+            return false;
+        }
+
+        this->frames.push_back(std::move(frame));
+        return true;
+    }
+
     bool VM::isDerived(const BytecodeChunk& chunk, int derivedClassIndex, int baseClassIndex) const {
         if (derivedClassIndex == baseClassIndex) return true;
         if (derivedClassIndex < 0 || derivedClassIndex >= static_cast<int>(chunk.classes.size())) return false;
@@ -223,6 +271,9 @@ namespace LOICollection::frontend::ir {
 
         size_t executed = 0;
         while (true) {
+            if (this->diagnostics.hasErrors())
+                return std::string("");
+
             if (++executed > 1'000'000) {
                 this->diagnostics.addError({ 0, 0, 0 }, "Instruction limit exceeded (possible infinite loop)");
                 return ValueNode::ValueType{};
@@ -458,7 +509,8 @@ namespace LOICollection::frontend::ir {
                         for (int i = 0; i < ctor.argCount; ++i)
                             callee.locals[ctor.paramNames[i]] = args[i];
 
-                        this->frames.push_back(std::move(callee));
+                        if (!this->pushFrame(std::move(callee)))
+                            break;
                     } else {
                         this->push(obj);
                     }
@@ -513,7 +565,8 @@ namespace LOICollection::frontend::ir {
                     for (int i = 0; i < meta.argCount; ++i)
                         callee.locals[meta.paramNames[i]] = args[i];
 
-                    this->frames.push_back(std::move(callee));
+                    if (!this->pushFrame(std::move(callee)))
+                        break;
                     break;
                 }
 
@@ -562,7 +615,8 @@ namespace LOICollection::frontend::ir {
                     for (int i = 0; i < method.argCount; ++i)
                         callee.locals[method.paramNames[i]] = args[i];
 
-                    this->frames.push_back(std::move(callee));
+                    if (!this->pushFrame(std::move(callee)))
+                        break;
                     break;
                 }
 
@@ -603,7 +657,8 @@ namespace LOICollection::frontend::ir {
                     for (int i = 0; i < ctor.argCount; ++i)
                         callee.locals[ctor.paramNames[i]] = args[i];
 
-                    this->frames.push_back(std::move(callee));
+                    if (!this->pushFrame(std::move(callee)))
+                        break;
                     break;
                 }
 
@@ -650,7 +705,8 @@ namespace LOICollection::frontend::ir {
                     for (int i = 0; i < meta.argCount; ++i)
                         callee.locals[meta.paramNames[i]] = args[i];
 
-                    this->frames.push_back(std::move(callee));
+                    if (!this->pushFrame(std::move(callee)))
+                        break;
                     break;
                 }
 
@@ -689,7 +745,8 @@ namespace LOICollection::frontend::ir {
                     for (int i = 0; i < func->argCount; ++i)
                         callee.locals[func->paramNames[i]] = args[i];
 
-                    this->frames.push_back(std::move(callee));
+                    if (!this->pushFrame(std::move(callee)))
+                        break;
                     break;
                 }
 
@@ -928,6 +985,18 @@ namespace LOICollection::frontend::ir {
                 " argument(s), got " + std::to_string(args.size()));
             return ValueNode::ValueType{};
         }
+
+        static thread_local size_t nativeCallDepth = 0;
+        if (nativeCallDepth >= 64) {
+            diagnostics.addError({ 0, 0, 0 }, "Nested native script call limit exceeded");
+            return ValueNode::ValueType{};
+        }
+
+        ++nativeCallDepth;
+        struct CallDepthGuard {
+            size_t& depth;
+            ~CallDepthGuard() { --depth; }
+        } depthGuard{ nativeCallDepth };
 
         VM vm(diagnostics);
         vm.stack.clear();

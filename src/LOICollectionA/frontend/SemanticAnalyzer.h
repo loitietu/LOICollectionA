@@ -16,7 +16,7 @@ namespace LOICollection::frontend {
     public:
         LOICOLLECTION_A_API SemanticAnalyzer(DiagnosticEngine& diag);
 
-        LOICOLLECTION_A_API void analyze(TemplateNode& root);
+        LOICOLLECTION_A_API void analyze(ProgramNode& root);
 
     private:
         struct MethodScope {
@@ -29,6 +29,16 @@ namespace LOICollection::frontend {
             [[nodiscard]] MethodDecl& methodRef() const { return method->get(); }
         };
 
+        struct FieldRef {
+            std::reference_wrapper<ClassMember> member;
+            std::reference_wrapper<ClassNode> owner;
+        };
+
+        struct ConstructorRef {
+            std::reference_wrapper<MethodDecl> method;
+            std::reference_wrapper<ClassNode> owner;
+        };
+
         DiagnosticEngine& diagnostics;
 
         std::vector<std::reference_wrapper<ClassNode>> classes;
@@ -39,7 +49,6 @@ namespace LOICollection::frontend {
         std::vector<std::reference_wrapper<FunctionDefNode>> functions;
         std::unordered_map<std::string, std::vector<std::reference_wrapper<FunctionDefNode>>> functionsByName;
         std::unordered_map<std::string, TypeInfo> globalTypes;
-        std::vector<std::reference_wrapper<NewNode>> pendingNewSites;
 
         [[nodiscard]] std::optional<std::reference_wrapper<ClassNode>> findClass(const std::string& name) const;
 
@@ -54,7 +63,7 @@ namespace LOICollection::frontend {
         void buildMethodOrdinals();
         void validateConstructors();
         void registerFunction(FunctionDefNode& node);
-        void checkTopLevel(TemplateNode& root);
+        void checkTopLevel(ProgramNode& root);
         void checkClassBodies();
         void checkFunctionBodies();
         void checkClassBody(ClassNode& cls);
@@ -80,9 +89,8 @@ namespace LOICollection::frontend {
         [[nodiscard]] int methodOrdinal(const std::string& className, const std::string& signature) const;
         [[nodiscard]] bool isDerived(const std::string& derivedName, const std::string& baseName) const;
         [[nodiscard]] bool isTypeCompatible(const TypeInfo& target, const TypeInfo& from) const;
-        [[nodiscard]] ClassMember* findField(ClassNode& cls, const std::string& name, ClassNode*& owner) const;
-        [[nodiscard]] MethodDecl* findConstructor(ClassNode& cls, ClassNode*& owner) const;
-
-        void finalizePending();
+        
+        [[nodiscard]] std::optional<FieldRef> findField(ClassNode& cls, const std::string& name) const;
+        [[nodiscard]] std::optional<ConstructorRef> findConstructor(ClassNode& cls) const;
     };
 }

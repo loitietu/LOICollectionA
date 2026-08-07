@@ -15,11 +15,11 @@ TEST(ASTTest, NodeTypesFromParsing) {
 
         auto ast = parser.parse();
 
-        ASSERT_EQ(ast->getType(), ASTNode::Type::Template);
+        ASSERT_EQ(ast->getType(), ASTNode::Type::Program);
 
-        auto& tpl = static_cast<TemplateNode&>(*ast);
-        ASSERT_EQ(tpl.parts.size(), 1);
-        EXPECT_EQ(tpl.parts[0]->getType(), ASTNode::Type::Value);
+        auto& program = static_cast<ProgramNode&>(*ast);
+        ASSERT_EQ(program.parts.size(), 1);
+        EXPECT_EQ(program.parts[0]->getType(), ASTNode::Type::Value);
     }
     {
         Lexer lex("1+2", diagnostics);
@@ -27,8 +27,8 @@ TEST(ASTTest, NodeTypesFromParsing) {
 
         auto ast = parser.parse();
 
-        auto& tpl = static_cast<TemplateNode&>(*ast);
-        EXPECT_EQ(tpl.parts[0]->getType(), ASTNode::Type::Arithmetic);
+        auto& program = static_cast<ProgramNode&>(*ast);
+        EXPECT_EQ(program.parts[0]->getType(), ASTNode::Type::Arithmetic);
     }
     {
         Lexer lex("if(true)['a':'b']", diagnostics);
@@ -36,8 +36,8 @@ TEST(ASTTest, NodeTypesFromParsing) {
 
         auto ast = parser.parse();
         
-        auto& tpl = static_cast<TemplateNode&>(*ast);
-        EXPECT_EQ(tpl.parts[0]->getType(), ASTNode::Type::If);
+        auto& program = static_cast<ProgramNode&>(*ast);
+        EXPECT_EQ(program.parts[0]->getType(), ASTNode::Type::If);
     }
 }
 
@@ -48,8 +48,8 @@ namespace {
         Parser parser(lexer, diagnostics);
 
         auto ast = parser.parse();
-        auto& tpl = static_cast<TemplateNode&>(*ast);
-        return tpl.parts[0]->getType();
+        auto& program = static_cast<ProgramNode&>(*ast);
+        return program.parts[0]->getType();
     }
 }
 
@@ -78,11 +78,11 @@ TEST(ASTTest, StatementNodeTypes) {
     auto ast = parser.parse();
     ASSERT_FALSE(diagnostics.hasErrors());
 
-    auto& tpl = static_cast<TemplateNode&>(*ast);
-    ASSERT_EQ(tpl.parts.size(), 3u);
-    EXPECT_EQ(tpl.parts[0]->getType(), ASTNode::Type::Class);
-    EXPECT_EQ(tpl.parts[1]->getType(), ASTNode::Type::FunctionDef);
-    EXPECT_EQ(tpl.parts[2]->getType(), ASTNode::Type::Return);
+    auto& program = static_cast<ProgramNode&>(*ast);
+    ASSERT_EQ(program.parts.size(), 3u);
+    EXPECT_EQ(program.parts[0]->getType(), ASTNode::Type::Class);
+    EXPECT_EQ(program.parts[1]->getType(), ASTNode::Type::FunctionDef);
+    EXPECT_EQ(program.parts[2]->getType(), ASTNode::Type::Return);
 }
 
 TEST(ASTTest, ClassBodyParsing) {
@@ -100,10 +100,10 @@ TEST(ASTTest, ClassBodyParsing) {
     auto ast = parser.parse();
     ASSERT_FALSE(diagnostics.hasErrors());
 
-    auto& tpl = static_cast<TemplateNode&>(*ast);
-    ASSERT_EQ(tpl.parts.size(), 1u);
+    auto& program = static_cast<ProgramNode&>(*ast);
+    ASSERT_EQ(program.parts.size(), 1u);
 
-    auto& cls = static_cast<ClassNode&>(*tpl.parts[0]);
+    auto& cls = static_cast<ClassNode&>(*program.parts[0]);
     EXPECT_EQ(cls.name, "Foo");
 
     ASSERT_EQ(cls.members.size(), 1u);
@@ -128,10 +128,10 @@ TEST(ASTTest, FunctionDefinitionParsing) {
     auto ast = parser.parse();
     ASSERT_FALSE(diagnostics.hasErrors());
 
-    auto& tpl = static_cast<TemplateNode&>(*ast);
-    ASSERT_EQ(tpl.parts.size(), 1u);
+    auto& program = static_cast<ProgramNode&>(*ast);
+    ASSERT_EQ(program.parts.size(), 1u);
 
-    auto& fn = static_cast<FunctionDefNode&>(*tpl.parts[0]);
+    auto& fn = static_cast<FunctionDefNode&>(*program.parts[0]);
     EXPECT_EQ(fn.name, "add");
     EXPECT_EQ(fn.decl.params.size(), 2u);
     EXPECT_EQ(fn.decl.params[0].name, "a");

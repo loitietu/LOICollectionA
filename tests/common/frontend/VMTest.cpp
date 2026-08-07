@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -46,6 +47,30 @@ TEST(VMArithmeticTest, ModuloRequiresIntegers) {
     EXPECT_NE(diag.getErrorMessage().find("Modulo requires integral types"), std::string::npos);
 }
 
+TEST(VMArithmeticTest, ModuloByZero) {
+    DiagnosticEngine diag;
+
+    [[maybe_unused]] auto result = VM::applyArithmetic(5, 0, "%", diag);
+    EXPECT_TRUE(diag.hasErrors());
+    EXPECT_NE(diag.getErrorMessage().find("Modulo by zero"), std::string::npos);
+}
+
+TEST(VMArithmeticTest, IntegerOverflow) {
+    DiagnosticEngine diag;
+
+    [[maybe_unused]] auto result = VM::applyArithmetic(std::numeric_limits<int>::max(), 1, "+", diag);
+    EXPECT_TRUE(diag.hasErrors());
+    EXPECT_NE(diag.getErrorMessage().find("Integer overflow"), std::string::npos);
+}
+
+TEST(VMArithmeticTest, IntMinModuloMinusOne) {
+    DiagnosticEngine diag;
+
+    auto result = VM::applyArithmetic(std::numeric_limits<int>::min(), -1, "%", diag);
+    EXPECT_FALSE(diag.hasErrors());
+    EXPECT_EQ(std::get<int>(result), 0);
+}
+
 TEST(VMArithmeticTest, UnknownOperator) {
     DiagnosticEngine diag;
 
@@ -70,6 +95,14 @@ TEST(VMUnaryTest, UnknownOperator) {
     EXPECT_TRUE(diag.hasErrors());
 }
 
+TEST(VMUnaryTest, NegateIntMin) {
+    DiagnosticEngine diag;
+
+    [[maybe_unused]] auto result = VM::applyUnary(std::numeric_limits<int>::min(), "-", diag);
+    EXPECT_TRUE(diag.hasErrors());
+    EXPECT_NE(diag.getErrorMessage().find("Integer overflow"), std::string::npos);
+}
+
 TEST(VMTruthTest, ValueToBool) {
     EXPECT_FALSE(VM::valueToBool(0));
     EXPECT_TRUE(VM::valueToBool(1));
@@ -85,6 +118,10 @@ TEST(VMTruthTest, ValueToBool) {
 
     auto obj = std::make_shared<Object>();
     EXPECT_TRUE(VM::valueToBool(obj));
+}
+
+TEST(VMTruthTest, Utf8StringIsHandledSafely) {
+    EXPECT_TRUE(VM::valueToBool(std::string("中文")));
 }
 
 TEST(VMComparisonTest, Comparisons) {

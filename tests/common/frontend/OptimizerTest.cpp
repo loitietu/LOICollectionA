@@ -28,9 +28,9 @@ namespace {
         Parser parser(lexer, out.diagnostics);
 
         auto ast = parser.parse();
-        if (auto tpl = dynamic_cast<TemplateNode*>(ast.get())) {
+        if (ast->getType() == ASTNode::Type::Program) {
             SemanticAnalyzer analyzer(out.diagnostics);
-            analyzer.analyze(*tpl);
+            analyzer.analyze(static_cast<ProgramNode&>(*ast));
         }
 
         Compiler compiler(out.diagnostics);
@@ -97,4 +97,14 @@ TEST(OptimizerTest, FoldsLogicalConstants) {
 
     VM vm(program.diagnostics);
     EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "true");
+}
+
+TEST(OptimizerTest, ErroneousConstantsAreNotFolded) {
+    auto program = compileAndOptimize("10.0 % 3.0");
+
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+
+    VM vm(program.diagnostics);
+    [[maybe_unused]] auto result = vm.run(program.chunk, {});
+    EXPECT_TRUE(program.diagnostics.hasErrors());
 }

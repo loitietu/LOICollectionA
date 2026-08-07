@@ -72,6 +72,20 @@ TEST(FunctionCallTest, IsRegistered) {
     EXPECT_FALSE(fc.isRegistered(ns, "double", args));
 }
 
+TEST(FunctionCallTest, UnregisterCombinationCallback) {
+    auto& fc = FunctionCall::getInstance();
+    const std::string ns = "test_combo_unreg";
+
+    fc.registerFunction(ns, "combo",
+        [](const CallbackTypeValues&, const CallbackTypePlaces&) -> TypedValue { return 1; }, {});
+
+    EXPECT_TRUE(fc.isRegistered(ns, "combo", {}));
+
+    fc.unregisterFunction(ns, "combo", {}, true);
+
+    EXPECT_FALSE(fc.isRegistered(ns, "combo", {}));
+}
+
 TEST(FunctionCallTest, WrongArgumentTypes) {
     DiagnosticEngine diagnostics;
     auto& fc = FunctionCall::getInstance();
@@ -149,6 +163,17 @@ TEST(MacroCallTest, CombinationWithPlaceholders) {
     EXPECT_EQ(std::get<int>(result.value()), 42);
 
     MacroCall::getInstance().unregisterMacro("placeholder_add", {}, true);
+}
+
+TEST(MacroCallTest, UnregisterCombinationMacro) {
+    MacroCall::getInstance().registerMacro("combo_unreg",
+        [](const CallbackTypeValues&, const CallbackTypePlaces&) -> TypedValue { return "ok"; }, {});
+
+    EXPECT_TRUE(MacroCall::getInstance().isRegistered("combo_unreg", {}));
+
+    MacroCall::getInstance().unregisterMacro("combo_unreg", {}, true);
+
+    EXPECT_FALSE(MacroCall::getInstance().isRegistered("combo_unreg", {}));
 }
 
 TEST(ClassCallTest, NativeCounterRegistered) {

@@ -1,4 +1,5 @@
 #include <string>
+#include <cctype>
 #include <cstddef>
 #include <cstring>
 #include <utility>
@@ -24,7 +25,7 @@ namespace LOICollection::frontend {
 
     Token Lexer::getNextToken() {
         while (currentChar != 0) {
-            if (isspace(currentChar)) {
+            if (std::isspace(static_cast<unsigned char>(currentChar))) {
                 skipWhitespace();
                 continue;
             }
@@ -53,14 +54,14 @@ namespace LOICollection::frontend {
                 case '$': return makeToken(TokenType::TOKEN_TRANSPILE);
                 case ';': return makeToken(TokenType::TOKEN_SEMICOLON);
                 case '.': {
-                    if (std::isdigit(peekChar()))
+                    if (std::isdigit(static_cast<unsigned char>(peekChar())))
                         return parseNumber();
 
                     return makeToken(TokenType::TOKEN_DOT);
                 }
             }
 
-            if (std::isdigit(currentChar)) return parseNumber();
+            if (std::isdigit(static_cast<unsigned char>(currentChar))) return parseNumber();
             if (std::strchr("=><!&|-", currentChar)) return parseOperator();
 
             return parseIdentifier();
@@ -107,7 +108,9 @@ namespace LOICollection::frontend {
         size_t start = position;
 
         SourceLocation startLoc(line, column, start);
-        while (currentChar != 0 && !std::isspace(currentChar) && !std::strchr("()[]{}=><!&|.:;,", currentChar))
+        while (currentChar != 0 &&
+               !std::isspace(static_cast<unsigned char>(currentChar)) &&
+               !std::strchr("()[]{}=><!&|.:;,+-*/%^$\"'`", currentChar))
             advance();
 
         std::string id = input.substr(start, position - start);
@@ -135,7 +138,7 @@ namespace LOICollection::frontend {
 
         bool hasDot = false;
         while (currentChar != 0) {
-            if (std::isdigit(currentChar)) {
+            if (std::isdigit(static_cast<unsigned char>(currentChar))) {
                 advance();
             } else if (currentChar == '.' && !hasDot) {
                 hasDot = true;
@@ -207,7 +210,7 @@ namespace LOICollection::frontend {
     }
 
     void Lexer::skipWhitespace() {
-        while (std::isspace(currentChar))
+        while (std::isspace(static_cast<unsigned char>(currentChar)))
             advance();
     }
 

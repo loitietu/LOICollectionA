@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include "common/frontend/CommonTest.h"
 
 using namespace LOICollection::frontend;
@@ -81,6 +83,20 @@ TEST(ParserEvalTest, MoreSyntaxErrors) {
     EXPECT_THROW(eval("1 2"), std::runtime_error);
 }
 
+TEST(ParserEvalTest, NestedFunctionDefinitionRejected) {
+    EXPECT_THROW(eval("func f() { func g() {} }"), std::runtime_error);
+    EXPECT_THROW(eval("func f() { class A {} }"), std::runtime_error);
+}
+
+TEST(ParserEvalTest, UntypedFunctionIsDynamic) {
+    EXPECT_EQ(eval("func id(x) { return x; } id(1) + id(\"s\")"), "1s");
+    EXPECT_EQ(eval("func id(x) { return x; } id(1); id(\"s\")"), "s");
+}
+
+TEST(ParserEvalTest, ErroneousConstantIsNotSilentlyFolded) {
+    EXPECT_THROW(eval("10.0 % 3.0"), std::runtime_error);
+}
+
 TEST(ParserEvalTest, NestedExpressions) {
     EXPECT_EQ(eval("(1+2)*3"), "9");
     EXPECT_EQ(eval("if(3>2)[10:20] + 5"), "15");
@@ -96,6 +112,20 @@ TEST(ParserEvalTest, ArithmeticPrecedence) {
     EXPECT_EQ(eval("10 - 2 - 3"), "5");
     EXPECT_EQ(eval("20 / 2 / 5"), "2");
     EXPECT_EQ(eval("2 ^ 3 ^ 2"), "512");
+}
+
+TEST(ParserEvalTest, ArithmeticWithoutSpaces) {
+    EXPECT_EQ(eval("a = 1; b = 2; a+b"), "3");
+    EXPECT_EQ(eval("a = 5; b = 3; a-b"), "2");
+    EXPECT_EQ(eval("a = 6; b = 7; a*b"), "42");
+    EXPECT_EQ(eval("a = 9; b = 2; a/b"), "4.5");
+    EXPECT_EQ(eval("a = 10; b = 3; a%b"), "1");
+    EXPECT_EQ(eval("a = 2; b = 3; a^b"), "8");
+}
+
+TEST(ParserEvalTest, FractionalPower) {
+    EXPECT_NEAR(std::stof(eval("2^0.5")), std::sqrt(2.0f), 1e-5f);
+    EXPECT_NEAR(std::stof(eval("2^-1")), 0.5f, 1e-6f);
 }
 
 TEST(ParserEvalTest, MixedNumericArithmetic) {

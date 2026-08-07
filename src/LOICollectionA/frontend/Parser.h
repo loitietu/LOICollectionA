@@ -1,7 +1,9 @@
 #pragma once
 
+#include <initializer_list>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "LOICollectionA/frontend/AST.h"
 #include "LOICollectionA/frontend/Lexer.h"
@@ -34,10 +36,10 @@ namespace LOICollection::frontend {
         
         std::unique_ptr<ReturnNode> parseReturn();
 
-        std::unique_ptr<ASTNode> parseTemplateUntil(TokenType stopToken, bool stopOnColon = false);
+        std::unique_ptr<BlockNode> parseBlock(TokenType stopToken, bool stopOnColon = false);
 
         std::unique_ptr<ValueNode> parseTranspile();
-        std::unique_ptr<TemplateNode> parseArgs(TokenType delimiterToken = TokenType::TOKEN_COMMA, TokenType stopToken = TokenType::TOKEN_RPAREN);
+        std::vector<std::unique_ptr<ExprNode>> parseArgs(TokenType delimiterToken = TokenType::TOKEN_COMMA, TokenType stopToken = TokenType::TOKEN_RPAREN);
 
         std::unique_ptr<ASTNode> parseStatement();
         
@@ -59,7 +61,10 @@ namespace LOICollection::frontend {
 
         TokenType peek();
 
+        void advance();
         bool eat(TokenType expected);
+        void synchronize(std::initializer_list<TokenType> stopTokens);
+        void skipBalancedBraces();
 
         std::string getTokenName(TokenType type);
     };

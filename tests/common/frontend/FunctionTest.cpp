@@ -102,3 +102,7 @@ TEST(FunctionTest, ReturnOutsideFunction) {
 TEST(FunctionTest, ReturnTypeMismatch) {
     EXPECT_THROW(eval("func bad() -> int { return \"x\"; } bad()"), std::runtime_error);
 }
+
+TEST(FunctionTest, InfiniteRecursionHitsDepthLimit) {
+    EXPECT_THROW(eval("func f() { return f(); } f()"), std::runtime_error);
+}

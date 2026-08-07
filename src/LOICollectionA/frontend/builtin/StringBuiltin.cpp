@@ -26,7 +26,8 @@ namespace StringBuiltin {
 
             if constexpr (std::is_same_v<T, std::string>) {
                 std::string result = arg;
-                std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+                std::transform(result.begin(), result.end(), result.begin(),
+                    [](char c) { return static_cast<char>(std::toupper(static_cast<unsigned char>(c))); });
                 return result;
             }
             
@@ -40,7 +41,8 @@ namespace StringBuiltin {
 
             if constexpr (std::is_same_v<T, std::string>) {
                 std::string result = arg;
-                std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+                std::transform(result.begin(), result.end(), result.begin(),
+                    [](char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
                 return result;
             }
                 

@@ -404,8 +404,8 @@ namespace LOICollection::server::LOICollectionAPI {
         }
 
         frontend::SemanticAnalyzer analyzer(diagnostics);
-        if (auto tpl = dynamic_cast<frontend::TemplateNode*>(mAst.get()))
-            analyzer.analyze(*tpl);
+        if (mAst->getType() == frontend::ASTNode::Type::Program)
+            analyzer.analyze(static_cast<frontend::ProgramNode&>(*mAst));
 
         if (diagnostics.hasErrors()) {
             this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
@@ -467,8 +467,8 @@ namespace LOICollection::server::LOICollectionAPI {
         }
 
         frontend::SemanticAnalyzer analyzer(diagnostics);
-        if (auto tpl = dynamic_cast<frontend::TemplateNode*>(mAst.get()))
-            analyzer.analyze(*tpl);
+        if (mAst->getType() == frontend::ASTNode::Type::Program)
+            analyzer.analyze(static_cast<frontend::ProgramNode&>(*mAst));
 
         if (diagnostics.hasErrors()) {
             this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());

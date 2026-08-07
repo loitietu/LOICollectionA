@@ -121,7 +121,6 @@ namespace LOICollection::frontend::ir {
         std::vector<int> oldToNew(code.size(), -1);
         std::vector<bool> dropped(code.size(), false);
         std::vector<StackEntry> stack{ std::monostate{} };
-        DiagnosticEngine foldDiag;
 
         for (size_t i = 0; i < code.size(); ++i) {
             const auto& instr = code[i];
@@ -185,12 +184,20 @@ namespace LOICollection::frontend::ir {
                         dropped[knownValue(left).producer] = true;
                         dropped[knownValue(right).producer] = true;
 
+                        DiagnosticEngine foldDiag;
                         ValueNode::ValueType result = VM::applyArithmetic(
                             knownValue(left).value, knownValue(right).value, arithmeticOpName(instr.op), foldDiag);
-                        emitPush(chunk, foldedCode, result);
-                        emittedAt = static_cast<int>(foldedCode.size()) - 1;
-                        stack.emplace_back(TrackedValue{ result, emittedAt, !targets.contains(oldIdx) });
-                        stats.folded++;
+
+                        if (!foldDiag.hasErrors()) {
+                            emitPush(chunk, foldedCode, result);
+                            emittedAt = static_cast<int>(foldedCode.size()) - 1;
+                            stack.emplace_back(TrackedValue{ result, emittedAt, !targets.contains(oldIdx) });
+                            stats.folded++;
+                        } else {
+                            emittedAt = static_cast<int>(foldedCode.size());
+                            foldedCode.push_back(instr);
+                            stack.emplace_back(std::monostate{});
+                        }
                     } else {
                         emittedAt = static_cast<int>(foldedCode.size());
                         foldedCode.push_back(instr);
@@ -214,12 +221,20 @@ namespace LOICollection::frontend::ir {
                         dropped[knownValue(left).producer] = true;
                         dropped[knownValue(right).producer] = true;
 
+                        DiagnosticEngine foldDiag;
                         bool result = VM::applyComparison(
                             knownValue(left).value, knownValue(right).value, comparisonOpName(instr.op), foldDiag);
-                        emitPush(chunk, foldedCode, result);
-                        emittedAt = static_cast<int>(foldedCode.size()) - 1;
-                        stack.emplace_back(TrackedValue{ result, emittedAt, !targets.contains(oldIdx) });
-                        stats.folded++;
+
+                        if (!foldDiag.hasErrors()) {
+                            emitPush(chunk, foldedCode, result);
+                            emittedAt = static_cast<int>(foldedCode.size()) - 1;
+                            stack.emplace_back(TrackedValue{ result, emittedAt, !targets.contains(oldIdx) });
+                            stats.folded++;
+                        } else {
+                            emittedAt = static_cast<int>(foldedCode.size());
+                            foldedCode.push_back(instr);
+                            stack.emplace_back(std::monostate{});
+                        }
                     } else {
                         emittedAt = static_cast<int>(foldedCode.size());
                         foldedCode.push_back(instr);
@@ -262,10 +277,18 @@ namespace LOICollection::frontend::ir {
                         dropped[knownValue(operand).producer] = true;
 
                         if (instr.op == OpCode::NEG) {
+                            DiagnosticEngine foldDiag;
                             ValueNode::ValueType result = VM::applyUnary(knownValue(operand).value, "-", foldDiag);
-                            emitPush(chunk, foldedCode, result);
-                            emittedAt = static_cast<int>(foldedCode.size()) - 1;
-                            stack.emplace_back(TrackedValue{ result, emittedAt, !targets.contains(oldIdx) });
+
+                            if (!foldDiag.hasErrors()) {
+                                emitPush(chunk, foldedCode, result);
+                                emittedAt = static_cast<int>(foldedCode.size()) - 1;
+                                stack.emplace_back(TrackedValue{ result, emittedAt, !targets.contains(oldIdx) });
+                            } else {
+                                emittedAt = static_cast<int>(foldedCode.size());
+                                foldedCode.push_back(instr);
+                                stack.emplace_back(std::monostate{});
+                            }
                         } else {
                             bool result = !VM::valueToBool(knownValue(operand).value);
                             emitPush(chunk, foldedCode, result);

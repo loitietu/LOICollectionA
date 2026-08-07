@@ -23,9 +23,9 @@ namespace LOICollection::frontend {
         if (diagnostics.hasErrors())
             throw std::runtime_error(diagnostics.getErrorMessage());
 
-        if (auto tpl = dynamic_cast<TemplateNode*>(ast.get())) {
+        if (ast->getType() == ASTNode::Type::Program) {
             SemanticAnalyzer analyzer(diagnostics);
-            analyzer.analyze(*tpl);
+            analyzer.analyze(static_cast<ProgramNode&>(*ast));
         }
 
         if (diagnostics.hasErrors())

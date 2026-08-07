@@ -28,12 +28,12 @@ namespace LOICollection::frontend::ir {
         DiagnosticEngine& diagnostics;
 
         std::unordered_map<std::string, int> classIndices;
-        std::unordered_map<std::string, ClassNode*> classNodes;
+        std::unordered_map<std::string, std::reference_wrapper<ClassNode>> classNodes;
         std::unordered_set<int> registeredClasses;
         std::unordered_set<std::string> registeringClasses;
         std::unordered_map<std::string, std::vector<int>> classMethodIndices;
         std::unordered_map<std::string, std::vector<int>> functionIndices;
-        std::vector<ASTNode*> bodyOrder;
+        std::vector<std::reference_wrapper<ASTNode>> bodyOrder;
         
         size_t methodCount = 0;
 
@@ -47,7 +47,8 @@ namespace LOICollection::frontend::ir {
         void visit(MacroNode& node) override;
         void visit(ArithmeticNode& node) override;
         void visit(UnaryNode& node) override;
-        void visit(TemplateNode& node) override;
+        void visit(ProgramNode& node) override;
+        void visit(BlockNode& node) override;
         void visit(ClassNode& node) override;
         void visit(ReturnNode& node) override;
         void visit(NewNode& node) override;
@@ -65,6 +66,7 @@ namespace LOICollection::frontend::ir {
         void compileClassBodies(ClassNode& node);
         void registerFunctionMeta(FunctionDefNode& node);
         void compileFunctionBody(FunctionDefNode& node);
+        void compileSequence(SequenceNode& node);
 
         int addNativeCall(const std::string& className, const std::string& name, int argCount);
         int addConstant(const ValueNode::ValueType& val);

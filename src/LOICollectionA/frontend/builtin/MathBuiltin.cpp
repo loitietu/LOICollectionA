@@ -1,4 +1,6 @@
 #include <cmath>
+#include <limits>
+#include <mutex>
 #include <random>
 #include <string>
 #include <variant>
@@ -12,14 +14,20 @@
 using namespace LOICollection::frontend;
 
 namespace MathBuiltin {
-    LOICollection::frontend::TypedValue abs(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg) -> LOICollection::frontend::TypedValue {
+    ll::Expected<LOICollection::frontend::TypedValue> abs(const LOICollection::frontend::CallbackTypeValues& args) {
+        return std::visit([](auto&& arg) -> ll::Expected<LOICollection::frontend::TypedValue> {
             using T = std::decay_t<decltype(arg)>;
 
-            if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>)
-                return std::abs(arg);
+            if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>) {
+                if constexpr (std::is_same_v<T, int>) {
+                    if (arg == std::numeric_limits<int>::min())
+                        return ll::makeStringError("math::abs: INT_MIN is out of range");
+                }
 
-            return {};
+                return std::abs(arg);
+            }
+
+            return ll::makeStringError("math::abs: requires a numeric argument");
         }, args[0]);
     }
 
@@ -109,23 +117,32 @@ namespace MathBuiltin {
         }, args[0]);
     }
 
-    LOICollection::frontend::TypedValue random(const LOICollection::frontend::CallbackTypeValues& args) {
+    ll::Expected<LOICollection::frontend::TypedValue> random(const LOICollection::frontend::CallbackTypeValues& args) {
         static std::random_device rd;
         static std::mt19937 gen(rd());
+        static std::mutex rngMutex;
 
-        return std::visit([](auto&& arg1, auto&& arg2) -> LOICollection::frontend::TypedValue {
+        return std::visit([](auto&& arg1, auto&& arg2) -> ll::Expected<LOICollection::frontend::TypedValue> {
             using T1 = std::decay_t<decltype(arg1)>;
             using T2 = std::decay_t<decltype(arg2)>;
 
             if constexpr (std::is_same_v<T1, int> && std::is_same_v<T2, int>) {
+                if (arg1 > arg2)
+                    return ll::makeStringError("math::random: min must not exceed max");
+
+                std::lock_guard<std::mutex> lock(rngMutex);
                 std::uniform_int_distribution<> dis(arg1, arg2);
                 return dis(gen);
             } else if constexpr (std::is_same_v<T1, float> && std::is_same_v<T2, float>) {
+                if (arg1 > arg2)
+                    return ll::makeStringError("math::random: min must not exceed max");
+
+                std::lock_guard<std::mutex> lock(rngMutex);
                 std::uniform_real_distribution<> dis(arg1, arg2);
                 return static_cast<float>(dis(gen));
             }
                 
-            return {};
+            return ll::makeStringError("math::random: requires two numeric arguments of the same type");
         }, args[0], args[1]);
     }
 

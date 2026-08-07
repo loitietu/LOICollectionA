@@ -35,10 +35,11 @@ namespace LOICollection::frontend {
 
     struct ASTNode {
         enum class Type { 
-            Value, Compare, Logical, If, Template, Expr,
+            Value, Compare, Logical, If, Expr,
             Arithmetic, Unary, Function, Macro, Variable, Assignment,
             Class, Return, New, MemberAccess, MethodCall, This,
-            Super, SuperCall, InstanceOf, FunctionDef, FuncCall, Lambda
+            Super, SuperCall, InstanceOf, FunctionDef, FuncCall, Lambda,
+            Program, Block
         };
         [[nodiscard]] virtual Type getType() const = 0;
         
@@ -159,15 +160,27 @@ namespace LOICollection::frontend {
         }
     };
 
-    struct TemplateNode : ASTNode {
+    struct SequenceNode : ASTNode {
         std::vector<std::unique_ptr<ASTNode>> parts;
-
-        [[nodiscard]] Type getType() const override {
-            return Type::Template;
-        }
 
         void addPart(auto&& part) {
             parts.emplace_back(std::forward<decltype(part)>(part));
+        }
+    };
+
+    struct ProgramNode : SequenceNode {
+        [[nodiscard]] Type getType() const override {
+            return Type::Program;
+        }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct BlockNode : SequenceNode {
+        [[nodiscard]] Type getType() const override {
+            return Type::Block;
         }
 
         void accept(ASTVisitor& visitor) override {
@@ -176,7 +189,7 @@ namespace LOICollection::frontend {
     };
 
     struct FunctionNode : ExprNode {
-        std::unique_ptr<TemplateNode> args; 
+        std::vector<std::unique_ptr<ExprNode>> args;
         std::string namespaces;
         std::string name;
 
@@ -195,7 +208,7 @@ namespace LOICollection::frontend {
     };
 
     struct MacroNode : ExprNode {
-        std::unique_ptr<TemplateNode> args;
+        std::vector<std::unique_ptr<ExprNode>> args;
         std::string name;
 
         MacroNode(auto&& a, std::string n)
@@ -313,7 +326,7 @@ namespace LOICollection::frontend {
     struct NewNode : ExprNode {
         SourceLocation loc;
         std::string className;
-        std::unique_ptr<TemplateNode> args;
+        std::vector<std::unique_ptr<ExprNode>> args;
 
         NewNode(SourceLocation location, std::string name, auto&& a)
             : loc(location), className(std::move(name)), args(std::forward<decltype(a)>(a)) {}
@@ -344,7 +357,7 @@ namespace LOICollection::frontend {
         SourceLocation loc;
         std::unique_ptr<ExprNode> target;
         std::string methodName;
-        std::unique_ptr<TemplateNode> args;
+        std::vector<std::unique_ptr<ExprNode>> args;
 
         std::string className;
         int methodOrdinal = -1;
@@ -388,7 +401,7 @@ namespace LOICollection::frontend {
 
     struct SuperCallNode : ExprNode {
         SourceLocation loc;
-        std::unique_ptr<TemplateNode> args;
+        std::vector<std::unique_ptr<ExprNode>> args;
 
         std::string className;
         int constructorIndex = -1;
@@ -449,7 +462,7 @@ namespace LOICollection::frontend {
     struct FuncCallNode : ExprNode {
         SourceLocation loc;
         std::string name;
-        std::unique_ptr<TemplateNode> args;
+        std::vector<std::unique_ptr<ExprNode>> args;
 
         std::string resolvedName;
         int functionOrdinal = -1;

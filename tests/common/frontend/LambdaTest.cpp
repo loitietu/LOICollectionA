@@ -77,9 +77,9 @@ TEST(LambdaTest, CallFunctionRefFromNative) {
     auto ast = parser.parse();
     ASSERT_FALSE(diagnostics.hasErrors());
 
-    if (auto tpl = dynamic_cast<TemplateNode*>(ast.get())) {
+    if (ast->getType() == ASTNode::Type::Program) {
         SemanticAnalyzer analyzer(diagnostics);
-        analyzer.analyze(*tpl);
+        analyzer.analyze(static_cast<ProgramNode&>(*ast));
     }
     ASSERT_FALSE(diagnostics.hasErrors());
 
@@ -106,9 +106,9 @@ TEST(LambdaTest, CallFunctionRefKeepsCaptures) {
     auto ast = parser.parse();
     ASSERT_FALSE(diagnostics.hasErrors());
 
-    if (auto tpl = dynamic_cast<TemplateNode*>(ast.get())) {
+    if (ast->getType() == ASTNode::Type::Program) {
         SemanticAnalyzer analyzer(diagnostics);
-        analyzer.analyze(*tpl);
+        analyzer.analyze(static_cast<ProgramNode&>(*ast));
     }
     ASSERT_FALSE(diagnostics.hasErrors());
 

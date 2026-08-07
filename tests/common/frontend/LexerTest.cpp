@@ -133,6 +133,45 @@ TEST(LexerTest, ParseAdvancedOperators) {
     }
 }
 
+TEST(LexerTest, IdentifiersWithAdjacentArithmeticOperators) {
+    DiagnosticEngine diagnostics;
+    Lexer lexer("a+b a-b a*b a/b a%b a^b a->b", diagnostics);
+
+    struct Expected { TokenType type; std::string value; };
+    std::vector<Expected> expected = {
+        { TokenType::TOKEN_IDENT, "a" },
+        { TokenType::TOKEN_PLUS, "+" },
+        { TokenType::TOKEN_IDENT, "b" },
+        { TokenType::TOKEN_IDENT, "a" },
+        { TokenType::TOKEN_MINUS, "-" },
+        { TokenType::TOKEN_IDENT, "b" },
+        { TokenType::TOKEN_IDENT, "a" },
+        { TokenType::TOKEN_MULTIPLY, "*" },
+        { TokenType::TOKEN_IDENT, "b" },
+        { TokenType::TOKEN_IDENT, "a" },
+        { TokenType::TOKEN_DIVIDE, "/" },
+        { TokenType::TOKEN_IDENT, "b" },
+        { TokenType::TOKEN_IDENT, "a" },
+        { TokenType::TOKEN_MOD, "%" },
+        { TokenType::TOKEN_IDENT, "b" },
+        { TokenType::TOKEN_IDENT, "a" },
+        { TokenType::TOKEN_POWER, "^" },
+        { TokenType::TOKEN_IDENT, "b" },
+        { TokenType::TOKEN_IDENT, "a" },
+        { TokenType::TOKEN_ARROW, "->" },
+        { TokenType::TOKEN_IDENT, "b" },
+    };
+
+    for (const auto& e : expected) {
+        auto t = lexer.getNextToken();
+        EXPECT_EQ(t.type, e.type);
+        EXPECT_EQ(t.value, e.value);
+    }
+
+    EXPECT_EQ(lexer.getNextToken().type, TokenType::TOKEN_EOF);
+    EXPECT_FALSE(diagnostics.hasErrors());
+}
+
 TEST(LexerTest, SkipLineComment) {
     DiagnosticEngine diagnostics;
     Lexer lexer("// comment\n42", diagnostics);
