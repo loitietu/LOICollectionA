@@ -2,6 +2,6 @@
 
 #include <string>
 
-namespace CounterClassBuiltin {
+namespace CounterClass {
     void registerClasses(const std::string& name);
 }

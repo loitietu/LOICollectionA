@@ -5,11 +5,11 @@
 
 #include "LOICollectionA/frontend/Callback.h"
 
-#include "LOICollectionA/frontend/builtin/CounterClassBuiltin.h"
+#include "LOICollectionA/frontend/builtin/CounterClass.h"
 
 using namespace LOICollection::frontend;
 
-namespace CounterClassBuiltin {
+namespace CounterClass {
     ll::Expected<ObjectRef> makeCounter(const CallbackTypeValues&) {
         auto obj = std::make_shared<Object>();
         obj->className = "Counter";
@@ -19,7 +19,7 @@ namespace CounterClassBuiltin {
         return obj;
     }
 
-    LOICollection::frontend::TypedValue increment(const ObjectRef& self, const CallbackTypeValues&) {
+    int increment(const ObjectRef& self, const CallbackTypeValues&) {
         int value = 0;
         if (const auto* current = std::get_if<int>(&self->fields["count"]))
             value = *current;
@@ -30,7 +30,7 @@ namespace CounterClassBuiltin {
         return value;
     }
 
-    LOICollection::frontend::TypedValue add(const ObjectRef& self, const CallbackTypeValues& args) {
+    int add(const ObjectRef& self, const CallbackTypeValues& args) {
         int value = 0;
         if (const auto* current = std::get_if<int>(&self->fields["count"]))
             value = *current;
@@ -43,7 +43,7 @@ namespace CounterClassBuiltin {
         return value;
     }
 
-    LOICollection::frontend::TypedValue get(const ObjectRef& self, const CallbackTypeValues&) {
+    int get(const ObjectRef& self, const CallbackTypeValues&) {
         if (const auto* current = std::get_if<int>(&self->fields["count"]))
             return *current;
 
@@ -61,4 +61,4 @@ namespace CounterClassBuiltin {
     }
 }
 
-REGISTER_CALLBACK(Counter, CounterClassBuiltin::registerClasses)
+REGISTER_CALLBACK(Counter, CounterClass::registerClasses)

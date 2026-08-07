@@ -12,128 +12,126 @@
 #include "LOICollectionA/frontend/ir/Compiler.h"
 
 namespace LOICollection::frontend::ir {
-    namespace {
-        class MethodBodyCounter : public ASTVisitor {
-        public:
-            size_t count = 0;
+    class MethodBodyCounter : public ASTVisitor {
+    public:
+        size_t count = 0;
 
-            void countNode(ASTNode& node) {
-                node.accept(*this);
-            }
-
-            void countArgs(TemplateNode* args) {
-                if (!args)
-                    return;
-
-                for (auto& part : args->parts)
-                    countNode(*part);
-            }
-
-            void countBody(ASTNode* body) {
-                if (body)
-                    countNode(*body);
-            }
-
-            void visit(ValueNode&) override {}
-            void visit(VariableNode&) override {}
-            void visit(ThisNode&) override {}
-            void visit(SuperNode&) override {}
-
-            void visit(AssignmentNode& node) override {
-                countNode(*node.target);
-                countNode(*node.value);
-            }
-
-            void visit(IfNode& node) override {
-                countNode(*node.condition);
-                countBody(node.trueBranch.get());
-                countBody(node.falseBranch.get());
-            }
-
-            void visit(CompareNode& node) override {
-                countNode(*node.left);
-                countNode(*node.right);
-            }
-
-            void visit(LogicalNode& node) override {
-                countNode(*node.left);
-                countNode(*node.right);
-            }
-
-            void visit(FunctionNode& node) override {
-                countArgs(node.args.get());
-            }
-
-            void visit(MacroNode& node) override {
-                countArgs(node.args.get());
-            }
-
-            void visit(ArithmeticNode& node) override {
-                countNode(*node.left);
-                countNode(*node.right);
-            }
-
-            void visit(UnaryNode& node) override {
-                countNode(*node.operand);
-            }
-
-            void visit(TemplateNode& node) override {
-                for (auto& part : node.parts)
-                    countNode(*part);
-            }
-
-            void visit(ClassNode& node) override {
-                count += node.methods.size();
-
-                for (const auto& method : node.methods)
-                    countBody(method.body.get());
-            }
-
-            void visit(ReturnNode& node) override {
-                countBody(node.value.get());
-            }
-
-            void visit(NewNode& node) override {
-                countArgs(node.args.get());
-            }
-
-            void visit(MemberAccessNode& node) override {
-                countNode(*node.target);
-            }
-
-            void visit(MethodCallNode& node) override {
-                countNode(*node.target);
-                countArgs(node.args.get());
-            }
-
-            void visit(SuperCallNode& node) override {
-                countArgs(node.args.get());
-            }
-
-            void visit(InstanceOfNode& node) override {
-                countNode(*node.target);
-            }
-
-            void visit(FunctionDefNode& node) override {
-                count++;
-                countBody(node.decl.body.get());
-            }
-
-            void visit(FuncCallNode& node) override {
-                countArgs(node.args.get());
-            }
-
-            void visit(LambdaNode& node) override {
-                count++;
-                countBody(node.decl.body.get());
-            }
-        };
-
-        size_t countMethodBodies(ASTNode& root) {
-            MethodBodyCounter counter;
-            counter.countNode(root);
-            return counter.count;
+        void countNode(ASTNode& node) {
+            node.accept(*this);
         }
+
+        void countArgs(TemplateNode* args) {
+            if (!args)
+                return;
+
+            for (auto& part : args->parts)
+                countNode(*part);
+        }
+
+        void countBody(ASTNode* body) {
+            if (body)
+                countNode(*body);
+        }
+
+        void visit(ValueNode&) override {}
+        void visit(VariableNode&) override {}
+        void visit(ThisNode&) override {}
+        void visit(SuperNode&) override {}
+
+        void visit(AssignmentNode& node) override {
+            countNode(*node.target);
+            countNode(*node.value);
+        }
+
+        void visit(IfNode& node) override {
+            countNode(*node.condition);
+            countBody(node.trueBranch.get());
+            countBody(node.falseBranch.get());
+        }
+
+        void visit(CompareNode& node) override {
+            countNode(*node.left);
+            countNode(*node.right);
+        }
+
+        void visit(LogicalNode& node) override {
+            countNode(*node.left);
+            countNode(*node.right);
+        }
+
+        void visit(FunctionNode& node) override {
+            countArgs(node.args.get());
+        }
+
+        void visit(MacroNode& node) override {
+            countArgs(node.args.get());
+        }
+
+        void visit(ArithmeticNode& node) override {
+            countNode(*node.left);
+            countNode(*node.right);
+        }
+
+        void visit(UnaryNode& node) override {
+            countNode(*node.operand);
+        }
+
+        void visit(TemplateNode& node) override {
+            for (auto& part : node.parts)
+                countNode(*part);
+        }
+
+        void visit(ClassNode& node) override {
+            count += node.methods.size();
+
+            for (const auto& method : node.methods)
+                countBody(method.body.get());
+        }
+
+        void visit(ReturnNode& node) override {
+            countBody(node.value.get());
+        }
+
+        void visit(NewNode& node) override {
+            countArgs(node.args.get());
+        }
+
+        void visit(MemberAccessNode& node) override {
+            countNode(*node.target);
+        }
+
+        void visit(MethodCallNode& node) override {
+            countNode(*node.target);
+            countArgs(node.args.get());
+        }
+
+        void visit(SuperCallNode& node) override {
+            countArgs(node.args.get());
+        }
+
+        void visit(InstanceOfNode& node) override {
+            countNode(*node.target);
+        }
+
+        void visit(FunctionDefNode& node) override {
+            count++;
+            countBody(node.decl.body.get());
+        }
+
+        void visit(FuncCallNode& node) override {
+            countArgs(node.args.get());
+        }
+
+        void visit(LambdaNode& node) override {
+            count++;
+            countBody(node.decl.body.get());
+        }
+    };
+
+    size_t countMethodBodies(ASTNode& root) {
+        MethodBodyCounter counter;
+        counter.countNode(root);
+        return counter.count;
     }
 
     Compiler::Compiler(DiagnosticEngine& diag) : current(std::ref(chunk)), diagnostics(diag) {}
@@ -433,12 +431,14 @@ namespace LOICollection::frontend::ir {
             meta.constructorIndex = base.constructorIndex;
             meta.methods = base.methods;
             meta.methodSignatures = base.methodSignatures;
+            meta.ancestorIndices.push_back(baseIdx);
+            meta.ancestorIndices.insert(meta.ancestorIndices.end(), base.ancestorIndices.begin(), base.ancestorIndices.end());
         }
 
         for (const auto& member : node.members) {
             auto fieldIt = std::ranges::find(meta.fieldNames, member.name);
             if (fieldIt != meta.fieldNames.end()) {
-                size_t fieldIdx = static_cast<size_t>(std::distance(meta.fieldNames.begin(), fieldIt));
+                auto fieldIdx = static_cast<size_t>(std::distance(meta.fieldNames.begin(), fieldIt));
                 meta.hasDefault[fieldIdx] = member.hasDefault;
 
                 if (member.hasDefault) {
@@ -472,16 +472,16 @@ namespace LOICollection::frontend::ir {
             }
         }
 
-        for (size_t i = 0; i < node.methods.size(); ++i) {
+        for (auto & method : node.methods) {
             int methodIdx = static_cast<int>(methodCount++);
 
-            if (node.methods[i].isConstructor)
+            if (method.isConstructor)
                 meta.constructorIndex = methodIdx;
             else {
-                std::string signature = this->methodSignature(node.methods[i]);
+                std::string signature = this->methodSignature(method);
                 auto sigIt = std::ranges::find(meta.methodSignatures, signature);
                 if (sigIt != meta.methodSignatures.end()) {
-                    size_t ordinal = static_cast<size_t>(std::distance(meta.methodSignatures.begin(), sigIt));
+                    auto ordinal = static_cast<size_t>(std::distance(meta.methodSignatures.begin(), sigIt));
                     meta.methods[ordinal] = methodIdx;
                 } else {
                     meta.methodSignatures.push_back(signature);

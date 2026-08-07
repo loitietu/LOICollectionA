@@ -376,13 +376,13 @@ namespace LOICollection::server::LOICollectionAPI {
     std::string APIUtils::translate(const std::string& str, Player& player) {
         frontend::DiagnosticEngine diagnostics;
 
-        frontend::ir::VM mVM;
+        frontend::ir::VM mVM(diagnostics);
 
         if (this->mImpl->mAstCache.contains(str)) {
             auto mCached = this->mImpl->mAstCache.get(str);
 
             if (mCached.has_value()) {
-                auto result = mVM.run(*mCached.value(), { std::ref(player) }, diagnostics);
+                auto result = mVM.run(mCached.value(), { std::ref(player) });
                 if (diagnostics.hasErrors()) {
                     this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
                     diagnostics.clear();
@@ -417,16 +417,16 @@ namespace LOICollection::server::LOICollectionAPI {
             return str;
         }
 
-        auto bytecode = mCompiler.compile(*mAst);
+        auto bytecode = std::make_shared<frontend::ir::BytecodeChunk>(mCompiler.compile(*mAst));
         if (diagnostics.hasErrors()) {
             this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
             return str;
         }
 
         frontend::ir::Optimizer optimizer;
-        optimizer.optimize(bytecode);
+        optimizer.optimize(*bytecode);
 
-        auto result = mVM.run(bytecode, { std::ref(player) }, diagnostics);
+        auto result = mVM.run(bytecode, { std::ref(player) });
         if (diagnostics.hasErrors()) {
             this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
             return str;
@@ -439,13 +439,13 @@ namespace LOICollection::server::LOICollectionAPI {
     std::string APIUtils::translate(const std::string& str) {
         frontend::DiagnosticEngine diagnostics;
 
-        frontend::ir::VM mVM;
+        frontend::ir::VM mVM(diagnostics);
 
         if (this->mImpl->mAstCache.contains(str)) {
             auto mCached = this->mImpl->mAstCache.get(str);
 
             if (mCached.has_value()) {
-                auto result = mVM.run(*mCached.value(), {}, diagnostics);
+                auto result = mVM.run(mCached.value(), {});
                 if (diagnostics.hasErrors()) {
                     this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
                     diagnostics.clear();
@@ -480,16 +480,16 @@ namespace LOICollection::server::LOICollectionAPI {
             return str;
         }
 
-        auto bytecode = mCompiler.compile(*mAst);
+        auto bytecode = std::make_shared<frontend::ir::BytecodeChunk>(mCompiler.compile(*mAst));
         if (diagnostics.hasErrors()) {
             this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
             return str;
         }
 
         frontend::ir::Optimizer optimizer;
-        optimizer.optimize(bytecode);
+        optimizer.optimize(*bytecode);
 
-        auto result = mVM.run(bytecode, {}, diagnostics);
+        auto result = mVM.run(bytecode, {});
         if (diagnostics.hasErrors()) {
             this->mImpl->logger->error("APIUtils: {}", diagnostics.getErrorMessage());
             return str;

@@ -115,6 +115,7 @@ namespace LOICollection::frontend {
 
         LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& name) const;
         LOICOLLECTION_A_NDAPI bool hasField(const std::string& name, const std::string& field) const;
+        
         LOICOLLECTION_A_NDAPI std::vector<std::string> getFields(const std::string& name) const;
         LOICOLLECTION_A_NDAPI std::vector<CallbackTypeArgs> getConstructorSignatures(const std::string& name) const;
         LOICOLLECTION_A_NDAPI std::vector<CallbackTypeArgs> getMethodSignatures(const std::string& className, const std::string& method) const;

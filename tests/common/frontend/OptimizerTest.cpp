@@ -2,10 +2,11 @@
 
 #include <string>
 
-#include "LOICollectionA/frontend/DiagnosticEngine.h"
 #include "LOICollectionA/frontend/Lexer.h"
 #include "LOICollectionA/frontend/Parser.h"
+#include "LOICollectionA/frontend/DiagnosticEngine.h"
 #include "LOICollectionA/frontend/SemanticAnalyzer.h"
+
 #include "LOICollectionA/frontend/ir/Compiler.h"
 #include "LOICollectionA/frontend/ir/Optimizer.h"
 #include "LOICollectionA/frontend/ir/VM.h"
@@ -15,7 +16,7 @@ using namespace LOICollection::frontend::ir;
 
 namespace {
     struct CompiledProgram {
-        BytecodeChunk chunk;
+        std::shared_ptr<BytecodeChunk> chunk;
         DiagnosticEngine diagnostics;
         Optimizer::Stats stats;
     };
@@ -33,10 +34,10 @@ namespace {
         }
 
         Compiler compiler(out.diagnostics);
-        out.chunk = compiler.compile(*ast);
+        out.chunk = std::make_shared<BytecodeChunk>(compiler.compile(*ast));
 
         Optimizer optimizer;
-        out.stats = optimizer.optimize(out.chunk);
+        out.stats = optimizer.optimize(*out.chunk);
 
         return out;
     }
@@ -48,13 +49,13 @@ TEST(OptimizerTest, ConstantFolding) {
     EXPECT_FALSE(program.diagnostics.hasErrors());
     EXPECT_GE(program.stats.folded, 2u);
 
-    ASSERT_EQ(program.chunk.code.size(), 2u);
-    EXPECT_EQ(program.chunk.code[0].op, OpCode::PUSH_INT);
-    EXPECT_EQ(program.chunk.code[1].op, OpCode::HALT);
-    EXPECT_EQ(std::get<int>(program.chunk.constants[program.chunk.code[0].operand]), 7);
+    ASSERT_EQ(program.chunk->code.size(), 2u);
+    EXPECT_EQ(program.chunk->code[0].op, OpCode::PUSH_INT);
+    EXPECT_EQ(program.chunk->code[1].op, OpCode::HALT);
+    EXPECT_EQ(std::get<int>(program.chunk->constants[program.chunk->code[0].operand]), 7);
 
-    VM vm;
-    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {}, program.diagnostics)), "7");
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "7");
     EXPECT_FALSE(program.diagnostics.hasErrors());
 }
 
@@ -64,8 +65,8 @@ TEST(OptimizerTest, ConstantConditionElimination) {
     EXPECT_FALSE(program.diagnostics.hasErrors());
     EXPECT_GE(program.stats.folded, 1u);
 
-    VM vm;
-    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {}, program.diagnostics)), "1");
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "1");
 }
 
 TEST(OptimizerTest, UnreachableBranchRemoved) {
@@ -74,8 +75,8 @@ TEST(OptimizerTest, UnreachableBranchRemoved) {
     EXPECT_FALSE(program.diagnostics.hasErrors());
     EXPECT_GT(program.stats.removed, 0u);
 
-    VM vm;
-    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {}, program.diagnostics)), "2");
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "2");
 }
 
 TEST(OptimizerTest, FoldsInsideFunctionBodies) {
@@ -84,8 +85,8 @@ TEST(OptimizerTest, FoldsInsideFunctionBodies) {
     EXPECT_FALSE(program.diagnostics.hasErrors());
     EXPECT_GE(program.stats.folded, 1u);
 
-    VM vm;
-    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {}, program.diagnostics)), "3");
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "3");
 }
 
 TEST(OptimizerTest, FoldsLogicalConstants) {
@@ -94,6 +95,6 @@ TEST(OptimizerTest, FoldsLogicalConstants) {
     EXPECT_FALSE(program.diagnostics.hasErrors());
     EXPECT_GE(program.stats.folded, 1u);
 
-    VM vm;
-    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {}, program.diagnostics)), "true");
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "true");
 }

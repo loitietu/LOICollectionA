@@ -7,6 +7,7 @@
 
 #include "LOICollectionA/base/Macro.h"
 
+#include "LOICollectionA/frontend/Callback.h"
 #include "LOICollectionA/frontend/Context.h"
 #include "LOICollectionA/frontend/ir/ByteCode.h"
 #include "LOICollectionA/frontend/DiagnosticEngine.h"
@@ -14,7 +15,19 @@
 namespace LOICollection::frontend::ir {
     class VM {
     public:
-        LOICOLLECTION_A_NDAPI ValueNode::ValueType run(const BytecodeChunk& chunk, const Context& ctx, DiagnosticEngine& diagnostics);
+        LOICOLLECTION_A_NDAPI VM(DiagnosticEngine& diag) : diagnostics(diag) {}
+
+        LOICOLLECTION_A_NDAPI ValueNode::ValueType run(
+            const std::shared_ptr<const BytecodeChunk>& chunk,
+            const Context& ctx
+        );
+
+        LOICOLLECTION_A_NDAPI static ValueNode::ValueType callFunctionRef(
+            const FunctionRefPtr& func,
+            const CallbackTypeValues& args,
+            const CallbackTypePlaces& placeholders,
+            DiagnosticEngine& diagnostics
+        );
 
         LOICOLLECTION_A_NDAPI static std::string valueToString(const ValueNode::ValueType& val);
         LOICOLLECTION_A_NDAPI static ValueNode::ValueType applyArithmetic(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op, DiagnosticEngine& diagnostics);
@@ -38,12 +51,19 @@ namespace LOICollection::frontend::ir {
             explicit Frame(const BytecodeChunk& chunkRef) : chunk(chunkRef) {}
         };
 
+        DiagnosticEngine& diagnostics;
+
         std::vector<Frame> frames;
         std::vector<ValueNode::ValueType> stack;
         std::unordered_map<std::string, ValueNode::ValueType> variables;
 
+        ValueNode::ValueType execute(
+            const std::shared_ptr<const BytecodeChunk>& owner,
+            const CallbackTypePlaces& placeholders
+        );
+
         void push(const ValueNode::ValueType& v);
-        ValueNode::ValueType pop(DiagnosticEngine& diagnostics);
+        ValueNode::ValueType pop();
 
         [[nodiscard]] bool isDerived(const BytecodeChunk& chunk, int derivedClassIndex, int baseClassIndex) const;
     };

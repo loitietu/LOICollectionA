@@ -465,18 +465,33 @@ namespace LOICollection::frontend {
         }
     };
 
+    struct NativeHandle {
+        virtual ~NativeHandle() = default;
+    };
+
     struct Object {
         std::string className;
         int classIndex = -1;
         std::unordered_map<std::string, ValueNode::ValueType> fields;
+
+        std::unique_ptr<NativeHandle> native;
     };
 
+    namespace ir {
+        struct BytecodeChunk;
+    }
+
     struct FunctionRef {
+        std::shared_ptr<const ir::BytecodeChunk> owner;
+
         int bodyIndex = -1;
         int argCount = 0;
         std::vector<std::string> paramNames;
+
         bool hasThis = false;
         ObjectRef thisObj;
+        
         std::unordered_map<std::string, ValueNode::ValueType> captures;
+        std::unordered_map<std::string, ValueNode::ValueType> globals;
     };
 }

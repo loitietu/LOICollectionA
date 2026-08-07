@@ -35,6 +35,8 @@ namespace LOICollection::frontend::ir {
         int constructorIndex = -1;
         std::vector<int> methods;
         std::vector<std::string> methodSignatures;
+
+        std::vector<int> ancestorIndices;
     };
 
     struct VirtualCallMeta {

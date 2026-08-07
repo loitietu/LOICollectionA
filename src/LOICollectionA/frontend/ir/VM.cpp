@@ -115,9 +115,7 @@ namespace LOICollection::frontend::ir {
             }
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
                 return arg;
-            else if constexpr (std::is_same_v<std::remove_cv_t<T>, ObjectRef>)
-                return true;
-            else if constexpr (std::is_same_v<std::remove_cv_t<T>, FunctionRefPtr>)
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, ObjectRef> || std::is_same_v<std::remove_cv_t<T>, FunctionRefPtr>)
                 return true;
         }, val);
     }
@@ -139,13 +137,10 @@ namespace LOICollection::frontend::ir {
 
                 diagnostics.addError({ 0, 0, 0 }, "Unknown comparison op: " + op);
                 return false;
-            } else if constexpr (std::is_same_v<T, ObjectRef> && std::is_same_v<U, ObjectRef>) {
-                if (op == "==") return l == r;
-                if (op == "!=") return l != r;
-
-                diagnostics.addError({ 0, 0, 0 }, "Unknown comparison op: " + op);
-                return false;
-            } else if constexpr (std::is_same_v<T, FunctionRefPtr> && std::is_same_v<U, FunctionRefPtr>) {
+            } else if constexpr (
+                (std::is_same_v<T, ObjectRef> && std::is_same_v<U, ObjectRef>) ||
+                (std::is_same_v<T, FunctionRefPtr> && std::is_same_v<U, FunctionRefPtr>)
+            ) {
                 if (op == "==") return l == r;
                 if (op == "!=") return l != r;
 
@@ -174,9 +169,9 @@ namespace LOICollection::frontend::ir {
         this->stack.push_back(v);
     }
 
-    ValueNode::ValueType VM::pop(DiagnosticEngine& diagnostics) {
+    ValueNode::ValueType VM::pop() {
         if (this->stack.empty()) {
-            diagnostics.addError({ 0, 0, 0 }, "Stack underflow");
+            this->diagnostics.addError({ 0, 0, 0 }, "Stack underflow");
             return ValueNode::ValueType{};
         }
 
@@ -187,28 +182,49 @@ namespace LOICollection::frontend::ir {
     }
 
     bool VM::isDerived(const BytecodeChunk& chunk, int derivedClassIndex, int baseClassIndex) const {
-        int current = derivedClassIndex;
-        while (current >= 0 && current < static_cast<int>(chunk.classes.size())) {
-            if (current == baseClassIndex)
-                return true;
+        if (derivedClassIndex == baseClassIndex) return true;
+        if (derivedClassIndex < 0 || derivedClassIndex >= static_cast<int>(chunk.classes.size())) return false;
 
-            current = chunk.classes[current].baseClassIndex;
-        }
+        const auto& cls = chunk.classes[derivedClassIndex];
 
-        return false;
+        return std::ranges::any_of(cls.ancestorIndices, [baseClassIndex](int idx) -> bool {
+            return idx == baseClassIndex;
+        });
     }
 
-    ValueNode::ValueType VM::run(const BytecodeChunk& chunk, const Context& ctx, DiagnosticEngine& diagnostics) {
+    ValueNode::ValueType VM::run(
+        const std::shared_ptr<const BytecodeChunk>& chunk,
+        const Context& ctx
+    ) {
+        if (!chunk) {
+            this->diagnostics.addError({ 0, 0, 0 }, "Cannot run a null bytecode chunk");
+            return ValueNode::ValueType{};
+        }
+
         this->stack.clear();
         this->frames.clear();
         this->variables.clear();
 
-        this->frames.emplace_back(chunk);
+        this->frames.emplace_back(*chunk);
+
+        return this->execute(chunk, ctx.params);
+    }
+
+    ValueNode::ValueType VM::execute(
+        const std::shared_ptr<const BytecodeChunk>& owner,
+        const CallbackTypePlaces& placeholders
+    ) {
+        if (!owner) {
+            this->diagnostics.addError({ 0, 0, 0 }, "Cannot execute a null bytecode chunk");
+            return ValueNode::ValueType{};
+        }
+
+        const BytecodeChunk& chunk = *owner;
 
         size_t executed = 0;
         while (true) {
             if (++executed > 1'000'000) {
-                diagnostics.addError({ 0, 0, 0 }, "Instruction limit exceeded (possible infinite loop)");
+                this->diagnostics.addError({ 0, 0, 0 }, "Instruction limit exceeded (possible infinite loop)");
                 return ValueNode::ValueType{};
             }
 
@@ -216,7 +232,7 @@ namespace LOICollection::frontend::ir {
             const BytecodeChunk& cur = frame.chunk.get();
 
             if (frame.ip >= cur.code.size()) {
-                diagnostics.addError({ 0, 0, 0 }, "Invalid instruction pointer");
+                this->diagnostics.addError({ 0, 0, 0 }, "Invalid instruction pointer");
                 return ValueNode::ValueType{};
             }
 
@@ -229,12 +245,12 @@ namespace LOICollection::frontend::ir {
                     this->push(cur.constants[instr.operand]);
                     break;
                 case OpCode::POP:
-                    this->pop(diagnostics);
+                    this->pop();
                     break;
 
                 case OpCode::DUP: {
                     if (this->stack.empty()) {
-                        diagnostics.addError({ 0, 0, 0 }, "Stack underflow during DUP");
+                        this->diagnostics.addError({ 0, 0, 0 }, "Stack underflow during DUP");
                         break;
                     }
 
@@ -261,7 +277,7 @@ namespace LOICollection::frontend::ir {
                             if (isField) {
                                 auto fieldIt = obj->fields.find(name);
                                 if (fieldIt == obj->fields.end()) {
-                                    diagnostics.addError({ 0, 0, 0 }, "Object has no field: " + name);
+                                    this->diagnostics.addError({ 0, 0, 0 }, "Object has no field: " + name);
                                     break;
                                 }
 
@@ -279,7 +295,7 @@ namespace LOICollection::frontend::ir {
 
                     auto globalIt = this->variables.find(name);
                     if (globalIt == this->variables.end()) {
-                        diagnostics.addError({ 0, 0, 0 }, "Undefined variable: " + name);
+                        this->diagnostics.addError({ 0, 0, 0 }, "Undefined variable: " + name);
                         break;
                     }
 
@@ -289,7 +305,7 @@ namespace LOICollection::frontend::ir {
                 case OpCode::STORE_VAR: {
                     const auto& name = std::get<std::string>(cur.constants[instr.operand]);
 
-                    auto val = this->pop(diagnostics);
+                    auto val = this->pop();
 
                     auto localIt = frame.locals.find(name);
                     if (localIt != frame.locals.end()) {
@@ -323,17 +339,17 @@ namespace LOICollection::frontend::ir {
 
                 case OpCode::LOAD_FIELD: {
                     const auto& name = std::get<std::string>(cur.constants[instr.operand]);
-                    auto objValue = this->pop(diagnostics);
+                    auto objValue = this->pop();
 
                     if (!std::holds_alternative<ObjectRef>(objValue)) {
-                        diagnostics.addError({ 0, 0, 0 }, "Cannot load field '" + name + "' from a non-object value");
+                        this->diagnostics.addError({ 0, 0, 0 }, "Cannot load field '" + name + "' from a non-object value");
                         break;
                     }
 
                     auto obj = std::get<ObjectRef>(objValue);
                     auto it = obj->fields.find(name);
                     if (it == obj->fields.end()) {
-                        diagnostics.addError({ 0, 0, 0 }, "Object has no field: " + name);
+                        this->diagnostics.addError({ 0, 0, 0 }, "Object has no field: " + name);
                         break;
                     }
 
@@ -342,11 +358,11 @@ namespace LOICollection::frontend::ir {
                 }
                 case OpCode::STORE_FIELD: {
                     const auto& name = std::get<std::string>(cur.constants[instr.operand]);
-                    auto objValue = this->pop(diagnostics);
-                    auto val = this->pop(diagnostics);
+                    auto objValue = this->pop();
+                    auto val = this->pop();
 
                     if (!std::holds_alternative<ObjectRef>(objValue)) {
-                        diagnostics.addError({ 0, 0, 0 }, "Cannot store field '" + name + "' on a non-object value");
+                        this->diagnostics.addError({ 0, 0, 0 }, "Cannot store field '" + name + "' on a non-object value");
                         break;
                     }
 
@@ -355,7 +371,7 @@ namespace LOICollection::frontend::ir {
                 }
                 case OpCode::LOAD_THIS: {
                     if (!frame.hasThis) {
-                        diagnostics.addError({ 0, 0, 0 }, "'this' is not available in the current context");
+                        this->diagnostics.addError({ 0, 0, 0 }, "'this' is not available in the current context");
                         break;
                     }
 
@@ -366,6 +382,7 @@ namespace LOICollection::frontend::ir {
                     const auto& meta = cur.lambdas[instr.operand];
 
                     auto func = std::make_shared<FunctionRef>();
+                    func->owner = owner;
                     func->bodyIndex = meta.bodyIndex;
                     func->argCount = meta.argCount;
                     func->paramNames = meta.paramNames;
@@ -373,13 +390,14 @@ namespace LOICollection::frontend::ir {
                     if (frame.hasThis)
                         func->thisObj = std::get<ObjectRef>(frame.thisObj);
                     func->captures = frame.locals;
+                    func->globals = this->variables;
 
                     this->push(func);
                     break;
                 }
                 case OpCode::INSTANCEOF: {
                     const auto& name = std::get<std::string>(cur.constants[instr.operand]);
-                    auto value = this->pop(diagnostics);
+                    auto value = this->pop();
 
                     if (!std::holds_alternative<ObjectRef>(value)) {
                         this->push(false);
@@ -416,7 +434,7 @@ namespace LOICollection::frontend::ir {
                         args.resize(ctor.argCount);
 
                         for (int i = 0; i < ctor.argCount; ++i)
-                            args[ctor.argCount - 1 - i] = this->pop(diagnostics);
+                            args[ctor.argCount - 1 - i] = this->pop();
                     }
 
                     auto obj = std::make_shared<Object>();
@@ -452,14 +470,14 @@ namespace LOICollection::frontend::ir {
 
                     std::vector<ValueNode::ValueType> args(meta.argCount);
                     for (int i = 0; i < meta.argCount; ++i)
-                        args[meta.argCount - 1 - i] = this->pop(diagnostics);
+                        args[meta.argCount - 1 - i] = this->pop();
 
                     auto result = ClassCall::getInstance().create(
-                        meta.className, args, ctx.params, diagnostics
+                        meta.className, args, placeholders, this->diagnostics
                     );
 
                     if (!result.has_value()) {
-                        diagnostics.addError({ 0, 0, 0 },
+                        this->diagnostics.addError({ 0, 0, 0 },
                             "Failed to create native class '" + meta.className + "': " + result.error().message());
                         break;
                     }
@@ -471,22 +489,22 @@ namespace LOICollection::frontend::ir {
                 case OpCode::CALL_METHOD: {
                     const auto& meta = chunk.methods[instr.operand];
 
-                    auto receiver = this->pop(diagnostics);
+                    auto receiver = this->pop();
                     if (!std::holds_alternative<ObjectRef>(receiver)) {
-                        diagnostics.addError({ 0, 0, 0 }, "Method call target is not an object");
+                        this->diagnostics.addError({ 0, 0, 0 }, "Method call target is not an object");
                         break;
                     }
 
                     auto obj = std::get<ObjectRef>(receiver);
                     if (!this->isDerived(chunk, obj->classIndex, meta.classIndex)) {
-                        diagnostics.addError({ 0, 0, 0 },
+                        this->diagnostics.addError({ 0, 0, 0 },
                             "Method '" + meta.name + "' does not belong to this object");
                         break;
                     }
 
                     std::vector<ValueNode::ValueType> args(meta.argCount);
                     for (int i = 0; i < meta.argCount; ++i)
-                        args[meta.argCount - 1 - i] = this->pop(diagnostics);
+                        args[meta.argCount - 1 - i] = this->pop();
 
                     Frame callee(chunk.methodBodies[meta.bodyIndex]);
                     callee.hasThis = true;
@@ -502,32 +520,32 @@ namespace LOICollection::frontend::ir {
                 case OpCode::CALL_METHOD_VIRTUAL: {
                     const auto& meta = cur.virtualCalls[instr.operand];
 
-                    auto receiver = this->pop(diagnostics);
+                    auto receiver = this->pop();
                     if (!std::holds_alternative<ObjectRef>(receiver)) {
-                        diagnostics.addError({ 0, 0, 0 }, "Method call target is not an object");
+                        this->diagnostics.addError({ 0, 0, 0 }, "Method call target is not an object");
                         break;
                     }
 
                     auto obj = std::get<ObjectRef>(receiver);
                     if (obj->classIndex < 0 || obj->classIndex >= static_cast<int>(chunk.classes.size())) {
-                        diagnostics.addError({ 0, 0, 0 }, "Invalid object class index");
+                        this->diagnostics.addError({ 0, 0, 0 }, "Invalid object class index");
                         break;
                     }
 
                     if (!this->isDerived(chunk, obj->classIndex, meta.classIndex)) {
-                        diagnostics.addError({ 0, 0, 0 }, "Method call target is not an instance of the expected class");
+                        this->diagnostics.addError({ 0, 0, 0 }, "Method call target is not an instance of the expected class");
                         break;
                     }
 
                     const auto& actualClass = chunk.classes[obj->classIndex];
                     if (meta.ordinal < 0 || meta.ordinal >= static_cast<int>(actualClass.methods.size())) {
-                        diagnostics.addError({ 0, 0, 0 }, "Invalid method ordinal");
+                        this->diagnostics.addError({ 0, 0, 0 }, "Invalid method ordinal");
                         break;
                     }
 
                     const auto& method = chunk.methods[actualClass.methods[meta.ordinal]];
                     if (method.argCount != meta.argCount) {
-                        diagnostics.addError({ 0, 0, 0 },
+                        this->diagnostics.addError({ 0, 0, 0 },
                             "Method '" + method.name + "' expects " + std::to_string(method.argCount) +
                             " argument(s), got " + std::to_string(meta.argCount));
                         break;
@@ -535,7 +553,7 @@ namespace LOICollection::frontend::ir {
 
                     std::vector<ValueNode::ValueType> args(method.argCount);
                     for (int i = 0; i < method.argCount; ++i)
-                        args[method.argCount - 1 - i] = this->pop(diagnostics);
+                        args[method.argCount - 1 - i] = this->pop();
 
                     Frame callee(chunk.methodBodies[method.bodyIndex]);
                     callee.hasThis = true;
@@ -551,15 +569,15 @@ namespace LOICollection::frontend::ir {
                 case OpCode::CALL_SUPER_CTOR: {
                     const auto& meta = cur.superCalls[instr.operand];
 
-                    auto receiver = this->pop(diagnostics);
+                    auto receiver = this->pop();
                     if (!std::holds_alternative<ObjectRef>(receiver)) {
-                        diagnostics.addError({ 0, 0, 0 }, "Super constructor call target is not an object");
+                        this->diagnostics.addError({ 0, 0, 0 }, "Super constructor call target is not an object");
                         break;
                     }
 
                     if (meta.constructorIndex < 0) {
                         if (meta.argCount != 0) {
-                            diagnostics.addError({ 0, 0, 0 }, "Base class has no constructor");
+                            this->diagnostics.addError({ 0, 0, 0 }, "Base class has no constructor");
                         } else {
                             this->push(std::string(""));
                         }
@@ -568,7 +586,7 @@ namespace LOICollection::frontend::ir {
 
                     const auto& ctor = chunk.methods[meta.constructorIndex];
                     if (ctor.argCount != meta.argCount) {
-                        diagnostics.addError({ 0, 0, 0 },
+                        this->diagnostics.addError({ 0, 0, 0 },
                             "Base constructor expects " + std::to_string(ctor.argCount) +
                             " argument(s), got " + std::to_string(meta.argCount));
                         break;
@@ -576,7 +594,7 @@ namespace LOICollection::frontend::ir {
 
                     std::vector<ValueNode::ValueType> args(ctor.argCount);
                     for (int i = 0; i < ctor.argCount; ++i)
-                        args[ctor.argCount - 1 - i] = this->pop(diagnostics);
+                        args[ctor.argCount - 1 - i] = this->pop();
 
                     Frame callee(chunk.methodBodies[ctor.bodyIndex]);
                     callee.hasThis = true;
@@ -592,9 +610,9 @@ namespace LOICollection::frontend::ir {
                 case OpCode::CALL_NATIVE_METHOD: {
                     const auto& meta = chunk.nativeCalls[instr.operand];
 
-                    auto receiver = this->pop(diagnostics);
+                    auto receiver = this->pop();
                     if (!std::holds_alternative<ObjectRef>(receiver)) {
-                        diagnostics.addError({ 0, 0, 0 }, "Native method call target is not an object");
+                        this->diagnostics.addError({ 0, 0, 0 }, "Native method call target is not an object");
                         break;
                     }
 
@@ -602,14 +620,14 @@ namespace LOICollection::frontend::ir {
 
                     std::vector<ValueNode::ValueType> args(meta.argCount);
                     for (int i = 0; i < meta.argCount; ++i)
-                        args[meta.argCount - 1 - i] = this->pop(diagnostics);
+                        args[meta.argCount - 1 - i] = this->pop();
 
                     auto result = ClassCall::getInstance().callMethod(
-                        obj->className, meta.name, args, obj, ctx.params, diagnostics
+                        obj->className, meta.name, args, obj, placeholders, diagnostics
                     );
 
                     if (!result.has_value()) {
-                        diagnostics.addError({ 0, 0, 0 },
+                        this->diagnostics.addError({ 0, 0, 0 },
                             "Native method call failed '" + meta.className + "::" + meta.name +
                             "': " + result.error().message());
                         break;
@@ -624,7 +642,7 @@ namespace LOICollection::frontend::ir {
 
                     std::vector<ValueNode::ValueType> args(meta.argCount);
                     for (int i = 0; i < meta.argCount; ++i)
-                        args[meta.argCount - 1 - i] = this->pop(diagnostics);
+                        args[meta.argCount - 1 - i] = this->pop();
 
                     Frame callee(chunk.methodBodies[meta.bodyIndex]);
                     callee.hasThis = false;
@@ -637,31 +655,32 @@ namespace LOICollection::frontend::ir {
                 }
 
                 case OpCode::CALL_LAMBDA: {
-                    auto funcValue = this->pop(diagnostics);
+                    auto funcValue = this->pop();
                     if (!std::holds_alternative<FunctionRefPtr>(funcValue)) {
-                        diagnostics.addError({ 0, 0, 0 }, "Attempted to call a non-function value");
+                        this->diagnostics.addError({ 0, 0, 0 }, "Attempted to call a non-function value");
                         break;
                     }
 
                     auto func = std::get<FunctionRefPtr>(funcValue);
                     if (instr.operand != func->argCount) {
-                        diagnostics.addError({ 0, 0, 0 },
+                        this->diagnostics.addError({ 0, 0, 0 },
                             "Function expects " + std::to_string(func->argCount) +
                             " argument(s), got " + std::to_string(instr.operand));
                         break;
                     }
 
-                    if (func->bodyIndex < 0 ||
-                        func->bodyIndex >= static_cast<int>(chunk.methodBodies.size())) {
-                        diagnostics.addError({ 0, 0, 0 }, "Invalid function body index");
+                    if (!func->owner ||
+                        func->bodyIndex < 0 ||
+                        func->bodyIndex >= static_cast<int>(func->owner->methodBodies.size())) {
+                        this->diagnostics.addError({ 0, 0, 0 }, "Invalid function body index");
                         break;
                     }
 
                     std::vector<ValueNode::ValueType> args(func->argCount);
                     for (int i = 0; i < func->argCount; ++i)
-                        args[func->argCount - 1 - i] = this->pop(diagnostics);
+                        args[func->argCount - 1 - i] = this->pop();
 
-                    Frame callee(chunk.methodBodies[func->bodyIndex]);
+                    Frame callee(func->owner->methodBodies[func->bodyIndex]);
                     callee.hasThis = func->hasThis;
                     if (func->hasThis)
                         callee.thisObj = func->thisObj;
@@ -675,7 +694,7 @@ namespace LOICollection::frontend::ir {
                 }
 
                 case OpCode::RETURN: {
-                    auto result = this->pop(diagnostics);
+                    auto result = this->pop();
 
                     Frame finished = std::move(this->frames.back());
                     this->frames.pop_back();
@@ -692,114 +711,114 @@ namespace LOICollection::frontend::ir {
                 }
 
                 case OpCode::ADD: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
-                    this->push(VM::applyArithmetic(l, r, "+", diagnostics));
+                    this->push(VM::applyArithmetic(l, r, "+", this->diagnostics));
                     break;
                 }
                 case OpCode::SUB: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
-                    this->push(VM::applyArithmetic(l, r, "-", diagnostics));
+                    this->push(VM::applyArithmetic(l, r, "-", this->diagnostics));
                     break;
                 }
                 case OpCode::MUL: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
-                    this->push(VM::applyArithmetic(l, r, "*", diagnostics));
+                    this->push(VM::applyArithmetic(l, r, "*", this->diagnostics));
                     break;
                 }
                 case OpCode::DIV: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
-                    this->push(VM::applyArithmetic(l, r, "/", diagnostics));
+                    this->push(VM::applyArithmetic(l, r, "/", this->diagnostics));
                     break;
                 }
                 case OpCode::MOD: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
-                    this->push(VM::applyArithmetic(l, r, "%", diagnostics));
+                    this->push(VM::applyArithmetic(l, r, "%", this->diagnostics));
                     break;
                 }
                 case OpCode::POW: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
-                    this->push(VM::applyArithmetic(l, r, "^", diagnostics));
+                    this->push(VM::applyArithmetic(l, r, "^", this->diagnostics));
                     break;
                 }
 
                 case OpCode::CMP_EQ: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
-                    this->push(VM::applyComparison(l, r, "==", diagnostics));
+                    this->push(VM::applyComparison(l, r, "==", this->diagnostics));
                     break;
                 }
                 case OpCode::CMP_NE: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
-                    this->push(VM::applyComparison(l, r, "!=", diagnostics));
+                    this->push(VM::applyComparison(l, r, "!=", this->diagnostics));
                     break;
                 }
                 case OpCode::CMP_GT: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
-                    this->push(VM::applyComparison(l, r, ">", diagnostics));
+                    this->push(VM::applyComparison(l, r, ">", this->diagnostics));
                     break;
                 }
                 case OpCode::CMP_LT: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
-                    this->push(VM::applyComparison(l, r, "<", diagnostics));
+                    this->push(VM::applyComparison(l, r, "<", this->diagnostics));
                     break;
                 }
                 case OpCode::CMP_GE: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
-                    this->push(VM::applyComparison(l, r, ">=", diagnostics));
+                    this->push(VM::applyComparison(l, r, ">=", this->diagnostics));
                     break;
                 }
                 case OpCode::CMP_LE: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
-                    this->push(VM::applyComparison(l, r, "<=", diagnostics));
+                    this->push(VM::applyComparison(l, r, "<=", this->diagnostics));
                     break;
                 }
 
                 case OpCode::LOGIC_AND: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
                     this->push(VM::valueToBool(l) && VM::valueToBool(r));
                     break;
                 }
                 case OpCode::LOGIC_OR: {
-                    auto r = this->pop(diagnostics);
-                    auto l = this->pop(diagnostics);
+                    auto r = this->pop();
+                    auto l = this->pop();
 
                     this->push(VM::valueToBool(l) || VM::valueToBool(r));
                     break;
                 }
 
                 case OpCode::NEG: {
-                    auto v = this->pop(diagnostics);
+                    auto v = this->pop();
 
-                    this->push(VM::applyUnary(v, "-", diagnostics));
+                    this->push(VM::applyUnary(v, "-", this->diagnostics));
                     break;
                 }
                 case OpCode::NOT: {
-                    auto v = this->pop(diagnostics);
+                    auto v = this->pop();
 
                     this->push(!VM::valueToBool(v));
                     break;
@@ -811,18 +830,18 @@ namespace LOICollection::frontend::ir {
                     CallbackTypeValues args;
                     args.reserve(meta.argCount);
                     for (int i = 0; i < meta.argCount; ++i)
-                        args.push_back(this->pop(diagnostics));
+                        args.push_back(this->pop());
 
                     std::ranges::reverse(args);
 
                     auto ns = meta.name.substr(0, meta.name.find("::"));
                     auto func = meta.name.substr(meta.name.find("::") + 2);
                     auto result = FunctionCall::getInstance().callFunction(
-                        ns, func, args, ctx.params, diagnostics
+                        ns, func, args, placeholders, this->diagnostics
                     );
                     
                     if (!result.has_value()) {
-                        diagnostics.addError({ 0, 0, 0 }, result.error().message());
+                        this->diagnostics.addError({ 0, 0, 0 }, result.error().message());
                         break;
                     }
 
@@ -835,16 +854,16 @@ namespace LOICollection::frontend::ir {
                     CallbackTypeValues args;
                     args.reserve(meta.argCount);
                     for (int i = 0; i < meta.argCount; ++i)
-                        args.push_back(this->pop(diagnostics));
+                        args.push_back(this->pop());
 
                     std::ranges::reverse(args);
                     
                     auto result = MacroCall::getInstance().callMacro(
-                        meta.name, args, ctx.params, diagnostics
+                        meta.name, args, placeholders, this->diagnostics
                     );
 
                     if (!result.has_value()) {
-                        diagnostics.addError({ 0, 0, 0 }, result.error().message());
+                        this->diagnostics.addError({ 0, 0, 0 }, result.error().message());
                         break;
                     }
 
@@ -853,14 +872,14 @@ namespace LOICollection::frontend::ir {
                 }
 
                 case OpCode::JMP_IF_FALSE: {
-                    auto cond = this->pop(diagnostics);
+                    auto cond = this->pop();
                     if (!VM::valueToBool(cond))
                         frame.ip += instr.operand;
 
                     break;
                 }
                 case OpCode::JMP_IF_TRUE: {
-                    auto cond = this->pop(diagnostics);
+                    auto cond = this->pop();
                     if (VM::valueToBool(cond))
                         frame.ip += instr.operand;
                     
@@ -879,5 +898,53 @@ namespace LOICollection::frontend::ir {
                 }
             }
         }
+    }
+
+    ValueNode::ValueType VM::callFunctionRef(
+        const FunctionRefPtr& func,
+        const CallbackTypeValues& args,
+        const CallbackTypePlaces& placeholders,
+        DiagnosticEngine& diagnostics
+    ) {
+        if (!func) {
+            diagnostics.addError({ 0, 0, 0 }, "Cannot call a null function reference");
+            return ValueNode::ValueType{};
+        }
+
+        if (!func->owner) {
+            diagnostics.addError({ 0, 0, 0 }, "Function reference has no owning bytecode chunk");
+            return ValueNode::ValueType{};
+        }
+
+        if (func->bodyIndex < 0 ||
+            func->bodyIndex >= static_cast<int>(func->owner->methodBodies.size())) {
+            diagnostics.addError({ 0, 0, 0 }, "Invalid function body index");
+            return ValueNode::ValueType{};
+        }
+
+        if (static_cast<int>(args.size()) != func->argCount) {
+            diagnostics.addError({ 0, 0, 0 },
+                "Function expects " + std::to_string(func->argCount) +
+                " argument(s), got " + std::to_string(args.size()));
+            return ValueNode::ValueType{};
+        }
+
+        VM vm(diagnostics);
+        vm.stack.clear();
+        vm.frames.clear();
+        vm.variables.clear();
+        vm.variables = func->globals;
+
+        Frame callee(func->owner->methodBodies[func->bodyIndex]);
+        callee.hasThis = func->hasThis;
+        if (func->hasThis)
+            callee.thisObj = func->thisObj;
+        callee.locals = func->captures;
+
+        for (int i = 0; i < func->argCount; ++i)
+            callee.locals[func->paramNames[i]] = args[i];
+
+        vm.frames.push_back(std::move(callee));
+        return vm.execute(func->owner, placeholders);
     }
 }

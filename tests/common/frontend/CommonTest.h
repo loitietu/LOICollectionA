@@ -32,16 +32,16 @@ namespace LOICollection::frontend {
             throw std::runtime_error(diagnostics.getErrorMessage());
 
         ir::Compiler compiler(diagnostics);
-        ir::VM vm;
+        ir::VM vm(diagnostics);
 
-        auto bytecode = compiler.compile(*ast);
+        auto bytecode = std::make_shared<ir::BytecodeChunk>(compiler.compile(*ast));
         if (diagnostics.hasErrors())
             throw std::runtime_error(diagnostics.getErrorMessage());
 
         ir::Optimizer optimizer;
-        [[maybe_unused]] auto optimizeStats = optimizer.optimize(bytecode);
+        [[maybe_unused]] auto optimizeStats = optimizer.optimize(*bytecode);
 
-        auto result = vm.run(bytecode, ctx, diagnostics);
+        auto result = vm.run(bytecode, ctx);
         if (diagnostics.hasErrors())
             throw std::runtime_error(diagnostics.getErrorMessage());
 

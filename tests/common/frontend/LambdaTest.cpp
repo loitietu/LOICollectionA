@@ -68,3 +68,61 @@ TEST(LambdaTest, CaptureThis) {
 TEST(LambdaTest, WrongArgumentCount) {
     EXPECT_THROW(eval("f = func (a: int) -> int { return a; }; f()"), std::runtime_error);
 }
+
+TEST(LambdaTest, CallFunctionRefFromNative) {
+    DiagnosticEngine diagnostics;
+
+    Lexer lexer("f = func (a: int) -> int { return a + 1; }; f", diagnostics);
+    Parser parser(lexer, diagnostics);
+    auto ast = parser.parse();
+    ASSERT_FALSE(diagnostics.hasErrors());
+
+    if (auto tpl = dynamic_cast<TemplateNode*>(ast.get())) {
+        SemanticAnalyzer analyzer(diagnostics);
+        analyzer.analyze(*tpl);
+    }
+    ASSERT_FALSE(diagnostics.hasErrors());
+
+    ir::Compiler compiler(diagnostics);
+    auto chunk = std::make_shared<ir::BytecodeChunk>(compiler.compile(*ast));
+    ASSERT_FALSE(diagnostics.hasErrors());
+
+    ir::VM vm(diagnostics);
+    auto result = vm.run(chunk, {});
+    ASSERT_FALSE(diagnostics.hasErrors());
+    ASSERT_TRUE(std::holds_alternative<FunctionRefPtr>(result));
+
+    auto func = std::get<FunctionRefPtr>(result);
+    auto called = ir::VM::callFunctionRef(func, CallbackTypeValues{ 2 }, {}, diagnostics);
+    ASSERT_FALSE(diagnostics.hasErrors());
+    EXPECT_EQ(ir::VM::valueToString(called), "3");
+}
+
+TEST(LambdaTest, CallFunctionRefKeepsCaptures) {
+    DiagnosticEngine diagnostics;
+
+    Lexer lexer("a = 5; f = func (b: int) -> int { return a + b; }; f", diagnostics);
+    Parser parser(lexer, diagnostics);
+    auto ast = parser.parse();
+    ASSERT_FALSE(diagnostics.hasErrors());
+
+    if (auto tpl = dynamic_cast<TemplateNode*>(ast.get())) {
+        SemanticAnalyzer analyzer(diagnostics);
+        analyzer.analyze(*tpl);
+    }
+    ASSERT_FALSE(diagnostics.hasErrors());
+
+    ir::Compiler compiler(diagnostics);
+    auto chunk = std::make_shared<ir::BytecodeChunk>(compiler.compile(*ast));
+    ASSERT_FALSE(diagnostics.hasErrors());
+
+    ir::VM vm(diagnostics);
+    auto result = vm.run(chunk, {});
+    ASSERT_FALSE(diagnostics.hasErrors());
+    ASSERT_TRUE(std::holds_alternative<FunctionRefPtr>(result));
+
+    auto func = std::get<FunctionRefPtr>(result);
+    auto called = ir::VM::callFunctionRef(func, CallbackTypeValues{ 10 }, {}, diagnostics);
+    ASSERT_FALSE(diagnostics.hasErrors());
+    EXPECT_EQ(ir::VM::valueToString(called), "15");
+}
