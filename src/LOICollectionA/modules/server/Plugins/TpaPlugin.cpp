@@ -82,7 +82,7 @@ namespace LOICollection::server::Plugins {
 
     struct TpaPlugin::operation {
         CommandSelector<Player> Target;
-        SelectorType Type;
+        SelectorType Type{ SelectorType::tpa };
         std::string Id;
     };
 

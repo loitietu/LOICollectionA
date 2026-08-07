@@ -31,10 +31,16 @@ namespace LOICollection::frontend::ir {
         std::vector<std::string> fieldNames;
         std::vector<ValueNode::ValueType> defaults;
         std::vector<bool> hasDefault;
+
+        std::vector<std::string> staticFieldNames;
+        std::vector<ValueNode::ValueType> staticDefaults;
+        std::vector<bool> staticHasDefault;
         
         int constructorIndex = -1;
         std::vector<int> methods;
         std::vector<std::string> methodSignatures;
+        std::vector<int> staticMethods;
+        std::vector<std::string> staticMethodSignatures;
 
         std::vector<int> ancestorIndices;
     };
@@ -68,6 +74,7 @@ namespace LOICollection::frontend::ir {
         std::string className;
         std::string name;
         int argCount = 0;
+        bool isStatic = false;
     };
 
     struct BytecodeChunk {

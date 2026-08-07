@@ -80,7 +80,6 @@ TEST_F(BlacklistPluginTest, GetBlacklists) {
 
     auto& vecs = blacklists.value();
     EXPECT_FALSE(vecs.empty());
-    EXPECT_TRUE(vecs.size() >= 1);
 }
 
 TEST_F(BlacklistPluginTest, DeleteBlacklist) {

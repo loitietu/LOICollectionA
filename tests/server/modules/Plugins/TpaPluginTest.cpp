@@ -114,7 +114,7 @@ TEST_F(TpaPluginTest, GetBlacklist) {
 
     auto blacklists = TpaPlugin::getShared()->getBlacklist(*sp);
     EXPECT_TRUE(blacklists.has_value());
-    EXPECT_TRUE(blacklists.value().size() > 0);
+    EXPECT_FALSE(blacklists.value().empty());
 }
 
 TEST_F(TpaPluginTest, GetBlacklistFromTarget) {
@@ -122,7 +122,7 @@ TEST_F(TpaPluginTest, GetBlacklistFromTarget) {
 
     auto blacklists = TpaPlugin::getShared()->getBlacklistFromTarget({ this->mBlacklistId });
     EXPECT_TRUE(blacklists.has_value());
-    EXPECT_TRUE(blacklists.value().size() > 0);
+    EXPECT_FALSE(blacklists.value().empty());
 }
 
 TEST_F(TpaPluginTest, GetBlacklistData) {

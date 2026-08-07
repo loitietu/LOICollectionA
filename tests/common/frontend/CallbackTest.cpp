@@ -230,3 +230,58 @@ TEST(ClassCallTest, CreateAndCallMethod) {
     auto missing = cc.callMethod(name, "nope", {}, *objResult, {}, diagnostics);
     EXPECT_FALSE(missing.has_value());
 }
+
+TEST(ClassCallTest, RegisterFieldAndStaticMembers) {
+    auto& cc = ClassCall::getInstance();
+    const std::string name = "NativeMembers";
+
+    cc.registerClass(name, {});
+    cc.registerField(name, "count", 10);
+    cc.registerStaticField(name, "version", 1);
+
+    EXPECT_TRUE(cc.hasField(name, "count"));
+    EXPECT_FALSE(cc.hasField(name, "nope"));
+    EXPECT_TRUE(cc.hasStaticField(name, "version"));
+    EXPECT_FALSE(cc.hasStaticField(name, "nope"));
+    EXPECT_EQ(cc.getFields(name), (std::vector<std::string>{ "count" }));
+    EXPECT_EQ(cc.getStaticFields(name), (std::vector<std::string>{ "version" }));
+
+    DiagnosticEngine diagnostics;
+    auto objResult = cc.create(name, {}, {}, diagnostics);
+    ASSERT_TRUE(objResult.has_value());
+    EXPECT_EQ(std::get<int>((*objResult)->fields["count"]), 10);
+
+    auto staticValue = cc.getStaticField(name, "version");
+    ASSERT_TRUE(staticValue.has_value());
+    EXPECT_EQ(std::get<int>(staticValue.value()), 1);
+
+    cc.setStaticField(name, "version", 2);
+    staticValue = cc.getStaticField(name, "version");
+    ASSERT_TRUE(staticValue.has_value());
+    EXPECT_EQ(std::get<int>(staticValue.value()), 2);
+
+    cc.registerStaticMethod(name, "double",
+        [](const CallbackTypeValues& args) -> TypedValue {
+            return std::get<int>(args[0]) * 2;
+        }, { ParamType::INT });
+
+    auto signatures = cc.getStaticMethodSignatures(name, "double");
+    ASSERT_EQ(signatures.size(), 1u);
+    EXPECT_EQ(signatures[0], (CallbackTypeArgs{ ParamType::INT }));
+
+    auto result = cc.callStaticMethod(name, "double", { 5 }, {}, diagnostics);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_FALSE(diagnostics.hasErrors());
+    EXPECT_EQ(std::get<int>(result.value()), 10);
+
+    cc.registerStaticMethod(name, "placeholder",
+        [](const CallbackTypeValues&, const CallbackTypePlaces& places) -> TypedValue {
+            return std::any_cast<int>(places.at(0)) + 1;
+        }, {});
+
+    Context ctx(41);
+    auto combo = cc.callStaticMethod(name, "placeholder", {}, ctx.params, diagnostics);
+    ASSERT_TRUE(combo.has_value());
+    EXPECT_FALSE(diagnostics.hasErrors());
+    EXPECT_EQ(std::get<int>(combo.value()), 42);
+}

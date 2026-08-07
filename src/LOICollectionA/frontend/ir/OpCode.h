@@ -29,6 +29,8 @@ namespace LOICollection::frontend::ir {
         NEW,
         NEW_NATIVE,
         LOAD_FIELD, STORE_FIELD,
+        MAKE_ARRAY,
+        LOAD_INDEX, STORE_INDEX,
         LOAD_THIS,
         MAKE_LAMBDA,
         INSTANCEOF,

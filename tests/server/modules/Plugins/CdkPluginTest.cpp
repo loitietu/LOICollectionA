@@ -60,7 +60,7 @@ TEST_F(CdkPluginTest, GetCdks) {
 
     auto cdks = CdkPlugin::getShared()->getCdks();
     EXPECT_TRUE(cdks.has_value());
-    EXPECT_TRUE(cdks.value().size() >= 1);
+    EXPECT_FALSE(cdks.value().empty());
 }
 
 TEST_F(CdkPluginTest, ConvertCdkNoPersonal) {

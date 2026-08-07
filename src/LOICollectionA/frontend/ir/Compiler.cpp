@@ -128,6 +128,16 @@ namespace LOICollection::frontend::ir {
             countArgs(node.args);
         }
 
+        void visit(ArrayNode& node) override {
+            for (auto& element : node.elements)
+                countNode(*element);
+        }
+
+        void visit(IndexAccessNode& node) override {
+            countNode(*node.target);
+            countNode(*node.index);
+        }
+
         void visit(LambdaNode& node) override {
             count++;
             countBody(node.decl.body);
@@ -224,7 +234,9 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(VariableNode& node) {
-        int idx = this->addConstant(node.name);
+        int idx = node.isStaticField
+            ? this->addConstant(node.staticClassName + "::" + node.name)
+            : this->addConstant(node.name);
         this->current.get().emit(OpCode::LOAD_VAR, idx);
     }
 
@@ -236,16 +248,31 @@ namespace LOICollection::frontend::ir {
         switch (node.target->getType()) {
             case ASTNode::Type::Variable: {
                 auto& var = static_cast<VariableNode&>(*node.target);
-                int idx = this->addConstant(var.name);
+                int idx = var.isStaticField
+                    ? this->addConstant(var.staticClassName + "::" + var.name)
+                    : this->addConstant(var.name);
                 this->current.get().emit(OpCode::STORE_VAR, idx);
                 break;
             }
             case ASTNode::Type::MemberAccess: {
                 auto& member = static_cast<MemberAccessNode&>(*node.target);
+                if (member.isStaticAccess) {
+                    int idx = this->addConstant(member.staticClassName + "::" + member.memberName);
+                    this->current.get().emit(OpCode::STORE_VAR, idx);
+                    break;
+                }
+
                 member.target->accept(*this);
 
                 int idx = this->addConstant(member.memberName);
                 this->current.get().emit(OpCode::STORE_FIELD, idx);
+                break;
+            }
+            case ASTNode::Type::Index: {
+                auto& indexNode = static_cast<IndexAccessNode&>(*node.target);
+                indexNode.target->accept(*this);
+                indexNode.index->accept(*this);
+                this->current.get().emit(OpCode::STORE_INDEX);
                 break;
             }
             default:
@@ -469,44 +496,46 @@ namespace LOICollection::frontend::ir {
             meta.constructorIndex = base.constructorIndex;
             meta.methods = base.methods;
             meta.methodSignatures = base.methodSignatures;
+            meta.staticMethods = base.staticMethods;
+            meta.staticMethodSignatures = base.staticMethodSignatures;
+            meta.staticFieldNames = base.staticFieldNames;
+            meta.staticDefaults = base.staticDefaults;
+            meta.staticHasDefault = base.staticHasDefault;
             meta.ancestorIndices.push_back(baseIdx);
             meta.ancestorIndices.insert(meta.ancestorIndices.end(), base.ancestorIndices.begin(), base.ancestorIndices.end());
         }
 
         for (const auto& member : node.members) {
-            auto fieldIt = std::ranges::find(meta.fieldNames, member.name);
-            if (fieldIt != meta.fieldNames.end()) {
-                auto fieldIdx = static_cast<size_t>(std::distance(meta.fieldNames.begin(), fieldIt));
-                meta.hasDefault[fieldIdx] = member.hasDefault;
+            auto& names = member.isStatic ? meta.staticFieldNames : meta.fieldNames;
+            auto& defaults = member.isStatic ? meta.staticDefaults : meta.defaults;
+            auto& hasDefault = member.isStatic ? meta.staticHasDefault : meta.hasDefault;
 
-                if (member.hasDefault) {
-                    if (member.defaultExpr && member.defaultExpr->getType() == ASTNode::Type::Value) {
-                        meta.defaults[fieldIdx] = static_cast<ValueNode&>(*member.defaultExpr).value;
-                    } else {
-                        this->diagnostics.addError(node.loc,
-                            "Member default value of '" + member.name + "' must be a constant literal");
-                        meta.defaults[fieldIdx] = ValueNode::ValueType{};
-                    }
-                } else {
-                    meta.defaults[fieldIdx] = ValueNode::ValueType{};
-                }
-
-                continue;
+            auto fieldIt = std::ranges::find(names, member.name);
+            if (fieldIt == names.end()) {
+                names.push_back(member.name);
+                hasDefault.push_back(member.hasDefault);
+                defaults.emplace_back();
+                fieldIt = std::ranges::find(names, member.name);
+            } else {
+                auto fieldIdx = static_cast<size_t>(std::distance(names.begin(), fieldIt));
+                hasDefault[fieldIdx] = member.hasDefault;
             }
 
-            meta.fieldNames.push_back(member.name);
-            meta.hasDefault.push_back(member.hasDefault);
-
+            auto fieldIdx = static_cast<size_t>(std::distance(names.begin(), fieldIt));
             if (member.hasDefault) {
-                if (member.defaultExpr && member.defaultExpr->getType() == ASTNode::Type::Value) {
-                    meta.defaults.push_back(static_cast<ValueNode&>(*member.defaultExpr).value);
-                } else {
-                    this->diagnostics.addError(node.loc,
-                        "Member default value of '" + member.name + "' must be a constant literal");
-                    meta.defaults.emplace_back();
+                if (member.defaultExpr) {
+                    auto value = this->constantValue(*member.defaultExpr);
+                    if (value.has_value()) {
+                        defaults[fieldIdx] = *value;
+                        continue;
+                    }
                 }
+
+                this->diagnostics.addError(node.loc,
+                    "Member default value of '" + member.name + "' must be a constant literal");
+                defaults[fieldIdx] = ValueNode::ValueType{};
             } else {
-                meta.defaults.emplace_back();
+                defaults[fieldIdx] = ValueNode::ValueType{};
             }
         }
 
@@ -517,21 +546,24 @@ namespace LOICollection::frontend::ir {
                 meta.constructorIndex = methodIdx;
             else {
                 std::string signature = this->methodSignature(method);
-                auto sigIt = std::ranges::find(meta.methodSignatures, signature);
-                if (sigIt != meta.methodSignatures.end()) {
-                    auto ordinal = static_cast<size_t>(std::distance(meta.methodSignatures.begin(), sigIt));
-                    meta.methods[ordinal] = methodIdx;
-                } else {
-                    meta.methodSignatures.push_back(signature);
-                    meta.methods.push_back(methodIdx);
-                }
+                auto& signatures = method.isStatic ? meta.staticMethodSignatures : meta.methodSignatures;
+                auto& methods = method.isStatic ? meta.staticMethods : meta.methods;
 
+                auto sigIt = std::ranges::find(signatures, signature);
+                if (sigIt != signatures.end()) {
+                    auto ordinal = static_cast<size_t>(std::distance(signatures.begin(), sigIt));
+                    methods[ordinal] = methodIdx;
+                } else {
+                    signatures.push_back(signature);
+                    methods.push_back(methodIdx);
+                }
             }
         }
 
         this->classMethodIndices[node.name] = meta.methods;
+        this->classStaticMethodIndices[node.name] = meta.staticMethods;
         this->chunk.classes.push_back(std::move(meta));
-        this->bodyOrder.push_back(std::ref(node));
+        this->bodyOrder.emplace_back(std::ref(node));
     }
 
     void Compiler::compileClassBodies(ClassNode& node) {
@@ -624,15 +656,53 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(MemberAccessNode& node) {
+        if (node.isStaticAccess) {
+            int idx = this->addConstant(node.staticClassName + "::" + node.memberName);
+            this->current.get().emit(OpCode::LOAD_VAR, idx);
+            return;
+        }
+
         node.target->accept(*this);
 
         int idx = this->addConstant(node.memberName);
         this->current.get().emit(OpCode::LOAD_FIELD, idx);
     }
 
+    void Compiler::visit(ArrayNode& node) {
+        for (auto& element : node.elements)
+            element->accept(*this);
+
+        this->current.get().emit(OpCode::MAKE_ARRAY, static_cast<int>(node.elements.size()));
+    }
+
+    void Compiler::visit(IndexAccessNode& node) {
+        node.target->accept(*this);
+        node.index->accept(*this);
+        this->current.get().emit(OpCode::LOAD_INDEX);
+    }
+
     void Compiler::visit(MethodCallNode& node) {
         for (auto& arg : node.args)
             arg->accept(*this);
+
+        if (node.isStaticCall) {
+            if (ClassCall::getInstance().isRegistered(node.staticClassName)) {
+                int argCount = static_cast<int>(node.args.size());
+                int metaIdx = this->addNativeCall(node.staticClassName, node.methodName, argCount, true);
+
+                this->current.get().emit(OpCode::CALL_NATIVE_METHOD, metaIdx);
+                return;
+            }
+
+            auto it = this->classStaticMethodIndices.find(node.staticClassName);
+            if (it != this->classStaticMethodIndices.end() && node.methodOrdinal >= 0 &&
+                static_cast<size_t>(node.methodOrdinal) < it->second.size()) {
+                this->current.get().emit(OpCode::CALL_FUNC, it->second[node.methodOrdinal]);
+            } else {
+                this->diagnostics.addError(node.loc, "Unresolved static method call: " + node.methodName);
+            }
+            return;
+        }
 
         node.target->accept(*this);
 
@@ -703,7 +773,7 @@ namespace LOICollection::frontend::ir {
     void Compiler::registerFunctionMeta(FunctionDefNode& node) {
         int funcIdx = static_cast<int>(methodCount++);
         this->functionIndices[node.name].push_back(funcIdx);
-        this->bodyOrder.push_back(std::ref(node));
+        this->bodyOrder.emplace_back(std::ref(node));
     }
 
     void Compiler::compileFunctionBody(FunctionDefNode& node) {
@@ -736,10 +806,29 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(FuncCallNode& node) {
-        if (node.isCallable) {
-            for (auto& arg : node.args)
-                arg->accept(*this);
+        for (auto& arg : node.args)
+            arg->accept(*this);
 
+        if (node.isStaticCall) {
+            if (ClassCall::getInstance().isRegistered(node.staticClassName)) {
+                int argCount = static_cast<int>(node.args.size());
+                int metaIdx = this->addNativeCall(node.staticClassName, node.name, argCount, true);
+
+                this->current.get().emit(OpCode::CALL_NATIVE_METHOD, metaIdx);
+                return;
+            }
+
+            auto it = this->classStaticMethodIndices.find(node.staticClassName);
+            if (it != this->classStaticMethodIndices.end() && node.methodOrdinal >= 0 &&
+                static_cast<size_t>(node.methodOrdinal) < it->second.size()) {
+                this->current.get().emit(OpCode::CALL_FUNC, it->second[node.methodOrdinal]);
+            } else {
+                this->diagnostics.addError(node.loc, "Unresolved static method call: " + node.name);
+            }
+            return;
+        }
+
+        if (node.isCallable) {
             int idx = this->addConstant(node.resolvedName);
             this->current.get().emit(OpCode::LOAD_VAR, idx);
 
@@ -747,9 +836,6 @@ namespace LOICollection::frontend::ir {
             this->current.get().emit(OpCode::CALL_LAMBDA, argCount);
             return;
         }
-
-        for (auto& arg : node.args)
-            arg->accept(*this);
 
         auto it = this->functionIndices.find(node.resolvedName);
         if (it == this->functionIndices.end() || node.functionOrdinal < 0 ||
@@ -788,14 +874,14 @@ namespace LOICollection::frontend::ir {
         this->current.get().emit(OpCode::MAKE_LAMBDA, lambdaIdx);
     }
 
-    int Compiler::addNativeCall(const std::string& className, const std::string& name, int argCount) {
+    int Compiler::addNativeCall(const std::string& className, const std::string& name, int argCount, bool isStatic) {
         for (size_t i = 0; i < this->chunk.nativeCalls.size(); ++i) {
             const auto& meta = this->chunk.nativeCalls[i];
-            if (meta.className == className && meta.name == name && meta.argCount == argCount)
+            if (meta.className == className && meta.name == name && meta.argCount == argCount && meta.isStatic == isStatic)
                 return static_cast<int>(i);
         }
 
-        this->chunk.nativeCalls.push_back({ className, name, argCount });
+        this->chunk.nativeCalls.push_back({ className, name, argCount, isStatic });
         return static_cast<int>(this->chunk.nativeCalls.size() - 1);
     }
 
@@ -847,5 +933,28 @@ namespace LOICollection::frontend::ir {
         }
         signature += ")";
         return signature;
+    }
+
+    std::optional<ValueNode::ValueType> Compiler::constantValue(ExprNode& node) const {
+        if (node.getType() == ASTNode::Type::Value)
+            return static_cast<ValueNode&>(node).value;
+
+        if (node.getType() == ASTNode::Type::Array) {
+            auto& array = static_cast<ArrayNode&>(node);
+            auto result = std::make_shared<ArrayValue>();
+            result->elements.reserve(array.elements.size());
+
+            for (auto& element : array.elements) {
+                auto value = this->constantValue(*element);
+                if (!value.has_value())
+                    return std::nullopt;
+
+                result->elements.push_back(*value);
+            }
+
+            return result;
+        }
+
+        return std::nullopt;
     }
 }

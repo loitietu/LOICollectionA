@@ -39,6 +39,11 @@ namespace LOICollection::frontend {
             std::reference_wrapper<ClassNode> owner;
         };
 
+        struct StaticMethodRef {
+            std::reference_wrapper<MethodDecl> method;
+            std::reference_wrapper<ClassNode> owner;
+        };
+
         DiagnosticEngine& diagnostics;
 
         std::vector<std::reference_wrapper<ClassNode>> classes;
@@ -46,6 +51,8 @@ namespace LOICollection::frontend {
         std::unordered_map<std::string, std::reference_wrapper<ClassNode>> classByName;
         std::unordered_map<std::string, std::vector<std::string>> classMethodOrder;
         std::unordered_map<std::string, std::unordered_map<std::string, int>> classMethodOrdinals;
+        std::unordered_map<std::string, std::vector<std::string>> classStaticMethodOrder;
+        std::unordered_map<std::string, std::unordered_map<std::string, int>> classStaticMethodOrdinals;
         std::vector<std::reference_wrapper<FunctionDefNode>> functions;
         std::unordered_map<std::string, std::vector<std::reference_wrapper<FunctionDefNode>>> functionsByName;
         std::unordered_map<std::string, TypeInfo> globalTypes;
@@ -91,6 +98,12 @@ namespace LOICollection::frontend {
         [[nodiscard]] bool isTypeCompatible(const TypeInfo& target, const TypeInfo& from) const;
         
         [[nodiscard]] std::optional<FieldRef> findField(ClassNode& cls, const std::string& name) const;
+        [[nodiscard]] std::optional<FieldRef> findStaticField(ClassNode& cls, const std::string& name) const;
         [[nodiscard]] std::optional<ConstructorRef> findConstructor(ClassNode& cls) const;
+        [[nodiscard]] std::optional<StaticMethodRef> findStaticMethod(
+            ClassNode& cls, const std::string& name, const std::vector<TypeInfo>& argTypes,
+            const MethodScope& scope
+        ) const;
+        [[nodiscard]] int staticMethodOrdinal(const std::string& className, const std::string& signature) const;
     };
 }

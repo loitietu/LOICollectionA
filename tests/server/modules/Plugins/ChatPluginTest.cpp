@@ -109,7 +109,7 @@ TEST_F(ChatPluginTest, GetBlacklist) {
 
     auto blacklists = ChatPlugin::getShared()->getBlacklist(*sp);
     EXPECT_TRUE(blacklists.has_value());
-    EXPECT_TRUE(blacklists.value().size() > 0);
+    EXPECT_FALSE(blacklists.value().empty());
 }
 
 TEST_F(ChatPluginTest, GetBlacklistData) {

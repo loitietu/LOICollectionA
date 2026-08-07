@@ -140,7 +140,7 @@ TEST_F(MarketPluginTest, GetBlacklist) {
 
     auto blacklists = MarketPlugin::getShared()->getBlacklist(*sp2.getPlayer());
     EXPECT_TRUE(blacklists.has_value());
-    EXPECT_TRUE(blacklists.value().size() > 0);
+    EXPECT_FALSE(blacklists.value().empty());
 }
 
 TEST_F(MarketPluginTest, GetBlacklistData) {
@@ -187,14 +187,14 @@ TEST_F(MarketPluginTest, GetItems) {
 
     auto items1 = MarketPlugin::getShared()->getItems();
     EXPECT_TRUE(items1.has_value());
-    EXPECT_TRUE(items1.value().size() > 0);
+    EXPECT_FALSE(items1.value().empty());
 
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
     auto items2 = MarketPlugin::getShared()->getItems(*sp);
     EXPECT_TRUE(items2.has_value());
-    EXPECT_TRUE(items2.value().size() > 0);
+    EXPECT_FALSE(items2.value().empty());
 }
 
 TEST_F(MarketPluginTest, BuyItem) {

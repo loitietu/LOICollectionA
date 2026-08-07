@@ -68,6 +68,8 @@ TEST(ASTTest, ExpressionNodeTypes) {
     EXPECT_EQ(firstPartType("obj.m()"), ASTNode::Type::MethodCall);
     EXPECT_EQ(firstPartType("this"), ASTNode::Type::This);
     EXPECT_EQ(firstPartType("func (a) { return a; }"), ASTNode::Type::Lambda);
+    EXPECT_EQ(firstPartType("[1, 2]"), ASTNode::Type::Array);
+    EXPECT_EQ(firstPartType("a[0]"), ASTNode::Type::Index);
 }
 
 TEST(ASTTest, StatementNodeTypes) {

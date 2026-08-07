@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <fstream>
 #include <filesystem>
 
 #include "LOICollectionA/utils/I18nUtils.h"

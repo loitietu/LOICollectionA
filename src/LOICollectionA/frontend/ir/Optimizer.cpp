@@ -269,6 +269,94 @@ namespace LOICollection::frontend::ir {
                     break;
                 }
 
+                case OpCode::MAKE_ARRAY: {
+                    int count = instr.operand;
+                    bool foldable = count == 0 || static_cast<int>(stack.size()) > count;
+                    std::vector<int> producers;
+                    std::vector<ValueNode::ValueType> elements;
+
+                    if (foldable && count > 0) {
+                        elements.resize(count);
+                        producers.resize(count);
+
+                        for (int i = count - 1; i >= 0; --i) {
+                            StackEntry entry = popEntry(stack);
+                            if (!isKnown(entry) || !knownValue(entry).removable) {
+                                foldable = false;
+                                break;
+                            }
+
+                            elements[i] = knownValue(entry).value;
+                            producers[i] = knownValue(entry).producer;
+                        }
+                    }
+
+                    if (foldable) {
+                        for (int producer : producers)
+                            dropped[producer] = true;
+
+                        auto arr = std::make_shared<ArrayValue>();
+                        arr->elements = std::move(elements);
+
+                        emitPush(chunk, foldedCode, arr);
+                        emittedAt = static_cast<int>(foldedCode.size()) - 1;
+                        stack.emplace_back(TrackedValue{ arr, emittedAt, !targets.contains(oldIdx) });
+                        stats.folded++;
+                    } else {
+                        emittedAt = static_cast<int>(foldedCode.size());
+                        foldedCode.push_back(instr);
+                        stack.assign(1, std::monostate{});
+                    }
+
+                    break;
+                }
+
+                case OpCode::LOAD_INDEX: {
+                    StackEntry indexEntry = popEntry(stack);
+                    StackEntry targetEntry = popEntry(stack);
+
+                    bool foldable = isKnown(indexEntry) && isKnown(targetEntry) &&
+                        knownValue(indexEntry).removable && knownValue(targetEntry).removable &&
+                        std::holds_alternative<int>(knownValue(indexEntry).value) &&
+                        std::holds_alternative<ArrayRef>(knownValue(targetEntry).value);
+
+                    int index = 0;
+                    if (foldable) {
+                        index = std::get<int>(knownValue(indexEntry).value);
+                        const auto& target = std::get<ArrayRef>(knownValue(targetEntry).value);
+                        foldable = index >= 0 && index < static_cast<int>(target->elements.size()) &&
+                            !std::holds_alternative<ArrayRef>(target->elements[index]);
+                    }
+
+                    if (foldable) {
+                        dropped[knownValue(indexEntry).producer] = true;
+                        dropped[knownValue(targetEntry).producer] = true;
+
+                        const auto& element =
+                            std::get<ArrayRef>(knownValue(targetEntry).value)->elements[index];
+                        emitPush(chunk, foldedCode, element);
+                        emittedAt = static_cast<int>(foldedCode.size()) - 1;
+                        stack.emplace_back(TrackedValue{ element, emittedAt, !targets.contains(oldIdx) });
+                        stats.folded++;
+                    } else {
+                        emittedAt = static_cast<int>(foldedCode.size());
+                        foldedCode.push_back(instr);
+                        stack.emplace_back(std::monostate{});
+                    }
+
+                    break;
+                }
+
+                case OpCode::STORE_INDEX: {
+                    popEntry(stack);
+                    popEntry(stack);
+                    popEntry(stack);
+
+                    emittedAt = static_cast<int>(foldedCode.size());
+                    foldedCode.push_back(instr);
+                    break;
+                }
+
                 case OpCode::NEG:
                 case OpCode::NOT: {
                     StackEntry operand = popEntry(stack);

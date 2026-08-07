@@ -79,7 +79,6 @@ TEST_F(MutePluginTest, GetMutes) {
 
     auto& vecs = mutes.value();
     EXPECT_FALSE(vecs.empty());
-    EXPECT_TRUE(vecs.size() >= 1);
 }
 
 TEST_F(MutePluginTest, DeleteMute) {

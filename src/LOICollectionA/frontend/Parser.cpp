@@ -162,7 +162,23 @@ namespace LOICollection::frontend {
         bool privateSection = false;
 
         while (currentToken.type != TokenType::TOKEN_RBRACE && currentToken.type != TokenType::TOKEN_EOF) {
+            bool isStatic = false;
+            if (currentToken.type == TokenType::TOKEN_STATIC) {
+                if (!eat(TokenType::TOKEN_STATIC)) {
+                    synchronize({ TokenType::TOKEN_RBRACE });
+                    continue;
+                }
+
+                isStatic = true;
+            }
+
             if (currentToken.type == TokenType::TOKEN_PUBLIC) {
+                if (isStatic) {
+                    diagnostics.addError(currentToken.loc, "'static' cannot be used with an access section");
+                    synchronize({ TokenType::TOKEN_RBRACE });
+                    continue;
+                }
+
                 if (!eat(TokenType::TOKEN_PUBLIC) || !eat(TokenType::TOKEN_COLON)) {
                     synchronize({ TokenType::TOKEN_RBRACE });
                     continue;
@@ -173,6 +189,12 @@ namespace LOICollection::frontend {
             }
 
             if (currentToken.type == TokenType::TOKEN_PRIVATE) {
+                if (isStatic) {
+                    diagnostics.addError(currentToken.loc, "'static' cannot be used with an access section");
+                    synchronize({ TokenType::TOKEN_RBRACE });
+                    continue;
+                }
+
                 if (!eat(TokenType::TOKEN_PRIVATE) || !eat(TokenType::TOKEN_COLON)) {
                     synchronize({ TokenType::TOKEN_RBRACE });
                     continue;
@@ -189,6 +211,7 @@ namespace LOICollection::frontend {
                     continue;
                 }
 
+                method->isStatic = isStatic;
                 cls->methods.push_back(std::move(*method));
                 continue;
             }
@@ -208,6 +231,11 @@ namespace LOICollection::frontend {
                         continue;
                     }
 
+                    if (isStatic) {
+                        diagnostics.addError(method->loc, "Constructor cannot be static");
+                        continue;
+                    }
+
                     cls->constructorIndex = static_cast<int>(cls->methods.size());
                     cls->methods.push_back(std::move(*method));
                     continue;
@@ -217,6 +245,7 @@ namespace LOICollection::frontend {
                 member.loc = currentToken.loc;
                 member.name = currentToken.value;
                 member.isPrivate = privateSection;
+                member.isStatic = isStatic;
 
                 if (!eat(TokenType::TOKEN_IDENT)) {
                     synchronize({ TokenType::TOKEN_RBRACE });
@@ -914,33 +943,56 @@ namespace LOICollection::frontend {
         if (!expr)
             return nullptr;
 
-        while (currentToken.type == TokenType::TOKEN_DOT) {
-            SourceLocation loc = currentToken.loc;
+        while (true) {
+            if (currentToken.type == TokenType::TOKEN_DOT) {
+                SourceLocation loc = currentToken.loc;
 
-            if (!eat(TokenType::TOKEN_DOT)) return nullptr;
-            if (currentToken.type != TokenType::TOKEN_IDENT) {
-                diagnostics.addError(currentToken.loc, "Expected member name after '.'");
-                return nullptr;
+                if (!eat(TokenType::TOKEN_DOT)) return nullptr;
+                if (currentToken.type != TokenType::TOKEN_IDENT) {
+                    diagnostics.addError(currentToken.loc, "Expected member name after '.'");
+                    return nullptr;
+                }
+
+                std::string member = currentToken.value;
+                if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+
+                if (currentToken.type == TokenType::TOKEN_LPAREN) {
+                    if (!eat(TokenType::TOKEN_LPAREN)) return nullptr;
+
+                    auto args = parseArgs();
+
+                    if (!eat(TokenType::TOKEN_RPAREN)) return nullptr;
+
+                    expr = std::make_unique<MethodCallNode>(
+                        loc, std::move(expr), std::move(member), std::move(args)
+                    );
+                } else {
+                    expr = std::make_unique<MemberAccessNode>(
+                        loc, std::move(expr), std::move(member)
+                    );
+                }
+
+                continue;
             }
 
-            std::string member = currentToken.value;
-            if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+            if (currentToken.type == TokenType::TOKEN_LBRCKET) {
+                SourceLocation loc = currentToken.loc;
 
-            if (currentToken.type == TokenType::TOKEN_LPAREN) {
-                if (!eat(TokenType::TOKEN_LPAREN)) return nullptr;
+                if (!eat(TokenType::TOKEN_LBRCKET)) return nullptr;
 
-                auto args = parseArgs();
+                auto index = parseBaseExpression();
+                if (!index)
+                    return nullptr;
 
-                if (!eat(TokenType::TOKEN_RPAREN)) return nullptr;
+                if (!eat(TokenType::TOKEN_RBRCKET)) return nullptr;
 
-                expr = std::make_unique<MethodCallNode>(
-                    loc, std::move(expr), std::move(member), std::move(args)
+                expr = std::make_unique<IndexAccessNode>(
+                    loc, std::move(expr), std::move(index)
                 );
-            } else {
-                expr = std::make_unique<MemberAccessNode>(
-                    loc, std::move(expr), std::move(member)
-                );
+                continue;
             }
+
+            break;
         }
 
         return expr;
@@ -968,6 +1020,17 @@ namespace LOICollection::frontend {
                 if (!eat(TokenType::TOKEN_RPAREN)) return nullptr;
 
                 return std::make_unique<NewNode>(loc, std::move(className), std::move(args));
+            }
+            case TokenType::TOKEN_LBRCKET: {
+                SourceLocation loc = currentToken.loc;
+
+                if (!eat(TokenType::TOKEN_LBRCKET)) return nullptr;
+
+                auto elements = parseArgs(TokenType::TOKEN_COMMA, TokenType::TOKEN_RBRCKET);
+
+                if (!eat(TokenType::TOKEN_RBRCKET)) return nullptr;
+
+                return std::make_unique<ArrayNode>(loc, std::move(elements));
             }
             case TokenType::TOKEN_THIS: {
                 SourceLocation loc = currentToken.loc;
@@ -1180,6 +1243,7 @@ namespace LOICollection::frontend {
             case TokenType::TOKEN_PRIVATE: return "PRIVATE";
             case TokenType::TOKEN_EXTENDS: return "EXTENDS";
             case TokenType::TOKEN_INSTANCEOF: return "INSTANCEOF";
+            case TokenType::TOKEN_STATIC: return "STATIC";
             case TokenType::TOKEN_EOF: return "EOF";
             default: return "UNKNOWN";
         }

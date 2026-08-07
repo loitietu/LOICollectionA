@@ -69,6 +69,8 @@ namespace LOICollection::frontend::ir {
 
         [[nodiscard]] bool isDerived(const BytecodeChunk& chunk, int derivedClassIndex, int baseClassIndex) const;
 
+        [[nodiscard]] static ValueNode::ValueType cloneValue(const ValueNode::ValueType& val);
+
         static constexpr size_t MAX_FRAMES = 1024;
     };
 }

@@ -728,7 +728,7 @@ namespace LOICollection::server::Plugins {
                 }
                 case ll::hash_utils::doHash("Dropdown"): {
                     std::vector<std::string> mOptions = customize.value("options", std::vector<std::string>());
-                    if (mOptions.size() < 1)
+                    if (mOptions.empty())
                         break;
 
                     form.appendDropdown(

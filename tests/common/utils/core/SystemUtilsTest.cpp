@@ -1,10 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <unordered_set>
 
 #include "LOICollectionA/utils/core/SystemUtils.h"
-
-using namespace std::chrono_literals;
 
 TEST(SystemUtilsTest, ToIntValidNumber) {
     EXPECT_EQ(SystemUtils::toInt("123", -1), 123);

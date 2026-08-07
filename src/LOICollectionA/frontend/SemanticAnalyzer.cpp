@@ -20,6 +20,7 @@ namespace LOICollection::frontend {
             case ParamType::BOOL: return { TypeKind::Bool };
             case ParamType::OBJECT: return { TypeKind::Object };
             case ParamType::FUNCTION: return { TypeKind::Function };
+            case ParamType::ARRAY: return { TypeKind::Array };
         }
 
         return {};
@@ -60,6 +61,8 @@ namespace LOICollection::frontend {
         this->classByName.clear();
         this->classMethodOrder.clear();
         this->classMethodOrdinals.clear();
+        this->classStaticMethodOrder.clear();
+        this->classStaticMethodOrdinals.clear();
         this->functions.clear();
         this->functionsByName.clear();
         this->globalTypes.clear();
@@ -126,10 +129,14 @@ namespace LOICollection::frontend {
 
             std::vector<std::string> order;
             std::unordered_map<std::string, int> ordinals;
+            std::vector<std::string> staticOrder;
+            std::unordered_map<std::string, int> staticOrdinals;
 
             if (!cls.baseClassName.empty()) {
                 order = this->classMethodOrder[cls.baseClassName];
                 ordinals = this->classMethodOrdinals[cls.baseClassName];
+                staticOrder = this->classStaticMethodOrder[cls.baseClassName];
+                staticOrdinals = this->classStaticMethodOrdinals[cls.baseClassName];
             }
 
             for (auto& method : cls.methods) {
@@ -137,14 +144,23 @@ namespace LOICollection::frontend {
                     continue;
 
                 std::string signature = this->methodSignature(method);
-                if (!ordinals.contains(signature)) {
-                    ordinals[signature] = static_cast<int>(order.size());
-                    order.push_back(signature);
+                if (method.isStatic) {
+                    if (!staticOrdinals.contains(signature)) {
+                        staticOrdinals[signature] = static_cast<int>(staticOrder.size());
+                        staticOrder.push_back(signature);
+                    }
+                } else {
+                    if (!ordinals.contains(signature)) {
+                        ordinals[signature] = static_cast<int>(order.size());
+                        order.push_back(signature);
+                    }
                 }
             }
 
             this->classMethodOrder[cls.name] = std::move(order);
             this->classMethodOrdinals[cls.name] = std::move(ordinals);
+            this->classStaticMethodOrder[cls.name] = std::move(staticOrder);
+            this->classStaticMethodOrdinals[cls.name] = std::move(staticOrdinals);
         }
     }
 
@@ -188,6 +204,7 @@ namespace LOICollection::frontend {
             case 3: return { TypeKind::Bool };
             case 4: return { TypeKind::Object };
             case 5: return { TypeKind::Function };
+            case 6: return { TypeKind::Array };
             default: return {};
         }
     }
@@ -221,6 +238,7 @@ namespace LOICollection::frontend {
             case TypeKind::Object: return "class " + type.className;
             case TypeKind::Function: return "function";
             case TypeKind::Void: return "void";
+            case TypeKind::Array: return "array";
         }
 
         return "unknown";
@@ -353,12 +371,40 @@ namespace LOICollection::frontend {
                 auto& var = static_cast<VariableNode&>(node);
                 TypeInfo type = lookupName(var.name, scope);
 
-                if (type.kind == TypeKind::Unknown && scope.hasClass()) {
-                    if (auto field = findField(scope.classRef(), var.name)) {
-                        if (field->member.get().isPrivate && &scope.classRef() != &field->owner.get()) {
+                if (scope.hasClass()) {
+                    bool isParam = false;
+                    if (scope.hasMethod()) {
+                        for (const auto& param : scope.methodRef().params) {
+                            if (param.name == var.name) {
+                                isParam = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (isParam)
+                        return type;
+
+                    if (!scope.hasMethod() || !scope.methodRef().isStatic) {
+                        if (auto field = findField(scope.classRef(), var.name)) {
+                            if (field->member.get().isPrivate && &scope.classRef() != &field->owner.get()) {
+                                diagnostics.addError(var.loc,
+                                    "Cannot access private member '" + var.name + "'");
+                            }
+
+                            return type;
+                        }
+                    }
+
+                    if (auto staticField = findStaticField(scope.classRef(), var.name)) {
+                        if (staticField->member.get().isPrivate && &scope.classRef() != &staticField->owner.get()) {
                             diagnostics.addError(var.loc,
                                 "Cannot access private member '" + var.name + "'");
                         }
+
+                        var.isStaticField = true;
+                        var.staticClassName = staticField->owner.get().name;
+                        return type;
                     }
                 }
 
@@ -372,6 +418,11 @@ namespace LOICollection::frontend {
                     return {};
                 }
 
+                if (scope.methodRef().isStatic) {
+                    diagnostics.addError(self.loc, "'this' is not available inside static methods");
+                    return {};
+                }
+
                 return { TypeKind::Object, scope.classRef().name };
             }
 
@@ -379,6 +430,11 @@ namespace LOICollection::frontend {
                 auto& superNode = static_cast<SuperNode&>(node);
                 if (!scope.hasMethod() || !scope.hasClass()) {
                     diagnostics.addError(superNode.loc, "'super' is only available inside class methods");
+                    return {};
+                }
+
+                if (scope.methodRef().isStatic) {
+                    diagnostics.addError(superNode.loc, "'super' is not available inside static methods");
                     return {};
                 }
 
@@ -411,6 +467,34 @@ namespace LOICollection::frontend {
 
             case ASTNode::Type::Lambda:
                 return checkLambda(static_cast<LambdaNode&>(node), scope);
+
+            case ASTNode::Type::Array: {
+                auto& array = static_cast<ArrayNode&>(node);
+                for (auto& element : array.elements)
+                    checkExpr(*element, scope);
+
+                return { TypeKind::Array };
+            }
+
+            case ASTNode::Type::Index: {
+                auto& indexNode = static_cast<IndexAccessNode&>(node);
+                TypeInfo targetType = checkExpr(*indexNode.target, scope);
+                TypeInfo indexType = checkExpr(*indexNode.index, scope);
+
+                if (targetType.kind == TypeKind::Unknown)
+                    return {};
+
+                if (targetType.kind != TypeKind::Array) {
+                    diagnostics.addError(indexNode.loc, "Cannot index a non-array value");
+                    return {};
+                }
+
+                if (indexType.kind != TypeKind::Unknown && indexType.kind != TypeKind::Int) {
+                    diagnostics.addError(indexNode.loc, "Array index must be an int");
+                }
+
+                return {};
+            }
 
             case ASTNode::Type::If: {
                 auto& ifNode = static_cast<IfNode&>(node);
@@ -497,7 +581,7 @@ namespace LOICollection::frontend {
                         }
                     }
 
-                    if (scope.hasClass()) {
+                    if (scope.hasClass() && !scope.methodRef().isStatic) {
                         if (auto field = findField(scope.classRef(), var.name)) {
                             ClassMember& member = field->member.get();
                             if (member.isPrivate && &scope.classRef() != &field->owner.get()) {
@@ -510,9 +594,25 @@ namespace LOICollection::frontend {
                             return rhs;
                         }
                     }
+
+                    if (scope.hasClass()) {
+                        if (auto staticField = findStaticField(scope.classRef(), var.name)) {
+                            ClassMember& member = staticField->member.get();
+                            if (member.isPrivate && &scope.classRef() != &staticField->owner.get()) {
+                                diagnostics.addError(node.loc,
+                                    "Cannot access private member '" + member.name + "'");
+                            }
+
+                            if (member.hasDefault)
+                                unify(member.type, rhs, node.loc, "static member '" + var.name + "'");
+
+                            var.isStaticField = true;
+                            var.staticClassName = staticField->owner.get().name;
+                            return rhs;
+                        }
+                    }
                 }
 
-                // 全局变量采用动态类型，直接更新
                 if (rhs.kind != TypeKind::Unknown)
                     globalTypes[var.name] = rhs;
                 else
@@ -523,6 +623,47 @@ namespace LOICollection::frontend {
 
             case ASTNode::Type::MemberAccess: {
                 auto& member = static_cast<MemberAccessNode&>(*node.target);
+
+                if (member.target->getType() == ASTNode::Type::Variable) {
+                    auto& var = static_cast<VariableNode&>(*member.target);
+                    if (auto clsOpt = this->findClass(var.name)) {
+                        auto field = this->findStaticField(clsOpt->get(), member.memberName);
+                        if (!field) {
+                            diagnostics.addError(node.loc,
+                                "Class '" + clsOpt->get().name + "' has no static member '" +
+                                member.memberName + "'");
+                            return rhs;
+                        }
+
+                        ClassMember& m = field->member.get();
+                        if (m.isPrivate &&
+                            !(scope.hasMethod() && &scope.classRef() == &field->owner.get())) {
+                            diagnostics.addError(node.loc,
+                                "Cannot access private member '" + m.name + "'");
+                        }
+
+                        if (m.hasDefault)
+                            unify(m.type, rhs, node.loc, "static member '" + m.name + "'");
+
+                        member.isStaticAccess = true;
+                        member.staticClassName = field->owner.get().name;
+                        return rhs;
+                    }
+
+                    if (isNativeClass(var.name)) {
+                        if (ClassCall::getInstance().hasStaticField(var.name, member.memberName)) {
+                            member.isStaticAccess = true;
+                            member.staticClassName = var.name;
+                            return rhs;
+                        }
+
+                        diagnostics.addError(node.loc,
+                            "Native class '" + var.name + "' has no static member '" +
+                            member.memberName + "'");
+                        return rhs;
+                    }
+                }
+
                 TypeInfo targetType = checkExpr(*member.target, scope);
 
                 if (targetType.kind == TypeKind::Unknown)
@@ -566,6 +707,26 @@ namespace LOICollection::frontend {
                 return rhs;
             }
 
+            case ASTNode::Type::Index: {
+                auto& indexNode = static_cast<IndexAccessNode&>(*node.target);
+                TypeInfo targetType = checkExpr(*indexNode.target, scope);
+                TypeInfo indexType = checkExpr(*indexNode.index, scope);
+
+                if (targetType.kind == TypeKind::Unknown)
+                    return rhs;
+
+                if (targetType.kind != TypeKind::Array) {
+                    diagnostics.addError(node.loc, "Cannot assign to an index of a non-array value");
+                    return rhs;
+                }
+
+                if (indexType.kind != TypeKind::Unknown && indexType.kind != TypeKind::Int) {
+                    diagnostics.addError(node.loc, "Array index must be an int");
+                }
+
+                return rhs;
+            }
+
             default:
                 diagnostics.addError(node.loc, "Invalid assignment target");
                 return rhs;
@@ -573,10 +734,56 @@ namespace LOICollection::frontend {
     }
 
     TypeInfo SemanticAnalyzer::checkMemberAccess(MemberAccessNode& node, MethodScope& scope) {
+        if (node.target->getType() == ASTNode::Type::Variable) {
+            auto& var = static_cast<VariableNode&>(*node.target);
+            if (auto clsOpt = this->findClass(var.name)) {
+                auto field = this->findStaticField(clsOpt->get(), node.memberName);
+                if (!field) {
+                    diagnostics.addError(node.loc,
+                        "Class '" + clsOpt->get().name + "' has no static member '" +
+                        node.memberName + "'");
+                    return {};
+                }
+
+                ClassMember& m = field->member.get();
+                if (m.isPrivate &&
+                    !(scope.hasMethod() && &scope.classRef() == &field->owner.get())) {
+                    diagnostics.addError(node.loc,
+                        "Cannot access private member '" + m.name + "' of class '" +
+                        field->owner.get().name + "'");
+                }
+
+                node.isStaticAccess = true;
+                node.staticClassName = field->owner.get().name;
+                return m.type;
+            }
+
+            if (isNativeClass(var.name)) {
+                if (ClassCall::getInstance().hasStaticField(var.name, node.memberName)) {
+                    node.isStaticAccess = true;
+                    node.staticClassName = var.name;
+                    return {};
+                }
+
+                diagnostics.addError(node.loc,
+                    "Native class '" + var.name + "' has no static member '" +
+                    node.memberName + "'");
+                return {};
+            }
+        }
+
         TypeInfo targetType = checkExpr(*node.target, scope);
 
         if (targetType.kind == TypeKind::Unknown)
             return {};
+
+        if (targetType.kind == TypeKind::Array) {
+            if (node.memberName == "length")
+                return { TypeKind::Int };
+
+            diagnostics.addError(node.loc, "Array has no member '" + node.memberName + "'");
+            return {};
+        }
 
         if (targetType.kind != TypeKind::Object) {
             diagnostics.addError(node.loc, "Cannot access member of a non-object value");
@@ -615,19 +822,62 @@ namespace LOICollection::frontend {
     }
 
     TypeInfo SemanticAnalyzer::checkMethodCall(MethodCallNode& node, MethodScope& scope) {
-        TypeInfo targetType = checkExpr(*node.target, scope);
-
-        if (targetType.kind != TypeKind::Object) {
-            diagnostics.addError(node.loc, "Method call target is not an object");
-            return {};
-        }
-
         size_t argCount = node.args.size();
 
         std::vector<TypeInfo> argTypes;
         argTypes.reserve(argCount);
         for (auto& arg : node.args)
             argTypes.push_back(checkExpr(*arg, scope));
+
+        if (node.target->getType() == ASTNode::Type::Variable) {
+            auto& var = static_cast<VariableNode&>(*node.target);
+            if (auto clsOpt = this->findClass(var.name)) {
+                auto staticMethod = this->findStaticMethod(
+                    clsOpt->get(), node.methodName, argTypes, scope
+                );
+                if (!staticMethod) {
+                    diagnostics.addError(node.loc,
+                        "No matching static method '" + node.methodName + "' with " +
+                        std::to_string(argCount) + " argument(s) in class '" +
+                        clsOpt->get().name + "'");
+                    return {};
+                }
+
+                MethodDecl& method = staticMethod->method.get();
+                node.isStaticCall = true;
+                node.staticClassName = clsOpt->get().name;
+                node.methodOrdinal = this->staticMethodOrdinal(
+                    clsOpt->get().name, this->methodSignature(method)
+                );
+                return method.returnType;
+            }
+
+            if (isNativeClass(var.name)) {
+                std::vector<CallbackTypeArgs> signatures =
+                    ClassCall::getInstance().getStaticMethodSignatures(var.name, node.methodName);
+
+                for (const auto& signature : signatures) {
+                    if (matchesNativeSignature(signature, argTypes)) {
+                        node.isStaticCall = true;
+                        node.staticClassName = var.name;
+                        return {};
+                    }
+                }
+
+                diagnostics.addError(node.loc,
+                    "No matching static method '" + node.methodName + "' with " +
+                    std::to_string(argCount) + " argument(s) in native class '" +
+                    var.name + "'");
+                return {};
+            }
+        }
+
+        TypeInfo targetType = checkExpr(*node.target, scope);
+
+        if (targetType.kind != TypeKind::Object) {
+            diagnostics.addError(node.loc, "Method call target is not an object");
+            return {};
+        }
 
         auto clsOpt = findClass(targetType.className);
         if (!clsOpt) {
@@ -662,6 +912,8 @@ namespace LOICollection::frontend {
             ClassNode& current = walk->get();
             for (auto& method : current.methods) {
                 if (method.isConstructor || method.name != node.methodName)
+                    continue;
+                if (method.isStatic)
                     continue;
                 if (method.params.size() != argCount)
                     continue;
@@ -758,6 +1010,19 @@ namespace LOICollection::frontend {
 
         auto it = functionsByName.find(node.name);
         if (it == functionsByName.end() || it->second.empty()) {
+            if (scope.hasMethod() && scope.methodRef().isStatic && scope.hasClass()) {
+                if (auto staticMethod = this->findStaticMethod(
+                        scope.classRef(), node.name, argTypes, scope)) {
+                    MethodDecl& method = staticMethod->method.get();
+                    node.isStaticCall = true;
+                    node.staticClassName = scope.classRef().name;
+                    node.methodOrdinal = this->staticMethodOrdinal(
+                        scope.classRef().name, this->methodSignature(method)
+                    );
+                    return method.returnType;
+                }
+            }
+
             if (this->isNameDefined(node.name, scope)) {
                 TypeInfo variableType = this->lookupName(node.name, scope);
 
@@ -909,6 +1174,11 @@ namespace LOICollection::frontend {
         }
 
         MethodDecl& method = scope.methodRef();
+        if (method.isStatic) {
+            diagnostics.addError(node.loc, "'super(...)' is not available inside static methods");
+            return {};
+        }
+
         if (!method.isConstructor) {
             diagnostics.addError(node.loc, "'super(...)' is only available inside constructors");
             return {};
@@ -1059,12 +1329,21 @@ namespace LOICollection::frontend {
                     return method.paramTypes[i];
             }
 
-            if (scope.hasClass()) {
+            if (scope.hasClass() && !scope.methodRef().isStatic) {
                 if (auto field = findField(scope.classRef(), name)) {
                     if (field->member.get().isPrivate && &scope.classRef() != &field->owner.get())
                         return {};
 
                     return field->member.get().type;
+                }
+            }
+
+            if (scope.hasClass()) {
+                if (auto staticField = findStaticField(scope.classRef(), name)) {
+                    if (staticField->member.get().isPrivate && &scope.classRef() != &staticField->owner.get())
+                        return {};
+
+                    return staticField->member.get().type;
                 }
             }
         }
@@ -1084,8 +1363,13 @@ namespace LOICollection::frontend {
                     return true;
             }
 
-            if (scope.hasClass() && findField(scope.classRef(), name))
-                return true;
+            if (scope.hasClass()) {
+                if (!scope.methodRef().isStatic && findField(scope.classRef(), name))
+                    return true;
+
+                if (findStaticField(scope.classRef(), name))
+                    return true;
+            }
         }
 
         return globalTypes.find(name) != globalTypes.end();
@@ -1178,7 +1462,7 @@ namespace LOICollection::frontend {
         for (size_t step = 0; step <= this->classes.size() && current; ++step) {
             ClassNode& clsRef = current->get();
             for (auto& member : clsRef.members) {
-                if (member.name == name) {
+                if (!member.isStatic && member.name == name) {
                     return FieldRef{ std::ref(member), std::ref(clsRef) };
                 }
             }
@@ -1217,6 +1501,129 @@ namespace LOICollection::frontend {
         }
 
         return std::nullopt;
+    }
+
+    std::optional<SemanticAnalyzer::FieldRef> SemanticAnalyzer::findStaticField(ClassNode& cls, const std::string& name) const {
+        std::optional<std::reference_wrapper<ClassNode>> current = std::ref(cls);
+        for (size_t step = 0; step <= this->classes.size() && current; ++step) {
+            ClassNode& clsRef = current->get();
+            for (auto& member : clsRef.members) {
+                if (member.isStatic && member.name == name) {
+                    return FieldRef{ std::ref(member), std::ref(clsRef) };
+                }
+            }
+
+            if (clsRef.baseClassName.empty())
+                break;
+
+            auto baseOpt = this->findClass(clsRef.baseClassName);
+            if (!baseOpt)
+                break;
+
+            current = baseOpt;
+        }
+
+        return std::nullopt;
+    }
+
+    std::optional<SemanticAnalyzer::StaticMethodRef> SemanticAnalyzer::findStaticMethod(
+        ClassNode& cls, const std::string& name, const std::vector<TypeInfo>& argTypes,
+        const MethodScope& scope
+    ) const {
+        std::vector<std::pair<std::reference_wrapper<ClassNode>, std::reference_wrapper<MethodDecl>>> candidates;
+        std::optional<std::reference_wrapper<ClassNode>> walk = std::ref(cls);
+
+        for (size_t step = 0; step <= this->classes.size() && walk; ++step) {
+            ClassNode& current = walk->get();
+            for (auto& method : current.methods) {
+                if (method.isConstructor || !method.isStatic || method.name != name)
+                    continue;
+                if (method.params.size() != argTypes.size())
+                    continue;
+                if (method.isPrivate &&
+                    !(scope.hasClass() && scope.hasMethod() && &scope.classRef() == &current)) {
+                    continue;
+                }
+
+                bool match = true;
+                for (size_t j = 0; j < argTypes.size(); ++j) {
+                    const TypeInfo& param = method.paramTypes[j];
+                    if (param.kind != TypeKind::Unknown &&
+                        argTypes[j].kind != TypeKind::Unknown &&
+                        !this->isTypeCompatible(param, argTypes[j])) {
+                        match = false;
+                        break;
+                    }
+                }
+
+                if (match)
+                    candidates.emplace_back(std::ref(current), std::ref(method));
+            }
+
+            if (current.baseClassName.empty())
+                break;
+
+            auto baseOpt = this->findClass(current.baseClassName);
+            if (!baseOpt)
+                break;
+
+            walk = baseOpt;
+        }
+
+        if (candidates.empty())
+            return std::nullopt;
+
+        auto depthOf = [&](const ClassNode& owner) {
+            int depth = 0;
+            std::optional<std::reference_wrapper<ClassNode>> cur = std::ref(cls);
+            for (size_t step = 0; step <= this->classes.size() && cur; ++step) {
+                ClassNode& current = cur->get();
+                if (&current == &owner)
+                    return depth;
+
+                depth++;
+
+                if (current.baseClassName.empty())
+                    return std::numeric_limits<int>::max();
+
+                auto baseOpt = this->findClass(current.baseClassName);
+                if (!baseOpt)
+                    return std::numeric_limits<int>::max();
+
+                cur = baseOpt;
+            }
+
+            return std::numeric_limits<int>::max();
+        };
+
+        auto best = candidates[0];
+        int bestDepth = depthOf(best.first.get());
+        size_t bestScore = knownParamCount(best.second.get());
+
+        for (size_t i = 1; i < candidates.size(); ++i) {
+            int depth = depthOf(candidates[i].first.get());
+            size_t score = knownParamCount(candidates[i].second.get());
+
+            if (depth < bestDepth || (depth == bestDepth && score > bestScore)) {
+                best = candidates[i];
+                bestDepth = depth;
+                bestScore = score;
+            }
+        }
+
+        return StaticMethodRef{ best.second, best.first };
+    }
+
+    int SemanticAnalyzer::staticMethodOrdinal(const std::string& className, const std::string& signature) const {
+        auto classIt = this->classStaticMethodOrdinals.find(className);
+        if (classIt == this->classStaticMethodOrdinals.end())
+            return -1;
+
+        auto sigIt = classIt->second.find(signature);
+        if (sigIt == classIt->second.end())
+            return -1;
+
+        return sigIt->second;
     }
 
 }

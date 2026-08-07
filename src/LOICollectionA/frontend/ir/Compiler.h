@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -32,6 +33,7 @@ namespace LOICollection::frontend::ir {
         std::unordered_set<int> registeredClasses;
         std::unordered_set<std::string> registeringClasses;
         std::unordered_map<std::string, std::vector<int>> classMethodIndices;
+        std::unordered_map<std::string, std::vector<int>> classStaticMethodIndices;
         std::unordered_map<std::string, std::vector<int>> functionIndices;
         std::vector<std::reference_wrapper<ASTNode>> bodyOrder;
         
@@ -61,6 +63,8 @@ namespace LOICollection::frontend::ir {
         void visit(FunctionDefNode& node) override;
         void visit(FuncCallNode& node) override;
         void visit(LambdaNode& node) override;
+        void visit(ArrayNode& node) override;
+        void visit(IndexAccessNode& node) override;
 
         void registerClassMeta(ClassNode& node);
         void compileClassBodies(ClassNode& node);
@@ -68,7 +72,9 @@ namespace LOICollection::frontend::ir {
         void compileFunctionBody(FunctionDefNode& node);
         void compileSequence(SequenceNode& node);
 
-        int addNativeCall(const std::string& className, const std::string& name, int argCount);
+        [[nodiscard]] std::optional<ValueNode::ValueType> constantValue(ExprNode& node) const;
+
+        int addNativeCall(const std::string& className, const std::string& name, int argCount, bool isStatic = false);
         int addConstant(const ValueNode::ValueType& val);
         int addFunction(const std::string& name, int argCount);
         int addMacro(const std::string& name, int argCount);

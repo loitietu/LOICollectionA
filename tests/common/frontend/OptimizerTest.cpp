@@ -108,3 +108,67 @@ TEST(OptimizerTest, ErroneousConstantsAreNotFolded) {
     [[maybe_unused]] auto result = vm.run(program.chunk, {});
     EXPECT_TRUE(program.diagnostics.hasErrors());
 }
+
+TEST(OptimizerTest, FoldsConstantArrayLiteral) {
+    auto program = compileAndOptimize("[1, 2, 3]");
+
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+    EXPECT_GE(program.stats.folded, 1u);
+
+    ASSERT_EQ(program.chunk->code.size(), 2u);
+    EXPECT_EQ(program.chunk->code[0].op, OpCode::PUSH_INT);
+    EXPECT_EQ(program.chunk->code[1].op, OpCode::HALT);
+
+    const auto& value = program.chunk->constants[program.chunk->code[0].operand];
+    ASSERT_TRUE(std::holds_alternative<ArrayRef>(value));
+    EXPECT_EQ(std::get<ArrayRef>(value)->elements.size(), 3u);
+
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "[1, 2, 3]");
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+}
+
+TEST(OptimizerTest, FoldsConstantArrayIndex) {
+    auto program = compileAndOptimize("[1, 2, 3][1]");
+
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+    EXPECT_GE(program.stats.folded, 2u);
+
+    ASSERT_EQ(program.chunk->code.size(), 2u);
+    EXPECT_EQ(program.chunk->code[0].op, OpCode::PUSH_INT);
+    EXPECT_EQ(std::get<int>(program.chunk->constants[program.chunk->code[0].operand]), 2);
+
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "2");
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+}
+
+TEST(OptimizerTest, ConstantArrayIsClonedPerEvaluation) {
+    auto program = compileAndOptimize(
+        "func make() { return [1, 2]; } "
+        "a = make(); "
+        "b = make(); "
+        "a[0] = 9; "
+        "b[0]");
+
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "1");
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+}
+
+TEST(OptimizerTest, NestedConstantArrayIsClonedDeeply) {
+    auto program = compileAndOptimize(
+        "func make() { return [[1]]; } "
+        "a = make(); "
+        "b = make(); "
+        "a[0][0] = 9; "
+        "b[0][0]");
+
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "1");
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+}

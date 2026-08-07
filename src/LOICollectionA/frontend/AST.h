@@ -12,6 +12,8 @@
 namespace LOICollection::frontend {
     struct Object;
     using ObjectRef = std::shared_ptr<Object>;
+    struct ArrayValue;
+    using ArrayRef = std::shared_ptr<ArrayValue>;
     struct FunctionRef;
     using FunctionRefPtr = std::shared_ptr<FunctionRef>;
 
@@ -23,7 +25,8 @@ namespace LOICollection::frontend {
         Bool,
         Object,
         Function,
-        Void
+        Void,
+        Array
     };
 
     struct TypeInfo {
@@ -39,7 +42,7 @@ namespace LOICollection::frontend {
             Arithmetic, Unary, Function, Macro, Variable, Assignment,
             Class, Return, New, MemberAccess, MethodCall, This,
             Super, SuperCall, InstanceOf, FunctionDef, FuncCall, Lambda,
-            Program, Block
+            Array, Index, Program, Block
         };
         [[nodiscard]] virtual Type getType() const = 0;
         
@@ -55,7 +58,7 @@ namespace LOICollection::frontend {
     };
 
     struct ValueNode : ExprNode {
-        using ValueType = std::variant<int, float, std::string, bool, ObjectRef, FunctionRefPtr>;
+        using ValueType = std::variant<int, float, std::string, bool, ObjectRef, FunctionRefPtr, ArrayRef>;
 
         ValueType value;
         
@@ -76,6 +79,8 @@ namespace LOICollection::frontend {
     struct VariableNode : ExprNode {
         SourceLocation loc;
         std::string name;
+        bool isStaticField = false;
+        std::string staticClassName;
 
         VariableNode(SourceLocation location, std::string n) : loc(location), name(std::move(n)) {}
 
@@ -264,6 +269,7 @@ namespace LOICollection::frontend {
         SourceLocation loc;
         std::string name;
         bool isPrivate = false;
+        bool isStatic = false;
         std::unique_ptr<ExprNode> defaultExpr;
         TypeInfo type;
         bool hasDefault = false;
@@ -283,6 +289,7 @@ namespace LOICollection::frontend {
         bool hasReturnType = false;
         bool isConstructor = false;
         bool isPrivate = false;
+        bool isStatic = false;
         std::unique_ptr<ASTNode> body;
 
         std::vector<TypeInfo> paramTypes;
@@ -342,6 +349,8 @@ namespace LOICollection::frontend {
         SourceLocation loc;
         std::unique_ptr<ExprNode> target;
         std::string memberName;
+        bool isStaticAccess = false;
+        std::string staticClassName;
 
         MemberAccessNode(SourceLocation location, auto&& t, std::string member)
             : loc(location), target(std::forward<decltype(t)>(t)), memberName(std::move(member)) {}
@@ -361,6 +370,8 @@ namespace LOICollection::frontend {
 
         std::string className;
         int methodOrdinal = -1;
+        bool isStaticCall = false;
+        std::string staticClassName;
 
         MethodCallNode(SourceLocation location, auto&& t, std::string name, auto&& a)
             : loc(location),
@@ -369,6 +380,41 @@ namespace LOICollection::frontend {
               args(std::forward<decltype(a)>(a)) {}
 
         [[nodiscard]] Type getType() const override { return Type::MethodCall; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct ArrayNode : ExprNode {
+        SourceLocation loc;
+        std::vector<std::unique_ptr<ExprNode>> elements;
+
+        ArrayNode(SourceLocation location, auto&& elems)
+            : loc(location), elements(std::forward<decltype(elems)>(elems)) {}
+
+        [[nodiscard]] Type getType() const override {
+            return Type::Array;
+        }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct IndexAccessNode : ExprNode {
+        SourceLocation loc;
+        std::unique_ptr<ExprNode> target;
+        std::unique_ptr<ExprNode> index;
+
+        IndexAccessNode(SourceLocation location, auto&& t, auto&& i)
+            : loc(location),
+              target(std::forward<decltype(t)>(t)),
+              index(std::forward<decltype(i)>(i)) {}
+
+        [[nodiscard]] Type getType() const override {
+            return Type::Index;
+        }
 
         void accept(ASTVisitor& visitor) override {
             visitor.visit(*this);
@@ -467,6 +513,9 @@ namespace LOICollection::frontend {
         std::string resolvedName;
         int functionOrdinal = -1;
         bool isCallable = false;
+        bool isStaticCall = false;
+        int methodOrdinal = -1;
+        std::string staticClassName;
 
         FuncCallNode(SourceLocation location, std::string n, auto&& a)
             : loc(location), name(std::move(n)), args(std::forward<decltype(a)>(a)) {}
@@ -488,6 +537,10 @@ namespace LOICollection::frontend {
         std::unordered_map<std::string, ValueNode::ValueType> fields;
 
         std::unique_ptr<NativeHandle> native;
+    };
+
+    struct ArrayValue {
+        std::vector<ValueNode::ValueType> elements;
     };
 
     namespace ir {

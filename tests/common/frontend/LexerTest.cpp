@@ -71,13 +71,13 @@ TEST(LexerTest, ParseIdentifiersAndKeywords) {
 
 TEST(LexerTest, ParseAllKeywords) {
     DiagnosticEngine diagnostics;
-    Lexer lexer("class func new this super return public private extends instanceof", diagnostics);
+    Lexer lexer("class func new this super return public private extends instanceof static", diagnostics);
 
     std::vector<TokenType> expected = {
         TokenType::TOKEN_CLASS, TokenType::TOKEN_FUNC, TokenType::TOKEN_NEW,
         TokenType::TOKEN_THIS, TokenType::TOKEN_SUPER, TokenType::TOKEN_RETURN,
         TokenType::TOKEN_PUBLIC, TokenType::TOKEN_PRIVATE, TokenType::TOKEN_EXTENDS,
-        TokenType::TOKEN_INSTANCEOF
+        TokenType::TOKEN_INSTANCEOF, TokenType::TOKEN_STATIC
     };
 
     for (auto expectedType : expected) {

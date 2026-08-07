@@ -127,6 +127,7 @@ namespace LOICollection::frontend {
         if (id == "private") return { TokenType::TOKEN_PRIVATE, std::move(id), startLoc };
         if (id == "extends") return { TokenType::TOKEN_EXTENDS, std::move(id), startLoc };
         if (id == "instanceof") return { TokenType::TOKEN_INSTANCEOF, std::move(id), startLoc };
+        if (id == "static") return { TokenType::TOKEN_STATIC, std::move(id), startLoc };
 
         return { TokenType::TOKEN_IDENT, std::move(id), startLoc };
     }

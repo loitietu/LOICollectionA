@@ -27,6 +27,8 @@ namespace LOICollection::frontend {
                     argTypes.push_back(ParamType::OBJECT);
                 else if constexpr (std::is_same_v<T, FunctionRefPtr>)
                     argTypes.push_back(ParamType::FUNCTION);
+                else if constexpr (std::is_same_v<T, ArrayRef>)
+                    argTypes.push_back(ParamType::ARRAY);
                 else
                     diagnostics.addError({0, 0, 0}, "Unsupported argument type");
             }, arg);
@@ -186,10 +188,15 @@ namespace LOICollection::frontend {
     struct ClassCall::Impl {
         struct NativeClassInfo {
             std::vector<std::string> fields;
+            std::unordered_map<std::string, ValueNode::ValueType> fieldDefaults;
+            std::vector<std::string> staticFields;
+            std::unordered_map<std::string, ValueNode::ValueType> staticFieldValues;
             std::unordered_map<Signature, NativeConstructor, SignatureHasher> constructors;
             std::unordered_map<Signature, NativeConstructorCombination, SignatureHasher> constructorCombinations;
             std::unordered_map<Signature, NativeMethod, SignatureHasher> methods;
             std::unordered_map<Signature, NativeMethodCombination, SignatureHasher> methodCombinations;
+            std::unordered_map<Signature, NativeStaticMethod, SignatureHasher> staticMethods;
+            std::unordered_map<Signature, NativeStaticMethodCombination, SignatureHasher> staticMethodCombinations;
         };
 
         std::unordered_map<std::string, NativeClassInfo> classes;
@@ -204,7 +211,12 @@ namespace LOICollection::frontend {
     }
 
     void ClassCall::registerClass(const std::string& name, const std::vector<std::string>& fields) {
-        this->mImpl->classes[name].fields = fields;
+        auto& info = this->mImpl->classes[name];
+        info.fields = fields;
+        info.fieldDefaults.clear();
+
+        for (const auto& field : fields)
+            info.fieldDefaults[field] = 0;
     }
 
     void ClassCall::registerConstructor(const std::string& name, NativeConstructor callback, const CallbackTypeArgs& args) {
@@ -227,6 +239,40 @@ namespace LOICollection::frontend {
         this->mImpl->classes[className].methodCombinations[sig] = std::move(callback);
     }
 
+    void ClassCall::registerStaticMethod(const std::string& className, const std::string& method, NativeStaticMethod callback, const CallbackTypeArgs& args) {
+        Signature sig{ method, args.size(), args, false };
+        this->mImpl->classes[className].staticMethods[sig] = std::move(callback);
+    }
+
+    void ClassCall::registerStaticMethod(const std::string& className, const std::string& method, NativeStaticMethodCombination callback, const CallbackTypeArgs& args) {
+        Signature sig{ method, args.size(), args, true };
+        this->mImpl->classes[className].staticMethodCombinations[sig] = std::move(callback);
+    }
+
+    void ClassCall::registerField(const std::string& className, const std::string& field) {
+        this->registerField(className, field, 0);
+    }
+
+    void ClassCall::registerField(const std::string& className, const std::string& field, const TypedValue& defaultValue) {
+        auto& info = this->mImpl->classes[className];
+        if (std::ranges::find(info.fields, field) == info.fields.end())
+            info.fields.push_back(field);
+
+        info.fieldDefaults[field] = defaultValue;
+    }
+
+    void ClassCall::registerStaticField(const std::string& className, const std::string& field) {
+        this->registerStaticField(className, field, 0);
+    }
+
+    void ClassCall::registerStaticField(const std::string& className, const std::string& field, const TypedValue& defaultValue) {
+        auto& info = this->mImpl->classes[className];
+        if (std::ranges::find(info.staticFields, field) == info.staticFields.end())
+            info.staticFields.push_back(field);
+
+        info.staticFieldValues[field] = defaultValue;
+    }
+
     bool ClassCall::isRegistered(const std::string& name) const {
         return this->mImpl->classes.find(name) != this->mImpl->classes.end();
     }
@@ -240,9 +286,23 @@ namespace LOICollection::frontend {
         return std::ranges::find(fields, field) != fields.end();
     }
 
+    bool ClassCall::hasStaticField(const std::string& name, const std::string& field) const {
+        auto it = this->mImpl->classes.find(name);
+        if (it == this->mImpl->classes.end())
+            return false;
+
+        const auto& fields = it->second.staticFields;
+        return std::ranges::find(fields, field) != fields.end();
+    }
+
     std::vector<std::string> ClassCall::getFields(const std::string& name) const {
         auto it = this->mImpl->classes.find(name);
         return it == this->mImpl->classes.end() ? std::vector<std::string>{} : it->second.fields;
+    }
+
+    std::vector<std::string> ClassCall::getStaticFields(const std::string& name) const {
+        auto it = this->mImpl->classes.find(name);
+        return it == this->mImpl->classes.end() ? std::vector<std::string>{} : it->second.staticFields;
     }
 
     std::vector<CallbackTypeArgs> ClassCall::getConstructorSignatures(const std::string& name) const {
@@ -278,6 +338,48 @@ namespace LOICollection::frontend {
         return result;
     }
 
+    std::vector<CallbackTypeArgs> ClassCall::getStaticMethodSignatures(const std::string& className, const std::string& method) const {
+        std::vector<CallbackTypeArgs> result;
+        auto it = this->mImpl->classes.find(className);
+        if (it == this->mImpl->classes.end())
+            return result;
+
+        for (const auto& [sig, callback] : it->second.staticMethods) {
+            if (sig.name == method)
+                result.push_back(sig.args);
+        }
+
+        for (const auto& [sig, callback] : it->second.staticMethodCombinations) {
+            if (sig.name == method)
+                result.push_back(sig.args);
+        }
+
+        return result;
+    }
+
+    ll::Expected<TypedValue> ClassCall::getStaticField(const std::string& className, const std::string& field) const {
+        auto it = this->mImpl->classes.find(className);
+        if (it == this->mImpl->classes.end())
+            return ll::makeErrorCodeError(std::make_error_code(std::errc::invalid_argument));
+
+        auto valueIt = it->second.staticFieldValues.find(field);
+        if (valueIt == it->second.staticFieldValues.end())
+            return ll::makeErrorCodeError(std::make_error_code(std::errc::invalid_argument));
+
+        return valueIt->second;
+    }
+
+    void ClassCall::setStaticField(const std::string& className, const std::string& field, const TypedValue& value) {
+        auto it = this->mImpl->classes.find(className);
+        if (it == this->mImpl->classes.end())
+            return;
+
+        if (std::ranges::find(it->second.staticFields, field) == it->second.staticFields.end())
+            return;
+
+        it->second.staticFieldValues[field] = value;
+    }
+
     ll::Expected<ObjectRef> ClassCall::create(
         const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics
     ) {
@@ -311,8 +413,10 @@ namespace LOICollection::frontend {
             auto obj = std::make_shared<Object>();
             obj->className = name;
             obj->classIndex = -1;
-            for (const auto& field : info.fields)
-                obj->fields[field] = 0;
+            for (const auto& field : info.fields) {
+                auto defaultIt = info.fieldDefaults.find(field);
+                obj->fields[field] = defaultIt == info.fieldDefaults.end() ? ValueNode::ValueType{} : defaultIt->second;
+            }
 
             return obj;
         }
@@ -347,6 +451,39 @@ namespace LOICollection::frontend {
             if (!result.has_value()) 
                 return ll::makeStringError("Method callback threw: " + result.error().message());
             
+            return result;
+        }
+
+        return ll::makeErrorCodeError(std::make_error_code(std::errc::invalid_argument));
+    }
+
+    ll::Expected<TypedValue> ClassCall::callStaticMethod(
+        const std::string& className, const std::string& method, const CallbackTypeValues& args,
+        const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics
+    ) {
+        auto it = this->mImpl->classes.find(className);
+        if (it == this->mImpl->classes.end())
+            return ll::makeErrorCodeError(std::make_error_code(std::errc::invalid_argument));
+
+        auto& info = it->second;
+        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics);
+
+        Signature sig{ method, argTypes.size(), argTypes, false };
+
+        if (info.staticMethods.find(sig) != info.staticMethods.end()) {
+            auto result = info.staticMethods[sig](args);
+            if (!result.has_value())
+                return ll::makeStringError("Static method callback threw: " + result.error().message());
+
+            return result;
+        }
+
+        sig.isCombination = true;
+        if (info.staticMethodCombinations.find(sig) != info.staticMethodCombinations.end()) {
+            auto result = info.staticMethodCombinations[sig](args, placeholders);
+            if (!result.has_value())
+                return ll::makeStringError("Static method callback threw: " + result.error().message());
+
             return result;
         }
 

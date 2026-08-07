@@ -15,6 +15,18 @@
 #include "LOICollectionA/frontend/ir/VM.h"
 
 namespace LOICollection::frontend::ir {
+    namespace {
+        bool splitStaticMemberName(const std::string& name, std::string& className, std::string& fieldName) {
+            auto pos = name.find("::");
+            if (pos == std::string::npos || pos == 0 || pos + 2 >= name.size())
+                return false;
+
+            className = name.substr(0, pos);
+            fieldName = name.substr(pos + 2);
+            return !className.empty() && !fieldName.empty();
+        }
+    }
+
     std::string VM::valueToString(const ValueNode::ValueType& val) {
         return std::visit([](auto&& arg) -> std::string {
             using T = std::decay_t<decltype(arg)>;
@@ -37,7 +49,31 @@ namespace LOICollection::frontend::ir {
                 return "instance of " + arg->className;
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, FunctionRefPtr>)
                 return "function";
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, ArrayRef>) {
+                std::string result = "[";
+                for (size_t i = 0; i < arg->elements.size(); ++i) {
+                    if (i != 0)
+                        result += ", ";
+                    result += VM::valueToString(arg->elements[i]);
+                }
+                result += "]";
+                return result;
+            }
         }, val);
+    }
+
+    ValueNode::ValueType VM::cloneValue(const ValueNode::ValueType& val) {
+        if (!std::holds_alternative<ArrayRef>(val))
+            return val;
+
+        auto& source = std::get<ArrayRef>(val);
+        auto copy = std::make_shared<ArrayValue>();
+        copy->elements.reserve(source->elements.size());
+
+        for (const auto& element : source->elements)
+            copy->elements.push_back(VM::cloneValue(element));
+
+        return copy;
     }
 
     ValueNode::ValueType VM::applyArithmetic(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op, DiagnosticEngine& diagnostics) {
@@ -155,6 +191,8 @@ namespace LOICollection::frontend::ir {
                 return arg;
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, ObjectRef> || std::is_same_v<std::remove_cv_t<T>, FunctionRefPtr>)
                 return true;
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, ArrayRef>)
+                return !arg->elements.empty();
         }, val);
     }
 
@@ -177,7 +215,8 @@ namespace LOICollection::frontend::ir {
                 return false;
             } else if constexpr (
                 (std::is_same_v<T, ObjectRef> && std::is_same_v<U, ObjectRef>) ||
-                (std::is_same_v<T, FunctionRefPtr> && std::is_same_v<U, FunctionRefPtr>)
+                (std::is_same_v<T, FunctionRefPtr> && std::is_same_v<U, FunctionRefPtr>) ||
+                (std::is_same_v<T, ArrayRef> && std::is_same_v<U, ArrayRef>)
             ) {
                 if (op == "==") return l == r;
                 if (op == "!=") return l != r;
@@ -253,6 +292,15 @@ namespace LOICollection::frontend::ir {
         this->frames.clear();
         this->variables.clear();
 
+        for (const auto& cls : chunk->classes) {
+            for (size_t i = 0; i < cls.staticFieldNames.size(); ++i) {
+                this->variables[cls.name + "::" + cls.staticFieldNames[i]] =
+                    cls.staticHasDefault[i]
+                        ? VM::cloneValue(cls.staticDefaults[i])
+                        : ValueNode::ValueType{};
+            }
+        }
+
         this->frames.emplace_back(*chunk);
 
         return this->execute(chunk, ctx.params);
@@ -293,7 +341,7 @@ namespace LOICollection::frontend::ir {
                 case OpCode::PUSH_FLOAT:
                 case OpCode::PUSH_STR:
                 case OpCode::PUSH_BOOL:
-                    this->push(cur.constants[instr.operand]);
+                    this->push(VM::cloneValue(cur.constants[instr.operand]));
                     break;
                 case OpCode::POP:
                     this->pop();
@@ -344,6 +392,25 @@ namespace LOICollection::frontend::ir {
                         }
                     }
 
+                    std::string className;
+                    std::string fieldName;
+                    if (splitStaticMemberName(name, className, fieldName) &&
+                        std::ranges::none_of(chunk.classes, [&className](const auto& cls) {
+                            return cls.name == className;
+                        }) &&
+                        ClassCall::getInstance().isRegistered(className) &&
+                        ClassCall::getInstance().hasStaticField(className, fieldName)) {
+                        auto result = ClassCall::getInstance().getStaticField(className, fieldName);
+                        if (!result.has_value()) {
+                            this->diagnostics.addError({ 0, 0, 0 },
+                                "Failed to load native static field '" + name + "': " + result.error().message());
+                            break;
+                        }
+
+                        this->push(result.value());
+                        break;
+                    }
+
                     auto globalIt = this->variables.find(name);
                     if (globalIt == this->variables.end()) {
                         this->diagnostics.addError({ 0, 0, 0 }, "Undefined variable: " + name);
@@ -384,6 +451,18 @@ namespace LOICollection::frontend::ir {
                         }
                     }
 
+                    std::string className;
+                    std::string fieldName;
+                    if (splitStaticMemberName(name, className, fieldName) &&
+                        std::ranges::none_of(chunk.classes, [&className](const auto& cls) {
+                            return cls.name == className;
+                        }) &&
+                        ClassCall::getInstance().isRegistered(className) &&
+                        ClassCall::getInstance().hasStaticField(className, fieldName)) {
+                        ClassCall::getInstance().setStaticField(className, fieldName, val);
+                        break;
+                    }
+
                     this->variables[name] = val;
                     break;
                 }
@@ -391,6 +470,17 @@ namespace LOICollection::frontend::ir {
                 case OpCode::LOAD_FIELD: {
                     const auto& name = std::get<std::string>(cur.constants[instr.operand]);
                     auto objValue = this->pop();
+
+                    if (std::holds_alternative<ArrayRef>(objValue)) {
+                        auto arr = std::get<ArrayRef>(objValue);
+                        if (name == "length") {
+                            this->push(static_cast<int>(arr->elements.size()));
+                            break;
+                        }
+
+                        this->diagnostics.addError({ 0, 0, 0 }, "Array has no field: " + name);
+                        break;
+                    }
 
                     if (!std::holds_alternative<ObjectRef>(objValue)) {
                         this->diagnostics.addError({ 0, 0, 0 }, "Cannot load field '" + name + "' from a non-object value");
@@ -418,6 +508,72 @@ namespace LOICollection::frontend::ir {
                     }
 
                     std::get<ObjectRef>(objValue)->fields[name] = val;
+                    break;
+                }
+                case OpCode::MAKE_ARRAY: {
+                    int count = instr.operand;
+                    if (count < 0 || count > static_cast<int>(this->stack.size())) {
+                        this->diagnostics.addError({ 0, 0, 0 }, "Invalid array literal size");
+                        break;
+                    }
+
+                    auto arr = std::make_shared<ArrayValue>();
+                    arr->elements.resize(count);
+                    for (int i = count - 1; i >= 0; --i)
+                        arr->elements[i] = this->pop();
+
+                    this->push(arr);
+                    break;
+                }
+                case OpCode::LOAD_INDEX: {
+                    auto indexValue = this->pop();
+                    auto targetValue = this->pop();
+
+                    if (!std::holds_alternative<ArrayRef>(targetValue)) {
+                        this->diagnostics.addError({ 0, 0, 0 }, "Cannot index a non-array value");
+                        break;
+                    }
+                    if (!std::holds_alternative<int>(indexValue)) {
+                        this->diagnostics.addError({ 0, 0, 0 }, "Array index must be an int");
+                        break;
+                    }
+
+                    auto arr = std::get<ArrayRef>(targetValue);
+                    int index = std::get<int>(indexValue);
+                    if (index < 0 || index >= static_cast<int>(arr->elements.size())) {
+                        this->diagnostics.addError({ 0, 0, 0 }, "Array index out of range");
+                        break;
+                    }
+
+                    this->push(arr->elements[index]);
+                    break;
+                }
+                case OpCode::STORE_INDEX: {
+                    auto indexValue = this->pop();
+                    auto targetValue = this->pop();
+                    auto value = this->pop();
+
+                    if (!std::holds_alternative<ArrayRef>(targetValue)) {
+                        this->diagnostics.addError({ 0, 0, 0 }, "Cannot index a non-array value");
+                        break;
+                    }
+                    if (!std::holds_alternative<int>(indexValue)) {
+                        this->diagnostics.addError({ 0, 0, 0 }, "Array index must be an int");
+                        break;
+                    }
+
+                    auto arr = std::get<ArrayRef>(targetValue);
+                    int index = std::get<int>(indexValue);
+                    if (index < 0 || index > static_cast<int>(arr->elements.size())) {
+                        this->diagnostics.addError({ 0, 0, 0 }, "Array index out of range");
+                        break;
+                    }
+
+                    if (index == static_cast<int>(arr->elements.size()))
+                        arr->elements.push_back(value);
+                    else
+                        arr->elements[index] = value;
+
                     break;
                 }
                 case OpCode::LOAD_THIS: {
@@ -494,7 +650,7 @@ namespace LOICollection::frontend::ir {
 
                     for (size_t i = 0; i < cls.fieldNames.size(); ++i) {
                         if (cls.hasDefault[i])
-                            obj->fields[cls.fieldNames[i]] = cls.defaults[i];
+                            obj->fields[cls.fieldNames[i]] = VM::cloneValue(cls.defaults[i]);
                     }
 
                     if (cls.constructorIndex != -1) {
@@ -664,6 +820,26 @@ namespace LOICollection::frontend::ir {
 
                 case OpCode::CALL_NATIVE_METHOD: {
                     const auto& meta = chunk.nativeCalls[instr.operand];
+
+                    if (meta.isStatic) {
+                        std::vector<ValueNode::ValueType> args(meta.argCount);
+                        for (int i = 0; i < meta.argCount; ++i)
+                            args[meta.argCount - 1 - i] = this->pop();
+
+                        auto result = ClassCall::getInstance().callStaticMethod(
+                            meta.className, meta.name, args, placeholders, this->diagnostics
+                        );
+
+                        if (!result.has_value()) {
+                            this->diagnostics.addError({ 0, 0, 0 },
+                                "Native static method call failed '" + meta.className + "::" + meta.name +
+                                "': " + result.error().message());
+                            break;
+                        }
+
+                        this->push(result.value());
+                        break;
+                    }
 
                     auto receiver = this->pop();
                     if (!std::holds_alternative<ObjectRef>(receiver)) {
