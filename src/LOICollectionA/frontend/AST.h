@@ -26,14 +26,61 @@ namespace LOICollection::frontend {
         Object,
         Function,
         Void,
-        Array
+        Array,
+        Variant,
+        Optional,
+        None
     };
 
     struct TypeInfo {
         TypeKind kind = TypeKind::Unknown;
         std::string className;
+        std::vector<TypeInfo> variantOptions;
+        std::shared_ptr<TypeInfo> optionalInner;
 
-        bool operator==(const TypeInfo&) const = default;
+        bool operator==(const TypeInfo& other) const {
+            return kind == other.kind &&
+                   className == other.className &&
+                   variantOptions == other.variantOptions &&
+                   ((!optionalInner && !other.optionalInner) ||
+                    (optionalInner && other.optionalInner && *optionalInner == *other.optionalInner));
+        }
+    };
+
+    struct TypeExpr {
+        SourceLocation loc;
+        std::string name;
+        std::vector<TypeExpr> args;
+    };
+
+    inline std::string typeInfoToString(const TypeInfo& type) {
+        switch (type.kind) {
+            case TypeKind::Unknown: return "unknown";
+            case TypeKind::Int: return "int";
+            case TypeKind::Float: return "float";
+            case TypeKind::String: return "string";
+            case TypeKind::Bool: return "bool";
+            case TypeKind::Object: return "class " + type.className;
+            case TypeKind::Function: return "function";
+            case TypeKind::Void: return "void";
+            case TypeKind::Array: return "array";
+            case TypeKind::None: return "none";
+            case TypeKind::Variant: {
+                std::string result = "variant<";
+                for (size_t i = 0; i < type.variantOptions.size(); ++i) {
+                    if (i != 0)
+                        result += ",";
+                    result += typeInfoToString(type.variantOptions[i]);
+                }
+                result += ">";
+                return result;
+            }
+            case TypeKind::Optional:
+                return "optional<" +
+                    (type.optionalInner ? typeInfoToString(*type.optionalInner) : std::string("unknown")) + ">";
+        }
+
+        return "unknown";
     };
 
     struct ASTNode {
@@ -42,7 +89,7 @@ namespace LOICollection::frontend {
             Arithmetic, Unary, Function, Macro, Variable, Assignment,
             Class, Return, New, MemberAccess, MethodCall, This,
             Super, SuperCall, InstanceOf, FunctionDef, FuncCall, Lambda,
-            Array, Index, Program, Block
+            Array, Index, Program, Block, Using
         };
         [[nodiscard]] virtual Type getType() const = 0;
         
@@ -52,13 +99,16 @@ namespace LOICollection::frontend {
     };
 
     struct ExprNode : ASTNode {
+        TypeInfo type;
+        bool preserveOptional = false;
+
         [[nodiscard]] Type getType() const override {
             return Type::Expr;
         }
     };
 
     struct ValueNode : ExprNode {
-        using ValueType = std::variant<int, float, std::string, bool, ObjectRef, FunctionRefPtr, ArrayRef>;
+        using ValueType = std::variant<int, float, std::string, bool, ObjectRef, FunctionRefPtr, ArrayRef, std::monostate>;
 
         ValueType value;
         
@@ -66,6 +116,7 @@ namespace LOICollection::frontend {
         explicit ValueNode(float v) : value(v) {}
         explicit ValueNode(const std::string& v) : value(v) {}
         explicit ValueNode(bool v) : value(v) {}
+        explicit ValueNode(std::monostate) : value(std::monostate{}) {}
 
         [[nodiscard]] Type getType() const override {
             return Type::Value;
@@ -95,6 +146,8 @@ namespace LOICollection::frontend {
         SourceLocation loc;
         std::unique_ptr<ExprNode> target;
         std::unique_ptr<ExprNode> value;
+        TypeExpr declaredType;
+        bool hasDeclaredType = false;
 
         AssignmentNode(SourceLocation location, auto&& t, auto&& val)
             : loc(location),
@@ -272,12 +325,14 @@ namespace LOICollection::frontend {
         bool isStatic = false;
         std::unique_ptr<ExprNode> defaultExpr;
         TypeInfo type;
+        TypeExpr typeExpr;
+        bool hasTypeExpr = false;
         bool hasDefault = false;
     };
 
     struct MethodParam {
         std::string name;
-        std::string typeName;
+        TypeExpr typeExpr;
         bool hasType = false;
     };
 
@@ -285,7 +340,7 @@ namespace LOICollection::frontend {
         SourceLocation loc;
         std::string name;
         std::vector<MethodParam> params;
-        std::string returnTypeName;
+        TypeExpr returnTypeExpr;
         bool hasReturnType = false;
         bool isConstructor = false;
         bool isPrivate = false;
@@ -346,11 +401,19 @@ namespace LOICollection::frontend {
     };
 
     struct MemberAccessNode : ExprNode {
+        enum class MemberKind {
+            Normal,
+            TypeOf,
+            Value,
+            HasValue
+        };
+
         SourceLocation loc;
         std::unique_ptr<ExprNode> target;
         std::string memberName;
         bool isStaticAccess = false;
         std::string staticClassName;
+        MemberKind memberKind = MemberKind::Normal;
 
         MemberAccessNode(SourceLocation location, auto&& t, std::string member)
             : loc(location), target(std::forward<decltype(t)>(t)), memberName(std::move(member)) {}
@@ -380,6 +443,21 @@ namespace LOICollection::frontend {
               args(std::forward<decltype(a)>(a)) {}
 
         [[nodiscard]] Type getType() const override { return Type::MethodCall; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct UsingNode : ASTNode {
+        SourceLocation loc;
+        std::string name;
+        TypeExpr type;
+
+        UsingNode(SourceLocation location, std::string n)
+            : loc(location), name(std::move(n)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::Using; }
 
         void accept(ASTVisitor& visitor) override {
             visitor.visit(*this);

@@ -32,7 +32,7 @@ namespace UIRawMessageClass {
         if (args.size() == 1) {
             handle->base = ll::ui::UIRawMessage::translate(key);
         } else {
-            std::visit([&](auto&& arg) {
+            auto result = std::visit([&](auto&& arg) -> ll::Expected<void> {
                 using T = std::decay_t<decltype(arg)>;
                 if constexpr (std::is_same_v<T, ArrayRef>) {
                     auto subs = arg->elements
@@ -41,12 +41,23 @@ namespace UIRawMessageClass {
                         | std::ranges::to<std::vector>();
                     
                     handle->base = ll::ui::UIRawMessage::translate(key, subs);
+
+                    return {};
                 } else if constexpr (std::is_same_v<T, ObjectRef>) {
-                    handle->base = ll::ui::UIRawMessage::translate(key,
-                        static_cast<UIRawMessageHandle*>(arg->native.get())->base
-                    );
+                    if (arg->className == "UIRawMessage") {
+                        handle->base = ll::ui::UIRawMessage::translate(key,
+                            static_cast<UIRawMessageHandle*>(arg->native.get())->base
+                        );
+
+                        return {};
+                    }
                 }
+
+                return ll::makeStringError("translate only needs one UIRawMessage or ArrayRef<string> parameter");
             }, args[1]);
+
+            if (!result.has_value())
+                return ll::Unexpected(result.error());
         }
 
         auto obj = std::make_shared<Object>();
@@ -61,6 +72,7 @@ namespace UIRawMessageClass {
 
         auto subs = std::get<ArrayRef>(args[0])->elements
             | std::views::filter([](auto&& e) { return std::holds_alternative<ObjectRef>(e); })
+            | std::views::filter([](auto&& e) { return std::get<ObjectRef>(e)->className == "UIRawMessage"; })
             | std::views::transform([](auto&& e) { return static_cast<UIRawMessageHandle*>(std::get<ObjectRef>(e)->native.get())->base; })
             | std::ranges::to<std::vector>();
         

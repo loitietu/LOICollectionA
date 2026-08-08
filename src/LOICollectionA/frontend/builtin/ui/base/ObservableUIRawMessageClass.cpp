@@ -22,10 +22,12 @@ namespace ObservableUIRawMessageClass {
     ll::Expected<ObjectRef> makeObservableUIRawMessage(const CallbackTypeValues& args) {
         auto handle = std::make_unique<ObservableUIRawMessageHandle>();
 
-        if (const auto* current = std::get_if<ObjectRef>(&args[0])) {
+        if (const auto* current = std::get_if<ObjectRef>(&args[0]); current && (*current)->className == "UIRawMessage") {
             handle->base = std::make_unique<ll::ui::ObservableUIRawMessage>(
                 static_cast<UIRawMessageClass::UIRawMessageHandle*>((*current)->native.get())->base, ll::ui::ObservableOptions{ std::get<bool>(args[1]) }
             );
+        } else {
+            return ll::makeStringError("makeObservableUIRawMessage only needs one UIRawMessage parameter");
         }
 
         auto obj = std::make_shared<Object>();

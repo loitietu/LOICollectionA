@@ -128,6 +128,8 @@ namespace LOICollection::frontend {
         if (id == "extends") return { TokenType::TOKEN_EXTENDS, std::move(id), startLoc };
         if (id == "instanceof") return { TokenType::TOKEN_INSTANCEOF, std::move(id), startLoc };
         if (id == "static") return { TokenType::TOKEN_STATIC, std::move(id), startLoc };
+        if (id == "using") return { TokenType::TOKEN_USING, std::move(id), startLoc };
+        if (id == "None") return { TokenType::TOKEN_NONE, std::move(id), startLoc };
 
         return { TokenType::TOKEN_IDENT, std::move(id), startLoc };
     }

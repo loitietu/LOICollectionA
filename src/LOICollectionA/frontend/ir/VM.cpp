@@ -59,6 +59,31 @@ namespace LOICollection::frontend::ir {
                 result += "]";
                 return result;
             }
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::monostate>)
+                return "None";
+        }, val);
+    }
+
+    std::string VM::typeNameOf(const ValueNode::ValueType& val) {
+        return std::visit([](auto&& arg) -> std::string {
+            using T = std::decay_t<decltype(arg)>;
+
+            if constexpr (std::is_same_v<std::remove_cv_t<T>, int>)
+                return "int";
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, float>)
+                return "float";
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::string>)
+                return "string";
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
+                return "bool";
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, ObjectRef>)
+                return arg->className;
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, FunctionRefPtr>)
+                return "function";
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, ArrayRef>)
+                return "array";
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::monostate>)
+                return "none";
         }, val);
     }
 
@@ -81,7 +106,11 @@ namespace LOICollection::frontend::ir {
             using T = std::decay_t<decltype(l)>;
             using U = std::decay_t<decltype(r)>;
 
-            if constexpr (std::is_arithmetic_v<T> && std::is_arithmetic_v<U>) {
+            if constexpr (std::is_same_v<T, std::monostate> || std::is_same_v<U, std::monostate>) {
+                diagnostics.addError({ 0, 0, 0 },
+                    "Cannot perform arithmetic on an empty optional value");
+                return 0;
+            } else if constexpr (std::is_arithmetic_v<T> && std::is_arithmetic_v<U>) {
                 auto dl = static_cast<double>(l);
                 auto dr = static_cast<double>(r);
 
@@ -193,6 +222,8 @@ namespace LOICollection::frontend::ir {
                 return true;
             else if constexpr (std::is_same_v<std::remove_cv_t<T>, ArrayRef>)
                 return !arg->elements.empty();
+            else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::monostate>)
+                return false;
         }, val);
     }
 
@@ -201,7 +232,15 @@ namespace LOICollection::frontend::ir {
             using T = std::decay_t<decltype(l)>;
             using U = std::decay_t<decltype(r)>;
 
-            if constexpr (std::is_arithmetic_v<T> && std::is_arithmetic_v<U>) {
+            if constexpr (std::is_same_v<T, std::monostate> || std::is_same_v<U, std::monostate>) {
+                if constexpr (std::is_same_v<T, std::monostate> && std::is_same_v<U, std::monostate>) {
+                    if (op == "==") return true;
+                    if (op == "!=") return false;
+                }
+
+                diagnostics.addError({ 0, 0, 0 }, "Cannot compare an empty optional value");
+                return false;
+            } else if constexpr (std::is_arithmetic_v<T> && std::is_arithmetic_v<U>) {
                 auto cmp = static_cast<double>(l) <=> static_cast<double>(r);
 
                 if (op == "==") return cmp == 0;
@@ -341,6 +380,7 @@ namespace LOICollection::frontend::ir {
                 case OpCode::PUSH_FLOAT:
                 case OpCode::PUSH_STR:
                 case OpCode::PUSH_BOOL:
+                case OpCode::PUSH_NONE:
                     this->push(VM::cloneValue(cur.constants[instr.operand]));
                     break;
                 case OpCode::POP:
@@ -354,6 +394,29 @@ namespace LOICollection::frontend::ir {
                     }
 
                     this->stack.push_back(this->stack.back());
+                    break;
+                }
+
+                case OpCode::UNWRAP: {
+                    auto value = this->pop();
+                    if (std::holds_alternative<std::monostate>(value)) {
+                        this->diagnostics.addError({ 0, 0, 0 }, "Optional value is empty");
+                        break;
+                    }
+
+                    this->push(value);
+                    break;
+                }
+
+                case OpCode::TYPE_OF: {
+                    auto value = this->pop();
+                    this->push(VM::typeNameOf(value));
+                    break;
+                }
+
+                case OpCode::HAS_VALUE: {
+                    auto value = this->pop();
+                    this->push(!std::holds_alternative<std::monostate>(value));
                     break;
                 }
 

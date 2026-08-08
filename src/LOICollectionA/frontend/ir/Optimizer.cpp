@@ -78,6 +78,7 @@ namespace LOICollection::frontend::ir {
             case 1: op = OpCode::PUSH_FLOAT; break;
             case 2: op = OpCode::PUSH_STR; break;
             case 3: op = OpCode::PUSH_BOOL; break;
+            case 7: op = OpCode::PUSH_NONE; break;
             default: op = OpCode::PUSH_INT; break;
         }
 
@@ -135,6 +136,7 @@ namespace LOICollection::frontend::ir {
                 case OpCode::PUSH_FLOAT:
                 case OpCode::PUSH_STR:
                 case OpCode::PUSH_BOOL:
+                case OpCode::PUSH_NONE:
                     emittedAt = static_cast<int>(foldedCode.size());
                     foldedCode.push_back(instr);
                     stack.emplace_back(TrackedValue{
@@ -142,6 +144,73 @@ namespace LOICollection::frontend::ir {
                     });
                     
                     break;
+
+                case OpCode::UNWRAP: {
+                    StackEntry operand = popEntry(stack);
+
+                    if (isKnown(operand) && knownValue(operand).removable &&
+                        !std::holds_alternative<std::monostate>(knownValue(operand).value)) {
+                        dropped[knownValue(operand).producer] = true;
+
+                        emitPush(chunk, foldedCode, knownValue(operand).value);
+                        emittedAt = static_cast<int>(foldedCode.size()) - 1;
+                        stack.emplace_back(TrackedValue{
+                            knownValue(operand).value, emittedAt, !targets.contains(oldIdx)
+                        });
+                        stats.folded++;
+                    } else {
+                        emittedAt = static_cast<int>(foldedCode.size());
+                        foldedCode.push_back(instr);
+                        stack.emplace_back(std::monostate{});
+                    }
+
+                    break;
+                }
+
+                case OpCode::TYPE_OF: {
+                    StackEntry operand = popEntry(stack);
+
+                    if (isKnown(operand) && knownValue(operand).removable) {
+                        dropped[knownValue(operand).producer] = true;
+
+                        std::string name = VM::typeNameOf(knownValue(operand).value);
+                        emitPush(chunk, foldedCode, name);
+                        emittedAt = static_cast<int>(foldedCode.size()) - 1;
+                        stack.emplace_back(TrackedValue{
+                            name, emittedAt, !targets.contains(oldIdx)
+                        });
+                        stats.folded++;
+                    } else {
+                        emittedAt = static_cast<int>(foldedCode.size());
+                        foldedCode.push_back(instr);
+                        stack.emplace_back(std::monostate{});
+                    }
+
+                    break;
+                }
+
+                case OpCode::HAS_VALUE: {
+                    StackEntry operand = popEntry(stack);
+
+                    if (isKnown(operand) && knownValue(operand).removable) {
+                        dropped[knownValue(operand).producer] = true;
+
+                        bool result = !std::holds_alternative<std::monostate>(
+                            knownValue(operand).value);
+                        emitPush(chunk, foldedCode, result);
+                        emittedAt = static_cast<int>(foldedCode.size()) - 1;
+                        stack.emplace_back(TrackedValue{
+                            result, emittedAt, !targets.contains(oldIdx)
+                        });
+                        stats.folded++;
+                    } else {
+                        emittedAt = static_cast<int>(foldedCode.size());
+                        foldedCode.push_back(instr);
+                        stack.emplace_back(std::monostate{});
+                    }
+
+                    break;
+                }
 
                 case OpCode::POP: {
                     if (!targets.contains(oldIdx) && stack.size() > 1 &&

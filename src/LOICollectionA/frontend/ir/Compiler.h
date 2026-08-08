@@ -65,12 +65,14 @@ namespace LOICollection::frontend::ir {
         void visit(LambdaNode& node) override;
         void visit(ArrayNode& node) override;
         void visit(IndexAccessNode& node) override;
+        void visit(UsingNode& node) override;
 
         void registerClassMeta(ClassNode& node);
         void compileClassBodies(ClassNode& node);
         void registerFunctionMeta(FunctionDefNode& node);
         void compileFunctionBody(FunctionDefNode& node);
         void compileSequence(SequenceNode& node);
+        void compileValue(ExprNode& node);
 
         [[nodiscard]] std::optional<ValueNode::ValueType> constantValue(ExprNode& node) const;
 

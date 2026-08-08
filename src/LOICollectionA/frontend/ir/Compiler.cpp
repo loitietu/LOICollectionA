@@ -142,6 +142,8 @@ namespace LOICollection::frontend::ir {
             count++;
             countBody(node.decl.body);
         }
+
+        void visit(UsingNode&) override {}
     };
 
     size_t countMethodBodies(ASTNode& root) {
@@ -195,14 +197,20 @@ namespace LOICollection::frontend::ir {
             size_t lastValuePart = SIZE_MAX;
             for (size_t i = 0; i < program.parts.size(); ++i) {
                 auto type = program.parts[i]->getType();
-                if (type != ASTNode::Type::Class && type != ASTNode::Type::FunctionDef)
+                if (type != ASTNode::Type::Class &&
+                    type != ASTNode::Type::FunctionDef &&
+                    type != ASTNode::Type::Using) {
                     lastValuePart = i;
+                }
             }
 
             for (size_t i = 0; i < program.parts.size(); ++i) {
                 auto type = program.parts[i]->getType();
-                if (type == ASTNode::Type::Class || type == ASTNode::Type::FunctionDef)
+                if (type == ASTNode::Type::Class ||
+                    type == ASTNode::Type::FunctionDef ||
+                    type == ASTNode::Type::Using) {
                     continue;
+                }
 
                 program.parts[i]->accept(*this);
 
@@ -227,6 +235,7 @@ namespace LOICollection::frontend::ir {
             case 1: current.get().emit(OpCode::PUSH_FLOAT, idx); break;
             case 2: current.get().emit(OpCode::PUSH_STR, idx); break;
             case 3: current.get().emit(OpCode::PUSH_BOOL, idx); break;
+            case 7: current.get().emit(OpCode::PUSH_NONE, idx); break;
             default:
                 this->diagnostics.addError({0, 0, 0}, "Unsupported constant value type");
                 break;
@@ -238,10 +247,18 @@ namespace LOICollection::frontend::ir {
             ? this->addConstant(node.staticClassName + "::" + node.name)
             : this->addConstant(node.name);
         this->current.get().emit(OpCode::LOAD_VAR, idx);
+
+        if (node.type.kind == TypeKind::Optional && !node.preserveOptional)
+            this->current.get().emit(OpCode::UNWRAP);
     }
 
     void Compiler::visit(AssignmentNode& node) {
-        node.value->accept(*this);
+        if (node.value) {
+            this->compileValue(*node.value);
+        } else {
+            int emptyIdx = this->addConstant(std::string(""));
+            this->current.get().emit(OpCode::PUSH_STR, emptyIdx);
+        }
 
         this->current.get().emit(OpCode::DUP);
 
@@ -262,7 +279,7 @@ namespace LOICollection::frontend::ir {
                     break;
                 }
 
-                member.target->accept(*this);
+                this->compileValue(*member.target);
 
                 int idx = this->addConstant(member.memberName);
                 this->current.get().emit(OpCode::STORE_FIELD, idx);
@@ -282,7 +299,7 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(IfNode& node) {
-        node.condition->accept(*this);
+        this->compileValue(*node.condition);
 
         size_t jmpFalseIdx = this->current.get().emit(OpCode::JMP_IF_FALSE, 0);
 
@@ -300,8 +317,8 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(CompareNode& node) {
-        node.left->accept(*this);
-        node.right->accept(*this);
+        this->compileValue(*node.left);
+        this->compileValue(*node.right);
 
         if (node.op == "==") this->current.get().emit(OpCode::CMP_EQ);
         else if (node.op == "!=") this->current.get().emit(OpCode::CMP_NE);
@@ -325,7 +342,7 @@ namespace LOICollection::frontend::ir {
                         int idxTrue = this->addConstant(true);
                         this->current.get().emit(OpCode::PUSH_BOOL, idxTrue);
 
-                        node.right->accept(*this);
+                        this->compileValue(*node.right);
 
                         this->current.get().emit(OpCode::LOGIC_AND);
                     } else {
@@ -340,7 +357,7 @@ namespace LOICollection::frontend::ir {
                         int idxFalse = this->addConstant(false);
                         this->current.get().emit(OpCode::PUSH_BOOL, idxFalse);
 
-                        node.right->accept(*this);
+                        this->compileValue(*node.right);
                         
                         this->current.get().emit(OpCode::LOGIC_OR);
                     }
@@ -349,12 +366,12 @@ namespace LOICollection::frontend::ir {
             }
         }
 
-        node.left->accept(*this);
+        this->compileValue(*node.left);
         this->current.get().emit(OpCode::DUP);
 
         size_t jumpToShort = this->current.get().emit(isAnd ? OpCode::JMP_IF_FALSE : OpCode::JMP_IF_TRUE, 0);
 
-        node.right->accept(*this);
+        this->compileValue(*node.right);
         this->current.get().emit(isAnd ? OpCode::LOGIC_AND : OpCode::LOGIC_OR);
 
         size_t jumpToEnd = this->current.get().emit(OpCode::JMP, 0);
@@ -373,7 +390,7 @@ namespace LOICollection::frontend::ir {
 
     void Compiler::visit(FunctionNode& node) {
         for (auto& arg : node.args)
-            arg->accept(*this);
+            this->compileValue(*arg);
 
         int argCount = static_cast<int>(node.args.size());
         int metaIdx = this->addFunction(node.namespaces + "::" + node.name, argCount);
@@ -382,7 +399,7 @@ namespace LOICollection::frontend::ir {
 
     void Compiler::visit(MacroNode& node) {
         for (auto& arg : node.args)
-            arg->accept(*this);
+            this->compileValue(*arg);
 
         int argCount = static_cast<int>(node.args.size());
         int metaIdx = addMacro(node.name, argCount);
@@ -390,8 +407,8 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(ArithmeticNode& node) {
-        node.left->accept(*this);
-        node.right->accept(*this);
+        this->compileValue(*node.left);
+        this->compileValue(*node.right);
 
         if (node.op == "+") this->current.get().emit(OpCode::ADD);
         else if (node.op == "-") this->current.get().emit(OpCode::SUB);
@@ -404,7 +421,7 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(UnaryNode& node) {
-        node.operand->accept(*this);
+        this->compileValue(*node.operand);
 
         if (node.op == "-") this->current.get().emit(OpCode::NEG);
         else if (node.op == "!") this->current.get().emit(OpCode::NOT);
@@ -425,12 +442,15 @@ namespace LOICollection::frontend::ir {
             node.parts[i]->accept(*this);
 
             bool producesValue = node.parts[i]->getType() != ASTNode::Type::Class
-                && node.parts[i]->getType() != ASTNode::Type::Return;
+                && node.parts[i]->getType() != ASTNode::Type::Return
+                && node.parts[i]->getType() != ASTNode::Type::Using;
 
             if (i != node.parts.size() - 1 && producesValue)
                 this->current.get().emit(OpCode::POP);
         }
     }
+
+    void Compiler::visit(UsingNode&) {}
 
     void Compiler::visit(ProgramNode& node) {
         compileSequence(node);
@@ -636,7 +656,7 @@ namespace LOICollection::frontend::ir {
 
     void Compiler::visit(NewNode& node) {
         for (auto& arg : node.args)
-            arg->accept(*this);
+            this->compileValue(*arg);
 
         auto it = this->classIndices.find(node.className);
         if (it == this->classIndices.end()) {
@@ -659,31 +679,55 @@ namespace LOICollection::frontend::ir {
         if (node.isStaticAccess) {
             int idx = this->addConstant(node.staticClassName + "::" + node.memberName);
             this->current.get().emit(OpCode::LOAD_VAR, idx);
+
+            if (node.type.kind == TypeKind::Optional && !node.preserveOptional)
+                this->current.get().emit(OpCode::UNWRAP);
             return;
         }
 
-        node.target->accept(*this);
+        switch (node.memberKind) {
+            case MemberAccessNode::MemberKind::TypeOf:
+                node.target->accept(*this);
+                this->current.get().emit(OpCode::TYPE_OF);
+                return;
+            case MemberAccessNode::MemberKind::Value:
+                node.target->accept(*this);
+                if (node.target->type.kind == TypeKind::Optional)
+                    this->current.get().emit(OpCode::UNWRAP);
+                return;
+            case MemberAccessNode::MemberKind::HasValue:
+                node.target->accept(*this);
+                this->current.get().emit(OpCode::HAS_VALUE);
+                return;
+            case MemberAccessNode::MemberKind::Normal:
+                break;
+        }
+
+        this->compileValue(*node.target);
 
         int idx = this->addConstant(node.memberName);
         this->current.get().emit(OpCode::LOAD_FIELD, idx);
+
+        if (node.type.kind == TypeKind::Optional && !node.preserveOptional)
+            this->current.get().emit(OpCode::UNWRAP);
     }
 
     void Compiler::visit(ArrayNode& node) {
         for (auto& element : node.elements)
-            element->accept(*this);
+            this->compileValue(*element);
 
         this->current.get().emit(OpCode::MAKE_ARRAY, static_cast<int>(node.elements.size()));
     }
 
     void Compiler::visit(IndexAccessNode& node) {
-        node.target->accept(*this);
-        node.index->accept(*this);
+        this->compileValue(*node.target);
+        this->compileValue(*node.index);
         this->current.get().emit(OpCode::LOAD_INDEX);
     }
 
     void Compiler::visit(MethodCallNode& node) {
         for (auto& arg : node.args)
-            arg->accept(*this);
+            this->compileValue(*arg);
 
         if (node.isStaticCall) {
             if (ClassCall::getInstance().isRegistered(node.staticClassName)) {
@@ -704,7 +748,7 @@ namespace LOICollection::frontend::ir {
             return;
         }
 
-        node.target->accept(*this);
+        this->compileValue(*node.target);
 
         auto it = classMethodIndices.find(node.className);
         if (it != classMethodIndices.end() && node.methodOrdinal >= 0 &&
@@ -742,7 +786,7 @@ namespace LOICollection::frontend::ir {
 
     void Compiler::visit(SuperCallNode& node) {
         for (auto& arg : node.args)
-            arg->accept(*this);
+            this->compileValue(*arg);
 
         this->current.get().emit(OpCode::LOAD_THIS);
 
@@ -759,7 +803,7 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(InstanceOfNode& node) {
-        node.target->accept(*this);
+        this->compileValue(*node.target);
 
         int nameIdx = this->addConstant(node.className);
         this->current.get().emit(OpCode::INSTANCEOF, nameIdx);
@@ -807,7 +851,7 @@ namespace LOICollection::frontend::ir {
 
     void Compiler::visit(FuncCallNode& node) {
         for (auto& arg : node.args)
-            arg->accept(*this);
+            this->compileValue(*arg);
 
         if (node.isStaticCall) {
             if (ClassCall::getInstance().isRegistered(node.staticClassName)) {
@@ -921,18 +965,17 @@ namespace LOICollection::frontend::ir {
             if (i != 0)
                 signature += ",";
 
-            const std::string& typeName = method.params[i].typeName;
-            if (!method.params[i].hasType) {
-                signature += "unknown";
-            } else if (typeName == "int" || typeName == "float" || typeName == "string" ||
-                       typeName == "bool" || typeName == "void") {
-                signature += typeName;
-            } else {
-                signature += "class " + typeName;
-            }
+            signature += typeInfoToString(method.paramTypes[i]);
         }
         signature += ")";
         return signature;
+    }
+
+    void Compiler::compileValue(ExprNode& node) {
+        node.accept(*this);
+
+        if (node.type.kind == TypeKind::Optional && !node.preserveOptional)
+            this->current.get().emit(OpCode::UNWRAP);
     }
 
     std::optional<ValueNode::ValueType> Compiler::constantValue(ExprNode& node) const {

@@ -88,6 +88,29 @@ TEST(LexerTest, ParseAllKeywords) {
     EXPECT_EQ(lexer.getNextToken().type, TokenType::TOKEN_EOF);
 }
 
+TEST(LexerTest, ParseNewKeywords) {
+    DiagnosticEngine diagnostics;
+    Lexer lexer("using None variant optional", diagnostics);
+
+    auto t1 = lexer.getNextToken();
+    EXPECT_EQ(t1.type, TokenType::TOKEN_USING);
+    EXPECT_EQ(t1.value, "using");
+
+    auto t2 = lexer.getNextToken();
+    EXPECT_EQ(t2.type, TokenType::TOKEN_NONE);
+    EXPECT_EQ(t2.value, "None");
+
+    auto t3 = lexer.getNextToken();
+    EXPECT_EQ(t3.type, TokenType::TOKEN_IDENT);
+    EXPECT_EQ(t3.value, "variant");
+
+    auto t4 = lexer.getNextToken();
+    EXPECT_EQ(t4.type, TokenType::TOKEN_IDENT);
+    EXPECT_EQ(t4.value, "optional");
+
+    EXPECT_EQ(lexer.getNextToken().type, TokenType::TOKEN_EOF);
+}
+
 TEST(LexerTest, ParseOperators) {
     DiagnosticEngine diagnostics;
     Lexer lexer("+ - * / % ^ == != > < >= <= && || !", diagnostics);

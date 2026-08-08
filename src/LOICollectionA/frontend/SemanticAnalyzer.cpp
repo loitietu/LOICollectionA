@@ -30,6 +30,17 @@ namespace LOICollection::frontend {
         if (type.kind == TypeKind::Unknown)
             return true;
 
+        if (type.kind == TypeKind::Optional)
+            return type.optionalInner && typeMatchesParam(*type.optionalInner, param);
+
+        if (type.kind == TypeKind::Variant) {
+            for (const auto& option : type.variantOptions) {
+                if (typeMatchesParam(option, param))
+                    return true;
+            }
+            return false;
+        }
+
         TypeInfo expected = typeFromParam(param);
         if (expected.kind == TypeKind::Object)
             return type.kind == TypeKind::Object;
@@ -66,6 +77,14 @@ namespace LOICollection::frontend {
         this->functions.clear();
         this->functionsByName.clear();
         this->globalTypes.clear();
+        this->declaredGlobals.clear();
+        this->aliasExprs.clear();
+        this->aliasLocs.clear();
+        this->typeAliases.clear();
+        this->resolvingAliases.clear();
+        this->constructorAssignedMembers.clear();
+
+        this->collectTypeAliases(root);
 
         for (auto& part : root.parts) {
             switch (part->getType()) {
@@ -81,12 +100,21 @@ namespace LOICollection::frontend {
         }
 
         resolveHierarchy();
+        for (const auto& [name, loc] : this->aliasLocs) {
+            if (this->classByName.contains(name)) {
+                this->diagnostics.addError(loc,
+                    "Type alias conflicts with class name: " + name);
+            }
+        }
+
+        resolveDeclaredTypes();
         buildMethodOrdinals();
 
         checkTopLevel(root);
         checkClassBodies();
         checkFunctionBodies();
         validateConstructors();
+        validateMemberInitialization();
     }
 
     void SemanticAnalyzer::resolveHierarchy() {
@@ -205,6 +233,7 @@ namespace LOICollection::frontend {
             case 4: return { TypeKind::Object };
             case 5: return { TypeKind::Function };
             case 6: return { TypeKind::Array };
+            case 7: return { TypeKind::None };
             default: return {};
         }
     }
@@ -229,19 +258,7 @@ namespace LOICollection::frontend {
     }
 
     std::string SemanticAnalyzer::typeToString(const TypeInfo& type) const {
-        switch (type.kind) {
-            case TypeKind::Unknown: return "unknown";
-            case TypeKind::Int: return "int";
-            case TypeKind::Float: return "float";
-            case TypeKind::String: return "string";
-            case TypeKind::Bool: return "bool";
-            case TypeKind::Object: return "class " + type.className;
-            case TypeKind::Function: return "function";
-            case TypeKind::Void: return "void";
-            case TypeKind::Array: return "array";
-        }
-
-        return "unknown";
+        return typeInfoToString(type);
     }
 
     bool SemanticAnalyzer::isNumeric(const TypeInfo& type) const {
@@ -262,41 +279,180 @@ namespace LOICollection::frontend {
             if (!memberNames.insert(member.name).second)
                 diagnostics.addError(member.loc, "Duplicate member variable: " + member.name);
         }
-
-        for (auto& member : node.members) {
-            if (member.hasDefault && member.defaultExpr) {
-                MethodScope emptyScope;
-                member.type = checkExpr(*member.defaultExpr, emptyScope);
-            }
-        }
-
-        for (auto& method : node.methods) {
-            method.paramTypes.resize(method.params.size());
-
-            for (size_t i = 0; i < method.params.size(); ++i) {
-                if (method.params[i].hasType)
-                    method.paramTypes[i] = typeFromName(method.params[i].typeName, method.loc, true);
-            }
-
-            if (method.hasReturnType)
-                method.returnType = typeFromName(method.returnTypeName, method.loc, true);
-        }
     }
 
     void SemanticAnalyzer::registerFunction(FunctionDefNode& node) {
         functions.push_back(std::ref(node));
         functionsByName[node.name].push_back(std::ref(node));
+    }
 
-        MethodDecl& decl = node.decl;
-        decl.paramTypes.resize(decl.params.size());
+    namespace {
+        bool isReservedTypeName(const std::string& name) {
+            return name == "int" || name == "float" || name == "string" ||
+                   name == "bool" || name == "void" || name == "variant" ||
+                   name == "optional";
+        }
+    }
 
-        for (size_t i = 0; i < decl.params.size(); ++i) {
-            if (decl.params[i].hasType)
-                decl.paramTypes[i] = typeFromName(decl.params[i].typeName, decl.loc, true);
+    void SemanticAnalyzer::collectTypeAliases(ProgramNode& root) {
+        for (auto& part : root.parts) {
+            if (part->getType() != ASTNode::Type::Using)
+                continue;
+
+            auto& usingNode = static_cast<UsingNode&>(*part);
+            if (isReservedTypeName(usingNode.name)) {
+                this->diagnostics.addError(usingNode.loc,
+                    "Cannot use '" + usingNode.name + "' as a type alias name");
+                continue;
+            }
+
+            if (!this->aliasExprs.emplace(usingNode.name, usingNode.type).second) {
+                this->diagnostics.addError(usingNode.loc,
+                    "Duplicate type alias: " + usingNode.name);
+                continue;
+            }
+
+            this->aliasLocs.emplace(usingNode.name, usingNode.loc);
+        }
+    }
+
+    TypeInfo SemanticAnalyzer::resolveTypeExpr(const TypeExpr& expr, SourceLocation loc, bool reportError) {
+        if (expr.name == "variant") {
+            if (expr.args.size() < 2) {
+                if (reportError)
+                    this->diagnostics.addError(loc, "variant requires at least two type arguments");
+                return {};
+            }
+
+            TypeInfo result;
+            result.kind = TypeKind::Variant;
+            result.variantOptions.reserve(expr.args.size());
+            for (const auto& arg : expr.args)
+                result.variantOptions.push_back(this->resolveTypeExpr(arg, loc, reportError));
+
+            return result;
         }
 
-        if (decl.hasReturnType)
-            decl.returnType = typeFromName(decl.returnTypeName, decl.loc, true);
+        if (expr.name == "optional") {
+            if (expr.args.size() != 1) {
+                if (reportError)
+                    this->diagnostics.addError(loc, "optional requires exactly one type argument");
+                return {};
+            }
+
+            TypeInfo inner = this->resolveTypeExpr(expr.args[0], loc, reportError);
+            if (inner.kind == TypeKind::Optional) {
+                if (reportError)
+                    this->diagnostics.addError(loc, "optional cannot be nested inside optional");
+                return {};
+            }
+
+            TypeInfo result;
+            result.kind = TypeKind::Optional;
+            result.optionalInner = std::make_shared<TypeInfo>(inner);
+            return result;
+        }
+
+        if (!expr.args.empty()) {
+            if (reportError)
+                this->diagnostics.addError(loc, "Type '" + expr.name + "' does not accept type arguments");
+            return {};
+        }
+
+        auto aliasIt = this->aliasExprs.find(expr.name);
+        if (aliasIt != this->aliasExprs.end()) {
+            if (auto resolvedIt = this->typeAliases.find(expr.name);
+                resolvedIt != this->typeAliases.end()) {
+                return resolvedIt->second;
+            }
+
+            if (!this->resolvingAliases.insert(expr.name).second) {
+                if (reportError)
+                    this->diagnostics.addError(loc,
+                        "Circular type alias involving '" + expr.name + "'");
+                return {};
+            }
+
+            TypeInfo resolved = this->resolveTypeExpr(aliasIt->second, loc, reportError);
+            this->resolvingAliases.erase(expr.name);
+            this->typeAliases[expr.name] = resolved;
+            return resolved;
+        }
+
+        return this->typeFromName(expr.name, loc, reportError);
+    }
+
+    void SemanticAnalyzer::resolveDeclaredTypes() {
+        for (auto clsRef : this->classes) {
+            ClassNode& cls = clsRef.get();
+
+            for (auto& member : cls.members) {
+                if (member.hasTypeExpr)
+                    member.type = this->resolveTypeExpr(member.typeExpr, member.loc, true);
+
+                if (member.hasDefault && member.defaultExpr) {
+                    MethodScope emptyScope;
+                    TypeInfo defaultType = this->checkExpr(*member.defaultExpr, emptyScope);
+
+                    if (member.type.kind != TypeKind::Unknown) {
+                        this->unify(member.type, defaultType, member.loc,
+                            "member '" + member.name + "'");
+                    } else if (defaultType.kind == TypeKind::None) {
+                        this->diagnostics.addError(member.loc,
+                            "'None' is only allowed when declaring an optional value (member '" +
+                            member.name + "')");
+                    }
+                }
+            }
+
+            for (auto& method : cls.methods) {
+                method.paramTypes.resize(method.params.size());
+                for (size_t i = 0; i < method.params.size(); ++i) {
+                    if (method.params[i].hasType)
+                        method.paramTypes[i] = this->resolveTypeExpr(
+                            method.params[i].typeExpr, method.loc, true);
+                }
+
+                if (method.hasReturnType)
+                    method.returnType = this->resolveTypeExpr(
+                        method.returnTypeExpr, method.loc, true);
+            }
+        }
+
+        for (auto fnRef : this->functions) {
+            MethodDecl& decl = fnRef.get().decl;
+            decl.paramTypes.resize(decl.params.size());
+            for (size_t i = 0; i < decl.params.size(); ++i) {
+                if (decl.params[i].hasType)
+                    decl.paramTypes[i] = this->resolveTypeExpr(
+                        decl.params[i].typeExpr, decl.loc, true);
+            }
+
+            if (decl.hasReturnType)
+                decl.returnType = this->resolveTypeExpr(decl.returnTypeExpr, decl.loc, true);
+        }
+    }
+
+    void SemanticAnalyzer::validateMemberInitialization() {
+        for (auto clsRef : this->classes) {
+            ClassNode& cls = clsRef.get();
+            const auto& assigned = this->constructorAssignedMembers[cls.name];
+
+            for (const auto& member : cls.members) {
+                if (member.isStatic || member.hasDefault)
+                    continue;
+
+                if (cls.constructorIndex == -1) {
+                    this->diagnostics.addError(member.loc,
+                        "Member '" + member.name + "' has no default value and class '" +
+                        cls.name + "' has no constructor to initialize it");
+                } else if (!assigned.contains(member.name)) {
+                    this->diagnostics.addError(member.loc,
+                        "Member '" + member.name + "' has no default value and is not assigned " +
+                        "in the constructor of class '" + cls.name + "'");
+                }
+            }
+        }
     }
 
     void SemanticAnalyzer::checkTopLevel(ProgramNode& root) {
@@ -306,6 +462,7 @@ namespace LOICollection::frontend {
             switch (part->getType()) {
                 case ASTNode::Type::Class:
                 case ASTNode::Type::FunctionDef:
+                case ASTNode::Type::Using:
                     continue;
                 default:
                     checkStatement(*part, emptyScope);
@@ -345,6 +502,7 @@ namespace LOICollection::frontend {
         switch (node.getType()) {
             case ASTNode::Type::Class:
             case ASTNode::Type::FunctionDef:
+            case ASTNode::Type::Using:
                 return;
             case ASTNode::Type::Return:
                 checkReturn(static_cast<ReturnNode&>(node), scope);
@@ -353,13 +511,26 @@ namespace LOICollection::frontend {
                 for (auto& part : static_cast<BlockNode&>(node).parts)
                     checkStatement(*part, scope);
                 return;
-            default:
-                checkExpr(static_cast<ExprNode&>(node), scope);
+            default: {
+                TypeInfo type = checkExpr(static_cast<ExprNode&>(node), scope);
+                if (type.kind == TypeKind::None &&
+                    node.getType() != ASTNode::Type::Assignment) {
+                    this->diagnostics.addError({0, 0, 0},
+                        "'None' is only allowed when assigning to an optional value");
+                }
                 return;
+            }
         }
     }
 
     TypeInfo SemanticAnalyzer::checkExpr(ExprNode& node, MethodScope& scope) {
+        node.preserveOptional = false;
+        TypeInfo result = this->checkExprImpl(node, scope);
+        node.type = result;
+        return result;
+    }
+
+    TypeInfo SemanticAnalyzer::checkExprImpl(ExprNode& node, MethodScope& scope) {
         switch (node.getType()) {
             case ASTNode::Type::Assignment:
                 return checkAssignment(static_cast<AssignmentNode&>(node), scope);
@@ -566,7 +737,9 @@ namespace LOICollection::frontend {
     }
 
     TypeInfo SemanticAnalyzer::checkAssignment(AssignmentNode& node, MethodScope& scope) {
-        TypeInfo rhs = checkExpr(*node.value, scope);
+        TypeInfo rhs;
+        if (node.value)
+            rhs = checkExpr(*node.value, scope);
 
         switch (node.target->getType()) {
             case ASTNode::Type::Variable: {
@@ -575,8 +748,13 @@ namespace LOICollection::frontend {
                     MethodDecl& method = scope.methodRef();
                     for (size_t i = 0; i < method.params.size(); ++i) {
                         if (method.params[i].name == var.name) {
-                            if (method.params[i].hasType)
+                            if (method.params[i].hasType) {
                                 unify(method.paramTypes[i], rhs, node.loc, "parameter '" + var.name + "'");
+                                if (method.paramTypes[i].kind == TypeKind::Optional &&
+                                    rhs.kind == TypeKind::Optional && node.value) {
+                                    node.value->preserveOptional = true;
+                                }
+                            }
                             return rhs;
                         }
                     }
@@ -589,8 +767,16 @@ namespace LOICollection::frontend {
                                     "Cannot access private member '" + member.name + "'");
                             }
 
-                            if (member.hasDefault)
+                            if (member.type.kind != TypeKind::Unknown) {
                                 unify(member.type, rhs, node.loc, "member '" + var.name + "'");
+                                if (member.type.kind == TypeKind::Optional &&
+                                    rhs.kind == TypeKind::Optional && node.value) {
+                                    node.value->preserveOptional = true;
+                                }
+                            }
+
+                            if (scope.methodRef().isConstructor)
+                                this->constructorAssignedMembers[scope.classRef().name].insert(var.name);
                             return rhs;
                         }
                     }
@@ -603,14 +789,72 @@ namespace LOICollection::frontend {
                                     "Cannot access private member '" + member.name + "'");
                             }
 
-                            if (member.hasDefault)
+                            if (member.type.kind != TypeKind::Unknown) {
                                 unify(member.type, rhs, node.loc, "static member '" + var.name + "'");
+                                if (member.type.kind == TypeKind::Optional &&
+                                    rhs.kind == TypeKind::Optional && node.value) {
+                                    node.value->preserveOptional = true;
+                                }
+                            }
 
                             var.isStaticField = true;
                             var.staticClassName = staticField->owner.get().name;
                             return rhs;
                         }
                     }
+                }
+
+                if (node.hasDeclaredType) {
+                    TypeInfo declared = this->resolveTypeExpr(node.declaredType, node.loc, true);
+
+                    if (auto existing = this->declaredGlobals.find(var.name);
+                        existing != this->declaredGlobals.end()) {
+                        if (!(existing->second == declared)) {
+                            this->diagnostics.addError(node.loc,
+                                "Conflicting type declaration for variable '" + var.name + "'");
+                        }
+                    } else if (this->globalTypes.contains(var.name)) {
+                        this->diagnostics.addError(node.loc,
+                            "Variable '" + var.name + "' was already defined without an explicit type");
+                    } else {
+                        this->declaredGlobals[var.name] = declared;
+                    }
+
+                    if (!node.value) {
+                        this->diagnostics.addError(node.loc,
+                            "Typed declaration of '" + var.name + "' requires an initializer");
+                        return rhs;
+                    }
+
+                    auto declaredIt = this->declaredGlobals.find(var.name);
+                    if (declaredIt == this->declaredGlobals.end())
+                        return rhs;
+
+                    TypeInfo& target = declaredIt->second;
+                    this->unify(target, rhs, node.loc, "variable '" + var.name + "'");
+                    if (target.kind == TypeKind::Optional &&
+                        rhs.kind == TypeKind::Optional && node.value) {
+                        node.value->preserveOptional = true;
+                    }
+                    return rhs;
+                }
+
+                if (auto declaredIt = this->declaredGlobals.find(var.name);
+                    declaredIt != this->declaredGlobals.end()) {
+                    this->unify(declaredIt->second, rhs, node.loc,
+                        "variable '" + var.name + "'");
+                    if (declaredIt->second.kind == TypeKind::Optional &&
+                        rhs.kind == TypeKind::Optional && node.value) {
+                        node.value->preserveOptional = true;
+                    }
+                    return rhs;
+                }
+
+                if (rhs.kind == TypeKind::None) {
+                    this->diagnostics.addError(node.loc,
+                        std::string("'None' is only allowed when assigning to an optional value ") +
+                        "(variable '" + var.name + "')");
+                    return rhs;
                 }
 
                 if (rhs.kind != TypeKind::Unknown)
@@ -642,8 +886,13 @@ namespace LOICollection::frontend {
                                 "Cannot access private member '" + m.name + "'");
                         }
 
-                        if (m.hasDefault)
+                        if (m.type.kind != TypeKind::Unknown) {
                             unify(m.type, rhs, node.loc, "static member '" + m.name + "'");
+                            if (m.type.kind == TypeKind::Optional &&
+                                rhs.kind == TypeKind::Optional && node.value) {
+                                node.value->preserveOptional = true;
+                            }
+                        }
 
                         member.isStaticAccess = true;
                         member.staticClassName = field->owner.get().name;
@@ -668,6 +917,9 @@ namespace LOICollection::frontend {
 
                 if (targetType.kind == TypeKind::Unknown)
                     return rhs;
+
+                if (targetType.kind == TypeKind::Optional)
+                    targetType = *targetType.optionalInner;
 
                 if (targetType.kind != TypeKind::Object) {
                     diagnostics.addError(node.loc, "Cannot access member of a non-object value");
@@ -697,8 +949,18 @@ namespace LOICollection::frontend {
                         diagnostics.addError(node.loc, "Cannot access private member '" + m.name + "'");
                     }
 
-                    if (m.hasDefault)
+                    if (m.type.kind != TypeKind::Unknown) {
                         unify(m.type, rhs, node.loc, "member '" + m.name + "'");
+                        if (m.type.kind == TypeKind::Optional &&
+                            rhs.kind == TypeKind::Optional && node.value) {
+                            node.value->preserveOptional = true;
+                        }
+                    }
+
+                    if (scope.hasMethod() && scope.methodRef().isConstructor &&
+                        member.target->getType() == ASTNode::Type::This) {
+                        this->constructorAssignedMembers[scope.classRef().name].insert(member.memberName);
+                    }
                     return rhs;
                 }
 
@@ -777,6 +1039,52 @@ namespace LOICollection::frontend {
         if (targetType.kind == TypeKind::Unknown)
             return {};
 
+        if (targetType.kind == TypeKind::Variant || targetType.kind == TypeKind::Optional) {
+            if (node.memberName == "type") {
+                node.memberKind = MemberAccessNode::MemberKind::TypeOf;
+                node.target->preserveOptional = true;
+                return { TypeKind::String };
+            }
+
+            if (node.memberName == "value") {
+                node.memberKind = MemberAccessNode::MemberKind::Value;
+                node.target->preserveOptional = true;
+
+                if (targetType.kind == TypeKind::Optional)
+                    return *targetType.optionalInner;
+
+                TypeInfo result;
+                for (const auto& option : targetType.variantOptions) {
+                    if (result.kind == TypeKind::Unknown)
+                        result = option;
+                    else if (!(result == option))
+                        return {};
+                }
+                return result;
+            }
+
+            if (node.memberName == "has_value") {
+                if (targetType.kind != TypeKind::Optional) {
+                    this->diagnostics.addError(node.loc,
+                        "'.has_value' is only available on optional values");
+                    return {};
+                }
+
+                node.memberKind = MemberAccessNode::MemberKind::HasValue;
+                node.target->preserveOptional = true;
+                return { TypeKind::Bool };
+            }
+
+            if (targetType.kind == TypeKind::Variant) {
+                this->diagnostics.addError(node.loc,
+                    "Variant has no member '" + node.memberName + "'");
+                return {};
+            }
+        }
+
+        while (targetType.kind == TypeKind::Optional)
+            targetType = *targetType.optionalInner;
+
         if (targetType.kind == TypeKind::Array) {
             if (node.memberName == "length")
                 return { TypeKind::Int };
@@ -849,6 +1157,14 @@ namespace LOICollection::frontend {
                 node.methodOrdinal = this->staticMethodOrdinal(
                     clsOpt->get().name, this->methodSignature(method)
                 );
+
+                for (size_t j = 0; j < argCount; ++j) {
+                    if (method.paramTypes[j].kind == TypeKind::Optional &&
+                        argTypes[j].kind == TypeKind::Optional) {
+                        node.args[j]->preserveOptional = true;
+                    }
+                }
+
                 return method.returnType;
             }
 
@@ -873,6 +1189,9 @@ namespace LOICollection::frontend {
         }
 
         TypeInfo targetType = checkExpr(*node.target, scope);
+
+        while (targetType.kind == TypeKind::Optional)
+            targetType = *targetType.optionalInner;
 
         if (targetType.kind != TypeKind::Object) {
             diagnostics.addError(node.loc, "Method call target is not an object");
@@ -925,9 +1244,7 @@ namespace LOICollection::frontend {
                 bool match = true;
                 for (size_t j = 0; j < argCount; ++j) {
                     const TypeInfo& param = method.paramTypes[j];
-                    if (param.kind != TypeKind::Unknown &&
-                        argTypes[j].kind != TypeKind::Unknown &&
-                        !this->isTypeCompatible(param, argTypes[j])) {
+                    if (!this->isAssignableTo(param, argTypes[j])) {
                         match = false;
                         break;
                     }
@@ -997,6 +1314,13 @@ namespace LOICollection::frontend {
         node.className = cls.name;
         node.methodOrdinal = this->methodOrdinal(cls.name, this->methodSignature(method));
 
+        for (size_t j = 0; j < argCount; ++j) {
+            if (method.paramTypes[j].kind == TypeKind::Optional &&
+                argTypes[j].kind == TypeKind::Optional) {
+                node.args[j]->preserveOptional = true;
+            }
+        }
+
         return method.returnType;
     }
 
@@ -1019,6 +1343,14 @@ namespace LOICollection::frontend {
                     node.methodOrdinal = this->staticMethodOrdinal(
                         scope.classRef().name, this->methodSignature(method)
                     );
+
+                    for (size_t j = 0; j < argCount; ++j) {
+                        if (method.paramTypes[j].kind == TypeKind::Optional &&
+                            argTypes[j].kind == TypeKind::Optional) {
+                            node.args[j]->preserveOptional = true;
+                        }
+                    }
+
                     return method.returnType;
                 }
             }
@@ -1053,9 +1385,7 @@ namespace LOICollection::frontend {
             bool match = true;
             for (size_t j = 0; j < argCount; ++j) {
                 const TypeInfo& param = decl.paramTypes[j];
-                if (param.kind != TypeKind::Unknown &&
-                    argTypes[j].kind != TypeKind::Unknown &&
-                    !this->isTypeCompatible(param, argTypes[j])) {
+                if (!this->isAssignableTo(param, argTypes[j])) {
                     match = false;
                     break;
                 }
@@ -1086,6 +1416,13 @@ namespace LOICollection::frontend {
 
         node.resolvedName = node.name;
         node.functionOrdinal = static_cast<int>(best);
+
+        for (size_t j = 0; j < argCount; ++j) {
+            if (decl.paramTypes[j].kind == TypeKind::Optional &&
+                argTypes[j].kind == TypeKind::Optional) {
+                node.args[j]->preserveOptional = true;
+            }
+        }
 
         return decl.returnType;
     }
@@ -1152,15 +1489,16 @@ namespace LOICollection::frontend {
         }
 
         for (size_t j = 0; j < argCount; ++j) {
-            if (ctor.paramTypes[j].kind == TypeKind::Unknown ||
-                argTypes[j].kind == TypeKind::Unknown)
-                continue;
-
-            if (!this->isTypeCompatible(ctor.paramTypes[j], argTypes[j])) {
+            if (!this->isAssignableTo(ctor.paramTypes[j], argTypes[j])) {
                 diagnostics.addError(node.loc,
                     "Type mismatch for constructor parameter '" + ctor.params[j].name +
                     "': expected " + typeToString(ctor.paramTypes[j]) +
                     ", got " + typeToString(argTypes[j]));
+            }
+
+            if (ctor.paramTypes[j].kind == TypeKind::Optional &&
+                argTypes[j].kind == TypeKind::Optional) {
+                node.args[j]->preserveOptional = true;
             }
         }
 
@@ -1234,15 +1572,16 @@ namespace LOICollection::frontend {
         }
 
         for (size_t j = 0; j < argCount; ++j) {
-            if (ctor.paramTypes[j].kind == TypeKind::Unknown ||
-                argTypes[j].kind == TypeKind::Unknown)
-                continue;
-
-            if (!this->isTypeCompatible(ctor.paramTypes[j], argTypes[j])) {
+            if (!this->isAssignableTo(ctor.paramTypes[j], argTypes[j])) {
                 diagnostics.addError(node.loc,
                     "Type mismatch for base constructor parameter '" + ctor.params[j].name +
                     "': expected " + typeToString(ctor.paramTypes[j]) +
                     ", got " + typeToString(argTypes[j]));
+            }
+
+            if (ctor.paramTypes[j].kind == TypeKind::Optional &&
+                argTypes[j].kind == TypeKind::Optional) {
+                node.args[j]->preserveOptional = true;
             }
         }
 
@@ -1281,11 +1620,16 @@ namespace LOICollection::frontend {
             if (method.hasReturnType &&
                 method.returnType.kind != TypeKind::Unknown &&
                 valueType.kind != TypeKind::Unknown &&
-                !this->isTypeCompatible(method.returnType, valueType)) {
+                !this->isAssignableTo(method.returnType, valueType)) {
                 diagnostics.addError(node.loc,
                     "Return type mismatch in function '" + method.name +
                     "': expected " + typeToString(method.returnType) +
                     ", got " + typeToString(valueType));
+            }
+
+            if (method.returnType.kind == TypeKind::Optional &&
+                valueType.kind == TypeKind::Optional) {
+                node.value->preserveOptional = true;
             }
         }
 
@@ -1298,11 +1642,13 @@ namespace LOICollection::frontend {
 
         for (size_t i = 0; i < decl.params.size(); ++i) {
             if (decl.params[i].hasType)
-                decl.paramTypes[i] = typeFromName(decl.params[i].typeName, decl.loc, true);
+                decl.paramTypes[i] = this->resolveTypeExpr(
+                    decl.params[i].typeExpr, decl.loc, true);
         }
 
         if (decl.hasReturnType)
-            decl.returnType = typeFromName(decl.returnTypeName, decl.loc, true);
+            decl.returnType = this->resolveTypeExpr(
+                decl.returnTypeExpr, decl.loc, true);
 
         MethodScope lambdaScope;
         if (scope.hasClass())
@@ -1348,6 +1694,11 @@ namespace LOICollection::frontend {
             }
         }
 
+        if (auto declaredIt = declaredGlobals.find(name);
+            declaredIt != declaredGlobals.end()) {
+            return declaredIt->second;
+        }
+
         auto it = globalTypes.find(name);
         if (it != globalTypes.end())
             return it->second;
@@ -1372,7 +1723,8 @@ namespace LOICollection::frontend {
             }
         }
 
-        return globalTypes.find(name) != globalTypes.end();
+        return globalTypes.find(name) != globalTypes.end() ||
+               declaredGlobals.find(name) != declaredGlobals.end();
     }
 
     void SemanticAnalyzer::unify(TypeInfo& target, const TypeInfo& from, SourceLocation loc, const std::string& what) {
@@ -1384,11 +1736,58 @@ namespace LOICollection::frontend {
             return;
         }
 
-        if (!this->isTypeCompatible(target, from)) {
+        if (from.kind == TypeKind::None && target.kind != TypeKind::Optional) {
+            diagnostics.addError(loc,
+                "'None' is only allowed when assigning to an optional value (" + what + ")");
+            return;
+        }
+
+        if (!this->isAssignableTo(target, from)) {
             diagnostics.addError(loc,
                 "Type mismatch for " + what + ": expected " +
                 typeToString(target) + ", got " + typeToString(from));
         }
+    }
+
+    bool SemanticAnalyzer::isAssignableTo(const TypeInfo& target, const TypeInfo& from) const {
+        if (target.kind == TypeKind::Unknown ||
+            from.kind == TypeKind::Unknown ||
+            from.kind == TypeKind::Void) {
+            return true;
+        }
+
+        if (from.kind == TypeKind::None)
+            return target.kind == TypeKind::Optional;
+
+        if (from.kind == TypeKind::Optional) {
+            if (target.kind == TypeKind::Optional)
+                return this->isAssignableTo(*target.optionalInner, *from.optionalInner);
+
+            if (target.kind == TypeKind::Variant) {
+                for (const auto& option : target.variantOptions) {
+                    if (this->isAssignableTo(option, from))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        if (target.kind == TypeKind::None)
+            return false;
+
+        if (target.kind == TypeKind::Optional)
+            return this->isAssignableTo(*target.optionalInner, from);
+
+        if (target.kind == TypeKind::Variant) {
+            for (const auto& option : target.variantOptions) {
+                if (this->isAssignableTo(option, from))
+                    return true;
+            }
+            return false;
+        }
+
+        return this->isTypeCompatible(target, from);
     }
 
     size_t SemanticAnalyzer::knownParamCount(const MethodDecl& method) const {
@@ -1406,10 +1805,7 @@ namespace LOICollection::frontend {
             if (i != 0)
                 signature += ",";
 
-            TypeInfo paramType = method.params[i].hasType
-                ? this->typeFromName(method.params[i].typeName, method.loc, false)
-                : TypeInfo{};
-            signature += this->typeToString(paramType);
+            signature += this->typeToString(method.paramTypes[i]);
         }
         signature += ")";
         return signature;
@@ -1548,9 +1944,7 @@ namespace LOICollection::frontend {
                 bool match = true;
                 for (size_t j = 0; j < argTypes.size(); ++j) {
                     const TypeInfo& param = method.paramTypes[j];
-                    if (param.kind != TypeKind::Unknown &&
-                        argTypes[j].kind != TypeKind::Unknown &&
-                        !this->isTypeCompatible(param, argTypes[j])) {
+                    if (!this->isAssignableTo(param, argTypes[j])) {
                         match = false;
                         break;
                     }

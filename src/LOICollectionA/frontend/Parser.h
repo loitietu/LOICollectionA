@@ -24,6 +24,8 @@ namespace LOICollection::frontend {
         LOICOLLECTION_A_NDAPI std::unique_ptr<ASTNode> parse();
     private:
         std::unique_ptr<IfNode> parseIfStatement();
+        std::unique_ptr<UsingNode> parseUsing();
+        std::unique_ptr<TypeExpr> parseTypeExpr();
         std::unique_ptr<FunctionNode> parseFunction();
         std::unique_ptr<MacroNode> parseMacro();
         std::unique_ptr<ClassNode> parseClass();

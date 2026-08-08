@@ -4,6 +4,7 @@
 #include <vector>
 #include <optional>
 #include <functional>
+#include <unordered_set>
 #include <unordered_map>
 
 #include "LOICollectionA/frontend/AST.h"
@@ -56,6 +57,12 @@ namespace LOICollection::frontend {
         std::vector<std::reference_wrapper<FunctionDefNode>> functions;
         std::unordered_map<std::string, std::vector<std::reference_wrapper<FunctionDefNode>>> functionsByName;
         std::unordered_map<std::string, TypeInfo> globalTypes;
+        std::unordered_map<std::string, TypeInfo> declaredGlobals;
+        std::unordered_map<std::string, TypeExpr> aliasExprs;
+        std::unordered_map<std::string, SourceLocation> aliasLocs;
+        std::unordered_map<std::string, TypeInfo> typeAliases;
+        std::unordered_set<std::string> resolvingAliases;
+        std::unordered_map<std::string, std::unordered_set<std::string>> constructorAssignedMembers;
 
         [[nodiscard]] std::optional<std::reference_wrapper<ClassNode>> findClass(const std::string& name) const;
 
@@ -64,11 +71,15 @@ namespace LOICollection::frontend {
         [[nodiscard]] std::string typeToString(const TypeInfo& type) const;
         [[nodiscard]] bool isNumeric(const TypeInfo& type) const;
         [[nodiscard]] bool isNameDefined(const std::string& name, MethodScope& scope) const;
+        [[nodiscard]] bool isAssignableTo(const TypeInfo& target, const TypeInfo& from) const;
 
         void registerClass(ClassNode& node);
+        void collectTypeAliases(ProgramNode& root);
+        void resolveDeclaredTypes();
         void resolveHierarchy();
         void buildMethodOrdinals();
         void validateConstructors();
+        void validateMemberInitialization();
         void registerFunction(FunctionDefNode& node);
         void checkTopLevel(ProgramNode& root);
         void checkClassBodies();
@@ -78,6 +89,7 @@ namespace LOICollection::frontend {
 
         void checkStatement(ASTNode& node, MethodScope& scope);
         TypeInfo checkExpr(ExprNode& node, MethodScope& scope);
+        TypeInfo checkExprImpl(ExprNode& node, MethodScope& scope);
         TypeInfo checkAssignment(AssignmentNode& node, MethodScope& scope);
         TypeInfo checkMemberAccess(MemberAccessNode& node, MethodScope& scope);
         TypeInfo checkMethodCall(MethodCallNode& node, MethodScope& scope);
@@ -90,6 +102,7 @@ namespace LOICollection::frontend {
 
         TypeInfo lookupName(const std::string& name, MethodScope& scope);
         void unify(TypeInfo& target, const TypeInfo& from, SourceLocation loc, const std::string& what);
+        TypeInfo resolveTypeExpr(const TypeExpr& expr, SourceLocation loc, bool reportError);
 
         [[nodiscard]] size_t knownParamCount(const MethodDecl& method) const;
         [[nodiscard]] std::string methodSignature(const MethodDecl& method) const;

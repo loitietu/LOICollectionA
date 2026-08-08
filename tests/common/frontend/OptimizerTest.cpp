@@ -172,3 +172,58 @@ TEST(OptimizerTest, NestedConstantArrayIsClonedDeeply) {
     EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "1");
     EXPECT_FALSE(program.diagnostics.hasErrors());
 }
+
+TEST(OptimizerTest, FoldsTypeIntrospectionOpcodes) {
+    ir::BytecodeChunk chunk;
+    chunk.constants.push_back(42);
+    chunk.constants.push_back(std::monostate{});
+
+    chunk.code = {
+        { OpCode::PUSH_INT, 0 },
+        { OpCode::TYPE_OF, 0 },
+        { OpCode::PUSH_NONE, 1 },
+        { OpCode::HAS_VALUE, 0 },
+        { OpCode::PUSH_INT, 0 },
+        { OpCode::UNWRAP, 0 },
+        { OpCode::HALT, 0 }
+    };
+
+    Optimizer optimizer;
+    auto stats = optimizer.optimize(chunk);
+
+    EXPECT_GE(stats.folded, 3u);
+
+    ASSERT_EQ(chunk.code.size(), 4u);
+    EXPECT_EQ(chunk.code[0].op, OpCode::PUSH_STR);
+    EXPECT_EQ(chunk.code[1].op, OpCode::PUSH_BOOL);
+    EXPECT_EQ(chunk.code[2].op, OpCode::PUSH_INT);
+    EXPECT_EQ(chunk.code[3].op, OpCode::HALT);
+
+    EXPECT_EQ(std::get<std::string>(chunk.constants[chunk.code[0].operand]), "int");
+    EXPECT_EQ(std::get<bool>(chunk.constants[chunk.code[1].operand]), false);
+    EXPECT_EQ(std::get<int>(chunk.constants[chunk.code[2].operand]), 42);
+}
+
+TEST(OptimizerTest, DoesNotFoldUnwrapOfEmptyOptional) {
+    ir::BytecodeChunk chunk;
+    chunk.constants.push_back(std::monostate{});
+
+    chunk.code = {
+        { OpCode::PUSH_NONE, 0 },
+        { OpCode::UNWRAP, 0 },
+        { OpCode::HALT, 0 }
+    };
+
+    Optimizer optimizer;
+    auto stats = optimizer.optimize(chunk);
+
+    EXPECT_EQ(stats.folded, 0u);
+    ASSERT_EQ(chunk.code.size(), 3u);
+    EXPECT_EQ(chunk.code[1].op, OpCode::UNWRAP);
+
+    DiagnosticEngine diag;
+    VM vm(diag);
+    [[maybe_unused]] auto result = vm.run(std::make_shared<BytecodeChunk>(chunk), {});
+    EXPECT_TRUE(diag.hasErrors());
+    EXPECT_NE(diag.getErrorMessage().find("Optional value is empty"), std::string::npos);
+}

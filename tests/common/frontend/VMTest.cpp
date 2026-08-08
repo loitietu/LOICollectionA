@@ -15,10 +15,23 @@ TEST(VMValueTest, ValueToString) {
     EXPECT_EQ(VM::valueToString(ValueNode::ValueType(3.5f)), "3.5");
     EXPECT_EQ(VM::valueToString(ValueNode::ValueType(std::string("hi"))), "hi");
     EXPECT_EQ(VM::valueToString(ValueNode::ValueType(true)), "true");
+    EXPECT_EQ(VM::valueToString(ValueNode::ValueType(std::monostate{})), "None");
 
     auto obj = std::make_shared<Object>();
     obj->className = "Foo";
     EXPECT_EQ(VM::valueToString(ValueNode::ValueType(obj)), "instance of Foo");
+}
+
+TEST(VMValueTest, TypeNameOf) {
+    EXPECT_EQ(VM::typeNameOf(ValueNode::ValueType(42)), "int");
+    EXPECT_EQ(VM::typeNameOf(ValueNode::ValueType(3.5f)), "float");
+    EXPECT_EQ(VM::typeNameOf(ValueNode::ValueType(std::string("hi"))), "string");
+    EXPECT_EQ(VM::typeNameOf(ValueNode::ValueType(true)), "bool");
+    EXPECT_EQ(VM::typeNameOf(ValueNode::ValueType(std::monostate{})), "none");
+
+    auto obj = std::make_shared<Object>();
+    obj->className = "Foo";
+    EXPECT_EQ(VM::typeNameOf(ValueNode::ValueType(obj)), "Foo");
 }
 
 TEST(VMArithmeticTest, Arithmetic) {

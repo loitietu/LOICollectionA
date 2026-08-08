@@ -29,6 +29,8 @@ namespace LOICollection::frontend {
                     argTypes.push_back(ParamType::FUNCTION);
                 else if constexpr (std::is_same_v<T, ArrayRef>)
                     argTypes.push_back(ParamType::ARRAY);
+                else if constexpr (std::is_same_v<T, std::monostate>)
+                    diagnostics.addError({0, 0, 0}, "Empty optional value cannot be passed to a native callback");
                 else
                     diagnostics.addError({0, 0, 0}, "Unsupported argument type");
             }, arg);

@@ -79,6 +79,85 @@ namespace LOICollection::frontend {
         );
     }
 
+    std::unique_ptr<UsingNode> Parser::parseUsing() {
+        SourceLocation loc = currentToken.loc;
+
+        if (!eat(TokenType::TOKEN_USING)) return nullptr;
+        if (currentToken.type != TokenType::TOKEN_IDENT) {
+            diagnostics.addError(currentToken.loc, "Expected alias name after 'using'");
+            synchronize({ TokenType::TOKEN_SEMICOLON, TokenType::TOKEN_EOF });
+            return nullptr;
+        }
+
+        auto usingNode = std::make_unique<UsingNode>(loc, currentToken.value);
+        if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+
+        if (currentToken.type != TokenType::TOKEN_OP || currentToken.value != "=") {
+            diagnostics.addError(currentToken.loc,
+                "Expected '=' in using declaration, got " + getTokenName(currentToken.type));
+            synchronize({ TokenType::TOKEN_SEMICOLON, TokenType::TOKEN_EOF });
+            return nullptr;
+        }
+        if (!eat(TokenType::TOKEN_OP)) return nullptr;
+
+        auto type = parseTypeExpr();
+        if (!type) {
+            synchronize({ TokenType::TOKEN_SEMICOLON, TokenType::TOKEN_EOF });
+            return nullptr;
+        }
+
+        usingNode->type = std::move(*type);
+        return usingNode;
+    }
+
+    std::unique_ptr<TypeExpr> Parser::parseTypeExpr() {
+        if (currentToken.type != TokenType::TOKEN_IDENT) {
+            diagnostics.addError(currentToken.loc, "Expected type name");
+            return nullptr;
+        }
+
+        auto type = std::make_unique<TypeExpr>();
+        type->loc = currentToken.loc;
+        type->name = currentToken.value;
+
+        if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+
+        if (currentToken.type == TokenType::TOKEN_OP && currentToken.value == "<") {
+            if (!eat(TokenType::TOKEN_OP)) return nullptr;
+
+            while (currentToken.type != TokenType::TOKEN_EOF &&
+                   currentToken.type != TokenType::TOKEN_RBRACE &&
+                   currentToken.type != TokenType::TOKEN_SEMICOLON) {
+                auto arg = parseTypeExpr();
+                if (!arg) return nullptr;
+
+                type->args.push_back(std::move(*arg));
+
+                if (currentToken.type == TokenType::TOKEN_COMMA) {
+                    if (!eat(TokenType::TOKEN_COMMA)) return nullptr;
+                    continue;
+                }
+
+                break;
+            }
+
+            if (currentToken.type == TokenType::TOKEN_OP && currentToken.value == ">") {
+                if (!eat(TokenType::TOKEN_OP)) return nullptr;
+            } else if (currentToken.type == TokenType::TOKEN_OP && currentToken.value == ">=") {
+                SourceLocation opLoc = currentToken.loc;
+                if (!eat(TokenType::TOKEN_OP)) return nullptr;
+
+                currentToken = { TokenType::TOKEN_OP, "=", opLoc };
+            } else {
+                diagnostics.addError(currentToken.loc,
+                    "Expected '>' to close type '" + type->name + "'");
+                return nullptr;
+            }
+        }
+
+        return type;
+    }
+
     std::unique_ptr<FunctionNode> Parser::parseFunction() {
         std::string namespaces = currentToken.value;
 
@@ -252,6 +331,22 @@ namespace LOICollection::frontend {
                     continue;
                 }
 
+                if (currentToken.type == TokenType::TOKEN_COLON) {
+                    if (!eat(TokenType::TOKEN_COLON)) {
+                        synchronize({ TokenType::TOKEN_RBRACE });
+                        continue;
+                    }
+
+                    auto type = parseTypeExpr();
+                    if (!type) {
+                        synchronize({ TokenType::TOKEN_RBRACE });
+                        continue;
+                    }
+
+                    member.typeExpr = std::move(*type);
+                    member.hasTypeExpr = true;
+                }
+
                 if (currentToken.type == TokenType::TOKEN_OP && currentToken.value == "=") {
                     if (!eat(TokenType::TOKEN_OP)) {
                         synchronize({ TokenType::TOKEN_RBRACE });
@@ -325,21 +420,16 @@ namespace LOICollection::frontend {
                 skipBalancedBraces();
                 return nullptr;
             }
-            if (currentToken.type != TokenType::TOKEN_IDENT) {
-                diagnostics.addError(currentToken.loc, "Expected return type after '->'");
+
+            auto returnType = parseTypeExpr();
+            if (!returnType) {
                 synchronize({ TokenType::TOKEN_LBRACE, TokenType::TOKEN_RBRACE });
                 skipBalancedBraces();
                 return nullptr;
             }
 
-            fn->decl.returnTypeName = currentToken.value;
+            fn->decl.returnTypeExpr = std::move(*returnType);
             fn->decl.hasReturnType = true;
-
-            if (!eat(TokenType::TOKEN_IDENT)) {
-                synchronize({ TokenType::TOKEN_LBRACE, TokenType::TOKEN_RBRACE });
-                skipBalancedBraces();
-                return nullptr;
-            }
         }
 
         if (!eat(TokenType::TOKEN_LBRACE)) {
@@ -385,21 +475,16 @@ namespace LOICollection::frontend {
                 skipBalancedBraces();
                 return nullptr;
             }
-            if (currentToken.type != TokenType::TOKEN_IDENT) {
-                diagnostics.addError(currentToken.loc, "Expected return type after '->'");
+
+            auto returnType = parseTypeExpr();
+            if (!returnType) {
                 synchronize({ TokenType::TOKEN_LBRACE, TokenType::TOKEN_RBRACE });
                 skipBalancedBraces();
                 return nullptr;
             }
 
-            lambda->decl.returnTypeName = currentToken.value;
+            lambda->decl.returnTypeExpr = std::move(*returnType);
             lambda->decl.hasReturnType = true;
-
-            if (!eat(TokenType::TOKEN_IDENT)) {
-                synchronize({ TokenType::TOKEN_LBRACE, TokenType::TOKEN_RBRACE });
-                skipBalancedBraces();
-                return nullptr;
-            }
         }
 
         if (!eat(TokenType::TOKEN_LBRACE)) {
@@ -454,20 +539,16 @@ namespace LOICollection::frontend {
                 skipBalancedBraces();
                 return nullptr;
             }
-            if (currentToken.type != TokenType::TOKEN_IDENT) {
-                diagnostics.addError(currentToken.loc, "Expected return type after '->'");
+
+            auto returnType = parseTypeExpr();
+            if (!returnType) {
                 synchronize({ TokenType::TOKEN_LBRACE, TokenType::TOKEN_RBRACE });
                 skipBalancedBraces();
                 return nullptr;
             }
 
-            method->returnTypeName = currentToken.value;
+            method->returnTypeExpr = std::move(*returnType);
             method->hasReturnType = true;
-            if (!eat(TokenType::TOKEN_IDENT)) {
-                synchronize({ TokenType::TOKEN_LBRACE, TokenType::TOKEN_RBRACE });
-                skipBalancedBraces();
-                return nullptr;
-            }
         }
 
         if (!eat(TokenType::TOKEN_LBRACE)) {
@@ -556,8 +637,9 @@ namespace LOICollection::frontend {
 
                     continue;
                 }
-                if (currentToken.type != TokenType::TOKEN_IDENT) {
-                    diagnostics.addError(currentToken.loc, "Expected parameter type after ':'");
+
+                auto type = parseTypeExpr();
+                if (!type) {
                     synchronize({ TokenType::TOKEN_COMMA, TokenType::TOKEN_RPAREN, TokenType::TOKEN_RBRACE });
                     if (currentToken.type == TokenType::TOKEN_COMMA)
                         eat(TokenType::TOKEN_COMMA);
@@ -565,10 +647,8 @@ namespace LOICollection::frontend {
                     continue;
                 }
 
-                param.typeName = currentToken.value;
+                param.typeExpr = std::move(*type);
                 param.hasType = true;
-
-                if (!eat(TokenType::TOKEN_IDENT)) continue;
             }
 
             params.push_back(std::move(param));
@@ -636,6 +716,16 @@ namespace LOICollection::frontend {
                 (currentToken.type == TokenType::TOKEN_FUNC && peek() != TokenType::TOKEN_LPAREN)) {
                 diagnostics.addError(currentToken.loc,
                     "Class and function definitions are only allowed at top level");
+
+                synchronize(stopOnColon
+                    ? std::initializer_list<TokenType>{ TokenType::TOKEN_COLON, TokenType::TOKEN_RBRCKET, TokenType::TOKEN_RBRACE }
+                    : std::initializer_list<TokenType>{ stopToken, TokenType::TOKEN_RBRACE });
+                continue;
+            }
+
+            if (currentToken.type == TokenType::TOKEN_USING) {
+                diagnostics.addError(currentToken.loc,
+                    "Using declarations are only allowed at top level");
 
                 synchronize(stopOnColon
                     ? std::initializer_list<TokenType>{ TokenType::TOKEN_COLON, TokenType::TOKEN_RBRCKET, TokenType::TOKEN_RBRACE }
@@ -742,6 +832,39 @@ namespace LOICollection::frontend {
 
         if (currentToken.type == TokenType::TOKEN_RETURN)
             return parseReturn();
+
+        if (currentToken.type == TokenType::TOKEN_USING)
+            return parseUsing();
+
+        if (currentToken.type == TokenType::TOKEN_IDENT && peek() == TokenType::TOKEN_COLON) {
+            SourceLocation declLoc = currentToken.loc;
+            std::string name = currentToken.value;
+
+            if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
+            if (!eat(TokenType::TOKEN_COLON)) return nullptr;
+
+            auto type = parseTypeExpr();
+            if (!type)
+                return nullptr;
+
+            std::unique_ptr<ExprNode> value;
+            if (currentToken.type == TokenType::TOKEN_OP && currentToken.value == "=") {
+                if (!eat(TokenType::TOKEN_OP)) return nullptr;
+
+                value = parseBaseExpression();
+                if (!value)
+                    return nullptr;
+            }
+
+            auto decl = std::make_unique<AssignmentNode>(
+                declLoc,
+                std::make_unique<VariableNode>(declLoc, std::move(name)),
+                std::move(value)
+            );
+            decl->hasDeclaredType = true;
+            decl->declaredType = std::move(*type);
+            return decl;
+        }
 
         SourceLocation exprLoc = currentToken.loc;
         
@@ -1145,6 +1268,9 @@ namespace LOICollection::frontend {
                 eat(TokenType::TOKEN_BOOL_LIT);
                 return std::make_unique<ValueNode>(val);
             }
+            case TokenType::TOKEN_NONE:
+                eat(TokenType::TOKEN_NONE);
+                return std::make_unique<ValueNode>(std::monostate{});
             default:
                 diagnostics.addError(currentToken.loc, "Unexpected value type: " + currentToken.value);
                 return std::make_unique<ValueNode>(0);
@@ -1244,6 +1370,8 @@ namespace LOICollection::frontend {
             case TokenType::TOKEN_EXTENDS: return "EXTENDS";
             case TokenType::TOKEN_INSTANCEOF: return "INSTANCEOF";
             case TokenType::TOKEN_STATIC: return "STATIC";
+            case TokenType::TOKEN_USING: return "USING";
+            case TokenType::TOKEN_NONE: return "NONE";
             case TokenType::TOKEN_EOF: return "EOF";
             default: return "UNKNOWN";
         }

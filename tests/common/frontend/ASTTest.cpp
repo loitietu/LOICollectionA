@@ -119,7 +119,7 @@ TEST(ASTTest, ClassBodyParsing) {
 
     EXPECT_EQ(cls.methods[1].name, "get");
     EXPECT_TRUE(cls.methods[1].hasReturnType);
-    EXPECT_EQ(cls.methods[1].returnTypeName, "int");
+    EXPECT_EQ(cls.methods[1].returnTypeExpr.name, "int");
 }
 
 TEST(ASTTest, FunctionDefinitionParsing) {
@@ -138,9 +138,9 @@ TEST(ASTTest, FunctionDefinitionParsing) {
     EXPECT_EQ(fn.decl.params.size(), 2u);
     EXPECT_EQ(fn.decl.params[0].name, "a");
     EXPECT_TRUE(fn.decl.params[0].hasType);
-    EXPECT_EQ(fn.decl.params[0].typeName, "int");
+    EXPECT_EQ(fn.decl.params[0].typeExpr.name, "int");
     EXPECT_EQ(fn.decl.params[1].name, "b");
     EXPECT_FALSE(fn.decl.params[1].hasType);
     EXPECT_TRUE(fn.decl.hasReturnType);
-    EXPECT_EQ(fn.decl.returnTypeName, "string");
+    EXPECT_EQ(fn.decl.returnTypeExpr.name, "string");
 }
