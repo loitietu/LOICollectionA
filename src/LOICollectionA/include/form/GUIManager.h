@@ -49,8 +49,11 @@ namespace LOICollection::form {
         LOICOLLECTION_A_API   ll::Expected<void> switchToCustomForm(const std::string& id, Player& player);
         LOICOLLECTION_A_API   ll::Expected<void> switchToMessageBox(const std::string& id, Player& player);
 
-        LOICOLLECTION_A_API   void registerCustomFormUI(const std::string& id, std::shared_ptr<CustomFormClass::CustomFormHandle> form);
-        LOICOLLECTION_A_API   void registerMessageBoxUI(const std::string& id, std::shared_ptr<MessageBoxClass::MessageBoxHandle> box);
+        LOICOLLECTION_A_API   void registerCustomFormUI(const std::string& id, std::shared_ptr<CustomFormClass::CustomFormHandle> form, Player& player);
+        LOICOLLECTION_A_API   void registerMessageBoxUI(const std::string& id, std::shared_ptr<MessageBoxClass::MessageBoxHandle> box, Player& player);
+
+        LOICOLLECTION_A_NDAPI ll::Expected<std::shared_ptr<CustomFormClass::CustomFormHandle>> getCustomFormUI(const std::string& id, Player& player);
+        LOICOLLECTION_A_NDAPI ll::Expected<std::shared_ptr<MessageBoxClass::MessageBoxHandle>> getMessageBoxUI(const std::string& id, Player& player);
 
         LOICOLLECTION_A_API   void registerValue(const std::string& id, ValueCallback callback);
         LOICOLLECTION_A_API   void registerCallback(const std::string& id, Callback callback);

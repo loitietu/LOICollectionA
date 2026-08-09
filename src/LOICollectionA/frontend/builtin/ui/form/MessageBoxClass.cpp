@@ -24,12 +24,12 @@ namespace MessageBoxClass {
         if (!title)
             return ll::Unexpected(title.error());
 
-        auto handle = std::make_shared<MessageBoxHandle>();
-        handle->base = std::make_unique<ll::ui::MessageBox>(
-            std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0)), *title
-        );
+        std::reference_wrapper<Player> player = std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0));
 
-        LOICollection::form::GUIManager::getInstance().registerMessageBoxUI(std::get<std::string>(args[0]), handle);
+        auto handle = std::make_shared<MessageBoxHandle>();
+        handle->base = std::make_unique<ll::ui::MessageBox>(player, *title);
+
+        LOICollection::form::GUIManager::getInstance().registerMessageBoxUI(std::get<std::string>(args[0]), handle, player);
 
         auto obj = std::make_shared<Object>();
         obj->className = "MessageBox";

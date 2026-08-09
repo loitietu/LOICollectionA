@@ -52,7 +52,7 @@ namespace GUIManagerBuiltin {
 
                 break;
             }
-            default: result = ll::makeStringError("switchTo: Unkonwn form type");
+            default: result = ll::makeStringError("switchTo: Unknown form type");
         }
 
         if (!result.has_value())

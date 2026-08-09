@@ -1,6 +1,7 @@
 #include <memory>
 #include <string>
 #include <fstream>
+#include <filesystem>
 #include <functional>
 #include <unordered_map>
 
@@ -9,6 +10,8 @@
 #include <ll/api/io/LoggerRegistry.h>
 #include <ll/api/ui/form/CustomForm.h>
 #include <ll/api/ui/form/MessageBox.h>
+
+#include <mc/world/actor/player/Player.h>
 
 #include "LOICollectionA/frontend/AST.h"
 #include "LOICollectionA/frontend/Lexer.h"
@@ -29,8 +32,8 @@ namespace LOICollection::form {
     struct GUIManager::Impl {
         std::unordered_map<std::string, std::shared_ptr<frontend::ir::BytecodeChunk>> cache;
 
-        std::unordered_map<std::string, std::shared_ptr<CustomFormClass::CustomFormHandle>> forms;
-        std::unordered_map<std::string, std::shared_ptr<MessageBoxClass::MessageBoxHandle>> boxs;
+        std::unordered_map<std::string, std::unordered_map<std::string, std::shared_ptr<CustomFormClass::CustomFormHandle>>> forms;
+        std::unordered_map<std::string, std::unordered_map<std::string, std::shared_ptr<MessageBoxClass::MessageBoxHandle>>> boxs;
 
         std::unordered_map<std::string, ValueCallback> values;
         std::unordered_map<std::string, Callback> callbacks;
@@ -117,24 +120,23 @@ namespace LOICollection::form {
             }
         }
 
-        return {};
+        return ll::makeStringError("open: No corresponding bytecode cache was found");
     }
 
     ll::Expected<void> GUIManager::switchToCustomForm(const std::string& id, Player& player) {
-        auto it = this->mImpl->forms.find(id);
-        if (it == this->mImpl->forms.end())
-            return ll::makeStringError("CustomForm not registered: " + id);
+        auto handle = this->getCustomFormUI(id, player);
+        if (!handle.has_value())
+            return ll::Unexpected(handle.error());
 
-        auto& handle = it->second;
-        if (!handle->show) {
-            auto result = handle->base->show();
+        if (!handle.value()->show) {
+            auto result = handle.value()->base->show();
             if (!result)
                 return ll::Unexpected(result.error());
 
             return {};
         }
 
-        auto result = handle->base->show([handle, player = std::ref(player)](ll::ui::ScreenSession::Result closeResult) -> void {
+        auto result = handle.value()->base->show([handle = handle.value(), player = std::ref(player)](ll::ui::ScreenSession::Result closeResult) -> void {
             frontend::DiagnosticEngine diagnostics;
             frontend::CallbackTypeValues values;
 
@@ -160,20 +162,19 @@ namespace LOICollection::form {
     }
 
     ll::Expected<void> GUIManager::switchToMessageBox(const std::string& id, Player& player) {
-        auto it = this->mImpl->boxs.find(id);
-        if (it == this->mImpl->boxs.end())
-            return ll::makeStringError("CustomForm not registered: " + id);
+        auto handle = this->getMessageBoxUI(id, player);
+        if (!handle.has_value())
+            return ll::Unexpected(handle.error());
 
-        auto& handle = it->second;
-        if (!handle->show) {
-            auto result = handle->base->show();
+        if (!handle.value()->show) {
+            auto result = handle.value()->base->show();
             if (!result)
                 return ll::Unexpected(result.error());
 
             return {};
         }
 
-        auto result = handle->base->show([handle, player = std::ref(player)](ll::ui::MessageBox::Result closeResult) {
+        auto result = handle.value()->base->show([handle = handle.value(), player = std::ref(player)](ll::ui::MessageBox::Result closeResult) {
             frontend::DiagnosticEngine diagnostics;
             frontend::CallbackTypeValues values;
 
@@ -207,20 +208,44 @@ namespace LOICollection::form {
         return {};
     }
 
-    void GUIManager::registerCustomFormUI(const std::string& id, std::shared_ptr<CustomFormClass::CustomFormHandle> form) {
-        this->mImpl->forms.insert_or_assign(id, std::move(form));
+    void GUIManager::registerCustomFormUI(const std::string& id, std::shared_ptr<CustomFormClass::CustomFormHandle> form, Player& player) {
+        auto [it, _] = this->mImpl->forms.try_emplace(player.getUuid().asString());
+        it->second.insert_or_assign(id, std::move(form));
     }
 
-    void GUIManager::registerMessageBoxUI(const std::string& id, std::shared_ptr<MessageBoxClass::MessageBoxHandle> box) {
-        this->mImpl->boxs.insert_or_assign(id, std::move(box));
+    void GUIManager::registerMessageBoxUI(const std::string& id, std::shared_ptr<MessageBoxClass::MessageBoxHandle> box, Player& player) {
+        auto [it, _] = this->mImpl->boxs.try_emplace(player.getUuid().asString());
+        it->second.insert_or_assign(id, std::move(box));
+    }
+
+    ll::Expected<std::shared_ptr<CustomFormClass::CustomFormHandle>> GUIManager::getCustomFormUI(const std::string& id, Player& player) {
+        auto outer = this->mImpl->forms.find(player.getUuid().asString());
+        if (outer != this->mImpl->forms.end()) {
+            auto inner = outer->second.find(id);
+            if (inner != outer->second.end())
+                return inner->second;
+        }
+
+        return ll::makeStringError("CustomForm not registered: " + id);
+    }
+
+    ll::Expected<std::shared_ptr<MessageBoxClass::MessageBoxHandle>> GUIManager::getMessageBoxUI(const std::string& id, Player& player) {
+        auto outer = this->mImpl->boxs.find(player.getUuid().asString());
+        if (outer != this->mImpl->boxs.end()) {
+            auto inner = outer->second.find(id);
+            if (inner != outer->second.end())
+                return inner->second;
+        }
+
+        return ll::makeStringError("MessageBox not registered: " + id);
     }
 
     void GUIManager::registerValue(const std::string& id, ValueCallback callback) {
-        this->mImpl->values.emplace(id, callback);
+        this->mImpl->values.insert_or_assign(id, std::move(callback));
     }
 
     void GUIManager::registerCallback(const std::string& id, Callback callback) {
-        this->mImpl->callbacks.emplace(id, callback);
+        this->mImpl->callbacks.insert_or_assign(id, std::move(callback));
     }
 
     ll::Expected<frontend::ArrayRef> GUIManager::getValue(const std::string& id, Player& player) {
