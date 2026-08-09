@@ -10,6 +10,8 @@
 namespace CustomFormClass {
     struct CustomFormHandle : LOICollection::frontend::NativeHandle {
         std::unique_ptr<ll::ui::CustomForm> base;
+
+        LOICollection::frontend::FunctionRefPtr show;
     };
 
     void registerClasses(const std::string& name);

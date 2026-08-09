@@ -17,7 +17,7 @@ using namespace LOICollection::frontend;
 
 namespace ObservableNumberClass {
     ll::Expected<ObjectRef> makeObservableNumber(const CallbackTypeValues& args) {
-        auto handle = std::make_unique<ObservableNumberHandle>();
+        auto handle = std::make_shared<ObservableNumberHandle>();
         handle->base = std::make_unique<ll::ui::ObservableNumber>(
             std::get<float>(args[0]), ll::ui::ObservableOptions{ std::get<bool>(args[1]) }
         );
@@ -25,7 +25,7 @@ namespace ObservableNumberClass {
         auto obj = std::make_shared<Object>();
         obj->className = "ObservableNumber";
         obj->classIndex = -1;
-        obj->native = std::move(handle);
+        obj->native = handle;
 
         return obj;
     }

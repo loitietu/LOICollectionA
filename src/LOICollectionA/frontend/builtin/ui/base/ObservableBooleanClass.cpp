@@ -17,7 +17,7 @@ using namespace LOICollection::frontend;
 
 namespace ObservableBooleanClass {
     ll::Expected<ObjectRef> makeObservableBoolean(const CallbackTypeValues& args) {
-        auto handle = std::make_unique<ObservableBooleanHandle>();
+        auto handle = std::make_shared<ObservableBooleanHandle>();
         handle->base = std::make_unique<ll::ui::ObservableBoolean>(
             std::get<bool>(args[0]), ll::ui::ObservableOptions{ std::get<bool>(args[1]) }
         );
@@ -25,7 +25,7 @@ namespace ObservableBooleanClass {
         auto obj = std::make_shared<Object>();
         obj->className = "ObservableBoolean";
         obj->classIndex = -1;
-        obj->native = std::move(handle);
+        obj->native = handle;
 
         return obj;
     }

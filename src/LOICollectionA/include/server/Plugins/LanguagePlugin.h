@@ -10,8 +10,6 @@
 #include "LOICollectionA/include/ModuleBase.h"
 #include "LOICollectionA/include/ModManager.h"
 
-#include "LOICollectionA/include/server/Plugins/gui/LanguageGui.h"
-
 class Player;
 class SQLiteStorage;
 
@@ -54,12 +52,13 @@ namespace LOICollection::server::Plugins {
     private:
         LanguagePlugin();
 
+        ll::Expected<void> registeryUI();
+
         void registeryCommand();
         void listenEvent();
         void unlistenEvent();
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<LanguageGui> mGui;
     };
 }

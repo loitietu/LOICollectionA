@@ -36,6 +36,7 @@ namespace LOICollection {
         ll::io::Logger& logger = this->mSelf.getLogger();
         const std::filesystem::path& dataFilePath = this->mSelf.getDataDir();
         const std::filesystem::path& langFilePath = this->mSelf.getLangDir();
+        const std::filesystem::path& guiFilePath = this->mSelf.getModDir() / "gui";
         const std::filesystem::path& configDataPath = this->mSelf.getConfigDir();
         const std::filesystem::path& configFilePath = configDataPath / "config.json";
 
@@ -77,6 +78,7 @@ namespace LOICollection {
 
         std::filesystem::create_directory(dataFilePath);
         ServiceProvider::getInstance().registerInstance<std::string>(std::make_shared<std::string>(dataFilePath.string()), "DataPath");
+        ServiceProvider::getInstance().registerInstance<std::string>(std::make_shared<std::string>(guiFilePath.string()), "GuiPath");
         ServiceProvider::getInstance().registerInstance<std::string>(std::make_shared<std::string>(configDataPath.string()), "ConfigPath");
         ServiceProvider::getInstance().registerInstance<SQLiteStorage>(std::make_shared<SQLiteStorage>((dataFilePath / "settings.db").string()), "SettingsDB");
 

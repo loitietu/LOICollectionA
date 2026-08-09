@@ -1,4 +1,5 @@
 #include <memory>
+#include <ranges>
 #include <string>
 
 #include <ll/api/Expected.h>
@@ -14,20 +15,20 @@ using namespace LOICollection::frontend;
 
 namespace UIRawMessageClass {
     ll::Expected<ObjectRef> text(const CallbackTypeValues& args) {
-        auto handle = std::make_unique<UIRawMessageHandle>();
+        auto handle = std::make_shared<UIRawMessageHandle>();
         handle->base = ll::ui::UIRawMessage::text(std::get<std::string>(args[0]));
 
         auto obj = std::make_shared<Object>();
         obj->className = "UIRawMessage";
         obj->classIndex = -1;
-        obj->native = std::move(handle);
+        obj->native = handle;
 
         return obj;
     }
 
     ll::Expected<ObjectRef> translate(const CallbackTypeValues& args) {
         auto key = std::get<std::string>(args[0]);
-        auto handle = std::make_unique<UIRawMessageHandle>();
+        auto handle = std::make_shared<UIRawMessageHandle>();
 
         if (args.size() == 1) {
             handle->base = ll::ui::UIRawMessage::translate(key);
@@ -35,12 +36,18 @@ namespace UIRawMessageClass {
             auto result = std::visit([&](auto&& arg) -> ll::Expected<void> {
                 using T = std::decay_t<decltype(arg)>;
                 if constexpr (std::is_same_v<T, ArrayRef>) {
-                    auto subs = arg->elements
-                        | std::views::filter([](auto&& e) { return std::holds_alternative<std::string>(e); })
+                    auto& elements = arg->elements;
+                    if (!std::ranges::all_of(elements, [](auto&& e) {
+                        return std::holds_alternative<std::string>(e);
+                    })) {
+                        return ll::makeStringError("translate's ArrayRef argument must contain only strings");
+                    }
+
+                    auto subs = elements
                         | std::views::transform([](auto&& e) { return std::get<std::string>(e); })
                         | std::ranges::to<std::vector>();
                     
-                    handle->base = ll::ui::UIRawMessage::translate(key, subs);
+                    handle->base = ll::ui::UIRawMessage::translate(key, std::move(subs));
 
                     return {};
                 } else if constexpr (std::is_same_v<T, ObjectRef>) {
@@ -63,16 +70,21 @@ namespace UIRawMessageClass {
         auto obj = std::make_shared<Object>();
         obj->className = "UIRawMessage";
         obj->classIndex = -1;
-        obj->native = std::move(handle);
+        obj->native = handle;
         return obj;
     }
 
     ll::Expected<ObjectRef> rawText(const CallbackTypeValues& args) {
-        auto handle = std::make_unique<UIRawMessageHandle>();
+        auto handle = std::make_shared<UIRawMessageHandle>();
 
-        auto subs = std::get<ArrayRef>(args[0])->elements
-            | std::views::filter([](auto&& e) { return std::holds_alternative<ObjectRef>(e); })
-            | std::views::filter([](auto&& e) { return std::get<ObjectRef>(e)->className == "UIRawMessage"; })
+        auto& elements = std::get<ArrayRef>(args[0])->elements;
+        if (!std::ranges::all_of(elements, [](auto&& e) {
+            return std::holds_alternative<std::string>(e) && std::get<ObjectRef>(e)->className == "UIRawMessage";
+        })) {
+            return ll::makeStringError("rawText's ArrayRef argument must contain only UIRawMessages");
+        }
+
+        auto subs = elements
             | std::views::transform([](auto&& e) { return static_cast<UIRawMessageHandle*>(std::get<ObjectRef>(e)->native.get())->base; })
             | std::ranges::to<std::vector>();
         
@@ -81,7 +93,7 @@ namespace UIRawMessageClass {
         auto obj = std::make_shared<Object>();
         obj->className = "UIRawMessage";
         obj->classIndex = -1;
-        obj->native = std::move(handle);
+        obj->native = handle;
 
         return obj;
     }

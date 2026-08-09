@@ -614,7 +614,7 @@ namespace LOICollection::frontend {
         int classIndex = -1;
         std::unordered_map<std::string, ValueNode::ValueType> fields;
 
-        std::unique_ptr<NativeHandle> native;
+        std::shared_ptr<NativeHandle> native;
     };
 
     struct ArrayValue {

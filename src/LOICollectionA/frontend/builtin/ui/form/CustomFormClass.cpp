@@ -11,6 +11,8 @@
 
 #include <mc/world/actor/player/Player.h>
 
+#include "LOICollectionA/include/form/GUIManager.h"
+
 #include "LOICollectionA/frontend/Callback.h"
 #include "LOICollectionA/frontend/DiagnosticEngine.h"
 
@@ -20,27 +22,30 @@
 #include "LOICollectionA/frontend/builtin/ui/base/ObservableNumberClass.h"
 #include "LOICollectionA/frontend/builtin/ui/base/ObservableStringClass.h"
 
-#include "LOICollectionA/frontend/builtin/ui/form/CustomFormClass.h"
 #include "LOICollectionA/frontend/builtin/ui/form/CustomFormOptionsClass.h"
+
+#include "LOICollectionA/frontend/builtin/ui/form/CustomFormClass.h"
 
 using namespace LOICollection::frontend;
 using namespace CustomFormOptionsClass;
 
 namespace CustomFormClass {
     ll::Expected<ObjectRef> makeCustomForm(const CallbackTypeValues& args, const CallbackTypePlaces& placeholders) {
-        auto title = toTextValue(args[0]);
+        auto title = toTextValue(args[1]);
         if (!title)
             return ll::Unexpected(title.error());
 
-        auto handle = std::make_unique<CustomFormHandle>();
+        auto handle = std::make_shared<CustomFormHandle>();
         handle->base = std::make_unique<ll::ui::CustomForm>(
             std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0)), *title
         );
 
+        LOICollection::form::GUIManager::getInstance().registerCustomFormUI(std::get<std::string>(args[0]), handle);
+
         auto obj = std::make_shared<Object>();
         obj->className = "CustomForm";
         obj->classIndex = -1;
-        obj->native = std::move(handle);
+        obj->native = handle;
 
         return obj;
     }
@@ -62,7 +67,7 @@ namespace CustomFormClass {
         if (!options)
             return ll::Unexpected(options.error());
 
-        form->button(*label, [callback, placeholders] {
+        form->button(*label, [callback, placeholders]() -> void {
             DiagnosticEngine diagnostics;
 
             [[maybe_unused]] auto result = ir::VM::callFunctionRef(callback, {}, placeholders, diagnostics);
@@ -108,8 +113,10 @@ namespace CustomFormClass {
             return ll::Unexpected(value.error());
 
         auto itemsValue = std::get<ArrayRef>(args[2]);
+
         std::vector<ll::ui::DropdownItemData> items;
         items.reserve(itemsValue->elements.size());
+        
         for (const auto& element : itemsValue->elements) {
             if (!std::holds_alternative<ObjectRef>(element))
                 return ll::makeStringError("dropdown items must be DropdownItem objects");
@@ -246,43 +253,15 @@ namespace CustomFormClass {
         return self;
     }
 
-    ll::Expected<TypedValue> show(
-        const ObjectRef& self, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders
-    ) {
-        auto* form = static_cast<CustomFormHandle*>(self->native.get())->base.get();
-
-        if (args.empty()) {
-            auto result = form->show();
-            if (!result)
-                return ll::Unexpected(result.error());
-
+    ll::Expected<TypedValue> show(const ObjectRef& self, const CallbackTypeValues& args) {
+        if (args.empty())
             return self;
-        }
 
         auto callback = std::get<FunctionRefPtr>(args[0]);
         if (callback->argCount != 1)
             return ll::makeStringError("show callback must take exactly one parameter");
 
-        auto result = form->show([callback, placeholders](ll::ui::ScreenSession::Result closeResult) -> void {
-            DiagnosticEngine diagnostics;
-            CallbackTypeValues values;
-
-            if (closeResult.has_value())
-                values.emplace_back(static_cast<int>(*closeResult));
-            else
-                values.emplace_back(std::monostate{});
-
-            [[maybe_unused]] auto cbResult = ir::VM::callFunctionRef(
-                callback, values, placeholders, diagnostics);
-
-            if (diagnostics.hasErrors()) {
-                ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA")
-                    ->error("CustomForm::show callback: {}", diagnostics.getErrorMessage());
-            }
-        });
-
-        if (!result)
-            return ll::Unexpected(result.error());
+        static_cast<CustomFormHandle*>(self->native.get())->show = callback;
 
         return self;
     }
@@ -303,8 +282,8 @@ namespace CustomFormClass {
         ClassCall& classes = ClassCall::getInstance();
 
         classes.registerClass("CustomForm", {});
-        classes.registerConstructor("CustomForm", makeCustomForm, { ParamType::STRING });
-        classes.registerConstructor("CustomForm", makeCustomForm, { ParamType::OBJECT });
+        classes.registerConstructor("CustomForm", makeCustomForm, { ParamType::STRING, ParamType::STRING });
+        classes.registerConstructor("CustomForm", makeCustomForm, { ParamType::STRING, ParamType::OBJECT });
 
         classes.registerMethod("CustomForm", "button", button,
             { ParamType::STRING, ParamType::FUNCTION, ParamType::OBJECT });

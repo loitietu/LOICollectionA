@@ -10,6 +10,8 @@
 namespace MessageBoxClass {
     struct MessageBoxHandle : LOICollection::frontend::NativeHandle {
         std::unique_ptr<ll::ui::MessageBox> base;
+
+        LOICollection::frontend::FunctionRefPtr show;
     };
 
     void registerClasses(const std::string& name);

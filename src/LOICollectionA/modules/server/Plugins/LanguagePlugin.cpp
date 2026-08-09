@@ -1,5 +1,6 @@
 #include <atomic>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <unordered_map>
 
@@ -25,6 +26,12 @@
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
+#include "LOICollectionA/frontend/AST.h"
+
+#include "LOICollectionA/include/form/GUIManager.h"
+
+#include "LOICollectionA/include/server/APIUtils.h"
+
 #include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/ServiceProvider.h"
 
@@ -38,6 +45,8 @@ namespace LOICollection::server::Plugins {
 
         std::atomic<bool> mRegistered{ false };
 
+        std::filesystem::path mGuiPath;
+
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
         
@@ -46,7 +55,7 @@ namespace LOICollection::server::Plugins {
         Impl() : Cache(100, 100) {}
     }; 
 
-    LanguagePlugin::LanguagePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<LanguageGui>(*this)) {};
+    LanguagePlugin::LanguagePlugin() : mImpl(std::make_unique<Impl>()) {};
     LanguagePlugin::~LanguagePlugin() = default;
 
     std::shared_ptr<LanguagePlugin> LanguagePlugin::getShared() {
@@ -61,16 +70,60 @@ namespace LOICollection::server::Plugins {
     void LanguagePlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("language", tr({}, "commands.language.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
-        command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player).or_else(modules::defaultErrorHandler<LanguagePlugin>);
+            form::GUIManager::getInstance().open("language", "language.gui", form::GUIManagerType::CustomForm, player)
+                .or_else(modules::defaultErrorHandler<LanguagePlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+    }
+
+    ll::Expected<void> LanguagePlugin::registeryUI() {
+        return form::GUIManager::getInstance().load("language", (this->mImpl->mGuiPath / "language.lcui").string())
+            .transform([this]() -> void {
+                auto data = I18nUtils::getInstance()->data
+                    | std::views::keys
+                    | std::views::enumerate
+                    | std::views::transform([](auto&& t) {
+                        auto [idx, k] = t;
+                        return std::pair<int, const std::string>(idx, k);
+                    })
+                    | std::ranges::to<std::unordered_map<int, std::string>>();
+
+                form::GUIManager::getInstance().registerValue("language.names", [data](Player&) -> frontend::ArrayRef {
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    for (auto& [index, key] : data) {
+                        auto obj = std::make_shared<frontend::Object>();
+                        obj->className = "DropdownItem";
+                        obj->classIndex = -1;
+                        obj->fields["label"] = key;
+                        obj->fields["value"] = index;
+
+                        values->elements.emplace_back(obj);
+                    }
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerCallback("language.callback", [this, data](frontend::ArrayRef args, Player& player) mutable -> ll::Expected<void> {
+                    if (args->elements.size() != 1)
+                        return ll::makeStringError("language.callback: must take exactly one parameter");
+
+                    const auto* current = std::get_if<float>(&args->elements[0]);
+                    if (!current)
+                        return ll::makeStringError("language.callback function only needs float parameter");
+
+                    return this->set(player, data.at(static_cast<int>(*current)))
+                        .transform([this, &player]() -> void {
+                            this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "language.log"), player));
+                        });
+                });
+            });
     }
 
     void LanguagePlugin::listenEvent() {
@@ -132,6 +185,8 @@ namespace LOICollection::server::Plugins {
     }
 
     ll::Expected<bool> LanguagePlugin::load() {
+        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
+
         this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
 
@@ -152,6 +207,8 @@ namespace LOICollection::server::Plugins {
         return this->mImpl->db->create("Language", [](SQLiteStorage::ColumnCallback ctor) -> void {
             ctor("name");
             ctor("value");
+        }).and_then([this]() -> ll::Expected<void> {
+            return registeryUI();
         }).transform([this]() -> bool {
             this->registeryCommand();
             this->listenEvent();

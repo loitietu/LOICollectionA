@@ -55,7 +55,7 @@
 
 namespace LOICollection::server::LOICollectionAPI {
     struct APIUtils::Impl {
-        LRUKCache<std::string, frontend::ir::BytecodeChunk> mAstCache;
+        LRUKCache<std::string, frontend::ir::BytecodeChunk> mCache;
 
         std::shared_ptr<ll::io::Logger> logger;
 
@@ -64,7 +64,7 @@ namespace LOICollection::server::LOICollectionAPI {
         std::unordered_map<std::string, std::function<ll::Expected<frontend::TypedValue>(const frontend::CallbackTypeValues&)>> mVariableCommonMapParameter;
         std::unordered_map<std::string, std::function<ll::Expected<frontend::TypedValue>(Player&, const frontend::CallbackTypeValues&)>> mVariableMapParameter;
 
-        Impl() : mAstCache(100, 200, 5) {}
+        Impl() : mCache(100, 200, 5) {}
     };
 
     APIUtils::APIUtils() : mImpl(std::make_unique<Impl>()) {
@@ -378,8 +378,8 @@ namespace LOICollection::server::LOICollectionAPI {
 
         frontend::ir::VM mVM(diagnostics);
 
-        if (this->mImpl->mAstCache.contains(str)) {
-            auto mCached = this->mImpl->mAstCache.get(str);
+        if (this->mImpl->mCache.contains(str)) {
+            auto mCached = this->mImpl->mCache.get(str);
 
             if (mCached.has_value()) {
                 auto result = mVM.run(mCached.value(), { std::ref(player) });
@@ -432,7 +432,7 @@ namespace LOICollection::server::LOICollectionAPI {
             return str;
         }
 
-        this->mImpl->mAstCache.put(str, bytecode);
+        this->mImpl->mCache.put(str, bytecode);
         return frontend::ir::VM::valueToString(result);
     }
 
@@ -441,8 +441,8 @@ namespace LOICollection::server::LOICollectionAPI {
 
         frontend::ir::VM mVM(diagnostics);
 
-        if (this->mImpl->mAstCache.contains(str)) {
-            auto mCached = this->mImpl->mAstCache.get(str);
+        if (this->mImpl->mCache.contains(str)) {
+            auto mCached = this->mImpl->mCache.get(str);
 
             if (mCached.has_value()) {
                 auto result = mVM.run(mCached.value(), {});
@@ -495,7 +495,7 @@ namespace LOICollection::server::LOICollectionAPI {
             return str;
         }
 
-        this->mImpl->mAstCache.put(str, bytecode);
+        this->mImpl->mCache.put(str, bytecode);
         return frontend::ir::VM::valueToString(result);
     }
 }

@@ -14,8 +14,8 @@
 using namespace LOICollection::frontend;
 
 namespace MathBuiltin {
-    ll::Expected<LOICollection::frontend::TypedValue> abs(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg) -> ll::Expected<LOICollection::frontend::TypedValue> {
+    ll::Expected<TypedValue> abs(const CallbackTypeValues& args) {
+        return std::visit([](auto&& arg) -> ll::Expected<TypedValue> {
             using T = std::decay_t<decltype(arg)>;
 
             if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>) {
@@ -31,8 +31,8 @@ namespace MathBuiltin {
         }, args[0]);
     }
 
-    LOICollection::frontend::TypedValue min(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg1, auto&& arg2) -> LOICollection::frontend::TypedValue {
+    TypedValue min(const CallbackTypeValues& args) {
+        return std::visit([](auto&& arg1, auto&& arg2) -> TypedValue {
             using T1 = std::decay_t<decltype(arg1)>;
             using T2 = std::decay_t<decltype(arg2)>;
 
@@ -45,8 +45,8 @@ namespace MathBuiltin {
         }, args[0], args[1]);
     }
 
-    LOICollection::frontend::TypedValue max(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg1, auto&& arg2) -> LOICollection::frontend::TypedValue {
+    TypedValue max(const CallbackTypeValues& args) {
+        return std::visit([](auto&& arg1, auto&& arg2) -> TypedValue {
             using T1 = std::decay_t<decltype(arg1)>;
             using T2 = std::decay_t<decltype(arg2)>;
 
@@ -59,8 +59,8 @@ namespace MathBuiltin {
         }, args[0], args[1]);
     }
 
-    LOICollection::frontend::TypedValue sqrt(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg) -> LOICollection::frontend::TypedValue {
+    TypedValue sqrt(const CallbackTypeValues& args) {
+        return std::visit([](auto&& arg) -> TypedValue {
             using T = std::decay_t<decltype(arg)>;
 
             if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>)
@@ -70,8 +70,8 @@ namespace MathBuiltin {
         }, args[0]);
     }
 
-    LOICollection::frontend::TypedValue pow(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg1, auto&& arg2) -> LOICollection::frontend::TypedValue {
+    TypedValue pow(const CallbackTypeValues& args) {
+        return std::visit([](auto&& arg1, auto&& arg2) -> TypedValue {
             using T1 = std::decay_t<decltype(arg1)>;
             using T2 = std::decay_t<decltype(arg2)>;
 
@@ -84,8 +84,8 @@ namespace MathBuiltin {
         }, args[0], args[1]);
     }
 
-    LOICollection::frontend::TypedValue log(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg) -> LOICollection::frontend::TypedValue {
+    TypedValue log(const CallbackTypeValues& args) {
+        return std::visit([](auto&& arg) -> TypedValue {
             using T = std::decay_t<decltype(arg)>;
 
             if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>)
@@ -95,8 +95,8 @@ namespace MathBuiltin {
         }, args[0]);
     }
 
-    LOICollection::frontend::TypedValue sin(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg) -> LOICollection::frontend::TypedValue {
+    TypedValue sin(const CallbackTypeValues& args) {
+        return std::visit([](auto&& arg) -> TypedValue {
             using T = std::decay_t<decltype(arg)>;
 
             if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>)
@@ -106,8 +106,8 @@ namespace MathBuiltin {
         }, args[0]);
     }
 
-    LOICollection::frontend::TypedValue cos(const LOICollection::frontend::CallbackTypeValues& args) {
-        return std::visit([](auto&& arg) -> LOICollection::frontend::TypedValue {
+    TypedValue cos(const CallbackTypeValues& args) {
+        return std::visit([](auto&& arg) -> TypedValue {
             using T = std::decay_t<decltype(arg)>;
 
             if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>)
@@ -117,12 +117,12 @@ namespace MathBuiltin {
         }, args[0]);
     }
 
-    ll::Expected<LOICollection::frontend::TypedValue> random(const LOICollection::frontend::CallbackTypeValues& args) {
+    ll::Expected<TypedValue> random(const CallbackTypeValues& args) {
         static std::random_device rd;
         static std::mt19937 gen(rd());
         static std::mutex rngMutex;
 
-        return std::visit([](auto&& arg1, auto&& arg2) -> ll::Expected<LOICollection::frontend::TypedValue> {
+        return std::visit([](auto&& arg1, auto&& arg2) -> ll::Expected<TypedValue> {
             using T1 = std::decay_t<decltype(arg1)>;
             using T2 = std::decay_t<decltype(arg2)>;
 

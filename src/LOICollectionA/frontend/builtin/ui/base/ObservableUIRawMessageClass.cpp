@@ -20,7 +20,7 @@ using namespace LOICollection::frontend;
 
 namespace ObservableUIRawMessageClass {
     ll::Expected<ObjectRef> makeObservableUIRawMessage(const CallbackTypeValues& args) {
-        auto handle = std::make_unique<ObservableUIRawMessageHandle>();
+        auto handle = std::make_shared<ObservableUIRawMessageHandle>();
 
         if (const auto* current = std::get_if<ObjectRef>(&args[0]); current && (*current)->className == "UIRawMessage") {
             handle->base = std::make_unique<ll::ui::ObservableUIRawMessage>(
@@ -33,7 +33,7 @@ namespace ObservableUIRawMessageClass {
         auto obj = std::make_shared<Object>();
         obj->className = "ObservableUIRawMessage";
         obj->classIndex = -1;
-        obj->native = std::move(handle);
+        obj->native = handle;
 
         return obj;
     }
@@ -45,7 +45,7 @@ namespace ObservableUIRawMessageClass {
     ObjectRef getData(const ObjectRef& self, const CallbackTypeValues&) {
         auto data = static_cast<ObservableUIRawMessageHandle*>(self->native.get())->base->getData();
 
-        auto handle = std::make_unique<ObservableUIRawMessageHandle>();
+        auto handle = std::make_shared<ObservableUIRawMessageHandle>();
         handle->base = std::make_unique<ll::ui::ObservableUIRawMessage>(
             data, ll::ui::ObservableOptions{ isClientWritable(self, {}) }
         );
@@ -53,7 +53,7 @@ namespace ObservableUIRawMessageClass {
         auto obj = std::make_shared<Object>();
         obj->className = "ObservableUIRawMessage";
         obj->classIndex = -1;
-        obj->native = std::move(handle);
+        obj->native = handle;
 
         return obj;
     }
@@ -78,7 +78,7 @@ namespace ObservableUIRawMessageClass {
         return static_cast<ObservableUIRawMessageHandle*>(self->native.get())->base->subscribe([
             option = static_cast<ObservableUIRawMessageHandle*>(self->native.get())->base->isClientWritable(), func, placeholders
         ](const ll::ui::UIRawMessage& value) -> void {
-            auto handle = std::make_unique<ObservableUIRawMessageHandle>();
+            auto handle = std::make_shared<ObservableUIRawMessageHandle>();
             handle->base = std::make_unique<ll::ui::ObservableUIRawMessage>(
                 value, ll::ui::ObservableOptions{ option }
             );
@@ -86,7 +86,7 @@ namespace ObservableUIRawMessageClass {
             auto obj = std::make_shared<Object>();
             obj->className = "ObservableUIRawMessage";
             obj->classIndex = -1;
-            obj->native = std::move(handle);
+            obj->native = handle;
             
             DiagnosticEngine diagnostics;
 

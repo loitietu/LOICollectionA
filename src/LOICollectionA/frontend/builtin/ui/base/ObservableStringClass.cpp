@@ -17,7 +17,7 @@ using namespace LOICollection::frontend;
 
 namespace ObservableStringClass {
     ll::Expected<ObjectRef> makeObservableString(const CallbackTypeValues& args) {
-        auto handle = std::make_unique<ObservableStringHandle>();
+        auto handle = std::make_shared<ObservableStringHandle>();
         handle->base = std::make_unique<ll::ui::ObservableString>(
             std::get<std::string>(args[0]), ll::ui::ObservableOptions{ std::get<bool>(args[1]) }
         );
@@ -25,7 +25,7 @@ namespace ObservableStringClass {
         auto obj = std::make_shared<Object>();
         obj->className = "ObservableString";
         obj->classIndex = -1;
-        obj->native = std::move(handle);
+        obj->native = handle;
 
         return obj;
     }

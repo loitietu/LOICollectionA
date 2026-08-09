@@ -9,7 +9,7 @@
 using namespace LOICollection::frontend;
 
 namespace StringBuiltin {
-    std::string length(const LOICollection::frontend::CallbackTypeValues& args) {
+    std::string length(const CallbackTypeValues& args) {
         return std::visit([](auto&& arg) -> std::string {
             using T = std::decay_t<decltype(arg)>;
 
@@ -20,7 +20,7 @@ namespace StringBuiltin {
         }, args[0]);
     }
 
-    std::string upper(const LOICollection::frontend::CallbackTypeValues& args) {
+    std::string upper(const CallbackTypeValues& args) {
         return std::visit([](auto&& arg) -> std::string {
             using T = std::decay_t<decltype(arg)>;
 
@@ -35,7 +35,7 @@ namespace StringBuiltin {
         }, args[0]);
     }
 
-    std::string lower(const LOICollection::frontend::CallbackTypeValues& args) {
+    std::string lower(const CallbackTypeValues& args) {
         return std::visit([](auto&& arg) -> std::string {
             using T = std::decay_t<decltype(arg)>;
 
@@ -50,7 +50,7 @@ namespace StringBuiltin {
         }, args[0]);
     }
 
-    std::string substr(const LOICollection::frontend::CallbackTypeValues& args) {
+    std::string substr(const CallbackTypeValues& args) {
         return std::visit([](auto&& arg1, auto&& arg2, auto&& arg3) -> std::string {
             using T1 = std::decay_t<decltype(arg1)>;
             using T2 = std::decay_t<decltype(arg2)>;
@@ -68,7 +68,7 @@ namespace StringBuiltin {
         }, args[0], args[1], args[2]);
     }
 
-    std::string trim(const LOICollection::frontend::CallbackTypeValues& args) {
+    std::string trim(const CallbackTypeValues& args) {
         return std::visit([](auto&& arg) -> std::string {
             using T = std::decay_t<decltype(arg)>;
             if constexpr (std::is_same_v<T, std::string>) {
@@ -84,7 +84,7 @@ namespace StringBuiltin {
         }, args[0]);
     }
 
-    std::string replace(const LOICollection::frontend::CallbackTypeValues& args) {
+    std::string replace(const CallbackTypeValues& args) {
         return std::visit([](auto&& arg1, auto&& arg2, auto&& arg3) -> std::string {
             using T1 = std::decay_t<decltype(arg1)>;
             using T2 = std::decay_t<decltype(arg2)>;
