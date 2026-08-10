@@ -72,7 +72,7 @@ namespace ObservableStringClass {
         classes.registerConstructor("ObservableString", makeObservableString, { ParamType::STRING, ParamType::BOOL });
         classes.registerMethod("ObservableString", "isClientWritable", isClientWritable, {});
         classes.registerMethod("ObservableString", "getData", getData, {});
-        classes.registerMethod("ObservableString", "setData", setData, { ParamType::BOOL });
+        classes.registerMethod("ObservableString", "setData", setData, { ParamType::STRING });
         classes.registerMethod("ObservableString", "subscribe", subscribe, { ParamType::FUNCTION });
         classes.registerMethod("ObservableString", "unsubscribe", unsubscribe, { ParamType::INT });
     }

@@ -52,6 +52,14 @@ namespace GUIManagerBuiltin {
 
                 break;
             }
+            case static_cast<int>(GUIManagerType::PaginatedForm): {
+                result = GUIManager::getInstance().switchToPaginatedForm(
+                    std::get<std::string>(args[0]),
+                    std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0))
+                );
+
+                break;
+            }
             default: result = ll::makeStringError("switchTo: Unknown form type");
         }
 

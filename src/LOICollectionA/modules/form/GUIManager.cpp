@@ -25,6 +25,7 @@
 
 #include "LOICollectionA/frontend/builtin/ui/form/CustomFormClass.h"
 #include "LOICollectionA/frontend/builtin/ui/form/MessageBoxClass.h"
+#include "LOICollectionA/frontend/builtin/ui/form/PaginatedFormClass.h"
 
 #include "LOICollectionA/include/form/GUIManager.h"
 
@@ -34,6 +35,7 @@ namespace LOICollection::form {
 
         std::unordered_map<std::string, std::unordered_map<std::string, std::shared_ptr<CustomFormClass::CustomFormHandle>>> forms;
         std::unordered_map<std::string, std::unordered_map<std::string, std::shared_ptr<MessageBoxClass::MessageBoxHandle>>> boxs;
+        std::unordered_map<std::string, std::unordered_map<std::string, std::shared_ptr<PaginatedFormClass::PaginatedFormHandle>>> paginatedForms;
 
         std::unordered_map<std::string, ValueCallback> values;
         std::unordered_map<std::string, Callback> callbacks;
@@ -117,6 +119,7 @@ namespace LOICollection::form {
             switch (type) {
                 case GUIManagerType::CustomForm: return this->switchToCustomForm(formId, player);
                 case GUIManagerType::MessageBox: return this->switchToMessageBox(formId, player); 
+                case GUIManagerType::PaginatedForm: return this->switchToPaginatedForm(formId, player);
             }
         }
 
@@ -228,6 +231,53 @@ namespace LOICollection::form {
         return {};
     }
 
+    ll::Expected<void> GUIManager::switchToPaginatedForm(const std::string& id, Player& player) {
+        auto handle = this->getPaginatedFormUI(id, player);
+        if (!handle.has_value())
+            return ll::Unexpected(handle.error());
+
+        if (!handle.value()->base)
+            return ll::makeStringError("PaginatedForm is not built");
+
+        auto result = handle.value()->base->show([this, id, handle = handle.value(), player = std::ref(player)](ll::ui::ScreenSession::Result closeResult) mutable -> void {
+            auto resultObj = std::make_shared<frontend::Object>();
+            resultObj->className = "PaginatedFormResult";
+            resultObj->classIndex = -1;
+
+            if (closeResult.has_value())
+                resultObj->fields["closeReason"] = static_cast<int>(*closeResult);
+            else
+                resultObj->fields["closeReason"] = std::monostate{};
+
+            resultObj->fields["selection"] = handle->selection;
+            resultObj->fields["page"] = handle->selectionPage;
+
+            if (handle->show) {
+                frontend::DiagnosticEngine diagnostics;
+                frontend::CallbackTypeValues values{ resultObj };
+
+                [[maybe_unused]] auto cbResult = frontend::ir::VM::callFunctionRef(
+                    handle->show, values, frontend::Context{ player }.params, diagnostics
+                );
+
+                if (diagnostics.hasErrors()) {
+                    ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA")
+                        ->error("PaginatedForm::show callback: {}", diagnostics.getErrorMessage());
+                }
+            }
+
+            this->unregisterPaginatedFormUI(id, player.get());
+        });
+
+        if (!result) {
+            this->unregisterPaginatedFormUI(id, player);
+
+            return ll::Unexpected(result.error());
+        }
+
+        return {};
+    }
+
     void GUIManager::registerCustomFormUI(const std::string& id, std::shared_ptr<CustomFormClass::CustomFormHandle> form, Player& player) {
         auto [it, _] = this->mImpl->forms.try_emplace(player.getUuid().asString());
         it->second.insert_or_assign(id, std::move(form));
@@ -238,6 +288,11 @@ namespace LOICollection::form {
         it->second.insert_or_assign(id, std::move(box));
     }
 
+    void GUIManager::registerPaginatedFormUI(const std::string& id, std::shared_ptr<PaginatedFormClass::PaginatedFormHandle> form, Player& player) {
+        auto [it, _] = this->mImpl->paginatedForms.try_emplace(player.getUuid().asString());
+        it->second.insert_or_assign(id, std::move(form));
+    }
+
     bool GUIManager::unregisterCustomFormUI(const std::string& id, Player& player) {
         std::string uuid = player.getUuid().asString();
 
@@ -245,6 +300,20 @@ namespace LOICollection::form {
             it->second.erase(id);
             if (it->second.empty())
                 this->mImpl->forms.erase(it);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    bool GUIManager::unregisterPaginatedFormUI(const std::string& id, Player& player) {
+        std::string uuid = player.getUuid().asString();
+
+        if (auto it = this->mImpl->paginatedForms.find(uuid); it != this->mImpl->paginatedForms.end()) {
+            it->second.erase(id);
+            if (it->second.empty())
+                this->mImpl->paginatedForms.erase(it);
 
             return true;
         }
@@ -288,6 +357,18 @@ namespace LOICollection::form {
         }
 
         return ll::makeStringError("Player has no registered messageboxs");
+    }
+
+    ll::Expected<std::shared_ptr<PaginatedFormClass::PaginatedFormHandle>> GUIManager::getPaginatedFormUI(const std::string& id, Player& player) {
+        if (auto it = this->mImpl->paginatedForms.find(player.getUuid().asString()); it != this->mImpl->paginatedForms.end()) {
+            auto& innerMap = it->second;
+            if (auto innerIt = innerMap.find(id); innerIt != innerMap.end())
+                return innerIt->second;
+
+            return ll::makeStringError("PaginatedForm not found for player: " + id);
+        }
+
+        return ll::makeStringError("Player has no registered paginated forms");
     }
 
     void GUIManager::registerValue(const std::string& id, ValueCallback callback) {
