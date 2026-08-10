@@ -132,8 +132,11 @@ namespace LOICollection::form {
             auto result = handle.value()->base->show([this, id, player = std::ref(player)](ll::ui::ScreenSession::Result) mutable -> void {
                 this->unregisterCustomFormUI(id, player.get());
             });
-            if (!result)
+            if (!result) {
+                this->unregisterCustomFormUI(id, player);
+
                 return ll::Unexpected(result.error());
+            }
 
             return {};
         }
@@ -159,8 +162,11 @@ namespace LOICollection::form {
             this->unregisterCustomFormUI(id, player.get());
         });
 
-        if (!result)
+        if (!result) {
+            this->unregisterCustomFormUI(id, player);
+
             return ll::Unexpected(result.error());
+        }
 
         return {};
     }
@@ -174,8 +180,11 @@ namespace LOICollection::form {
             auto result = handle.value()->base->show([this, id, player = std::ref(player)](ll::ui::MessageBox::Result) mutable -> void{
                 this->unregisterMessageBoxUI(id, player.get());
             });
-            if (!result)
+            if (!result) {
+                this->unregisterMessageBoxUI(id, player);
+
                 return ll::Unexpected(result.error());
+            }
 
             return {};
         }
@@ -210,8 +219,11 @@ namespace LOICollection::form {
             this->unregisterMessageBoxUI(id, player.get());
         });
 
-        if (!result)
+        if (!result) {
+            this->unregisterMessageBoxUI(id, player);
+            
             return ll::Unexpected(result.error());
+        }
 
         return {};
     }
