@@ -11,6 +11,7 @@
 #include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
+#include <ll/api/ui/base/ScreenSession.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
@@ -32,7 +33,9 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
 
-#include "LOICollectionA/include/form/PaginatedForm.h"
+#include "LOICollectionA/frontend/AST.h"
+
+#include "LOICollectionA/include/form/GUIManager.h"
 
 #include "LOICollectionA/include/server/APIUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
@@ -75,13 +78,15 @@ namespace LOICollection::server::Plugins {
 
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
+
+        std::filesystem::path mGuiPath;
         
         ll::event::ListenerPtr PlayerChatEventListener;
         ll::event::ListenerPtr MuteAddEventListener;
         ll::event::ListenerPtr MuteRemoveEventListener;
     };
 
-    MutePlugin::MutePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<MuteGui>(*this)) {};
+    MutePlugin::MutePlugin() : mImpl(std::make_unique<Impl>()) {};
     MutePlugin::~MutePlugin() = default;
 
     std::shared_ptr<MutePlugin> MutePlugin::getShared() {
@@ -226,16 +231,186 @@ namespace LOICollection::server::Plugins {
                     })
                     .or_else(modules::defaultErrorHandler<MutePlugin>);
             });
-        command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
-            this->mGui->open(player).or_else(modules::defaultErrorHandler<MutePlugin>);
+            form::GUIManager::getInstance().open("mute", "mute.open", form::GUIManagerType::CustomForm, player)
+                .or_else(modules::defaultErrorHandler<MutePlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+    }
+
+    ll::Expected<void> MutePlugin::registeryUI() {
+        return form::GUIManager::getInstance().load("mute", (this->mImpl->mGuiPath / "mute.lcui").string())
+            .transform([this]() -> void {
+                form::GUIManager::getInstance().registerValue("mute.players", [](Player&) -> frontend::ArrayRef {
+                    auto values = std::make_shared<frontend::ArrayValue>();
+
+                    ll::service::getLevel()->forEachPlayer([&values](Player& target) -> bool {
+                        if (!target.isSimulatedPlayer())
+                            values->elements.emplace_back(target.getRealName());
+
+                        return true;
+                    });
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerValue("mute.mutes", [this](Player&) -> ll::Expected<frontend::ArrayRef> {
+                    return this->getMutes()
+                        .transform([](const std::vector<std::string>& mutes) -> frontend::ArrayRef {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+                            values->elements = mutes
+                                | std::ranges::to<std::vector<frontend::TypedValue>>();
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerRequest("mute.info", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("mute.info: must take exactly one string parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .and_then([this, id](const std::string&) -> ll::Expected<frontend::ArrayRef> {
+                            return this->hasMute(id)
+                                .and_then([this, id](bool exists) -> ll::Expected<frontend::ArrayRef> {
+                                    if (!exists) {
+                                        return std::make_shared<frontend::ArrayValue>();
+                                    }
+
+                                    auto data = this->getMuteData(id);
+                                    if (!data.has_value())
+                                        return ll::Unexpected(data.error());
+
+                                    auto info = std::make_shared<frontend::ArrayValue>();
+
+                                    if (data.value().empty())
+                                        return info;
+
+                                    info->elements.emplace_back(id);
+                                    info->elements.emplace_back(data.value().at("name"));
+                                    info->elements.emplace_back(data.value().at("cause"));
+                                    info->elements.emplace_back(SystemUtils::toFormatTime(data.value().at("subtime"), "None"));
+                                    info->elements.emplace_back(SystemUtils::toFormatTime(data.value().at("time"), "None"));
+
+                                    return info;
+                                });
+                        });
+                });
+
+                form::GUIManager::getInstance().registerRequest("mute.online", [](frontend::ArrayRef args, Player&) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("mute.online: must take exactly one string parameter");
+
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    values->elements.emplace_back(
+                        ll::service::getLevel()->getPlayer(std::get<std::string>(args->elements[0])) != nullptr
+                    );
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerCallback("mute.add", [](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<frontend::ObjectRef>(args->elements[0]))
+                        return ll::makeStringError("mute.add: must take exactly one PaginatedFormResult parameter");
+
+                    auto result = std::get<frontend::ObjectRef>(args->elements[0]);
+
+                    Player* target = ll::service::getLevel()->getPlayer(std::get<std::string>(result->fields["selection"]));
+                    if (!target) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                player.sendMessage(tr(language, "mute.gui.error"));
+
+                                return {};
+                            });
+                    }
+
+                    return {};
+                });
+
+                form::GUIManager::getInstance().registerCallback("mute.submit", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.empty())
+                        return {};
+
+                    if (!std::ranges::all_of(args->elements, [](const auto& e) {
+                        return std::holds_alternative<std::string>(e);
+                    }) || args->elements.size() != 3) {
+                        return ll::makeStringError("mute.submit: must take exactly three string parameters");
+                    }
+
+                    const std::string& cause = std::get<std::string>(args->elements[1]);
+                    if (cause.empty()) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                player.sendMessage(tr(language, "generic.tips.noinput"));
+
+                                return {};
+                            });
+                    }
+
+                    Player* target = ll::service::getLevel()->getPlayer(std::get<std::string>(args->elements[0]));
+                    if (!target) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                player.sendMessage(tr(language, "mute.gui.error"));
+
+                                return {};
+                            });
+                    }
+
+                    return this->addMute(*target, cause, SystemUtils::toInt(std::get<std::string>(args->elements[2]), 0));
+                });
+
+                form::GUIManager::getInstance().registerCallback("mute.remove", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<frontend::ObjectRef>(args->elements[0]))
+                        return ll::makeStringError("mute.remove: must take exactly one PaginatedFormResult parameter");
+
+                    auto result = std::get<frontend::ObjectRef>(args->elements[0]);
+
+                    if (auto closeReason = std::get_if<int>(&result->fields["closeReason"]);
+                        closeReason && *closeReason == static_cast<int>(ll::ui::ScreenSession::Result::value_type::UserBusy))
+                        return {};
+
+                    std::string selection = std::get<std::string>(result->fields["selection"]);
+                    if (selection.empty())
+                        return {};
+
+                    return this->hasMute(selection)
+                        .and_then([&player](bool exists) -> ll::Expected<void> {
+                            if (!exists) {
+                                return LanguagePlugin::getShared()->getLanguage(player)
+                                    .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                        player.sendMessage(tr(language, "mute.gui.error"));
+
+                                        return {};
+                                    });
+                            }
+
+                            return {};
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("mute.info.remove", [this](frontend::ArrayRef args, Player&) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("mute.info.remove: must take exactly one string parameter");
+
+                    return this->delMute(std::get<std::string>(args->elements[0]))
+                        .or_else([](ll::Error e) -> ll::Expected<void> {
+                            if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(MutePluginErrorCode::NotFound))
+                                return {};
+
+                            return ll::Unexpected(e);
+                        });
+                });
+            });
     }
 
     void MutePlugin::listenEvent() {
@@ -416,6 +591,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db = std::make_shared<SQLiteStorage>((mDataPath / "mute.db").string());
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
+        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
 
         return true;
     }
@@ -444,6 +620,8 @@ namespace LOICollection::server::Plugins {
             ctor("time");
             ctor("subtime");
             ctor("data");
+        }).and_then([this]() -> ll::Expected<void> {
+            return this->registeryUI();
         }).transform([this]() -> bool {
             this->registeryCommand();
             this->listenEvent();

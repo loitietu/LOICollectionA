@@ -12,8 +12,6 @@
 #include "LOICollectionA/include/ModuleBase.h"
 #include "LOICollectionA/include/ModManager.h"
 
-#include "LOICollectionA/include/server/Plugins/gui/MuteGui.h"
-
 class Player;
 class SQLiteStorage;
 
@@ -90,6 +88,8 @@ namespace LOICollection::server::Plugins {
     private:
         MutePlugin();
 
+        ll::Expected<void> registeryUI();
+
         void registeryCommand();
         void listenEvent();
         void unlistenEvent();
@@ -98,6 +98,5 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<MuteGui> mGui;
     };
 }
