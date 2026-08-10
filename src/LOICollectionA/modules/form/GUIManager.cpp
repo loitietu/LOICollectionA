@@ -38,6 +38,7 @@ namespace LOICollection::form {
         std::unordered_map<std::string, std::unordered_map<std::string, std::shared_ptr<PaginatedFormClass::PaginatedFormHandle>>> paginatedForms;
 
         std::unordered_map<std::string, ValueCallback> values;
+        std::unordered_map<std::string, RequestCallback> requests;
         std::unordered_map<std::string, Callback> callbacks;
     };
 
@@ -132,14 +133,13 @@ namespace LOICollection::form {
             return ll::Unexpected(handle.error());
 
         if (!handle.value()->show) {
-            auto result = handle.value()->base->show([this, id, player = std::ref(player)](ll::ui::ScreenSession::Result) mutable -> void {
-                this->unregisterCustomFormUI(id, player.get());
+            auto result = handle.value()->base->show([this, id, handle = handle.value(), player = std::ref(player)](ll::ui::ScreenSession::Result) mutable -> void {
+                if (auto current = this->getCustomFormUI(id, player.get());
+                    current.has_value() && current.value() == handle)
+                    this->unregisterCustomFormUI(id, player.get());
             });
-            if (!result) {
-                this->unregisterCustomFormUI(id, player);
-
+            if (!result)
                 return ll::Unexpected(result.error());
-            }
 
             return {};
         }
@@ -162,14 +162,13 @@ namespace LOICollection::form {
                     ->error("CustomForm::show callback: {}", diagnostics.getErrorMessage());
             }
             
-            this->unregisterCustomFormUI(id, player.get());
+            if (auto current = this->getCustomFormUI(id, player.get());
+                current.has_value() && current.value() == handle)
+                this->unregisterCustomFormUI(id, player.get());
         });
 
-        if (!result) {
-            this->unregisterCustomFormUI(id, player);
-
+        if (!result)
             return ll::Unexpected(result.error());
-        }
 
         return {};
     }
@@ -180,14 +179,13 @@ namespace LOICollection::form {
             return ll::Unexpected(handle.error());
 
         if (!handle.value()->show) {
-            auto result = handle.value()->base->show([this, id, player = std::ref(player)](ll::ui::MessageBox::Result) mutable -> void{
-                this->unregisterMessageBoxUI(id, player.get());
+            auto result = handle.value()->base->show([this, id, handle = handle.value(), player = std::ref(player)](ll::ui::MessageBox::Result) mutable -> void{
+                if (auto current = this->getMessageBoxUI(id, player.get());
+                    current.has_value() && current.value() == handle)
+                    this->unregisterMessageBoxUI(id, player.get());
             });
-            if (!result) {
-                this->unregisterMessageBoxUI(id, player);
-
+            if (!result)
                 return ll::Unexpected(result.error());
-            }
 
             return {};
         }
@@ -219,14 +217,13 @@ namespace LOICollection::form {
                     ->error("MessageBox::show callback: {}", diagnostics.getErrorMessage());
             }
             
-            this->unregisterMessageBoxUI(id, player.get());
+            if (auto current = this->getMessageBoxUI(id, player.get());
+                current.has_value() && current.value() == handle)
+                this->unregisterMessageBoxUI(id, player.get());
         });
 
-        if (!result) {
-            this->unregisterMessageBoxUI(id, player);
-            
+        if (!result)
             return ll::Unexpected(result.error());
-        }
 
         return {};
     }
@@ -250,6 +247,7 @@ namespace LOICollection::form {
                 resultObj->fields["closeReason"] = std::monostate{};
 
             resultObj->fields["selection"] = handle->selection;
+            resultObj->fields["selectionIndex"] = handle->selectionIndex;
             resultObj->fields["page"] = handle->selectionPage;
 
             if (handle->show) {
@@ -266,14 +264,13 @@ namespace LOICollection::form {
                 }
             }
 
-            this->unregisterPaginatedFormUI(id, player.get());
+            if (auto current = this->getPaginatedFormUI(id, player.get());
+                current.has_value() && current.value() == handle)
+                this->unregisterPaginatedFormUI(id, player.get());
         });
 
-        if (!result) {
-            this->unregisterPaginatedFormUI(id, player);
-
+        if (!result)
             return ll::Unexpected(result.error());
-        }
 
         return {};
     }
@@ -375,6 +372,10 @@ namespace LOICollection::form {
         this->mImpl->values.insert_or_assign(id, std::move(callback));
     }
 
+    void GUIManager::registerRequest(const std::string& id, RequestCallback callback) {
+        this->mImpl->requests.insert_or_assign(id, std::move(callback));
+    }
+
     void GUIManager::registerCallback(const std::string& id, Callback callback) {
         this->mImpl->callbacks.insert_or_assign(id, std::move(callback));
     }
@@ -385,6 +386,14 @@ namespace LOICollection::form {
             return ll::makeStringError("Value not registered: " + id);
 
         return it->second(player);
+    }
+
+    ll::Expected<frontend::ArrayRef> GUIManager::getRequest(const std::string& id, frontend::ArrayRef args, Player& player) {
+        auto it = this->mImpl->requests.find(id);
+        if (it == this->mImpl->requests.end())
+            return ll::makeStringError("Request not registered: " + id);
+
+        return it->second(args, player);
     }
 
     ll::Expected<void> GUIManager::getCallback(const std::string& id, frontend::ArrayRef args, Player& player) {

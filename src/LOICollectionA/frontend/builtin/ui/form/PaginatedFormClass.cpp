@@ -1,12 +1,12 @@
 #include <any>
-#include <charconv>
 #include <format>
 #include <memory>
-#include <optional>
 #include <string>
+#include <vector>
 #include <utility>
 #include <variant>
-#include <vector>
+#include <charconv>
+#include <optional>
 
 #include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
@@ -34,29 +34,13 @@ using namespace LOICollection::frontend;
 using namespace CustomFormOptionsClass;
 
 namespace PaginatedFormClass {
-    namespace {
-        std::string elementLabel(const TypedValue& element) {
-            return std::visit([](const auto& value) -> std::string {
-                using T = std::decay_t<decltype(value)>;
-
-                if constexpr (std::is_same_v<T, int>) {
-                    return std::to_string(value);
-                } else if constexpr (std::is_same_v<T, std::string>) {
-                    return value;
-                }
-
-                return {};
-            }, element);
-        }
-    }
-
     void refreshPage(const std::shared_ptr<PaginatedFormHandle>& form) {
         const int begin = (form->page - 1) * form->pageSize;
         const int end = std::min(begin + form->pageSize, static_cast<int>(form->elements.size()));
 
         for (int i = 0; i < form->pageSize; ++i) {
             if (begin + i < end) {
-                form->labels[static_cast<size_t>(i)]->setData(elementLabel(form->elements[begin + static_cast<size_t>(i)]));
+                form->labels[static_cast<size_t>(i)]->setData(form->elements[begin + static_cast<size_t>(i)]);
                 form->visible[static_cast<size_t>(i)]->setData(true);
             } else {
                 form->labels[static_cast<size_t>(i)]->setData("");
@@ -65,6 +49,10 @@ namespace PaginatedFormClass {
         }
 
         form->pageIndicator->setData(std::format("{} / {}", form->page, form->pageCount));
+
+        form->previousVisible->setData(form->page > 1);
+        form->nextVisible->setData(form->page < form->pageCount);
+        form->chooseVisible->setData(form->pageCount > 2);
     }
 
     ll::Expected<ObjectRef> makePaginatedForm(const CallbackTypeValues& args, const CallbackTypePlaces& placeholders) {
@@ -73,6 +61,11 @@ namespace PaginatedFormClass {
             return ll::Unexpected(title.error());
 
         auto elementsRef = std::get<ArrayRef>(args[2]);
+        if (!std::ranges::all_of(elementsRef->elements, [](auto&& e) {
+            return std::holds_alternative<std::string>(e);
+        })) {
+            return ll::makeStringError("makePaginatedForm's ArrayRef argument must contain only strings");
+        }
 
         std::reference_wrapper<Player> player = std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0));
 
@@ -80,17 +73,12 @@ namespace PaginatedFormClass {
         handle->guiId = std::get<std::string>(args[0]);
         handle->title = std::move(*title);
         handle->pageSize = args.size() >= 4
-            ? std::get<int>(args[3])
-            : 10;
+            ? std::get<int>(args[3]) : 10;
         handle->pageSize = std::max(1, handle->pageSize);
 
-        handle->elements.reserve(elementsRef->elements.size());
-        for (const auto& element : elementsRef->elements) {
-            if (!std::holds_alternative<int>(element) && !std::holds_alternative<std::string>(element))
-                return ll::makeStringError("PaginatedForm elements must be int or string");
-
-            handle->elements.push_back(element);
-        }
+        handle->elements = elementsRef->elements
+            | std::views::transform([](auto&& e) { return std::get<std::string>(e); })
+            | std::ranges::to<std::vector>();
 
         handle->pageCount = (static_cast<int>(handle->elements.size()) + handle->pageSize - 1) / handle->pageSize;
         handle->pageCount = std::max(1, handle->pageCount);
@@ -104,6 +92,9 @@ namespace PaginatedFormClass {
 
         handle->pageIndicator = std::make_shared<ll::ui::ObservableString>("");
         handle->input = std::make_shared<ll::ui::ObservableString>("", ll::ui::ObservableOptions{ true });
+        handle->previousVisible = std::make_shared<ll::ui::ObservableBoolean>(false);
+        handle->nextVisible = std::make_shared<ll::ui::ObservableBoolean>(false);
+        handle->chooseVisible = std::make_shared<ll::ui::ObservableBoolean>(false);
 
         handle->base = std::make_unique<ll::ui::CustomForm>(player, handle->title);
         handle->base->label(*handle->pageIndicator);
@@ -112,10 +103,18 @@ namespace PaginatedFormClass {
             handle->base->button(
                 *handle->labels[static_cast<size_t>(i)],
                 [handle, i]() -> void {
+                    auto result = handle->base->close();
+
+                    if (!result.has_value()) {
+                        ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA")
+                            ->error("PaginatedForm::button callback: {}", result.error().message());
+                    }
+
                     const int begin = (handle->page - 1) * handle->pageSize;
                     const int index = begin + i;
                     if (index >= 0 && index < static_cast<int>(handle->elements.size())) {
                         handle->selection = handle->elements[static_cast<size_t>(index)];
+                        handle->selectionIndex = index;
                         handle->selectionPage = handle->page;
                     }
                 },
@@ -182,7 +181,7 @@ namespace PaginatedFormClass {
                 form->page -= 1;
 
             refreshPage(form);
-        });
+        }, ll::ui::ButtonOptions{ std::nullopt, std::nullopt, *form->previousVisible });
 
         return self;
     }
@@ -205,7 +204,7 @@ namespace PaginatedFormClass {
                 form->page += 1;
 
             refreshPage(form);
-        });
+        }, ll::ui::ButtonOptions{ std::nullopt, std::nullopt, *form->nextVisible });
 
         return self;
     }
@@ -229,7 +228,7 @@ namespace PaginatedFormClass {
         form->choosePlaceholder = *placeholder;
         form->chooseAdded = true;
 
-        form->base->textField("", *form->input);
+        form->base->textField("", *form->input, ll::ui::TextFieldOptions{ std::nullopt, std::nullopt, *form->chooseVisible });
         form->base->button(*form->chooseText, [form]() -> void {
             const std::string& text = form->input->getData();
             int page = 0;
@@ -244,7 +243,7 @@ namespace PaginatedFormClass {
                         form->input->setData(*placeholder);
                 }
             }
-        });
+        }, ll::ui::ButtonOptions{ std::nullopt, std::nullopt, *form->chooseVisible });
 
         return self;
     }
@@ -492,9 +491,10 @@ namespace PaginatedFormClass {
     void registerClasses(const std::string&) {
         ClassCall& classes = ClassCall::getInstance();
 
-        classes.registerClass("PaginatedFormResult", { "closeReason", "selection", "page" });
+        classes.registerClass("PaginatedFormResult", { "closeReason", "selection", "selectionIndex", "page" });
         classes.registerField("PaginatedFormResult", "closeReason", 0);
-        classes.registerField("PaginatedFormResult", "selection", std::monostate{});
+        classes.registerField("PaginatedFormResult", "selection", "");
+        classes.registerField("PaginatedFormResult", "selectionIndex", 0);
         classes.registerField("PaginatedFormResult", "page", 0);
 
         classes.registerClass("PaginatedForm", {});

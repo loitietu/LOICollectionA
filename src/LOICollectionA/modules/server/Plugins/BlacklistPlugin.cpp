@@ -11,6 +11,7 @@
 #include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
+#include <ll/api/ui/base/ScreenSession.h>
 #include <ll/api/service/Bedrock.h>
 #include <ll/api/command/Command.h>
 #include <ll/api/command/CommandHandle.h>
@@ -55,6 +56,10 @@
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
+#include "LOICollectionA/frontend/AST.h"
+
+#include "LOICollectionA/include/form/GUIManager.h"
+
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"
 
@@ -87,12 +92,14 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
 
+        std::filesystem::path mGuiPath;
+
         ll::event::ListenerPtr NetworkPacketEventListener;
         ll::event::ListenerPtr BlacklistAddEventListener;
         ll::event::ListenerPtr BlacklistRemoveEventListener;
     };
 
-    BlacklistPlugin::BlacklistPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<BlacklistGui>(*this)) {};
+    BlacklistPlugin::BlacklistPlugin() : mImpl(std::make_unique<Impl>()) {};
     BlacklistPlugin::~BlacklistPlugin() = default;
 
     std::shared_ptr<BlacklistPlugin> BlacklistPlugin::getShared() {
@@ -189,16 +196,185 @@ namespace LOICollection::server::Plugins {
                     })
                     .or_else(modules::defaultErrorHandler<BlacklistPlugin>);
             });
-        command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
-            this->mGui->open(player).or_else(modules::defaultErrorHandler<BlacklistPlugin>);
+            form::GUIManager::getInstance().open("blacklist", "blacklist.open", form::GUIManagerType::CustomForm, player)
+                .or_else(modules::defaultErrorHandler<BlacklistPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+    }
+
+    ll::Expected<void> BlacklistPlugin::registeryUI() {
+        return form::GUIManager::getInstance().load("blacklist", (this->mImpl->mGuiPath / "blacklist.lcui").string())
+            .transform([this]() -> void {
+                form::GUIManager::getInstance().registerValue("blacklist.players", [](Player&) -> frontend::ArrayRef {
+                    auto values = std::make_shared<frontend::ArrayValue>();
+
+                    ll::service::getLevel()->forEachPlayer([&values](Player& target) -> bool {
+                        if (!target.isSimulatedPlayer())
+                            values->elements.emplace_back(target.getRealName());
+
+                        return true;
+                    });
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerValue("blacklist.blacklists", [this](Player&) -> ll::Expected<frontend::ArrayRef> {
+                    return this->getBlacklists()
+                        .transform([](const std::vector<std::string>& blacklists) -> frontend::ArrayRef {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+                            values->elements = blacklists
+                                | std::ranges::to<std::vector<frontend::TypedValue>>();
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerRequest("blacklist.info", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("blacklist.add: must take exactly one string parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .and_then([this, id](const std::string&) -> ll::Expected<frontend::ArrayRef> {
+                            return this->hasBlacklist(id)
+                                .and_then([this, id](bool exists) -> ll::Expected<frontend::ArrayRef> { 
+                                    if (!exists) {
+                                        return std::make_shared<frontend::ArrayValue>();
+                                    }
+
+                                    auto data = this->getBlacklistData(id);
+                                    if (!data.has_value())
+                                        return ll::Unexpected(data.error());
+
+                                    auto info = std::make_shared<frontend::ArrayValue>();
+
+                                    if (data.value().empty())
+                                        return info;
+
+                                    info->elements.emplace_back(id);
+                                    info->elements.emplace_back(data.value().at("name"));
+                                    info->elements.emplace_back(data.value().at("cause"));
+                                    info->elements.emplace_back(SystemUtils::toFormatTime(data.value().at("subtime"), "None"));
+                                    info->elements.emplace_back(SystemUtils::toFormatTime(data.value().at("time"), "None"));
+
+                                    return info;
+                                });
+                        });
+                });
+
+                form::GUIManager::getInstance().registerRequest("blacklist.online", [](frontend::ArrayRef args, Player&) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("blacklist.online: must take exactly one string parameter");
+
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    values->elements.emplace_back(
+                        ll::service::getLevel()->getPlayer(std::get<std::string>(args->elements[0])) != nullptr
+                    );
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerCallback("blacklist.add", [](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<frontend::ObjectRef>(args->elements[0]))
+                        return ll::makeStringError("blacklist.add: must take exactly one PaginatedFormResult parameter");
+
+                    auto result = std::get<frontend::ObjectRef>(args->elements[0]);
+
+                    Player* target = ll::service::getLevel()->getPlayer(std::get<std::string>(result->fields["selection"]));
+                    if (!target) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                player.sendMessage(tr(language, "blacklist.gui.error"));
+
+                                return {};
+                            });
+                    }
+
+                    return {};
+                });
+
+                form::GUIManager::getInstance().registerCallback("blacklist.submit", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.empty())
+                        return {};
+                    
+                    if (!std::ranges::all_of(args->elements, [](const auto& e) {
+                        return std::holds_alternative<std::string>(e);
+                    }) || args->elements.size() != 3) {
+                        return ll::makeStringError("blacklist.submit: must take exactly three string parameters");
+                    }
+
+                    const std::string& cause = std::get<std::string>(args->elements[1]);
+                    if (cause.empty()) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                player.sendMessage(tr(language, "generic.tips.noinput"));
+
+                                return {};
+                            });
+                    }
+
+                    Player* target = ll::service::getLevel()->getPlayer(std::get<std::string>(args->elements[0]));
+                    if (!target) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                player.sendMessage(tr(language, "blacklist.gui.error"));
+
+                                return {};
+                            });
+                    }
+
+                    return this->addBlacklist(*target, cause, SystemUtils::toInt(std::get<std::string>(args->elements[2]), 0));
+                });
+
+                form::GUIManager::getInstance().registerCallback("blacklist.remove", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<frontend::ObjectRef>(args->elements[0]))
+                        return ll::makeStringError("blacklist.add: must take exactly one PaginatedFormResult parameter");
+
+                    auto result = std::get<frontend::ObjectRef>(args->elements[0]);
+
+                    if (std::get<int>(result->fields["closeReason"]) == static_cast<int>(ll::ui::ScreenSession::Result::value_type::UserBusy))
+                        return {};
+
+                    std::string selection = std::get<std::string>(result->fields["selection"]);
+                    if (selection.empty())
+                        return {};
+
+                    return this->hasBlacklist(selection)
+                        .and_then([ &player](bool exists) -> ll::Expected<void> {
+                            if (!exists) {
+                                return LanguagePlugin::getShared()->getLanguage(player)
+                                    .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                        player.sendMessage(tr(language, "blacklist.gui.error"));
+
+                                        return {};
+                                    });
+                            }
+
+                            return {};
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("blacklist.info.remove", [this](frontend::ArrayRef args, Player&) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("blacklist.info.remove: must take exactly one string parameter");
+
+                    return this->delBlacklist(std::get<std::string>(args->elements[0]))
+                        .or_else([](ll::Error e) -> ll::Expected<void> {
+                            if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(BlacklistPluginErrorCode::NotFound))
+                                return {};
+
+                            return ll::Unexpected(e);
+                        });
+                });
+            });
     }
 
     void BlacklistPlugin::listenEvent() {
@@ -419,6 +595,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db = std::make_shared<SQLiteStorage>((mDataPath / "blacklist.db").string());
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Blacklist;
+        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
 
         return true;
     }
@@ -449,6 +626,8 @@ namespace LOICollection::server::Plugins {
             ctor("data_uuid");
             ctor("data_ip");
             ctor("data_clientid");
+        }).and_then([this]() -> ll::Expected<void> {
+            return this->registeryUI();
         }).transform([this]() -> bool {
             this->registeryCommand();
             this->listenEvent();

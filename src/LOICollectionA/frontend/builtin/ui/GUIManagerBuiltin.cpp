@@ -19,10 +19,32 @@ namespace GUIManagerBuiltin {
         );
     }
 
+    ll::Expected<TypedValue> request(const CallbackTypeValues& args, const CallbackTypePlaces& placeholders) {
+        return GUIManager::getInstance().getRequest(
+            std::get<std::string>(args[0]),
+            std::get<ArrayRef>(args[1]),
+            std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0))
+        );
+    }
+
     ll::Expected<TypedValue> callback(const CallbackTypeValues& args, const CallbackTypePlaces& placeholders) {
         auto result = GUIManager::getInstance().getCallback(
             std::get<std::string>(args[0]),
             std::get<ArrayRef>(args[1]),
+            std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0))
+        );
+
+        if (!result.has_value())
+            return ll::Unexpected(result.error());
+
+        return TypedValue{};
+    }
+
+    ll::Expected<TypedValue> open(const CallbackTypeValues& args, const CallbackTypePlaces& placeholders) {
+        auto result = GUIManager::getInstance().open(
+            std::get<std::string>(args[0]),
+            std::get<std::string>(args[1]),
+            static_cast<GUIManagerType>(std::get<int>(args[2])),
             std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0))
         );
 
@@ -73,7 +95,9 @@ namespace GUIManagerBuiltin {
         FunctionCall& functions = FunctionCall::getInstance();
 
         functions.registerFunction(namespaces, "value", value, { ParamType::STRING });
+        functions.registerFunction(namespaces, "request", request, { ParamType::STRING, ParamType::ARRAY });
         functions.registerFunction(namespaces, "callback", callback, { ParamType::STRING, ParamType::ARRAY });
+        functions.registerFunction(namespaces, "open", open, { ParamType::STRING, ParamType::STRING, ParamType::INT });
         functions.registerFunction(namespaces, "switchTo", switchTo, { ParamType::STRING, ParamType::INT });
     }
 }

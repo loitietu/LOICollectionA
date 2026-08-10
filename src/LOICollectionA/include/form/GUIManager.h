@@ -36,7 +36,8 @@ namespace LOICollection::form {
 
     class GUIManager {
     public:
-        using ValueCallback = std::function<frontend::ArrayRef(Player&)>;
+        using ValueCallback = std::function<ll::Expected<frontend::ArrayRef>(Player&)>;
+        using RequestCallback = std::function<ll::Expected<frontend::ArrayRef>(frontend::ArrayRef, Player&)>;
         using Callback = std::function<ll::Expected<void>(frontend::ArrayRef, Player&)>;
 
     public:
@@ -68,9 +69,11 @@ namespace LOICollection::form {
         LOICOLLECTION_A_NDAPI ll::Expected<std::shared_ptr<PaginatedFormClass::PaginatedFormHandle>> getPaginatedFormUI(const std::string& id, Player& player);
 
         LOICOLLECTION_A_API   void registerValue(const std::string& id, ValueCallback callback);
+        LOICOLLECTION_A_API   void registerRequest(const std::string& id, RequestCallback callback);
         LOICOLLECTION_A_API   void registerCallback(const std::string& id, Callback callback);
 
         LOICOLLECTION_A_NDAPI ll::Expected<frontend::ArrayRef> getValue(const std::string& id, Player& player);
+        LOICOLLECTION_A_NDAPI ll::Expected<frontend::ArrayRef> getRequest(const std::string& id, frontend::ArrayRef args, Player& player);
         LOICOLLECTION_A_NDAPI ll::Expected<void> getCallback(const std::string& id, frontend::ArrayRef args, Player& player);
 
     private:

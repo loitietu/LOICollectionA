@@ -52,6 +52,11 @@ TEST(ParserEvalTest, IfStatement) {
     EXPECT_EQ(eval("if(2>1)['yes':'no']"), "yes");
 }
 
+TEST(ParserEvalTest, IfWithoutElseKeepsStackBalanced) {
+    EXPECT_EQ(eval("if(false)[1]; 42"), "42");
+    EXPECT_EQ(eval("if(true)[1]; 42"), "42");
+}
+
 TEST(ParserEvalTest, IfStatementNested) {
     EXPECT_EQ(eval("if(6<7)[if(true)[1:2]:2]"), "1");
     EXPECT_EQ(eval("if(6<7)[if(false)[1:2]:2]"), "2");

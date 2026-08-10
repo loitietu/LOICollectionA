@@ -34,11 +34,9 @@ namespace LOICollection::frontend {
             return type.optionalInner && typeMatchesParam(*type.optionalInner, param);
 
         if (type.kind == TypeKind::Variant) {
-            for (const auto& option : type.variantOptions) {
-                if (typeMatchesParam(option, param))
-                    return true;
-            }
-            return false;
+            return std::ranges::any_of(type.variantOptions, [param](const TypeInfo& option) -> bool {
+                return typeMatchesParam(option, param);
+            });
         }
 
         TypeInfo expected = typeFromParam(param);
@@ -1780,11 +1778,9 @@ namespace LOICollection::frontend {
             return this->isAssignableTo(*target.optionalInner, from);
 
         if (target.kind == TypeKind::Variant) {
-            for (const auto& option : target.variantOptions) {
-                if (this->isAssignableTo(option, from))
-                    return true;
-            }
-            return false;
+            return std::ranges::any_of(target.variantOptions, [this, from](const TypeInfo& option) -> bool {
+                return this->isAssignableTo(option, from);
+            });
         }
 
         return this->isTypeCompatible(target, from);

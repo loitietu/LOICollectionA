@@ -179,9 +179,9 @@ TEST(MacroCallTest, UnregisterCombinationMacro) {
 TEST(ClassCallTest, NativeCounterRegistered) {
     auto& cc = ClassCall::getInstance();
 
-    EXPECT_TRUE(cc.isRegistered("Counter"));
-    EXPECT_TRUE(cc.hasField("Counter", "count"));
-    EXPECT_FALSE(cc.hasField("Counter", "nope"));
+    EXPECT_TRUE(cc.isRegistered("GlobalValue"));
+    EXPECT_TRUE(cc.hasField("GlobalValue", "value"));
+    EXPECT_FALSE(cc.hasField("GlobalValue", "nope"));
 }
 
 TEST(ClassCallTest, RegisterAndInspect) {

@@ -153,9 +153,7 @@ TEST(ClassTest, DuplicateClass) {
     EXPECT_THROW(eval("class A {} class A {} a = new A()"), std::runtime_error);
 }
 
-TEST(ClassTest, NativeCounter) {
-    EXPECT_EQ(eval("new Counter().count"), "0");
-    EXPECT_EQ(eval("new Counter().increment()"), "1");
-    EXPECT_EQ(eval("new Counter().add(5)"), "5");
-    EXPECT_EQ(eval("c = new Counter(); c.add(3); c.get()"), "3");
+TEST(ClassTest, NativeGlobalValue) {
+    EXPECT_EQ(eval("a = new GlobalValue(); a.value = 1; a.value"), "1");
+    EXPECT_EQ(eval("a = new GlobalValue(); a.value = 'test'; a.value"), "test");
 }

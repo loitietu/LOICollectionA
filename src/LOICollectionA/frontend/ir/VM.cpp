@@ -1138,6 +1138,7 @@ namespace LOICollection::frontend::ir {
                     
                     if (!result.has_value()) {
                         this->diagnostics.addError({ 0, 0, 0 }, result.error().message());
+                        this->push(ValueNode::ValueType{});
                         break;
                     }
 
@@ -1160,6 +1161,7 @@ namespace LOICollection::frontend::ir {
 
                     if (!result.has_value()) {
                         this->diagnostics.addError({ 0, 0, 0 }, result.error().message());
+                        this->push(ValueNode::ValueType{});
                         break;
                     }
 

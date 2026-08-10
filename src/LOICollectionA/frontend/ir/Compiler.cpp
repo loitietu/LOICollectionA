@@ -310,7 +310,12 @@ namespace LOICollection::frontend::ir {
         int falseStart = static_cast<int>(this->current.get().currentIP());
         this->current.get().patchJump(jmpFalseIdx, falseStart - static_cast<int>(jmpFalseIdx) - 1);
 
-        node.falseBranch->accept(*this);
+        if (node.falseBranch) {
+            node.falseBranch->accept(*this);
+        } else {
+            int emptyIdx = this->addConstant(std::string(""));
+            this->current.get().emit(OpCode::PUSH_STR, emptyIdx);
+        }
 
         int endPos = static_cast<int>(this->current.get().currentIP());
         this->current.get().patchJump(jmpEndIdx, endPos - static_cast<int>(jmpEndIdx) - 1);

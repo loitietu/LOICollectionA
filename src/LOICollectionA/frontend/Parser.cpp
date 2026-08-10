@@ -61,6 +61,15 @@ namespace LOICollection::frontend {
         }
         
         auto truePart = parseBlock(TokenType::TOKEN_COLON, true);
+        if (currentToken.type == TokenType::TOKEN_RBRCKET) {
+            if (!eat(TokenType::TOKEN_RBRCKET)) return nullptr;
+            return std::make_unique<IfNode>(
+                std::move(cond),
+                std::move(truePart),
+                nullptr
+            );
+        }
+
         if (!eat(TokenType::TOKEN_COLON)) {
             synchronize({ TokenType::TOKEN_RBRCKET, TokenType::TOKEN_RBRACE });
             return nullptr;
@@ -744,7 +753,9 @@ namespace LOICollection::frontend {
 
             block->addPart(std::move(stmt));
 
-            if (currentToken.type != TokenType::TOKEN_COLON &&
+            if (currentToken.type == TokenType::TOKEN_SEMICOLON) {
+                eat(TokenType::TOKEN_SEMICOLON);
+            } else if (currentToken.type != TokenType::TOKEN_COLON &&
                 currentToken.type != TokenType::TOKEN_RBRCKET &&
                 currentToken.type != TokenType::TOKEN_RBRACE) {
                 if (currentToken.loc.line > stmtStartLine)

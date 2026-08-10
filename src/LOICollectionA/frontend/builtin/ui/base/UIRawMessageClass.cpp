@@ -37,6 +37,9 @@ namespace UIRawMessageClass {
                 using T = std::decay_t<decltype(arg)>;
                 if constexpr (std::is_same_v<T, ArrayRef>) {
                     auto& elements = arg->elements;
+                    if (elements.empty())
+                        return {};
+
                     if (!std::ranges::all_of(elements, [](auto&& e) {
                         return std::holds_alternative<std::string>(e);
                     })) {
@@ -78,6 +81,9 @@ namespace UIRawMessageClass {
         auto handle = std::make_shared<UIRawMessageHandle>();
 
         auto& elements = std::get<ArrayRef>(args[0])->elements;
+        if (elements.empty())
+            return {};
+        
         if (!std::ranges::all_of(elements, [](auto&& e) {
             return std::holds_alternative<std::string>(e) && std::get<ObjectRef>(e)->className == "UIRawMessage";
         })) {

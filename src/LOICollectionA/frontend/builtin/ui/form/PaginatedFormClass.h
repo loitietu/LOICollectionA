@@ -14,7 +14,7 @@ namespace PaginatedFormClass {
         std::string guiId;
         ll::ui::TextValue title;
 
-        std::vector<LOICollection::frontend::ValueNode::ValueType> elements;
+        std::vector<std::string> elements;
 
         int pageSize = 10;
         int page = 1;
@@ -24,6 +24,9 @@ namespace PaginatedFormClass {
         std::vector<std::shared_ptr<ll::ui::ObservableBoolean>> visible;
         std::shared_ptr<ll::ui::ObservableString> pageIndicator;
         std::shared_ptr<ll::ui::ObservableString> input;
+        std::shared_ptr<ll::ui::ObservableBoolean> previousVisible;
+        std::shared_ptr<ll::ui::ObservableBoolean> nextVisible;
+        std::shared_ptr<ll::ui::ObservableBoolean> chooseVisible;
 
         std::optional<ll::ui::TextValue> previousText;
         std::optional<ll::ui::TextValue> nextText;
@@ -35,7 +38,8 @@ namespace PaginatedFormClass {
         bool chooseAdded = false;
         bool closeButtonAdded = false;
 
-        LOICollection::frontend::ValueNode::ValueType selection = std::monostate{};
+        std::string selection;
+        int selectionIndex = 0;
         
         int selectionPage = 0;
 

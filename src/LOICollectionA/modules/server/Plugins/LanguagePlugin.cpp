@@ -109,14 +109,12 @@ namespace LOICollection::server::Plugins {
                 });
 
                 form::GUIManager::getInstance().registerCallback("language.callback", [this, arrPtr](frontend::ArrayRef args, Player& player) mutable -> ll::Expected<void> {
-                    if (args->elements.size() != 1)
-                        return ll::makeStringError("language.callback: must take exactly one parameter");
+                    if (args->elements.size() != 1 || !std::holds_alternative<float>(args->elements[0]))
+                        return ll::makeStringError("language.callback: must take exactly one float parameter");
 
-                    const auto* current = std::get_if<float>(&args->elements[0]);
-                    if (!current)
-                        return ll::makeStringError("language.callback function only needs float parameter");
-
-                    auto& data = std::get<frontend::ObjectRef>(arrPtr->elements.at(static_cast<int>(*current)));
+                    auto& data = std::get<frontend::ObjectRef>(
+                        arrPtr->elements.at(static_cast<int>(std::get<float>(args->elements[0])))
+                    );
 
                     return this->set(player, std::get<std::string>(data->fields.at("label")))
                         .transform([this, &player]() -> void {

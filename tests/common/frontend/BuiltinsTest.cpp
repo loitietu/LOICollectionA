@@ -76,6 +76,17 @@ TEST(BuiltinsTest, WrongArgumentType) {
     EXPECT_THROW(eval("string::length(123)"), std::runtime_error);
 }
 
+TEST(FormatBuiltinTest, NullArrayArgumentErrorsGracefully) {
+    CallbackTypeValues args;
+    args.emplace_back(std::string("{0}"));
+    args.emplace_back(ArrayRef{});
+
+    DiagnosticEngine diagnostics;
+    auto result = FunctionCall::getInstance().callFunction("std", "format", args, {}, diagnostics);
+
+    EXPECT_FALSE(result.has_value());
+}
+
 TEST(MacroTest, CustomMacro) {
     MacroCall::getInstance().registerMacro("test_greet",
         [](const CallbackTypeValues&) -> std::string {

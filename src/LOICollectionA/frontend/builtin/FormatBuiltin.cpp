@@ -12,8 +12,19 @@
 using namespace LOICollection::frontend;
 
 namespace FormatBuiltin {
-    ll::Expected<TypedValue> format(const CallbackTypeValues& args) {
-        auto& elements = std::get<ArrayRef>(args[1])->elements;
+    ll::Expected<std::string> format(const CallbackTypeValues& args) {
+        if (args.size() < 2)
+            return ll::makeStringError("format requires a format string and an array argument");
+
+        auto* formatStr = std::get_if<std::string>(&args[0]);
+        auto* arrayRef  = std::get_if<ArrayRef>(&args[1]);
+        if (!formatStr || !arrayRef || !*arrayRef)
+            return ll::makeStringError("format arguments must be a string and a non-null array");
+
+        auto& elements = (*arrayRef)->elements;
+        if (elements.empty())
+            return {};
+
         if (!std::ranges::all_of(elements, [](const auto& e) {
             return std::holds_alternative<int>(e) || std::holds_alternative<float>(e) ||
                 std::holds_alternative<std::string>(e) || std::holds_alternative<bool>(e);
@@ -33,8 +44,7 @@ namespace FormatBuiltin {
         }
 
         try {
-            auto result = fmt::vformat(std::get<std::string>(args[0]), store);
-            return TypedValue{ std::move(result) };
+            return fmt::vformat(*formatStr, store);
         } catch (const fmt::format_error& e) {
             return ll::makeStringError(std::string("format error: ") + e.what());
         }
