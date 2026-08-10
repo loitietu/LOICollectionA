@@ -129,14 +129,16 @@ namespace LOICollection::form {
             return ll::Unexpected(handle.error());
 
         if (!handle.value()->show) {
-            auto result = handle.value()->base->show();
+            auto result = handle.value()->base->show([this, id, player = std::ref(player)](ll::ui::ScreenSession::Result) mutable -> void {
+                this->unregisterCustomFormUI(id, player.get());
+            });
             if (!result)
                 return ll::Unexpected(result.error());
 
             return {};
         }
 
-        auto result = handle.value()->base->show([handle = handle.value(), player = std::ref(player)](ll::ui::ScreenSession::Result closeResult) -> void {
+        auto result = handle.value()->base->show([this, id, handle = handle.value(), player = std::ref(player)](ll::ui::ScreenSession::Result closeResult) mutable -> void {
             frontend::DiagnosticEngine diagnostics;
             frontend::CallbackTypeValues values;
 
@@ -153,6 +155,8 @@ namespace LOICollection::form {
                 ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA")
                     ->error("CustomForm::show callback: {}", diagnostics.getErrorMessage());
             }
+            
+            this->unregisterCustomFormUI(id, player.get());
         });
 
         if (!result)
@@ -167,14 +171,16 @@ namespace LOICollection::form {
             return ll::Unexpected(handle.error());
 
         if (!handle.value()->show) {
-            auto result = handle.value()->base->show();
+            auto result = handle.value()->base->show([this, id, player = std::ref(player)](ll::ui::MessageBox::Result) mutable -> void{
+                this->unregisterMessageBoxUI(id, player.get());
+            });
             if (!result)
                 return ll::Unexpected(result.error());
 
             return {};
         }
 
-        auto result = handle.value()->base->show([handle = handle.value(), player = std::ref(player)](ll::ui::MessageBox::Result closeResult) {
+        auto result = handle.value()->base->show([this, id, handle = handle.value(), player = std::ref(player)](ll::ui::MessageBox::Result closeResult) mutable -> void {
             frontend::DiagnosticEngine diagnostics;
             frontend::CallbackTypeValues values;
 
@@ -200,6 +206,8 @@ namespace LOICollection::form {
                 ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA")
                     ->error("MessageBox::show callback: {}", diagnostics.getErrorMessage());
             }
+            
+            this->unregisterMessageBoxUI(id, player.get());
         });
 
         if (!result)
@@ -218,26 +226,56 @@ namespace LOICollection::form {
         it->second.insert_or_assign(id, std::move(box));
     }
 
-    ll::Expected<std::shared_ptr<CustomFormClass::CustomFormHandle>> GUIManager::getCustomFormUI(const std::string& id, Player& player) {
-        auto outer = this->mImpl->forms.find(player.getUuid().asString());
-        if (outer != this->mImpl->forms.end()) {
-            auto inner = outer->second.find(id);
-            if (inner != outer->second.end())
-                return inner->second;
+    bool GUIManager::unregisterCustomFormUI(const std::string& id, Player& player) {
+        std::string uuid = player.getUuid().asString();
+
+        if (auto it = this->mImpl->forms.find(uuid); it != this->mImpl->forms.end()) {
+            it->second.erase(id);
+            if (it->second.empty())
+                this->mImpl->forms.erase(it);
+
+            return true;
         }
 
-        return ll::makeStringError("CustomForm not registered: " + id);
+        return false;
+    }
+
+    bool GUIManager::unregisterMessageBoxUI(const std::string& id, Player& player) {
+        std::string uuid = player.getUuid().asString();
+
+        if (auto it = this->mImpl->boxs.find(uuid); it != this->mImpl->boxs.end()) {
+            it->second.erase(id);
+            if (it->second.empty())
+                this->mImpl->boxs.erase(it);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    ll::Expected<std::shared_ptr<CustomFormClass::CustomFormHandle>> GUIManager::getCustomFormUI(const std::string& id, Player& player) {
+        if (auto it = this->mImpl->forms.find(player.getUuid().asString()); it != this->mImpl->forms.end()) {
+            auto& innerMap = it->second;
+            if (auto innerIt = innerMap.find(id); innerIt != innerMap.end())
+                return innerIt->second;
+            
+            return ll::makeStringError("Form not found for player: " + id);
+        }
+
+        return ll::makeStringError("Player has no registered forms");
     }
 
     ll::Expected<std::shared_ptr<MessageBoxClass::MessageBoxHandle>> GUIManager::getMessageBoxUI(const std::string& id, Player& player) {
-        auto outer = this->mImpl->boxs.find(player.getUuid().asString());
-        if (outer != this->mImpl->boxs.end()) {
-            auto inner = outer->second.find(id);
-            if (inner != outer->second.end())
-                return inner->second;
+        if (auto it = this->mImpl->boxs.find(player.getUuid().asString()); it != this->mImpl->boxs.end()) {
+            auto& innerMap = it->second;
+            if (auto innerIt = innerMap.find(id); innerIt != innerMap.end())
+                return innerIt->second;
+            
+            return ll::makeStringError("MessageBox not found for player: " + id);
         }
 
-        return ll::makeStringError("MessageBox not registered: " + id);
+        return ll::makeStringError("Player has no registered messageboxs");
     }
 
     void GUIManager::registerValue(const std::string& id, ValueCallback callback) {

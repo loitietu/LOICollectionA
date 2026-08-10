@@ -52,6 +52,9 @@ namespace LOICollection::form {
         LOICOLLECTION_A_API   void registerCustomFormUI(const std::string& id, std::shared_ptr<CustomFormClass::CustomFormHandle> form, Player& player);
         LOICOLLECTION_A_API   void registerMessageBoxUI(const std::string& id, std::shared_ptr<MessageBoxClass::MessageBoxHandle> box, Player& player);
 
+        LOICOLLECTION_A_API   bool unregisterCustomFormUI(const std::string& id, Player& player);
+        LOICOLLECTION_A_API   bool unregisterMessageBoxUI(const std::string& id, Player& player);
+
         LOICOLLECTION_A_NDAPI ll::Expected<std::shared_ptr<CustomFormClass::CustomFormHandle>> getCustomFormUI(const std::string& id, Player& player);
         LOICOLLECTION_A_NDAPI ll::Expected<std::shared_ptr<MessageBoxClass::MessageBoxHandle>> getMessageBoxUI(const std::string& id, Player& player);
 

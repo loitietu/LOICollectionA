@@ -91,26 +91,24 @@ namespace LOICollection::server::Plugins {
                     | std::views::enumerate
                     | std::views::transform([](auto&& t) {
                         auto [idx, k] = t;
-                        return std::pair<int, const std::string>(idx, k);
-                    })
-                    | std::ranges::to<std::unordered_map<int, std::string>>();
-
-                form::GUIManager::getInstance().registerValue("language.names", [data](Player&) -> frontend::ArrayRef {
-                    auto values = std::make_shared<frontend::ArrayValue>();
-                    for (auto& [index, key] : data) {
+                        
                         auto obj = std::make_shared<frontend::Object>();
                         obj->className = "DropdownItem";
                         obj->classIndex = -1;
-                        obj->fields["label"] = key;
-                        obj->fields["value"] = index;
+                        obj->fields["label"] = k;
+                        obj->fields["value"] = static_cast<int>(idx);
 
-                        values->elements.emplace_back(obj);
-                    }
+                        return obj;
+                    });
 
-                    return values;
+                auto arrPtr = std::make_shared<frontend::ArrayValue>();
+                arrPtr->elements = data | std::ranges::to<std::vector<frontend::TypedValue>>();
+
+                form::GUIManager::getInstance().registerValue("language.names", [arrPtr](Player&) -> frontend::ArrayRef {
+                    return arrPtr;
                 });
 
-                form::GUIManager::getInstance().registerCallback("language.callback", [this, data](frontend::ArrayRef args, Player& player) mutable -> ll::Expected<void> {
+                form::GUIManager::getInstance().registerCallback("language.callback", [this, arrPtr](frontend::ArrayRef args, Player& player) mutable -> ll::Expected<void> {
                     if (args->elements.size() != 1)
                         return ll::makeStringError("language.callback: must take exactly one parameter");
 
@@ -118,7 +116,9 @@ namespace LOICollection::server::Plugins {
                     if (!current)
                         return ll::makeStringError("language.callback function only needs float parameter");
 
-                    return this->set(player, data.at(static_cast<int>(*current)))
+                    auto& data = std::get<frontend::ObjectRef>(arrPtr->elements.at(static_cast<int>(*current)));
+
+                    return this->set(player, std::get<std::string>(data->fields.at("label")))
                         .transform([this, &player]() -> void {
                             this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "language.log"), player));
                         });
