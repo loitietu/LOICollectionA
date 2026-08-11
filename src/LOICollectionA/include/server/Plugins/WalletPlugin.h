@@ -11,8 +11,6 @@
 #include "LOICollectionA/include/ModuleBase.h"
 #include "LOICollectionA/include/ModManager.h"
 
-#include "LOICollectionA/include/server/Plugins/gui/WalletGui.h"
-
 class Player;
 
 namespace ll {
@@ -94,12 +92,10 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_API   ll::Expected<bool> registry() override;
         LOICOLLECTION_A_API   ll::Expected<bool> unregistry() override;
 
-    public:
-        class gui;
-        friend class gui;
-
     private:
         WalletPlugin();
+
+        ll::Expected<void> registeryUI();
 
         void registeryCommand();
         void listenEvent();
@@ -111,6 +107,5 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<WalletGui> mGui;
     };
 }

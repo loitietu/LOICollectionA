@@ -36,6 +36,14 @@ namespace LOICollection::frontend::ir {
         std::unordered_map<std::string, std::vector<int>> classStaticMethodIndices;
         std::unordered_map<std::string, std::vector<int>> functionIndices;
         std::vector<std::reference_wrapper<ASTNode>> bodyOrder;
+
+        struct LoopContext {
+            std::vector<size_t> breakJumps;
+            std::vector<size_t> continueJumps;
+            size_t continueTarget = 0;
+        };
+
+        std::vector<LoopContext> loopStack;
         
         size_t methodCount = 0;
 
@@ -43,6 +51,10 @@ namespace LOICollection::frontend::ir {
         void visit(VariableNode& node) override;
         void visit(AssignmentNode& node) override;
         void visit(IfNode& node) override;
+        void visit(WhileNode& node) override;
+        void visit(ForNode& node) override;
+        void visit(BreakNode& node) override;
+        void visit(ContinueNode& node) override;
         void visit(CompareNode& node) override;
         void visit(LogicalNode& node) override;
         void visit(FunctionNode& node) override;

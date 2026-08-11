@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
@@ -38,8 +38,6 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
 
-#include "LOICollectionA/include/form/PaginatedForm.h"
-
 #include "LOICollectionA/include/server/APIUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 
@@ -50,6 +48,10 @@
 #include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/SQLiteStorage.h"
+
+#include "LOICollectionA/frontend/AST.h"
+
+#include "LOICollectionA/include/form/GUIManager.h"
 
 #include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/Wrapper.h"
@@ -103,6 +105,8 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<SQLiteStorage> db2;
         std::shared_ptr<ll::io::Logger> logger;
+
+        std::filesystem::path mGuiPath;
         
         ll::event::ListenerPtr PlayerJoinEventListener;
 
@@ -110,7 +114,7 @@ namespace LOICollection::server::Plugins {
             BlacklistCache(100, 100), InviteCache(100, 100) {}
     };
 
-    TpaPlugin::TpaPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<TpaGui>(*this)) {};
+    TpaPlugin::TpaPlugin() : mImpl(std::make_unique<Impl>()) {};
     TpaPlugin::~TpaPlugin() = default;
 
     std::shared_ptr<TpaPlugin> TpaPlugin::getShared() {
@@ -185,9 +189,9 @@ namespace LOICollection::server::Plugins {
                 ScoreboardUtils::reduceScore(player, this->mImpl->options.TargetScoreboard, mMoney);
 
                 for (Player*& pl : mResults) {
-                    this->mGui->tpa(player, *pl, param.Type == SelectorType::tpa
+                    this->requestInvite(player, *pl, param.Type == SelectorType::tpa
                         ? TpaType::tpa : TpaType::tphere
-                    ).or_else(modules::defaultErrorHandler<TpaPlugin>);
+                    ).or_else(modules::defaultErrorHandler<TpaPlugin, bool>);
 
                     output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.tpa.success.invite")), pl->getRealName());
                 }
@@ -241,26 +245,413 @@ namespace LOICollection::server::Plugins {
                     })
                     .or_else(modules::defaultErrorHandler<TpaPlugin>);
             });
-        command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player).or_else(modules::defaultErrorHandler<TpaPlugin>);
+            auto ctx = std::make_shared<frontend::ArrayValue>();
+            ctx->elements.emplace_back("");
+            ctx->elements.emplace_back("");
+
+            form::GUIManager::getInstance().open("tpa", "tpa.open", form::GUIManagerType::PaginatedForm, player, ctx)
+                .or_else(modules::defaultErrorHandler<TpaPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
-        command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->setting(player).or_else(modules::defaultErrorHandler<TpaPlugin>);
+            auto ctx = std::make_shared<frontend::ArrayValue>();
+            ctx->elements.emplace_back("");
+            ctx->elements.emplace_back("");
+
+            form::GUIManager::getInstance().open("tpa", "tpa.setting", form::GUIManagerType::CustomForm, player, ctx)
+                .or_else(modules::defaultErrorHandler<TpaPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+    }
+
+    ll::Expected<bool> TpaPlugin::requestInvite(Player& player, Player& target, TpaType type) {
+        if (!this->isValid())
+            return ll::makeErrorCodeError(makeErrorCode(TpaPluginErrorCode::Invalid));
+
+        auto language = LanguagePlugin::getShared()->getLanguage(player);
+        if (!language.has_value())
+            return ll::Unexpected(language.error());
+
+        if (this->getRequestCount(player) >= this->getRequestUpload()) {
+            player.sendMessage(fmt::format(fmt::runtime(tr(language.value(), "tpa.tips5")), this->getRequestUpload()));
+
+            return false;
+        }
+
+        auto forTpa = this->forTpaContent(player);
+        if (!forTpa.has_value())
+            return ll::Unexpected(forTpa.error());
+
+        if (!forTpa.value()) {
+            player.sendMessage(tr(language.value(), "tpa.tips1"));
+
+            return false;
+        }
+
+        std::string id = SystemUtils::getCurrentTimestamp();
+
+        auto result = this->sendRequest(player, target, id, type)
+            .or_else([](ll::Error e) -> ll::Expected<void> {
+                if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(TpaPluginErrorCode::RequestExists))
+                    return {};
+
+                return ll::Unexpected(e);
+            });
+        if (!result.has_value())
+            return ll::Unexpected(result.error());
+
+        auto ctx = std::make_shared<frontend::ArrayValue>();
+        ctx->elements.emplace_back("invite");
+        ctx->elements.emplace_back(id);
+
+        auto open = form::GUIManager::getInstance().open("tpa", "tpa.invite", form::GUIManagerType::MessageBox, target, ctx);
+        if (!open.has_value())
+            return ll::Unexpected(open.error());
+
+        return true;
+    }
+
+    ll::Expected<std::vector<std::pair<std::string, std::string>>> TpaPlugin::getEligiblePlayers(Player& player) {
+        if (!this->isValid())
+            return ll::makeErrorCodeError(makeErrorCode(TpaPluginErrorCode::Invalid));
+
+        std::string uuid = player.getUuid().asString();
+        std::vector<std::pair<std::string, std::string>> result;
+
+        ll::service::getLevel()->forEachPlayer([this, uuid, &result](Player& target) -> bool {
+            auto check = this->getBlacklist(target)
+                .and_then([this](const std::vector<std::string>& ids) -> ll::Expected<std::vector<std::string>> {
+                    return this->getBlacklistFromTarget(ids);
+                })
+                .transform([uuid, &target](const std::vector<std::string>& ids) -> bool {
+                    return !target.isSimulatedPlayer() && std::find(ids.begin(), ids.end(), uuid) == ids.end();
+                })
+                .and_then([this, uuid, &target](bool exists) -> ll::Expected<bool> {
+                    return this->isInvite(target)
+                        .transform([uuid, exists, &target](bool invite) -> bool {
+                            return exists && !invite && target.getUuid().asString() != uuid;
+                        });
+                });
+
+            if (!check.has_value()) {
+                modules::defaultErrorHandler<TpaPlugin>(check.error());
+
+                return true;
+            }
+
+            if (check.value())
+                result.emplace_back(target.getUuid().asString(), target.getRealName());
+
+            return true;
+        });
+
+        return result;
+    }
+
+    std::vector<std::pair<std::string, std::string>> TpaPlugin::getAddablePlayers(Player& player) {
+        std::string uuid = player.getUuid().asString();
+        std::vector<std::pair<std::string, std::string>> result;
+
+        ll::service::getLevel()->forEachPlayer([uuid, &result](Player& target) -> bool {
+            if (!target.isSimulatedPlayer() && target.getUuid().asString() != uuid)
+                result.emplace_back(target.getUuid().asString(), target.getRealName());
+
+            return true;
+        });
+
+        return result;
+    }
+
+    ll::Expected<void> TpaPlugin::registeryUI() {
+        return form::GUIManager::getInstance().load("tpa", (this->mImpl->mGuiPath / "tpa.lcui").string())
+            .transform([this]() -> void {
+                form::GUIManager::getInstance().registerValue("tpa.players", [this](Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    return this->getEligiblePlayers(player)
+                        .transform([](const std::vector<std::pair<std::string, std::string>>& players) -> frontend::ArrayRef {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+
+                            for (const auto& [uuid, name] : players)
+                                values->elements.emplace_back(name);
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerValue("tpa.players.add", [this](Player& player) -> frontend::ArrayRef {
+                    auto values = std::make_shared<frontend::ArrayValue>();
+
+                    for (const auto& [uuid, name] : this->getAddablePlayers(player))
+                        values->elements.emplace_back(name);
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerValue("tpa.blacklists", [this](Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    return this->getBlacklist(player)
+                        .transform([](const std::vector<std::string>& ids) -> frontend::ArrayRef {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+
+                            for (const std::string& id : ids)
+                                values->elements.emplace_back(id);
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerValue("tpa.invite", [this](Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    return this->isInvite(player)
+                        .transform([](bool value) -> frontend::ArrayRef {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+                            values->elements.emplace_back(value);
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerValue("tpa.types", [](Player&) -> frontend::ArrayRef {
+                    auto values = std::make_shared<frontend::ArrayValue>();
+
+                    auto makeItem = [&values](const std::string& label, int value) -> void {
+                        auto obj = std::make_shared<frontend::Object>();
+                        obj->className = "DropdownItem";
+                        obj->classIndex = -1;
+                        obj->fields["label"] = label;
+                        obj->fields["value"] = value;
+                        obj->fields["description"] = std::monostate{};
+
+                        values->elements.emplace_back(obj);
+                    };
+
+                    makeItem("tpa", 0);
+                    makeItem("tphere", 1);
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("tpa.player.info", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<int>(args->elements[0]))
+                        return ll::makeStringError("tpa.player.info: must take exactly one int parameter");
+
+                    int index = std::get<int>(args->elements[0]);
+                    auto players = this->getEligiblePlayers(player);
+                    if (!players.has_value())
+                        return ll::Unexpected(players.error());
+
+                    if (index < 0 || index >= static_cast<int>(players.value().size()))
+                        return ll::makeStringError("tpa.player.info: index out of range");
+
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    values->elements.emplace_back(players.value().at(static_cast<size_t>(index)).first);
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("tpa.blacklist.check", [this](frontend::ArrayRef, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    auto ids = this->getBlacklist(player);
+                    if (!ids.has_value())
+                        return ll::Unexpected(ids.error());
+
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    if (static_cast<int>(ids.value().size()) >= this->getBlacklistUpload()) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([this, &player, values](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                                player.sendMessage(fmt::format(fmt::runtime(tr(language, "tpa.tips2")), this->getBlacklistUpload()));
+
+                                values->elements.emplace_back(false);
+                                return values;
+                            });
+                    }
+
+                    values->elements.emplace_back(true);
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("tpa.blacklist.add.submit", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<int>(args->elements[0]))
+                        return ll::makeStringError("tpa.blacklist.add.submit: must take exactly one int parameter");
+
+                    int index = std::get<int>(args->elements[0]);
+                    auto players = this->getAddablePlayers(player);
+                    auto values = std::make_shared<frontend::ArrayValue>();
+
+                    if (index < 0 || index >= static_cast<int>(players.size())) {
+                        values->elements.emplace_back(false);
+                        return values;
+                    }
+
+                    Player* target = ll::service::getLevel()->getPlayer(mce::UUID::fromString(players.at(static_cast<size_t>(index)).first));
+                    if (!target) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player, values](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                                player.sendMessage(tr(language, "tpa.gui.error"));
+
+                                values->elements.emplace_back(false);
+                                return values;
+                            });
+                    }
+
+                    auto result = this->addBlacklist(player, *target);
+                    if (!result.has_value()) {
+                        modules::defaultErrorHandler<TpaPlugin>(result.error());
+
+                        values->elements.emplace_back(false);
+                        return values;
+                    }
+
+                    values->elements.emplace_back(true);
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("tpa.blacklist.info", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("tpa.blacklist.info: must take exactly one string parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .and_then([this, id](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                            auto data = this->getBlacklistData(id);
+                            if (!data.has_value())
+                                return ll::Unexpected(data.error());
+
+                            auto values = std::make_shared<frontend::ArrayValue>();
+                            values->elements.emplace_back(fmt::format(
+                                fmt::runtime(tr(language, "tpa.gui.setting.blacklist.set.label")),
+                                data.value().at("target"),
+                                data.value().at("name"),
+                                SystemUtils::toFormatTime(data.value().at("time"), "None")
+                            ));
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("tpa.blacklist.remove", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("tpa.blacklist.remove: must take exactly one string parameter");
+
+                    return this->delBlacklist(player, std::get<std::string>(args->elements[0]))
+                        .or_else([](ll::Error e) -> ll::Expected<void> {
+                            if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(TpaPluginErrorCode::BlacklistNotFound))
+                                return {};
+
+                            return ll::Unexpected(e);
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("tpa.invite.save", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<bool>(args->elements[0]))
+                        return ll::makeStringError("tpa.invite.save: must take exactly one bool parameter");
+
+                    return this->setInvite(player, std::get<bool>(args->elements[0]));
+                });
+
+                form::GUIManager::getInstance().registerRequest("tpa.content.submit", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 2 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<float>(args->elements[1]))
+                        return ll::makeStringError("tpa.content.submit: must take a string and a float parameter");
+
+                    Player* target = ll::service::getLevel()->getPlayer(mce::UUID::fromString(std::get<std::string>(args->elements[0])));
+                    auto values = std::make_shared<frontend::ArrayValue>();
+
+                    if (!target) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player, values](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                                player.sendMessage(tr(language, "tpa.gui.error"));
+
+                                values->elements.emplace_back(false);
+                                return values;
+                            });
+                    }
+
+                    TpaType type = static_cast<int>(std::get<float>(args->elements[1])) == 0 ? TpaType::tpa : TpaType::tphere;
+                    auto result = this->requestInvite(player, *target, type);
+                    if (!result.has_value()) {
+                        modules::defaultErrorHandler<TpaPlugin>(result.error());
+
+                        values->elements.emplace_back(false);
+                        return values;
+                    }
+
+                    values->elements.emplace_back(result.value());
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("tpa.invite.info", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("tpa.invite.info: must take exactly one string parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+                    auto it = this->mImpl->mRequests.find(id);
+                    if (it == this->mImpl->mRequests.end())
+                        return ll::makeStringError("tpa.invite.info: request not found");
+
+                    TpaType type = it->second.type;
+                    Player* origin = ll::service::getLevel()->getPlayer(mce::UUID::fromString(it->second.source));
+                    if (!origin)
+                        return ll::makeStringError("tpa.invite.info: request source is offline");
+
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .and_then([type, origin](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+                            values->elements.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(
+                                tr(language, type == TpaType::tpa ? "tpa.there" : "tpa.here"),
+                                *origin
+                            ));
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("tpa.invite.response", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 2 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<int>(args->elements[1]))
+                        return ll::makeStringError("tpa.invite.response: must take a string and an int parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+                    if (std::get<int>(args->elements[1]) == 0) {
+                        return this->acceptRequest(player, id)
+                            .or_else([](ll::Error e) -> ll::Expected<bool> {
+                                if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(TpaPluginErrorCode::RequestNotFound))
+                                    return false;
+
+                                return ll::Unexpected(e);
+                            })
+                            .transform([&player](bool exists) -> void {
+                                if (exists)
+                                    return;
+
+                                auto language = LanguagePlugin::getShared()->getLanguage(player);
+                                if (language.has_value())
+                                    player.sendMessage(tr(language.value(), "tpa.gui.error"));
+                            });
+                    }
+
+                    return this->rejectRequest(player, id)
+                        .or_else([](ll::Error e) -> ll::Expected<bool> {
+                            if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(TpaPluginErrorCode::RequestNotFound))
+                                return {};
+
+                            return ll::Unexpected(e);
+                        })
+                        .transform([](bool) -> void {});
+                });
+            });
     }
 
     void TpaPlugin::listenEvent() {
@@ -674,6 +1065,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Tpa;
+        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
 
         return true;
     }
@@ -707,6 +1099,8 @@ namespace LOICollection::server::Plugins {
                 ctor("author");
                 ctor("time");
             });
+        }).and_then([this]() -> ll::Expected<void> {
+            return this->registeryUI();
         }).transform([this]() -> bool {
             this->registeryCommand();
             this->listenEvent();

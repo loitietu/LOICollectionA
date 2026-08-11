@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <filesystem>
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 
 #include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
@@ -33,8 +33,6 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
 
-#include "LOICollectionA/include/form/PaginatedForm.h"
-
 #include "LOICollectionA/include/server/APIUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 #include "LOICollectionA/include/server/Plugins/MutePlugin.h"
@@ -43,6 +41,10 @@
 #include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/SQLiteStorage.h"
+
+#include "LOICollectionA/frontend/AST.h"
+
+#include "LOICollectionA/include/form/GUIManager.h"
 
 #include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/Wrapper.h"
@@ -72,13 +74,15 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<SQLiteStorage> db2;
         std::shared_ptr<ll::io::Logger> logger;
 
+        std::filesystem::path mGuiPath;
+
         ll::event::ListenerPtr PlayerChatEventListener;
         ll::event::ListenerPtr PlayerJoinEventListener;
 
         Impl() : BlacklistCache(100, 100) {}
     };
 
-    ChatPlugin::ChatPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<ChatGui>(*this)) {};
+    ChatPlugin::ChatPlugin() : mImpl(std::make_unique<Impl>()) {};
     ChatPlugin::~ChatPlugin() = default;
 
     std::shared_ptr<ChatPlugin> ChatPlugin::getShared() {
@@ -174,7 +178,7 @@ namespace LOICollection::server::Plugins {
                         .or_else(modules::defaultErrorHandler<ChatPlugin>);
                 }
             });
-        command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
 
@@ -183,20 +187,308 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player).or_else(modules::defaultErrorHandler<ChatPlugin>);
+            form::GUIManager::getInstance().open("chat", "chat.manage", form::GUIManagerType::CustomForm, player)
+                .or_else(modules::defaultErrorHandler<ChatPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
-        command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isRemotePlayer())
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
             
-            this->mGui->setting(player).or_else(modules::defaultErrorHandler<ChatPlugin>);
+            form::GUIManager::getInstance().open("chat", "chat.setting", form::GUIManagerType::CustomForm, player)
+                .or_else(modules::defaultErrorHandler<ChatPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+    }
+
+    ll::Expected<void> ChatPlugin::registeryUI() {
+        return form::GUIManager::getInstance().load("chat", (this->mImpl->mGuiPath / "chat.lcui").string())
+            .transform([this]() -> void {
+                form::GUIManager::getInstance().registerValue("chat.players", [](Player&) -> frontend::ArrayRef {
+                    auto values = std::make_shared<frontend::ArrayValue>();
+
+                    ll::service::getLevel()->forEachPlayer([&values](Player& target) -> bool {
+                        if (!target.isSimulatedPlayer())
+                            values->elements.emplace_back(target.getRealName());
+
+                        return true;
+                    });
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerValue("chat.players.add", [](Player& player) -> frontend::ArrayRef {
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    std::string uuid = player.getUuid().asString();
+
+                    ll::service::getLevel()->forEachPlayer([uuid, &values](Player& target) -> bool {
+                        if (!target.isSimulatedPlayer() && target.getUuid().asString() != uuid)
+                            values->elements.emplace_back(target.getRealName());
+
+                        return true;
+                    });
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerValue("chat.titles.self", [this](Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    return this->getTitles(player)
+                        .transform([](const std::vector<std::string>& titles) -> frontend::ArrayRef {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+
+                            for (const std::string& title : titles)
+                                values->elements.emplace_back(title);
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerValue("chat.blacklists", [this](Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    return this->getBlacklist(player)
+                        .transform([](const std::vector<std::string>& ids) -> frontend::ArrayRef {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+
+                            for (const std::string& id : ids)
+                                values->elements.emplace_back(id);
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerRequest("chat.player.info", [](frontend::ArrayRef args, Player&) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<int>(args->elements[0]))
+                        return ll::makeStringError("chat.player.info: must take exactly one int parameter");
+
+                    int index = std::get<int>(args->elements[0]);
+                    std::vector<std::string> uuids;
+
+                    ll::service::getLevel()->forEachPlayer([&uuids](Player& target) -> bool {
+                        if (!target.isSimulatedPlayer())
+                            uuids.push_back(target.getUuid().asString());
+
+                        return true;
+                    });
+
+                    if (index < 0 || index >= static_cast<int>(uuids.size()))
+                        return ll::makeStringError("chat.player.info: index out of range");
+
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    values->elements.emplace_back(uuids.at(static_cast<size_t>(index)));
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("chat.title.add", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 3 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<std::string>(args->elements[1]) ||
+                        !std::holds_alternative<std::string>(args->elements[2]))
+                        return ll::makeStringError("chat.title.add: must take three string parameters");
+
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    Player* target = ll::service::getLevel()->getPlayer(mce::UUID::fromString(std::get<std::string>(args->elements[0])));
+                    if (!target) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player, values](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                                player.sendMessage(tr(language, "chat.gui.error"));
+
+                                values->elements.emplace_back(false);
+                                return values;
+                            });
+                    }
+
+                    auto title = std::get<std::string>(args->elements[1]);
+                    if (title.empty()) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player, values](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                                player.sendMessage(tr(language, "generic.tips.noinput"));
+
+                                values->elements.emplace_back(false);
+                                return values;
+                            });
+                    }
+
+                    auto result = this->addTitle(*target, title, SystemUtils::toInt(std::get<std::string>(args->elements[2]), 0));
+                    if (!result.has_value()) {
+                        modules::defaultErrorHandler<ChatPlugin>(result.error());
+
+                        values->elements.emplace_back(false);
+                        return values;
+                    }
+
+                    values->elements.emplace_back(true);
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("chat.titles", [this](frontend::ArrayRef args, Player&) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("chat.titles: must take exactly one string parameter");
+
+                    Player* target = ll::service::getLevel()->getPlayer(mce::UUID::fromString(std::get<std::string>(args->elements[0])));
+                    if (!target)
+                        return ll::makeStringError("chat.titles: target is offline");
+
+                    return this->getTitles(*target)
+                        .transform([](const std::vector<std::string>& titles) -> frontend::ArrayRef {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+
+                            for (const std::string& title : titles)
+                                values->elements.emplace_back(title);
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerRequest("chat.title.info", [](frontend::ArrayRef, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .and_then([&player](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+                            values->elements.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(tr(language, "chat.gui.setTitle.label"), player));
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerRequest("chat.blacklist.check", [this](frontend::ArrayRef, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    auto ids = this->getBlacklist(player);
+                    if (!ids.has_value())
+                        return ll::Unexpected(ids.error());
+
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    if (static_cast<int>(ids.value().size()) >= this->getBlacklistUpload()) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([this, &player, values](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                                player.sendMessage(fmt::format(fmt::runtime(tr(language, "chat.gui.setBlacklist.tips1")), this->getBlacklistUpload()));
+
+                                values->elements.emplace_back(false);
+                                return values;
+                            });
+                    }
+
+                    values->elements.emplace_back(true);
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("chat.blacklist.add.submit", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<int>(args->elements[0]))
+                        return ll::makeStringError("chat.blacklist.add.submit: must take exactly one int parameter");
+
+                    int index = std::get<int>(args->elements[0]);
+                    std::vector<std::pair<std::string, std::string>> players;
+                    std::string uuid = player.getUuid().asString();
+
+                    ll::service::getLevel()->forEachPlayer([uuid, &players](Player& target) -> bool {
+                        if (!target.isSimulatedPlayer() && target.getUuid().asString() != uuid)
+                            players.emplace_back(target.getUuid().asString(), target.getRealName());
+
+                        return true;
+                    });
+
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    if (index < 0 || index >= static_cast<int>(players.size())) {
+                        values->elements.emplace_back(false);
+                        return values;
+                    }
+
+                    Player* target = ll::service::getLevel()->getPlayer(mce::UUID::fromString(players.at(static_cast<size_t>(index)).first));
+                    if (!target) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player, values](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                                player.sendMessage(tr(language, "chat.gui.error"));
+
+                                values->elements.emplace_back(false);
+                                return values;
+                            });
+                    }
+
+                    auto result = this->addBlacklist(player, *target);
+                    if (!result.has_value()) {
+                        modules::defaultErrorHandler<ChatPlugin>(result.error());
+
+                        values->elements.emplace_back(false);
+                        return values;
+                    }
+
+                    values->elements.emplace_back(true);
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("chat.blacklist.info", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("chat.blacklist.info: must take exactly one string parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .and_then([this, id](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                            auto data = this->getBlacklistData(id);
+                            if (!data.has_value())
+                                return ll::Unexpected(data.error());
+
+                            auto values = std::make_shared<frontend::ArrayValue>();
+                            values->elements.emplace_back(fmt::format(
+                                fmt::runtime(tr(language, "chat.gui.setBlacklist.set.label")),
+                                data.value().at("target"),
+                                data.value().at("name"),
+                                SystemUtils::toFormatTime(data.value().at("time"), "None")
+                            ));
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("chat.title.remove", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 2 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<std::string>(args->elements[1]))
+                        return ll::makeStringError("chat.title.remove: must take two string parameters");
+
+                    Player* target = ll::service::getLevel()->getPlayer(mce::UUID::fromString(std::get<std::string>(args->elements[0])));
+                    if (!target) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                player.sendMessage(tr(language, "chat.gui.error"));
+
+                                return {};
+                            });
+                    }
+
+                    return this->delTitle(*target, std::get<std::string>(args->elements[1]))
+                        .or_else([](ll::Error e) -> ll::Expected<void> {
+                            if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(ChatPluginErrorCode::TitleNotFound))
+                                return {};
+
+                            return ll::Unexpected(e);
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("chat.title.set", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("chat.title.set: must take exactly one string parameter");
+
+                    return this->setTitle(player, std::get<std::string>(args->elements[0]))
+                        .transform([this, &player]() -> void {
+                            this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log1"), player));
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("chat.blacklist.remove", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("chat.blacklist.remove: must take exactly one string parameter");
+
+                    return this->delBlacklist(player, std::get<std::string>(args->elements[0]))
+                        .or_else([](ll::Error e) -> ll::Expected<void> {
+                            if (e.isA<ll::ErrorCodeError>() && e.as<ll::ErrorCodeError>().ec == makeErrorCode(ChatPluginErrorCode::BlacklistNotFound))
+                                return {};
+
+                            return ll::Unexpected(e);
+                        });
+                });
+            });
     }
 
     void ChatPlugin::listenEvent() {
@@ -525,6 +817,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Chat;
+        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
 
         return true;
     }
@@ -564,6 +857,8 @@ namespace LOICollection::server::Plugins {
                 ctor("author");
                 ctor("time");
             });
+        }).and_then([this]() -> ll::Expected<void> {
+            return this->registeryUI();
         }).transform([this]() -> bool {
             this->registeryCommand();
             this->listenEvent();

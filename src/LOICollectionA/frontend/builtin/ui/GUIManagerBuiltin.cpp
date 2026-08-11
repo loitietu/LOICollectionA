@@ -45,7 +45,8 @@ namespace GUIManagerBuiltin {
             std::get<std::string>(args[0]),
             std::get<std::string>(args[1]),
             static_cast<GUIManagerType>(std::get<int>(args[2])),
-            std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0))
+            std::any_cast<std::reference_wrapper<Player>>(placeholders.at(0)),
+            args.size() >= 4 ? std::get<ArrayRef>(args[3]) : ArrayRef{}
         );
 
         if (!result.has_value())
@@ -98,6 +99,7 @@ namespace GUIManagerBuiltin {
         functions.registerFunction(namespaces, "request", request, { ParamType::STRING, ParamType::ARRAY });
         functions.registerFunction(namespaces, "callback", callback, { ParamType::STRING, ParamType::ARRAY });
         functions.registerFunction(namespaces, "open", open, { ParamType::STRING, ParamType::STRING, ParamType::INT });
+        functions.registerFunction(namespaces, "open", open, { ParamType::STRING, ParamType::STRING, ParamType::INT, ParamType::ARRAY });
         functions.registerFunction(namespaces, "switchTo", switchTo, { ParamType::STRING, ParamType::INT });
     }
 }

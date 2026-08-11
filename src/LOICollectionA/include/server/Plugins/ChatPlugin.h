@@ -12,8 +12,6 @@
 #include "LOICollectionA/include/ModuleBase.h"
 #include "LOICollectionA/include/ModManager.h"
 
-#include "LOICollectionA/include/server/Plugins/gui/ChatGui.h"
-
 class Player;
 class SQLiteStorage;
 
@@ -99,6 +97,8 @@ namespace LOICollection::server::Plugins {
     private:
         ChatPlugin();
 
+        ll::Expected<void> registeryUI();
+
         void registeryCommand();
         void listenEvent();
         void unlistenEvent();
@@ -107,6 +107,5 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<ChatGui> mGui;
     };
 }

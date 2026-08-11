@@ -505,6 +505,29 @@ namespace LOICollection::frontend {
             case ASTNode::Type::Return:
                 checkReturn(static_cast<ReturnNode&>(node), scope);
                 return;
+            case ASTNode::Type::While: {
+                auto& whileNode = static_cast<WhileNode&>(node);
+                if (whileNode.condition)
+                    checkExpr(*whileNode.condition, scope);
+                if (whileNode.body)
+                    checkStatement(*whileNode.body, scope);
+                return;
+            }
+            case ASTNode::Type::For: {
+                auto& forNode = static_cast<ForNode&>(node);
+                if (forNode.init)
+                    checkExpr(*forNode.init, scope);
+                if (forNode.condition)
+                    checkExpr(*forNode.condition, scope);
+                if (forNode.step)
+                    checkExpr(*forNode.step, scope);
+                if (forNode.body)
+                    checkStatement(*forNode.body, scope);
+                return;
+            }
+            case ASTNode::Type::Break:
+            case ASTNode::Type::Continue:
+                return;
             case ASTNode::Type::Block:
                 for (auto& part : static_cast<BlockNode&>(node).parts)
                     checkStatement(*part, scope);

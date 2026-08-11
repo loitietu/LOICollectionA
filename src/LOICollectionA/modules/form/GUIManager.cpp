@@ -105,7 +105,10 @@ namespace LOICollection::form {
         return {};
     }
 
-    ll::Expected<void> GUIManager::open(const std::string& id, const std::string& formId, GUIManagerType type, Player& player) {
+    ll::Expected<void> GUIManager::open(
+        const std::string& id, const std::string& formId, GUIManagerType type, Player& player,
+        const frontend::ArrayRef& ctx
+    ) {
         frontend::DiagnosticEngine diagnostics;
 
         frontend::ir::VM mVM(diagnostics);
@@ -113,7 +116,8 @@ namespace LOICollection::form {
         if (this->mImpl->cache.contains(id)) {
             auto cached = this->mImpl->cache.at(id);
 
-            auto result = mVM.run(cached, { std::ref(player) });
+            auto mCtx = ctx ? ctx : std::make_shared<frontend::ArrayValue>();
+            auto result = mVM.run(cached, { std::ref(player), mCtx });
             if (diagnostics.hasErrors())
                 return ll::makeStringError(diagnostics.getErrorMessage());
 

@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include <fmt/format.h>
+#include <magic_enum/magic_enum.hpp>
 
 #include <ll/api/io/Logger.h>
 #include <ll/api/io/LoggerRegistry.h>
@@ -35,8 +36,6 @@
 #include <mc/world/level/Level.h>
 #include <mc/world/actor/player/Player.h>
 
-#include "LOICollectionA/include/form/PaginatedForm.h"
-
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 
 #include "LOICollectionA/coro/TimerManager.h"
@@ -45,6 +44,10 @@
 #include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/SQLiteStorage.h"
+
+#include "LOICollectionA/frontend/AST.h"
+
+#include "LOICollectionA/include/form/GUIManager.h"
 
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"
@@ -73,6 +76,8 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<SQLiteStorage> db2;
         std::shared_ptr<ll::io::Logger> logger;
 
+        std::filesystem::path mGuiPath;
+
         std::unordered_map<std::string, ll::event::ListenerPtr> mListeners;
 
         ll::thread::ThreadPoolExecutor mExecutor{ "StatisticsPlugin", std::max(static_cast<size_t>(std::thread::hardware_concurrency()) - 2, static_cast<size_t>(2)) };
@@ -84,7 +89,7 @@ namespace LOICollection::server::Plugins {
         Impl() : mTimerManager(std::make_shared<TimerManager>(this->mExecutor)) {}
     };
 
-    StatisticsPlugin::StatisticsPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<StatisticsGui>(*this)) {}
+    StatisticsPlugin::StatisticsPlugin() : mImpl(std::make_unique<Impl>()) {}
     StatisticsPlugin::~StatisticsPlugin() = default;
 
     std::shared_ptr<StatisticsPlugin> StatisticsPlugin::getShared() {
@@ -135,13 +140,17 @@ namespace LOICollection::server::Plugins {
     void StatisticsPlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("statistics", tr({}, "commands.statistics.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
-        command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player).or_else(modules::defaultErrorHandler<StatisticsPlugin>);
+            auto ctx = std::make_shared<frontend::ArrayValue>();
+            ctx->elements.emplace_back("");
+
+            form::GUIManager::getInstance().open("statistics", "statistics.open", form::GUIManagerType::PaginatedForm, player, ctx)
+                .or_else(modules::defaultErrorHandler<StatisticsPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -152,9 +161,85 @@ namespace LOICollection::server::Plugins {
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
-                this->mGui->open(player, param.Type).or_else(modules::defaultErrorHandler<StatisticsPlugin>);
+                this->getStatisticName(param.Type)
+                    .and_then([&player, &output, &origin](const std::string& name) -> ll::Expected<void> {
+                        auto ctx = std::make_shared<frontend::ArrayValue>();
+                        ctx->elements.emplace_back(name);
 
-                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
+                        return form::GUIManager::getInstance().open("statistics", "statistics.specific", form::GUIManagerType::CustomForm, player, ctx)
+                            .transform([&output, &origin, &player]() -> void {
+                                output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
+                            });
+                    })
+                    .or_else(modules::defaultErrorHandler<StatisticsPlugin>);
+            });
+    }
+
+    ll::Expected<void> StatisticsPlugin::registeryUI() {
+        return form::GUIManager::getInstance().load("statistics", (this->mImpl->mGuiPath / "statistics.lcui").string())
+            .transform([this]() -> void {
+                form::GUIManager::getInstance().registerValue("statistics.names", [this](Player&) -> ll::Expected<frontend::ArrayRef> {
+                    auto values = std::make_shared<frontend::ArrayValue>();
+
+                    for (auto type : magic_enum::enum_entries<StatisticType>()) {
+                        auto name = this->getStatisticName(type.first);
+                        if (!name.has_value())
+                            return ll::Unexpected(name.error());
+
+                        values->elements.emplace_back(name.value());
+                    }
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("statistics.ranking", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("statistics.ranking: must take exactly one string parameter");
+
+                    auto name = std::get<std::string>(args->elements[0]);
+
+                    const auto entries = magic_enum::enum_entries<StatisticType>();
+                    auto it = std::ranges::find_if(entries, [this, &name](const auto& entry) -> bool {
+                        auto result = this->getStatisticName(entry.first);
+                        return result.has_value() && result.value() == name;
+                    });
+
+                    if (it == entries.end())
+                        return ll::makeStringError("statistics.ranking: unknown statistic type");
+
+                    StatisticType type = it->first;
+
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .and_then([this, type, name](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                            auto lists = this->getRankingList(type, this->getRankingPlayerCount());
+                            if (!lists.has_value())
+                                return ll::Unexpected(lists.error());
+
+                            std::string lines;
+                            for (const auto& [index, pair] : std::views::enumerate(lists.value())) {
+                                auto pname = this->getPlayerInfo(pair.first);
+                                if (!pname.has_value())
+                                    return ll::Unexpected(pname.error());
+
+                                if (!lines.empty())
+                                    lines += "\n";
+
+                                lines += fmt::format(
+                                    fmt::runtime(tr(language, "statistics.gui.specific.line")),
+                                    index + 1,
+                                    pname.value(),
+                                    pair.second
+                                );
+                            }
+
+                            auto values = std::make_shared<frontend::ArrayValue>();
+                            values->elements.emplace_back(name);
+                            values->elements.emplace_back(this->getRankingPlayerCount());
+                            values->elements.emplace_back(lines);
+
+                            return values;
+                        });
+                });
             });
     }
 
@@ -385,6 +470,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Statistics;
+        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
 
         return true;
     }
@@ -415,6 +501,8 @@ namespace LOICollection::server::Plugins {
             ctor("destroy");
             ctor("respawn");
             ctor("joins");
+        }).and_then([this]() -> ll::Expected<void> {
+            return this->registeryUI();
         }).transform([this]() -> bool {
             this->registeryCommand();
             this->listenEvent();

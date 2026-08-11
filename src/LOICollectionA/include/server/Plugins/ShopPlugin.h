@@ -87,6 +87,8 @@ namespace LOICollection::server::Plugins {
     private:
         ShopPlugin();
 
+        ll::Expected<void> registeryUI();
+
         void registeryCommand();
         void listenEvent();
         void unlistenEvent();

@@ -88,6 +88,8 @@ namespace LOICollection::server::Plugins {
     private:
         MenuPlugin();
 
+        ll::Expected<void> registeryUI();
+
         void registeryCommand();
         void listenEvent();
         void unlistenEvent();

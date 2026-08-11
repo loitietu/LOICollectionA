@@ -1,10 +1,12 @@
 #include <atomic>
 #include <memory>
+#include <ranges>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <filesystem>
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 #include <nlohmann/json.hpp>
 
 #include <ll/api/io/Logger.h>
@@ -23,15 +25,19 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "LOICollectionA/include/form/PaginatedForm.h"
-
+#include "LOICollectionA/include/server/APIUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 #include "LOICollectionA/include/server/Events/modules/NoticeEvent.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
+#include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/JsonStorage.h"
 #include "LOICollectionA/data/SQLiteStorage.h"
+
+#include "LOICollectionA/frontend/AST.h"
+
+#include "LOICollectionA/include/form/GUIManager.h"
 
 #include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/Wrapper.h"
@@ -42,6 +48,28 @@
 #include "LOICollectionA/include/server/Plugins/NoticePlugin.h"
 
 using I18nUtilsTools::tr;
+
+namespace {
+    std::vector<std::string> getSortedNoticeIds(JsonStorage& db) {
+        nlohmann::ordered_json data = db.get();
+
+        std::vector<std::pair<std::string, int>> entries;
+        entries.reserve(data.size());
+        for (auto it = data.begin(); it != data.end(); ++it)
+            entries.emplace_back(it.key(), it.value().value("priority", 0));
+
+        std::sort(entries.begin(), entries.end(), [](const auto& a, const auto& b) {
+            return a.second < b.second;
+        });
+
+        std::vector<std::string> ids;
+        ids.reserve(entries.size());
+        for (const auto& [id, priority] : entries)
+            ids.push_back(id);
+
+        return ids;
+    }
+}
 
 namespace LOICollection::server::Plugins {
     enum class NoticeObject;
@@ -62,6 +90,8 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<JsonStorage> db;
         std::shared_ptr<SQLiteStorage> db2;
         std::shared_ptr<ll::io::Logger> logger;
+
+        std::filesystem::path mGuiPath;
         
         ll::event::ListenerPtr PlayerJoinEventListener;
         ll::event::ListenerPtr NoticeCreateEventListener;
@@ -70,7 +100,7 @@ namespace LOICollection::server::Plugins {
         Impl() : CloseCache(100, 100) {}
     };
 
-    NoticePlugin::NoticePlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<NoticeGui>(*this)) {};
+    NoticePlugin::NoticePlugin() : mImpl(std::make_unique<Impl>()) {};
     NoticePlugin::~NoticePlugin() = default;
 
     std::shared_ptr<NoticePlugin> NoticePlugin::getShared() {
@@ -97,18 +127,30 @@ namespace LOICollection::server::Plugins {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("notice", tr({}, "commands.notice.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
         command.overload<operation>().text("gui").optional("Object").execute(
-            [this](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
+            [](CommandOrigin const& origin, CommandOutput& output, operation const& param) -> void {
                 Actor* entity = origin.getEntity();
                 if (entity == nullptr || !entity->isType(ActorType::Player))
                     return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
                 Player& player = *static_cast<Player*>(entity);
 
-                (param.Object.empty() ? this->mGui->open(player) : this->mGui->notice(player, param.Object))
-                    .or_else(modules::defaultErrorHandler<NoticePlugin>);
+                auto ctx = std::make_shared<frontend::ArrayValue>();
+                if (param.Object.empty()) {
+                    ctx->elements.emplace_back("");
+                    ctx->elements.emplace_back("");
+
+                    form::GUIManager::getInstance().open("notice", "notice.open", form::GUIManagerType::PaginatedForm, player, ctx)
+                        .or_else(modules::defaultErrorHandler<NoticePlugin>);
+                } else {
+                    ctx->elements.emplace_back("view");
+                    ctx->elements.emplace_back(param.Object);
+
+                    form::GUIManager::getInstance().open("notice", "notice.view", form::GUIManagerType::CustomForm, player, ctx)
+                        .or_else(modules::defaultErrorHandler<NoticePlugin>);
+                }
 
                 output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
             });
-        command.overload().text("edit").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
 
@@ -117,20 +159,322 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->edit(player).or_else(modules::defaultErrorHandler<NoticePlugin>);
+            auto ctx = std::make_shared<frontend::ArrayValue>();
+            ctx->elements.emplace_back("");
+            ctx->elements.emplace_back("");
+
+            form::GUIManager::getInstance().open("notice", "notice.edit", form::GUIManagerType::CustomForm, player, ctx)
+                .or_else(modules::defaultErrorHandler<NoticePlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
-        command.overload().text("setting").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("setting").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->setting(player).or_else(modules::defaultErrorHandler<NoticePlugin>);
+            auto ctx = std::make_shared<frontend::ArrayValue>();
+            ctx->elements.emplace_back("");
+            ctx->elements.emplace_back("");
+
+            form::GUIManager::getInstance().open("notice", "notice.setting", form::GUIManagerType::CustomForm, player, ctx)
+                .or_else(modules::defaultErrorHandler<NoticePlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+    }
+
+    ll::Expected<void> NoticePlugin::registeryUI() {
+        return form::GUIManager::getInstance().load("notice", (this->mImpl->mGuiPath / "notice.lcui").string())
+            .transform([this]() -> void {
+                form::GUIManager::getInstance().registerValue("notice.keys", [this](Player&) -> frontend::ArrayRef {
+                    auto values = std::make_shared<frontend::ArrayValue>();
+
+                    for (const std::string& key : this->getDatabase()->keys())
+                        values->elements.emplace_back(key);
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerValue("notice.names", [this](Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    auto values = std::make_shared<frontend::ArrayValue>();
+
+                    for (const std::string& id : getSortedNoticeIds(*this->getDatabase())) {
+                        auto title = this->getDatabase()->get_ptr<std::string>("/" + id + "/title").value_or("");
+                        values->elements.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(title, player));
+                    }
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerValue("notice.close", [this](Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    return this->isClose(player)
+                        .transform([](bool value) -> frontend::ArrayRef {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+                            values->elements.emplace_back(value);
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerRequest("notice.view", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1)
+                        return ll::makeStringError("notice.view: must take exactly one parameter");
+
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .and_then([this, args, &player](const std::string&) -> ll::Expected<frontend::ArrayRef> {
+                            std::string id;
+
+                            if (std::holds_alternative<int>(args->elements[0])) {
+                                auto ids = getSortedNoticeIds(*this->getDatabase());
+                                int index = std::get<int>(args->elements[0]);
+                                if (index < 0 || index >= static_cast<int>(ids.size()))
+                                    return ll::makeStringError("notice.view: index out of range");
+
+                                id = ids.at(static_cast<size_t>(index));
+                            } else if (std::holds_alternative<std::string>(args->elements[0])) {
+                                id = std::get<std::string>(args->elements[0]);
+                            } else {
+                                return ll::makeStringError("notice.view: must take an int or string parameter");
+                            }
+
+                            if (!this->getDatabase()->has(id))
+                                return ll::makeStringError("notice.view: notice does not exist");
+
+                            auto title = this->getDatabase()->get_ptr<std::string>("/" + id + "/title").value_or("");
+                            auto content = this->getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/content").value_or(nlohmann::ordered_json::array());
+
+                            std::string body;
+                            for (const auto& line : content) {
+                                if (!body.empty())
+                                    body += "\n";
+
+                                body += LOICollectionAPI::APIUtils::getInstance().translate(line.get<std::string>(), player);
+                            }
+
+                            auto values = std::make_shared<frontend::ArrayValue>();
+                            values->elements.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(title, player));
+                            values->elements.emplace_back(body);
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerRequest("notice.content.data", [this](frontend::ArrayRef args, Player&) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("notice.content.data: must take exactly one string parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+                    if (!this->getDatabase()->has(id))
+                        return ll::makeStringError("notice.content.data: notice does not exist");
+
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    values->elements.emplace_back(this->getDatabase()->get_ptr<std::string>("/" + id + "/title").value_or(""));
+                    values->elements.emplace_back(this->getDatabase()->get_ptr<bool>("/" + id + "/poiontout").value_or(false));
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("notice.lines", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("notice.lines: must take exactly one string parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+                    if (!this->getDatabase()->has(id))
+                        return ll::makeStringError("notice.lines: notice does not exist");
+
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .and_then([this, id](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                            auto content = this->getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/content").value_or(nlohmann::ordered_json::array());
+                            auto values = std::make_shared<frontend::ArrayValue>();
+
+                            for (const auto& [index, line] : std::views::enumerate(content)) {
+                                std::string text = line.is_string() ? line.get<std::string>() : "";
+                                std::string display = fmt::format(fmt::runtime(tr(language, "notice.gui.edit.line")), index + 1);
+
+                                if (!text.empty())
+                                    display += ": " + text;
+
+                                values->elements.emplace_back(display);
+                            }
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerRequest("notice.line.data", [this](frontend::ArrayRef args, Player&) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 2 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<int>(args->elements[1]))
+                        return ll::makeStringError("notice.line.data: must take a string and an int parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+                    int index = std::get<int>(args->elements[1]);
+
+                    auto content = this->getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/content").value_or(nlohmann::ordered_json::array());
+                    if (index < 0 || index >= static_cast<int>(content.size()))
+                        return ll::makeStringError("notice.line.data: index out of range");
+
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    values->elements.emplace_back(content.at(static_cast<size_t>(index)).is_string()
+                        ? content.at(static_cast<size_t>(index)).get<std::string>()
+                        : std::string(""));
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("notice.auto", [this](frontend::ArrayRef, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .and_then([this, &player](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                            nlohmann::ordered_json data = this->getDatabase()->get();
+
+                            std::vector<std::pair<std::string, int>> entries;
+                            for (auto it = data.begin(); it != data.end(); ++it) {
+                                if (!it.value().value("poiontout", false))
+                                    continue;
+
+                                entries.emplace_back(it.key(), it.value().value("priority", 0));
+                            }
+
+                            std::sort(entries.begin(), entries.end(), [](const auto& a, const auto& b) {
+                                return a.second < b.second;
+                            });
+
+                            std::string body;
+                            for (const auto& [id, priority] : entries) {
+                                auto title = data.at(id).value("title", "");
+                                auto content = data.at(id).value("content", nlohmann::ordered_json::array());
+
+                                if (!body.empty())
+                                    body += "\n\n";
+
+                                body += LOICollectionAPI::APIUtils::getInstance().translate(title, player);
+                                for (const auto& line : content)
+                                    body += "\n" + LOICollectionAPI::APIUtils::getInstance().translate(line.get<std::string>(), player);
+                            }
+
+                            auto values = std::make_shared<frontend::ArrayValue>();
+                            values->elements.emplace_back(tr(language, "notice.gui.title"));
+                            values->elements.emplace_back(body);
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("notice.setting.save", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<bool>(args->elements[0]))
+                        return ll::makeStringError("notice.setting.save: must take exactly one bool parameter");
+
+                    return this->setClose(player, std::get<bool>(args->elements[0]));
+                });
+
+                form::GUIManager::getInstance().registerCallback("notice.add.submit", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 4 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<std::string>(args->elements[1]) ||
+                        !std::holds_alternative<std::string>(args->elements[2]) ||
+                        !std::holds_alternative<bool>(args->elements[3]))
+                        return ll::makeStringError("notice.add.submit: must take three string and one bool parameters");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+                    auto title = std::get<std::string>(args->elements[1]);
+                    if (id.empty() || title.empty()) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                player.sendMessage(tr(language, "generic.tips.noinput"));
+
+                                return {};
+                            });
+                    }
+
+                    int priority = SystemUtils::toInt(std::get<std::string>(args->elements[2]), 0);
+                    bool show = std::get<bool>(args->elements[3]);
+
+                    return this->create(id, title, priority, show)
+                        .transform([this, id, &player]() -> void {
+                            this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "notice.log2"), player)), id);
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("notice.content.save", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 3 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<std::string>(args->elements[1]) ||
+                        !std::holds_alternative<bool>(args->elements[2]))
+                        return ll::makeStringError("notice.content.save: must take two string and one bool parameters");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+
+                    this->getDatabase()->set_ptr("/" + id + "/title", std::get<std::string>(args->elements[1]));
+                    this->getDatabase()->set_ptr("/" + id + "/poiontout", std::get<bool>(args->elements[2]));
+
+                    return this->getDatabase()->save()
+                        .transform([this, &player]() -> void {
+                            this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "notice.log1"), player));
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("notice.line.add", [this](frontend::ArrayRef args, Player&) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("notice.line.add: must take exactly one string parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+                    auto content = this->getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/content").value_or(nlohmann::ordered_json::array());
+
+                    content.push_back("");
+                    this->getDatabase()->set_ptr("/" + id + "/content", content);
+
+                    return this->getDatabase()->save();
+                });
+
+                form::GUIManager::getInstance().registerCallback("notice.line.remove", [this](frontend::ArrayRef args, Player&) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("notice.line.remove: must take exactly one string parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+                    auto content = this->getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/content").value_or(nlohmann::ordered_json::array());
+
+                    if (!content.empty())
+                        content.erase(content.end() - 1);
+
+                    this->getDatabase()->set_ptr("/" + id + "/content", content);
+
+                    return this->getDatabase()->save();
+                });
+
+                form::GUIManager::getInstance().registerCallback("notice.line.save", [this](frontend::ArrayRef args, Player&) -> ll::Expected<void> {
+                    if (args->elements.size() != 3 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<int>(args->elements[1]) ||
+                        !std::holds_alternative<std::string>(args->elements[2]))
+                        return ll::makeStringError("notice.line.save: must take two string and one int parameters");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+                    int index = std::get<int>(args->elements[1]);
+                    auto content = this->getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/content").value_or(nlohmann::ordered_json::array());
+
+                    if (index < 0 || index >= static_cast<int>(content.size()))
+                        return ll::makeStringError("notice.line.save: index out of range");
+
+                    content.at(static_cast<size_t>(index)) = std::get<std::string>(args->elements[2]);
+                    this->getDatabase()->set_ptr("/" + id + "/content", content);
+
+                    return this->getDatabase()->save();
+                });
+
+                form::GUIManager::getInstance().registerCallback("notice.remove", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("notice.remove: must take exactly one string parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+
+                    return this->remove(id)
+                        .transform([this, id, &player]() -> void {
+                            this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "notice.log3"), player)), id);
+                        });
+                });
+            });
     }
 
     void NoticePlugin::listenEvent() {
@@ -158,10 +502,14 @@ namespace LOICollection::server::Plugins {
             
             this->isClose(event.self())
                 .and_then([this, &event](bool exists) -> ll::Expected<void> {
-                    if (exists)
+                    if (exists || !this->hasEnabledNotice())
                         return {};
 
-                    return this->mGui->notice(event.self());
+                    auto ctx = std::make_shared<frontend::ArrayValue>();
+                    ctx->elements.emplace_back("auto");
+                    ctx->elements.emplace_back("");
+
+                    return form::GUIManager::getInstance().open("notice", "notice.auto", form::GUIManagerType::CustomForm, event.self(), ctx);
                 })
                 .or_else(modules::defaultErrorHandler<NoticePlugin>);
         });
@@ -240,6 +588,17 @@ namespace LOICollection::server::Plugins {
             });
     }
 
+    bool NoticePlugin::hasEnabledNotice() {
+        nlohmann::ordered_json data = this->getDatabase()->get();
+
+        for (auto it = data.begin(); it != data.end(); ++it) {
+            if (it.value().value("poiontout", false))
+                return true;
+        }
+
+        return false;
+    }
+
     bool NoticePlugin::isValid() {
         return this->getLogger() != nullptr && this->getDatabase() != nullptr && this->mImpl->db2 != nullptr;
     }
@@ -262,6 +621,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
+        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
 
         return this->mImpl->db->load()
             .transform([]() -> bool {
@@ -291,6 +651,8 @@ namespace LOICollection::server::Plugins {
         return this->mImpl->db2->create("Notice", [](SQLiteStorage::ColumnCallback ctor) -> void {
             ctor("name");
             ctor("close");
+        }).and_then([this]() -> ll::Expected<void> {
+            return this->registeryUI();
         }).transform([this]() -> bool {
             this->registeryCommand();
             this->listenEvent();

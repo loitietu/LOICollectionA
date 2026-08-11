@@ -12,7 +12,6 @@
 #include "LOICollectionA/include/ModuleBase.h"
 #include "LOICollectionA/include/ModManager.h"
 
-#include "LOICollectionA/include/server/Plugins/gui/TpaGui.h"
 #include "LOICollectionA/include/server/Plugins/types/TpaType.h"
 
 class Player;
@@ -99,6 +98,8 @@ namespace LOICollection::server::Plugins {
         
         LOICOLLECTION_A_NDAPI ll::Expected<bool> isInvite(Player& player);
 
+        LOICOLLECTION_A_NDAPI ll::Expected<bool> requestInvite(Player& player, Player& target, TpaType type);
+
         LOICOLLECTION_A_NDAPI bool isValid();
 
     public:
@@ -119,6 +120,11 @@ namespace LOICollection::server::Plugins {
     private:
         TpaPlugin();
 
+        ll::Expected<void> registeryUI();
+
+        ll::Expected<std::vector<std::pair<std::string, std::string>>> getEligiblePlayers(Player& player);
+        std::vector<std::pair<std::string, std::string>> getAddablePlayers(Player& player);
+
         void registeryCommand();
         void listenEvent();
         void unlistenEvent();
@@ -130,6 +136,5 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<TpaGui> mGui;
     };
 }

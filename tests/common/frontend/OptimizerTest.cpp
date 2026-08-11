@@ -227,3 +227,61 @@ TEST(OptimizerTest, DoesNotFoldUnwrapOfEmptyOptional) {
     EXPECT_TRUE(diag.hasErrors());
     EXPECT_NE(diag.getErrorMessage().find("Optional value is empty"), std::string::npos);
 }
+
+TEST(OptimizerTest, WhileFalseBodyEliminated) {
+    auto program = compileAndOptimize("x = 0; while (false) [ x = x + 1; ]; x");
+
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+    EXPECT_GT(program.stats.removed, 0u);
+
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "0");
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+}
+
+TEST(OptimizerTest, ForFalseConditionBodyEliminated) {
+    auto program = compileAndOptimize("x = 0; for (i = 0; false; i = i + 1) [ x = x + 1; ]; x");
+
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+    EXPECT_GT(program.stats.removed, 0u);
+
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "0");
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+}
+
+TEST(OptimizerTest, WhileTrueWithBreakSurvivesOptimization) {
+    auto program = compileAndOptimize("i = 0; while (true) [ i = i + 1; if (i == 3) [ break; ] ]; i");
+
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "3");
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+}
+
+TEST(OptimizerTest, ForLoopSurvivesOptimization) {
+    auto program = compileAndOptimize("s = 0; for (i = 0; i < 10; i = i + 1) [ s = s + i; ]; s");
+
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "45");
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+}
+
+TEST(OptimizerTest, LoopWithContinueSurvivesOptimization) {
+    auto program = compileAndOptimize(
+        "s = 0; "
+        "for (i = 0; i < 10; i = i + 1) [ "
+        "    if (i % 2 == 0) [ continue; ]; "
+        "    s = s + i; "
+        "]; "
+        "s");
+
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+
+    VM vm(program.diagnostics);
+    EXPECT_EQ(VM::valueToString(vm.run(program.chunk, {})), "25");
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+}

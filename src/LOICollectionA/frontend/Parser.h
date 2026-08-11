@@ -24,6 +24,10 @@ namespace LOICollection::frontend {
         LOICOLLECTION_A_NDAPI std::unique_ptr<ASTNode> parse();
     private:
         std::unique_ptr<IfNode> parseIfStatement();
+        std::unique_ptr<WhileNode> parseWhileStatement();
+        std::unique_ptr<ForNode> parseForStatement();
+        std::unique_ptr<BreakNode> parseBreakStatement();
+        std::unique_ptr<ContinueNode> parseContinueStatement();
         std::unique_ptr<UsingNode> parseUsing();
         std::unique_ptr<TypeExpr> parseTypeExpr();
         std::unique_ptr<FunctionNode> parseFunction();
@@ -37,6 +41,8 @@ namespace LOICollection::frontend {
         std::vector<MethodParam> parseParams();
         
         std::unique_ptr<ReturnNode> parseReturn();
+
+        std::unique_ptr<ExprNode> parseForClause();
 
         std::unique_ptr<BlockNode> parseBlock(TokenType stopToken, bool stopOnColon = false);
 

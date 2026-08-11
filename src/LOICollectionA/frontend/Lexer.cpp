@@ -130,6 +130,10 @@ namespace LOICollection::frontend {
         if (id == "static") return { TokenType::TOKEN_STATIC, std::move(id), startLoc };
         if (id == "using") return { TokenType::TOKEN_USING, std::move(id), startLoc };
         if (id == "None") return { TokenType::TOKEN_NONE, std::move(id), startLoc };
+        if (id == "while") return { TokenType::TOKEN_WHILE, std::move(id), startLoc };
+        if (id == "for") return { TokenType::TOKEN_FOR, std::move(id), startLoc };
+        if (id == "break") return { TokenType::TOKEN_BREAK, std::move(id), startLoc };
+        if (id == "continue") return { TokenType::TOKEN_CONTINUE, std::move(id), startLoc };
 
         return { TokenType::TOKEN_IDENT, std::move(id), startLoc };
     }

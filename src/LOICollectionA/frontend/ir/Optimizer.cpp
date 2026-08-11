@@ -27,6 +27,12 @@ namespace LOICollection::frontend::ir {
         return std::holds_alternative<TrackedValue>(entry);
     }
 
+    bool isScalarValue(const ValueNode::ValueType& value) {
+        return !std::holds_alternative<ArrayRef>(value) &&
+            !std::holds_alternative<ObjectRef>(value) &&
+            !std::holds_alternative<FunctionRefPtr>(value);
+    }
+
     const TrackedValue& knownValue(const StackEntry& entry) {
         return std::get<TrackedValue>(entry);
     }
@@ -109,11 +115,14 @@ namespace LOICollection::frontend::ir {
             return stats;
 
         std::unordered_set<int> targets;
+        std::unordered_map<int, std::vector<int>> jumpSources;
         for (size_t i = 0; i < code.size(); ++i) {
             if (isJump(code[i].op)) {
                 int target = static_cast<int>(i) + 1 + code[i].operand;
-                if (target >= 0 && target < static_cast<int>(code.size()))
+                if (target >= 0 && target < static_cast<int>(code.size())) {
                     targets.insert(target);
+                    jumpSources[target].push_back(static_cast<int>(i));
+                }
             }
         }
 
@@ -464,6 +473,7 @@ namespace LOICollection::frontend::ir {
                 case OpCode::JMP_IF_FALSE:
                 case OpCode::JMP_IF_TRUE: {
                     StackEntry cond = popEntry(stack);
+                    bool folded = false;
 
                     if (!targets.contains(oldIdx) && isKnown(cond) && knownValue(cond).removable) {
                         dropped[knownValue(cond).producer] = true;
@@ -479,7 +489,45 @@ namespace LOICollection::frontend::ir {
                         }
                         
                         stats.folded++;
+                        folded = true;
+                    } else if (isKnown(cond) && !knownValue(cond).removable && isScalarValue(knownValue(cond).value)) {
+                        int producer = knownValue(cond).producer;
+                        bool producerIsScalarPush = producer >= 0 && producer < static_cast<int>(foldedCode.size()) &&
+                            (foldedCode[producer].op == OpCode::PUSH_INT ||
+                             foldedCode[producer].op == OpCode::PUSH_FLOAT ||
+                             foldedCode[producer].op == OpCode::PUSH_STR ||
+                             foldedCode[producer].op == OpCode::PUSH_BOOL ||
+                             foldedCode[producer].op == OpCode::PUSH_NONE);
+
+                        bool backwardOnlyTarget = false;
+                        if (producerIsScalarPush && producer < static_cast<int>(newToOld.size())) {
+                            int producerOld = newToOld[producer];
+                            auto it = jumpSources.find(producerOld);
+                            if (it != jumpSources.end()) {
+                                backwardOnlyTarget = std::ranges::all_of(it->second, [producerOld](int source) {
+                                    return source > producerOld;
+                                });
+                            }
+                        }
+
+                        bool value = VM::valueToBool(knownValue(cond).value);
+                        bool alwaysJump = (instr.op == OpCode::JMP_IF_FALSE) ? !value : value;
+
+                        if (backwardOnlyTarget && alwaysJump) {
+                            dropped[producer] = true;
+
+                            emittedAt = static_cast<int>(foldedCode.size());
+                            foldedCode.push_back({ OpCode::JMP, instr.operand });
+
+                            stats.folded++;
+                            folded = true;
+                        }
                     } else {
+                        emittedAt = static_cast<int>(foldedCode.size());
+                        foldedCode.push_back(instr);
+                    }
+
+                    if (!folded && emittedAt < 0) {
                         emittedAt = static_cast<int>(foldedCode.size());
                         foldedCode.push_back(instr);
                     }

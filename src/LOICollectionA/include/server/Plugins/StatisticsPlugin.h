@@ -11,7 +11,6 @@
 #include "LOICollectionA/include/ModuleBase.h"
 #include "LOICollectionA/include/ModManager.h"
 
-#include "LOICollectionA/include/server/Plugins/gui/StatisticsGui.h"
 #include "LOICollectionA/include/server/Plugins/types/StatisticType.h"
 
 class Player;
@@ -96,6 +95,8 @@ namespace LOICollection::server::Plugins {
         StatisticsPlugin();
 
         void startWirteDatabaseTask();
+
+        ll::Expected<void> registeryUI();
         
         void registeryCommand();
         void listenEvent();
@@ -105,6 +106,5 @@ namespace LOICollection::server::Plugins {
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<StatisticsGui> mGui;
     };
 }

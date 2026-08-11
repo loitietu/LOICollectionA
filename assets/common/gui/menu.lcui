@@ -1,0 +1,650 @@
+navigateNew = new GlobalValue();
+navigateNew.value = false;
+
+navigateRemove = new GlobalValue();
+navigateRemove.value = false;
+
+navigateAward = new GlobalValue();
+navigateAward.value = false;
+
+newOption = new ButtonOptions();
+newOption.tooltip = {tr("menu.gui.button1.tooltip")};
+
+removeOption = new ButtonOptions();
+removeOption.tooltip = {tr("menu.gui.button2.tooltip")};
+
+awardOption = new ButtonOptions();
+awardOption.tooltip = {tr("menu.gui.button3.tooltip")};
+
+menuEdit = new CustomForm("menu.edit", {tr("menu.gui.title")});
+menuEdit.label({tr("menu.gui.label")}, new TextOptions());
+menuEdit.spacer(new SpacingOptions());
+menuEdit.divider(new DividerOptions());
+menuEdit.button({tr("menu.gui.button1")}, func () -> void {
+    if (!navigateNew.value) [
+        navigateNew.value = true;
+
+        menuEdit.close();
+    ]
+}, newOption);
+menuEdit.button({tr("menu.gui.button2")}, func () -> void {
+    if (!navigateRemove.value) [
+        navigateRemove.value = true;
+
+        menuEdit.close();
+    ]
+}, removeOption);
+menuEdit.button({tr("menu.gui.button3")}, func () -> void {
+    if (!navigateAward.value) [
+        navigateAward.value = true;
+
+        menuEdit.close();
+    ]
+}, awardOption);
+menuEdit.closeButton();
+menuEdit.show(func (result) -> void {
+    if (navigateNew.value) [
+        GUIManager::switchTo("menu.edit.new", 1);
+    :
+        if (navigateRemove.value) [
+            GUIManager::switchTo("menu.edit.remove", 3);
+        :
+            if (navigateAward.value) [
+                GUIManager::switchTo("menu.edit.award", 3);
+            ]
+        ]
+    ]
+});
+menuEdit.show();
+
+navigateSimple = new GlobalValue();
+navigateSimple.value = false;
+
+navigateModal = new GlobalValue();
+navigateModal.value = false;
+
+navigateCustom = new GlobalValue();
+navigateCustom.value = false;
+
+menuEditNew = new CustomForm("menu.edit.new", {tr("menu.gui.title")});
+menuEditNew.label({tr("menu.gui.button1.label")}, new TextOptions());
+menuEditNew.spacer(new SpacingOptions());
+menuEditNew.divider(new DividerOptions());
+menuEditNew.button("Simple", func () -> void {
+    if (!navigateSimple.value) [
+        navigateSimple.value = true;
+
+        menuEditNew.close();
+    ]
+}, new ButtonOptions());
+menuEditNew.button("Modal", func () -> void {
+    if (!navigateModal.value) [
+        navigateModal.value = true;
+
+        menuEditNew.close();
+    ]
+}, new ButtonOptions());
+menuEditNew.button("Custom", func () -> void {
+    if (!navigateCustom.value) [
+        navigateCustom.value = true;
+
+        menuEditNew.close();
+    ]
+}, new ButtonOptions());
+menuEditNew.closeButton();
+menuEditNew.show(func (result) -> void {
+    if (navigateSimple.value) [
+        buildNewInfo("Simple");
+    :
+        if (navigateModal.value) [
+            buildNewInfo("Modal");
+        :
+            if (navigateCustom.value) [
+                buildNewInfo("Custom");
+            ]
+        ]
+    ]
+});
+menuEditNew.show();
+
+menuEditRemove = new PaginatedForm("menu.edit.remove", {tr("menu.gui.title")}, GUIManager::value("menu.edit.keys"), 10);
+menuEditRemove.label({tr("menu.gui.label")}, new TextOptions());
+menuEditRemove.previousButton({tr("generic.gui.page.previous")});
+menuEditRemove.nextButton({tr("generic.gui.page.next")});
+menuEditRemove.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+menuEditRemove.closeButton();
+menuEditRemove.show(func (result) -> void {
+    if (result.selection != "") [
+        buildRemoveInfo(result.selection);
+    :
+        GUIManager::open("menu", "menu.edit", 1);
+    ]
+});
+menuEditRemove.show();
+
+menuEditAward = new PaginatedForm("menu.edit.award", {tr("menu.gui.title")}, GUIManager::value("menu.edit.keys"), 10);
+menuEditAward.label({tr("menu.gui.label")}, new TextOptions());
+menuEditAward.previousButton({tr("generic.gui.page.previous")});
+menuEditAward.nextButton({tr("generic.gui.page.next")});
+menuEditAward.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+menuEditAward.closeButton();
+menuEditAward.show(func (result) -> void {
+    if (result.selection != "") [
+        typeData = GUIManager::request("menu.edit.type", [ result.selection ]);
+
+        buildAwardContent(result.selection, typeData[0]);
+    :
+        GUIManager::open("menu", "menu.edit", 1);
+    ]
+});
+menuEditAward.show();
+
+func buildNewInfo(type: string) -> void {
+    mId = new ObservableString("", true);
+    mTitle = new ObservableString("", true);
+    mContent = new ObservableString("", true);
+    mExit = new ObservableString("", true);
+    mScore = new ObservableString("", true);
+    mPermission = new ObservableString("", true);
+    permissionSlider = new ObservableNumber(0.0, true);
+
+    mIdOptions = new TextFieldOptions();
+    mIdOptions.description = {tr("menu.gui.button1.input1.placeholder")};
+
+    mTitleOptions = new TextFieldOptions();
+    mTitleOptions.description = {tr("menu.gui.button1.input2.placeholder")};
+
+    mContentOptions = new TextFieldOptions();
+    mContentOptions.description = {tr("menu.gui.button1.input3.placeholder")};
+
+    mExitOptions = new TextFieldOptions();
+    mExitOptions.description = {tr("menu.gui.button1.input4.placeholder")};
+
+    mScoreOptions = new TextFieldOptions();
+    mScoreOptions.description = {tr("menu.gui.button1.input5.placeholder")};
+
+    mPermissionOptions = new TextFieldOptions();
+    mPermissionOptions.description = {tr("menu.gui.button1.input6.placeholder")};
+
+    permissionSliderOptions = new SliderOptions();
+    permissionSliderOptions.step = 1;
+
+    newInfoDone = new GlobalValue();
+    newInfoDone.value = false;
+
+    newInfoResult = new GlobalValue();
+    newInfoResult.value = true;
+
+    newInfo = new CustomForm("menu.edit.new.info", {tr("menu.gui.title")});
+    newInfo.label({tr("menu.gui.label")}, new TextOptions());
+    newInfo.spacer(new SpacingOptions());
+    newInfo.divider(new DividerOptions());
+    newInfo.textField({tr("menu.gui.button1.input1")}, mId, mIdOptions);
+    newInfo.textField({tr("menu.gui.button1.input2")}, mTitle, mTitleOptions);
+
+    if (type == "Simple") [
+        newInfo.textField({tr("menu.gui.button1.input3")}, mContent, mContentOptions);
+        newInfo.textField({tr("menu.gui.button1.input4")}, mExit, mExitOptions);
+        newInfo.textField({tr("menu.gui.button1.input5")}, mScore, mScoreOptions);
+        newInfo.textField({tr("menu.gui.button1.input6")}, mPermission, mPermissionOptions);
+    ]
+
+    if (type == "Modal") [
+        newInfo.textField({tr("menu.gui.button1.input3")}, mContent, mContentOptions);
+        newInfo.textField({tr("menu.gui.button1.input4")}, mScore, mScoreOptions);
+        newInfo.textField({tr("menu.gui.button1.input5")}, mPermission, mPermissionOptions);
+    ]
+
+    if (type == "Custom") [
+        newInfo.textField({tr("menu.gui.button1.input4")}, mExit, mExitOptions);
+    ]
+
+    newInfo.slider({tr("menu.gui.button1.slider")}, permissionSlider, 0, 4, permissionSliderOptions);
+    newInfo.button({tr("generic.gui.save")}, func () -> void {
+        newInfoResultData = GUIManager::request("menu.edit.new.submit", [ type, mId.getData(), mTitle.getData(), mContent.getData(), mExit.getData(), mScore.getData(), mPermission.getData(), permissionSlider.getData() ]);
+
+        newInfoResult.value = newInfoResultData[0];
+        newInfoDone.value = true;
+
+        newInfo.close();
+    }, new ButtonOptions());
+    newInfo.closeButton();
+    newInfo.show(func (result) -> void {
+        if (!newInfoDone.value) [
+            GUIManager::open("menu", "menu.edit.new", 1);
+        :
+            if (!newInfoResult.value) [
+                GUIManager::open("menu", "menu.edit.new", 1);
+            ]
+        ]
+    });
+
+    GUIManager::switchTo("menu.edit.new.info", 1);
+}
+
+func buildRemoveInfo(id: string) -> void {
+    removeDone = new GlobalValue();
+    removeDone.value = false;
+
+    removeInfo = new CustomForm("menu.edit.remove.info", {tr("menu.gui.title")});
+    removeInfo.label(std::format({tr("menu.gui.button2.content")}, [ id ]), new TextOptions());
+    removeInfo.spacer(new SpacingOptions());
+    removeInfo.divider(new DividerOptions());
+    removeInfo.button({tr("menu.gui.button2.yes")}, func () -> void {
+        GUIManager::callback("menu.edit.remove", [ id ]);
+
+        removeDone.value = true;
+
+        removeInfo.close();
+    }, new ButtonOptions());
+    removeInfo.button({tr("menu.gui.button2.no")}, func () -> void {
+        removeInfo.close();
+    }, new ButtonOptions());
+    removeInfo.closeButton();
+    removeInfo.show(func (result) -> void {
+        if (!removeDone.value) [
+            GUIManager::open("menu", "menu.edit", 1);
+        ]
+    });
+
+    GUIManager::switchTo("menu.edit.remove.info", 1);
+}
+
+func buildAwardContent(id: string, type: string) -> void {
+    navigateSetting = new GlobalValue();
+    navigateSetting.value = false;
+
+    navigateNewAward = new GlobalValue();
+    navigateNewAward.value = false;
+
+    navigateRemoveAward = new GlobalValue();
+    navigateRemoveAward.value = false;
+
+    navigateCommand = new GlobalValue();
+    navigateCommand.value = false;
+
+    awardContent = new CustomForm("menu.edit.award.content", {tr("menu.gui.title")});
+    awardContent.label(std::format({tr("menu.gui.button3.label")}, [ id ]), new TextOptions());
+    awardContent.spacer(new SpacingOptions());
+    awardContent.divider(new DividerOptions());
+    awardContent.button({tr("menu.gui.button3.setting")}, func () -> void {
+        if (!navigateSetting.value) [
+            navigateSetting.value = true;
+
+            awardContent.close();
+        ]
+    }, new ButtonOptions());
+
+    if (type == "Simple") [
+        awardContent.button({tr("menu.gui.button3.new")}, func () -> void {
+            if (!navigateNewAward.value) [
+                navigateNewAward.value = true;
+
+                awardContent.close();
+            ]
+        }, new ButtonOptions());
+        awardContent.button({tr("menu.gui.button3.remove")}, func () -> void {
+            if (!navigateRemoveAward.value) [
+                navigateRemoveAward.value = true;
+
+                awardContent.close();
+            ]
+        }, new ButtonOptions());
+    ]
+
+    if (type == "Modal") [
+        awardContent.button({tr("menu.gui.button3.new")}, func () -> void {
+            if (!navigateNewAward.value) [
+                navigateNewAward.value = true;
+
+                awardContent.close();
+            ]
+        }, new ButtonOptions());
+    ]
+
+    if (type == "Custom") [
+        awardContent.button({tr("menu.gui.button3.remove")}, func () -> void {
+            if (!navigateRemoveAward.value) [
+                navigateRemoveAward.value = true;
+
+                awardContent.close();
+            ]
+        }, new ButtonOptions());
+        awardContent.button({tr("menu.gui.button3.command")}, func () -> void {
+            if (!navigateCommand.value) [
+                navigateCommand.value = true;
+
+                awardContent.close();
+            ]
+        }, new ButtonOptions());
+    ]
+
+    awardContent.closeButton();
+    awardContent.show(func (result) -> void {
+        if (navigateSetting.value) [
+            buildAwardSetting(id, type);
+        :
+            if (navigateNewAward.value) [
+                buildAwardNew(id, type);
+            :
+                if (navigateRemoveAward.value) [
+                    buildAwardRemove(id, type);
+                :
+                    if (navigateCommand.value) [
+                        buildAwardCommand(id);
+                    :
+                        GUIManager::open("menu", "menu.edit.award", 3);
+                    ]
+                ]
+            ]
+        ]
+    });
+
+    GUIManager::switchTo("menu.edit.award.content", 1);
+}
+
+func buildAwardSetting(id: string, type: string) -> void {
+    settingData = GUIManager::request("menu.edit.award.setting.data", [ id, type ]);
+
+    settingTitle = new ObservableString(settingData[0], true);
+    settingContent = new ObservableString(settingData[1], true);
+    settingExit = new ObservableString(settingData[2], true);
+    settingScore = new ObservableString(settingData[3], true);
+    settingPermission = new ObservableString(settingData[4], true);
+    settingSlider = new ObservableNumber(0.0, true);
+
+    settingTitleOptions = new TextFieldOptions();
+    settingTitleOptions.description = {tr("menu.gui.button1.input2.placeholder")};
+
+    settingContentOptions = new TextFieldOptions();
+    settingContentOptions.description = {tr("menu.gui.button1.input3.placeholder")};
+
+    settingExitOptions = new TextFieldOptions();
+    settingExitOptions.description = {tr("menu.gui.button1.input4.placeholder")};
+
+    settingScoreOptions = new TextFieldOptions();
+    settingScoreOptions.description = {tr("menu.gui.button1.input5.placeholder")};
+
+    settingPermissionOptions = new TextFieldOptions();
+    settingPermissionOptions.description = {tr("menu.gui.button1.input6.placeholder")};
+
+    settingSliderOptions = new SliderOptions();
+    settingSliderOptions.step = 1;
+
+    settingDone = new GlobalValue();
+    settingDone.value = false;
+
+    settingResult = new GlobalValue();
+    settingResult.value = true;
+
+    awardSetting = new CustomForm("menu.edit.award.setting", {tr("menu.gui.title")});
+    awardSetting.label({tr("menu.gui.label")}, new TextOptions());
+    awardSetting.spacer(new SpacingOptions());
+    awardSetting.divider(new DividerOptions());
+    awardSetting.textField({tr("menu.gui.button1.input2")}, settingTitle, settingTitleOptions);
+
+    if (type == "Simple") [
+        awardSetting.textField({tr("menu.gui.button1.input3")}, settingContent, settingContentOptions);
+        awardSetting.textField({tr("menu.gui.button1.input4")}, settingExit, settingExitOptions);
+        awardSetting.textField({tr("menu.gui.button1.input5")}, settingScore, settingScoreOptions);
+        awardSetting.textField({tr("menu.gui.button1.input6")}, settingPermission, settingPermissionOptions);
+    ]
+
+    if (type == "Modal") [
+        awardSetting.textField({tr("menu.gui.button1.input3")}, settingContent, settingContentOptions);
+        awardSetting.textField({tr("menu.gui.button1.input5")}, settingScore, settingScoreOptions);
+        awardSetting.textField({tr("menu.gui.button1.input6")}, settingPermission, settingPermissionOptions);
+    ]
+
+    if (type == "Custom") [
+        awardSetting.textField({tr("menu.gui.button1.input4")}, settingExit, settingExitOptions);
+    ]
+
+    awardSetting.slider({tr("menu.gui.button1.slider")}, settingSlider, 0, 4, settingSliderOptions);
+    awardSetting.button({tr("generic.gui.save")}, func () -> void {
+        settingResultData = GUIManager::request("menu.edit.award.setting.submit", [ id, type, settingTitle.getData(), settingContent.getData(), settingExit.getData(), settingScore.getData(), settingPermission.getData(), settingSlider.getData() ]);
+
+        settingResult.value = settingResultData[0];
+        settingDone.value = true;
+
+        awardSetting.close();
+    }, new ButtonOptions());
+    awardSetting.closeButton();
+    awardSetting.show(func (result) -> void {
+        if (!settingDone.value) [
+            buildAwardContent(id, type);
+        :
+            if (!settingResult.value) [
+                buildAwardContent(id, type);
+            ]
+        ]
+    });
+
+    GUIManager::switchTo("menu.edit.award.setting", 1);
+}
+
+func buildAwardNew(id: string, type: string) -> void {
+    mInput1 = new ObservableString("", true);
+    mInput2 = new ObservableString("", true);
+    mInput3 = new ObservableString("", true);
+    mInput4 = new ObservableString("", true);
+    mInput5 = new ObservableString("", true);
+    mInput6 = new ObservableString("", true);
+    typeIndex = new ObservableNumber(0.0, true);
+    buttonIndex = new ObservableNumber(0.0, true);
+    awardSlider = new ObservableNumber(0.0, true);
+
+    mInput1Options = new TextFieldOptions();
+    mInput1Options.description = {tr("menu.gui.button3.new.input1.placeholder")};
+
+    mInput2Options = new TextFieldOptions();
+    mInput2Options.description = {tr("menu.gui.button3.new.input2.placeholder")};
+
+    mInput3Options = new TextFieldOptions();
+    mInput3Options.description = {tr("menu.gui.button3.new.input3.placeholder")};
+
+    mInput4Options = new TextFieldOptions();
+    mInput4Options.description = {tr("menu.gui.button3.new.input4.placeholder")};
+
+    mInput5Options = new TextFieldOptions();
+    mInput5Options.description = {tr("menu.gui.button3.new.input5.placeholder")};
+
+    mInput6Options = new TextFieldOptions();
+    mInput6Options.description = {tr("menu.gui.button3.new.input6.placeholder")};
+
+    awardSliderOptions = new SliderOptions();
+    awardSliderOptions.step = 1;
+
+    typeButton = new DropdownItem();
+    typeButton.label = "button";
+    typeButton.value = 0;
+
+    typeFrom = new DropdownItem();
+    typeFrom.label = "from";
+    typeFrom.value = 1;
+
+    typeItems = [ typeButton, typeFrom ];
+
+    buttonUpper = new DropdownItem();
+    buttonUpper.label = "Upper";
+    buttonUpper.value = 0;
+
+    buttonLower = new DropdownItem();
+    buttonLower.label = "Lower";
+    buttonLower.value = 1;
+
+    buttonItems = [ buttonUpper, buttonLower ];
+
+    awardNewDone = new GlobalValue();
+    awardNewDone.value = false;
+
+    awardNewResult = new GlobalValue();
+    awardNewResult.value = true;
+
+    awardNew = new CustomForm("menu.edit.award.new", {tr("menu.gui.title")});
+    awardNew.label({tr("menu.gui.label")}, new TextOptions());
+    awardNew.spacer(new SpacingOptions());
+    awardNew.divider(new DividerOptions());
+
+    if (type == "Simple") [
+        awardNew.textField({tr("menu.gui.button3.new.input1")}, mInput1, mInput1Options);
+        awardNew.textField({tr("menu.gui.button3.new.input2")}, mInput2, mInput2Options);
+        awardNew.textField({tr("menu.gui.button3.new.input3")}, mInput3, mInput3Options);
+    ]
+
+    if (type == "Modal") [
+        awardNew.textField({tr("menu.gui.button3.new.input2")}, mInput2, mInput2Options);
+    ]
+
+    awardNew.dropdown({tr("menu.gui.button3.new.dropdown1")}, typeIndex, typeItems, new DropdownOptions());
+    awardNew.textField({tr("menu.gui.button3.new.input4")}, mInput4, mInput4Options);
+    awardNew.textField({tr("menu.gui.button3.new.input5")}, mInput5, mInput5Options);
+    awardNew.textField({tr("menu.gui.button3.new.input6")}, mInput6, mInput6Options);
+    awardNew.slider({tr("menu.gui.button3.new.slider")}, awardSlider, 0, 4, awardSliderOptions);
+
+    if (type == "Modal") [
+        awardNew.dropdown({tr("menu.gui.button3.new.dropdown2")}, buttonIndex, buttonItems, new DropdownOptions());
+    ]
+
+    awardNew.button({tr("generic.gui.save")}, func () -> void {
+        awardNewResultData = GUIManager::request("menu.edit.award.new.submit", [ id, type, mInput1.getData(), mInput2.getData(), mInput3.getData(), mInput4.getData(), mInput5.getData(), mInput6.getData(), typeIndex.getData(), buttonIndex.getData(), awardSlider.getData() ]);
+
+        awardNewResult.value = awardNewResultData[0];
+        awardNewDone.value = true;
+
+        awardNew.close();
+    }, new ButtonOptions());
+    awardNew.closeButton();
+    awardNew.show(func (result) -> void {
+        if (!awardNewDone.value) [
+            buildAwardContent(id, type);
+        :
+            if (!awardNewResult.value) [
+                buildAwardContent(id, type);
+            ]
+        ]
+    });
+
+    GUIManager::switchTo("menu.edit.award.new", 1);
+}
+
+func buildAwardRemove(id: string, type: string) -> void {
+    awardRemove = new PaginatedForm("menu.edit.award.remove", {tr("menu.gui.title")}, GUIManager::request("menu.edit.award.packages", [ id ]), 10);
+    awardRemove.label({tr("menu.gui.label")}, new TextOptions());
+    awardRemove.previousButton({tr("generic.gui.page.previous")});
+    awardRemove.nextButton({tr("generic.gui.page.next")});
+    awardRemove.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+    awardRemove.closeButton();
+    awardRemove.show(func (result) -> void {
+        if (result.selection != "") [
+            buildAwardRemoveInfo(id, result.selection);
+        :
+            buildAwardContent(id, type);
+        ]
+    });
+
+    GUIManager::switchTo("menu.edit.award.remove", 3);
+}
+
+func buildAwardRemoveInfo(id: string, packageid: string) -> void {
+    removeAwardDone = new GlobalValue();
+    removeAwardDone.value = false;
+
+    awardRemoveInfo = new CustomForm("menu.edit.award.remove.info", {tr("menu.gui.title")});
+    awardRemoveInfo.label(std::format({tr("menu.gui.button3.remove.content")}, [ packageid ]), new TextOptions());
+    awardRemoveInfo.spacer(new SpacingOptions());
+    awardRemoveInfo.divider(new DividerOptions());
+    awardRemoveInfo.button({tr("menu.gui.button3.remove.yes")}, func () -> void {
+        GUIManager::callback("menu.edit.award.remove", [ id, packageid ]);
+
+        removeAwardDone.value = true;
+
+        awardRemoveInfo.close();
+    }, new ButtonOptions());
+    awardRemoveInfo.button({tr("menu.gui.button3.remove.no")}, func () -> void {
+        awardRemoveInfo.close();
+    }, new ButtonOptions());
+    awardRemoveInfo.closeButton();
+    awardRemoveInfo.show(func (result) -> void {
+        if (!removeAwardDone.value) [
+            GUIManager::open("menu", "menu.edit", 1);
+        ]
+    });
+
+    GUIManager::switchTo("menu.edit.award.remove.info", 1);
+}
+
+func buildAwardCommand(id: string) -> void {
+    navigateAddCommand = new GlobalValue();
+    navigateAddCommand.value = false;
+
+    navigateRemoveCommand = new GlobalValue();
+    navigateRemoveCommand.value = false;
+
+    commandList = new PaginatedForm("menu.edit.award.command", {tr("menu.gui.title")}, GUIManager::request("menu.edit.award.command.lines", [ id ]), 10);
+    commandList.label({tr("menu.gui.button3.command.label")}, new TextOptions());
+    commandList.previousButton({tr("generic.gui.page.previous")});
+    commandList.nextButton({tr("generic.gui.page.next")});
+    commandList.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+    commandList.closeButton();
+    commandList.divider(new DividerOptions());
+    commandList.button({tr("menu.gui.button3.command.add")}, func () -> void {
+        if (!navigateAddCommand.value) [
+            navigateAddCommand.value = true;
+
+            commandList.close();
+        ]
+    }, new ButtonOptions());
+    commandList.button({tr("menu.gui.button3.command.remove")}, func () -> void {
+        if (!navigateRemoveCommand.value) [
+            navigateRemoveCommand.value = true;
+
+            commandList.close();
+        ]
+    }, new ButtonOptions());
+    commandList.show(func (result) -> void {
+        if (navigateAddCommand.value) [
+            buildCommandLine(id, -1);
+        :
+            if (navigateRemoveCommand.value) [
+                GUIManager::callback("menu.edit.award.command.remove.last", [ id ]);
+
+                buildAwardCommand(id);
+            :
+                if (result.selection != "") [
+                    buildCommandLine(id, result.selectionIndex);
+                :
+                    buildAwardContent(id, "Custom");
+                ]
+            ]
+        ]
+    });
+
+    GUIManager::switchTo("menu.edit.award.command", 3);
+}
+
+func buildCommandLine(id: string, index: int) -> void {
+    lineData = GUIManager::request("menu.edit.award.command.line.data", [ id, index ]);
+
+    commandLine = new ObservableString(lineData[0], true);
+
+    commandLineOptions = new TextFieldOptions();
+    commandLineOptions.description = {tr("menu.gui.button3.command.line.placeholder")};
+
+    commandLineForm = new CustomForm("menu.edit.award.command.line", {tr("menu.gui.title")});
+    commandLineForm.label({tr("menu.gui.label")}, new TextOptions());
+    commandLineForm.spacer(new SpacingOptions());
+    commandLineForm.divider(new DividerOptions());
+    commandLineForm.textField({tr("menu.gui.button3.command.line.label")}, commandLine, commandLineOptions);
+    commandLineForm.button({tr("generic.gui.save")}, func () -> void {
+        GUIManager::callback("menu.edit.award.command.line.submit", [ id, index, commandLine.getData() ]);
+
+        commandLineForm.close();
+    }, new ButtonOptions());
+    commandLineForm.closeButton();
+    commandLineForm.show(func (result) -> void {
+        buildAwardCommand(id);
+    });
+
+    GUIManager::switchTo("menu.edit.award.command.line", 1);
+}

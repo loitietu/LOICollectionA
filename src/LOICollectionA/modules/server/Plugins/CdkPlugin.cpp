@@ -3,7 +3,7 @@
 #include <string>
 #include <filesystem>
 
-#include <fmt/core.h>
+#include <fmt/format.h>
 #include <nlohmann/json.hpp>
 
 #include <ll/api/Expected.h>
@@ -17,8 +17,12 @@
 #include <mc/deps/nbt/CompoundTag.h>
 
 #include <mc/world/item/ItemStack.h>
+#include <mc/world/item/SaveContext.h>
+#include <mc/world/item/SaveContextFactory.h>
 
 #include <mc/world/actor/player/Player.h>
+#include <mc/world/actor/player/PlayerInventory.h>
+#include <mc/world/actor/player/Inventory.h>
 
 #include <mc/server/commands/CommandOrigin.h>
 #include <mc/server/commands/CommandOutput.h>
@@ -26,11 +30,13 @@
 
 #include <mc/safety/RedactableString.h>
 
-#include "LOICollectionA/include/form/PaginatedForm.h"
-
 #include "LOICollectionA/include/server/APIUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 #include "LOICollectionA/include/server/Plugins/ChatPlugin.h"
+
+#include "LOICollectionA/frontend/AST.h"
+
+#include "LOICollectionA/include/form/GUIManager.h"
 
 #include "LOICollectionA/utils/I18nUtils.h"
 #include "LOICollectionA/utils/mc-server/InventoryUtils.h"
@@ -60,9 +66,11 @@ namespace LOICollection::server::Plugins {
         
         std::shared_ptr<JsonStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
+
+        std::filesystem::path mGuiPath;
     };
 
-    CdkPlugin::CdkPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<CdkGui>(*this)) {};
+    CdkPlugin::CdkPlugin() : mImpl(std::make_unique<Impl>()) {};
     CdkPlugin::~CdkPlugin() = default;
 
     std::shared_ptr<CdkPlugin> CdkPlugin::getShared() {
@@ -107,17 +115,18 @@ namespace LOICollection::server::Plugins {
                     })
                     .or_else(modules::defaultErrorHandler<CdkPlugin>);
             });
-        command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->convert(player).or_else(modules::defaultErrorHandler<CdkPlugin>);
+            form::GUIManager::getInstance().open("cdk", "cdk.convert", form::GUIManagerType::CustomForm, player)
+                .or_else(modules::defaultErrorHandler<CdkPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
-        command.overload().text("edit").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
             
@@ -126,10 +135,385 @@ namespace LOICollection::server::Plugins {
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player).or_else(modules::defaultErrorHandler<CdkPlugin>);
+            form::GUIManager::getInstance().open("cdk", "cdk.open", form::GUIManagerType::CustomForm, player)
+                .or_else(modules::defaultErrorHandler<CdkPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+    }
+
+    ll::Expected<void> CdkPlugin::registeryUI() {
+        return form::GUIManager::getInstance().load("cdk", (this->mImpl->mGuiPath / "cdk.lcui").string())
+            .transform([this]() -> void {
+                form::GUIManager::getInstance().registerValue("cdk.cdks", [this](Player&) -> ll::Expected<frontend::ArrayRef> {
+                    return this->getCdks()
+                        .transform([](const std::vector<std::string>& cdks) -> frontend::ArrayRef {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+
+                            for (const std::string& id : cdks)
+                                values->elements.emplace_back(id);
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerValue("cdk.inventory", [](Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .transform([&player](const std::string& language) -> frontend::ArrayRef {
+                            auto values = std::make_shared<frontend::ArrayValue>();
+
+                            for (int i = 0; i < player.mInventory->mInventory->getContainerSize(); i++) {
+                                ItemStack mItemStack = player.mInventory->mInventory->getItem(i);
+
+                                if (!mItemStack || mItemStack.isNull())
+                                    continue;
+
+                                values->elements.emplace_back(fmt::format(fmt::runtime(tr(language, "cdk.gui.award.item.inventory.text")),
+                                    mItemStack.getName(), std::to_string(mItemStack.mCount)
+                                ));
+                            }
+
+                            return values;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerRequest("cdk.info", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("cdk.info: must take exactly one string parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .and_then([this, id, &player](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                            return this->has(id)
+                                .and_then([this, language, id, &player](bool exists) -> ll::Expected<frontend::ArrayRef> {
+                                    auto values = std::make_shared<frontend::ArrayValue>();
+
+                                    if (!exists) {
+                                        player.sendMessage(tr(language, "cdk.gui.error"));
+
+                                        return values;
+                                    }
+
+                                    values->elements.emplace_back(fmt::format(fmt::runtime(tr(language, "cdk.gui.award.info.label")), id,
+                                        this->getDatabase()->get_ptr<bool>("/" + id + "/personal").value_or(false) ? "true" : "false",
+                                        SystemUtils::toFormatTime(this->getDatabase()->get_ptr<std::string>("/" + id + "/time").value_or("None"), "None")
+                                    ));
+
+                                    return values;
+                                });
+                        });
+                });
+
+                form::GUIManager::getInstance().registerRequest("cdk.inventory.slot", [](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<int>(args->elements[0]))
+                        return ll::makeStringError("cdk.inventory.slot: must take exactly one int parameter");
+
+                    int index = std::get<int>(args->elements[0]);
+                    std::vector<int> slots;
+
+                    for (int i = 0; i < player.mInventory->mInventory->getContainerSize(); i++) {
+                        ItemStack mItemStack = player.mInventory->mInventory->getItem(i);
+
+                        if (!mItemStack || mItemStack.isNull())
+                            continue;
+
+                        slots.push_back(i);
+                    }
+
+                    if (index < 0 || index >= static_cast<int>(slots.size()))
+                        return ll::makeStringError("cdk.inventory.slot: index out of range");
+
+                    auto values = std::make_shared<frontend::ArrayValue>();
+                    values->elements.emplace_back(slots.at(static_cast<size_t>(index)));
+
+                    return values;
+                });
+
+                form::GUIManager::getInstance().registerRequest("cdk.inventory.item", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    if (args->elements.size() != 2 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<int>(args->elements[1]))
+                        return ll::makeStringError("cdk.inventory.item: must take exactly one string and one int parameter");
+
+                    auto id = std::get<std::string>(args->elements[0]);
+                    int slot = std::get<int>(args->elements[1]);
+
+                    return LanguagePlugin::getShared()->getLanguage(player)
+                        .and_then([this, id, slot, &player](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
+                            return this->has(id)
+                                .and_then([language, id, slot, &player](bool exists) -> ll::Expected<frontend::ArrayRef> {
+                                    auto values = std::make_shared<frontend::ArrayValue>();
+
+                                    if (!exists) {
+                                        player.sendMessage(tr(language, "cdk.gui.error"));
+
+                                        return values;
+                                    }
+
+                                    ItemStack mItemStack = player.mInventory->mInventory->getItem(slot);
+                                    if (!mItemStack || mItemStack.isNull()) {
+                                        player.sendMessage(tr(language, "cdk.gui.error"));
+
+                                        return values;
+                                    }
+
+                                    values->elements.emplace_back(fmt::format(fmt::runtime(tr(language, "cdk.gui.award.item.inventory.introduce")),
+                                        mItemStack.getName(),
+                                        mItemStack.mCount,
+                                        mItemStack.save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0)
+                                    ));
+
+                                    return values;
+                                });
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("cdk.convert.submit", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("cdk.convert.submit: must take exactly one string parameter");
+
+                    std::string mCdk = std::get<std::string>(args->elements[0]);
+                    if (mCdk.empty()) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                player.sendMessage(tr(language, "generic.tips.noinput"));
+
+                                return {};
+                            });
+                    }
+
+                    return this->convert(player, mCdk)
+                        .or_else([](ll::Error e) -> ll::Expected<void> {
+                            if (e.isA<ll::ErrorCodeError>()
+                                && (e.as<ll::ErrorCodeError>().ec == makeErrorCode(CdkPluginErrorCode::NotFound)
+                                    || e.as<ll::ErrorCodeError>().ec == makeErrorCode(CdkPluginErrorCode::Received)))
+                                return {};
+
+                            return ll::Unexpected(e);
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("cdk.new.submit", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 3 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<std::string>(args->elements[1]) ||
+                        !std::holds_alternative<bool>(args->elements[2]))
+                        return ll::makeStringError("cdk.new.submit: must take two string and one bool parameters");
+
+                    std::string mObjectCdk = std::get<std::string>(args->elements[0]);
+                    if (mObjectCdk.empty()) {
+                        return LanguagePlugin::getShared()->getLanguage(player)
+                            .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                player.sendMessage(tr(language, "generic.tips.noinput"));
+
+                                return {};
+                            });
+                    }
+
+                    return this->create(
+                        mObjectCdk,
+                        SystemUtils::toInt(std::get<std::string>(args->elements[1]), 0),
+                        std::get<bool>(args->elements[2])
+                    ).transform([this, &player, mObjectCdk]() -> void {
+                        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "cdk.log1"), player)), mObjectCdk);
+                    });
+                });
+
+                form::GUIManager::getInstance().registerCallback("cdk.remove", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<std::string>(args->elements[0]))
+                        return ll::makeStringError("cdk.remove: must take exactly one string parameter");
+
+                    std::string id = std::get<std::string>(args->elements[0]);
+
+                    return this->has(id)
+                        .and_then([this, id, &player](bool exists) -> ll::Expected<void> {
+                            if (!exists) {
+                                return LanguagePlugin::getShared()->getLanguage(player)
+                                    .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                        player.sendMessage(tr(language, "cdk.gui.error"));
+
+                                        return {};
+                                    });
+                            }
+
+                            return this->remove(id)
+                                .transform([this, id, &player]() -> void {
+                                    this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "cdk.log2"), player)), id);
+                                });
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("cdk.award.score.submit", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 3 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<std::string>(args->elements[1]) ||
+                        !std::holds_alternative<std::string>(args->elements[2]))
+                        return ll::makeStringError("cdk.award.score.submit: must take exactly three string parameters");
+
+                    std::string id = std::get<std::string>(args->elements[0]);
+                    std::string mObjective = std::get<std::string>(args->elements[1]);
+                    int mScore = SystemUtils::toInt(std::get<std::string>(args->elements[2]), 0);
+
+                    return this->has(id)
+                        .and_then([this, id, mObjective, mScore, &player](bool exists) -> ll::Expected<void> {
+                            if (!exists) {
+                                return LanguagePlugin::getShared()->getLanguage(player)
+                                    .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                        player.sendMessage(tr(language, "cdk.gui.error"));
+
+                                        return {};
+                                    });
+                            }
+
+                            if (mObjective.empty() || !ScoreboardUtils::hasScoreboard(mObjective)) {
+                                return LanguagePlugin::getShared()->getLanguage(player)
+                                    .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                        player.sendMessage(tr(language, "generic.tips.noinput"));
+
+                                        return {};
+                                    });
+                            }
+
+                            this->getDatabase()->set_ptr("/" + id + "/scores/" + mObjective, mScore);
+
+                            return this->getDatabase()->save();
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("cdk.award.item.submit", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 6 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<std::string>(args->elements[1]) ||
+                        !std::holds_alternative<std::string>(args->elements[2]) ||
+                        !std::holds_alternative<std::string>(args->elements[3]) ||
+                        !std::holds_alternative<std::string>(args->elements[4]) ||
+                        !std::holds_alternative<std::string>(args->elements[5]))
+                        return ll::makeStringError("cdk.award.item.submit: must take exactly six string parameters");
+
+                    std::string id = std::get<std::string>(args->elements[0]);
+                    std::string type = std::get<std::string>(args->elements[1]);
+                    std::string mObjectId = std::get<std::string>(args->elements[2]);
+
+                    return this->has(id)
+                        .and_then([this, id, type, mObjectId, args, &player](bool exists) -> ll::Expected<void> {
+                            if (!exists) {
+                                return LanguagePlugin::getShared()->getLanguage(player)
+                                    .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                        player.sendMessage(tr(language, "cdk.gui.error"));
+
+                                        return {};
+                                    });
+                            }
+
+                            if (mObjectId.empty()) {
+                                return LanguagePlugin::getShared()->getLanguage(player)
+                                    .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                        player.sendMessage(tr(language, "generic.tips.noinput"));
+
+                                        return {};
+                                    });
+                            }
+
+                            nlohmann::ordered_json mItemData = {
+                                { "id", mObjectId },
+                                { "type", type }
+                            };
+
+                            if (type == "universal") {
+                                mItemData["name"] = std::get<std::string>(args->elements[3]);
+                                mItemData["quantity"] = SystemUtils::toInt(std::get<std::string>(args->elements[4]), 1);
+                                mItemData["specialvalue"] = SystemUtils::toInt(std::get<std::string>(args->elements[5]), 0);
+                            }
+
+                            int mIndex = static_cast<int>(this->getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/item").value_or(nlohmann::ordered_json::array()).size());
+
+                            this->getDatabase()->set_ptr("/" + id + "/item/" + std::to_string(mIndex), mItemData);
+
+                            return this->getDatabase()->save();
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("cdk.award.inventory.submit", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 2 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<int>(args->elements[1]))
+                        return ll::makeStringError("cdk.award.inventory.submit: must take exactly one string and one int parameter");
+
+                    std::string id = std::get<std::string>(args->elements[0]);
+                    int slot = std::get<int>(args->elements[1]);
+
+                    return this->has(id)
+                        .and_then([this, id, slot, &player](bool exists) -> ll::Expected<void> {
+                            if (!exists) {
+                                return LanguagePlugin::getShared()->getLanguage(player)
+                                    .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                        player.sendMessage(tr(language, "cdk.gui.error"));
+
+                                        return {};
+                                    });
+                            }
+
+                            ItemStack mItemStack = player.mInventory->mInventory->getItem(slot);
+                            if (!mItemStack || mItemStack.isNull()) {
+                                return LanguagePlugin::getShared()->getLanguage(player)
+                                    .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                        player.sendMessage(tr(language, "cdk.gui.error"));
+
+                                        return {};
+                                    });
+                            }
+
+                            nlohmann::ordered_json mItemData = {
+                                { "id", mItemStack.save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0) },
+                                { "type", "nbt" }
+                            };
+
+                            int mIndex = static_cast<int>(this->getDatabase()->get_ptr<nlohmann::ordered_json>("/" + id + "/item").value_or(nlohmann::ordered_json::array()).size());
+
+                            this->getDatabase()->set_ptr("/" + id + "/item/" + std::to_string(mIndex), mItemData);
+
+                            return this->getDatabase()->save();
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("cdk.award.title.submit", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 3 ||
+                        !std::holds_alternative<std::string>(args->elements[0]) ||
+                        !std::holds_alternative<std::string>(args->elements[1]) ||
+                        !std::holds_alternative<std::string>(args->elements[2]))
+                        return ll::makeStringError("cdk.award.title.submit: must take exactly three string parameters");
+
+                    std::string id = std::get<std::string>(args->elements[0]);
+                    std::string mObjectTitle = std::get<std::string>(args->elements[1]);
+                    int mObjectData = SystemUtils::toInt(std::get<std::string>(args->elements[2]), 0);
+
+                    return this->has(id)
+                        .and_then([this, id, mObjectTitle, mObjectData, &player](bool exists) -> ll::Expected<void> {
+                            if (!exists) {
+                                return LanguagePlugin::getShared()->getLanguage(player)
+                                    .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                        player.sendMessage(tr(language, "cdk.gui.error"));
+
+                                        return {};
+                                    });
+                            }
+
+                            if (mObjectTitle.empty()) {
+                                return LanguagePlugin::getShared()->getLanguage(player)
+                                    .and_then([&player](const std::string& language) -> ll::Expected<void> {
+                                        player.sendMessage(tr(language, "generic.tips.noinput"));
+
+                                        return {};
+                                    });
+                            }
+
+                            this->getDatabase()->set_ptr("/" + id + "/title/" + mObjectTitle, mObjectData);
+
+                            return this->getDatabase()->save();
+                        });
+                });
+            });
     }
 
     ll::Expected<void> CdkPlugin::create(const std::string& id, int time, bool personal) {
@@ -272,6 +656,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db = std::make_shared<JsonStorage>(mDataPath / "cdk.json");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
+        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
 
         return this->mImpl->db->load()
             .transform([]() -> bool {
@@ -294,11 +679,14 @@ namespace LOICollection::server::Plugins {
         if (!this->mImpl->ModuleEnabled)
             return false;
 
-        this->registeryCommand();
+        return this->registeryUI()
+            .transform([this]() -> bool {
+                this->registeryCommand();
 
-        this->mImpl->mRegistered.store(true, std::memory_order_release);
+                this->mImpl->mRegistered.store(true, std::memory_order_release);
 
-        return true;
+                return true;
+            });
     }
 
     ll::Expected<bool> CdkPlugin::unregistry() {

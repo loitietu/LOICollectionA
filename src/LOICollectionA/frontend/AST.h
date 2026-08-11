@@ -89,7 +89,8 @@ namespace LOICollection::frontend {
             Arithmetic, Unary, Function, Macro, Variable, Assignment,
             Class, Return, New, MemberAccess, MethodCall, This,
             Super, SuperCall, InstanceOf, FunctionDef, FuncCall, Lambda,
-            Array, Index, Program, Block, Using
+            Array, Index, Program, Block, Using,
+            While, For, Break, Continue
         };
         [[nodiscard]] virtual Type getType() const = 0;
         
@@ -174,6 +175,68 @@ namespace LOICollection::frontend {
         [[nodiscard]] Type getType() const override {
             return Type::If;
         }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct WhileNode : ExprNode {
+        SourceLocation loc;
+        std::unique_ptr<ExprNode> condition;
+        std::unique_ptr<ASTNode> body;
+
+        WhileNode(SourceLocation location, auto&& c, auto&& b)
+            : loc(location),
+              condition(std::forward<decltype(c)>(c)),
+              body(std::forward<decltype(b)>(b)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::While; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct ForNode : ExprNode {
+        SourceLocation loc;
+        std::unique_ptr<ExprNode> init;
+        std::unique_ptr<ExprNode> condition;
+        std::unique_ptr<ExprNode> step;
+        std::unique_ptr<ASTNode> body;
+
+        ForNode(SourceLocation location, auto&& i, auto&& c, auto&& s, auto&& b)
+            : loc(location),
+              init(std::forward<decltype(i)>(i)),
+              condition(std::forward<decltype(c)>(c)),
+              step(std::forward<decltype(s)>(s)),
+              body(std::forward<decltype(b)>(b)) {}
+
+        [[nodiscard]] Type getType() const override { return Type::For; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct BreakNode : ASTNode {
+        SourceLocation loc;
+
+        explicit BreakNode(SourceLocation location) : loc(location) {}
+
+        [[nodiscard]] Type getType() const override { return Type::Break; }
+
+        void accept(ASTVisitor& visitor) override {
+            visitor.visit(*this);
+        }
+    };
+
+    struct ContinueNode : ASTNode {
+        SourceLocation loc;
+
+        explicit ContinueNode(SourceLocation location) : loc(location) {}
+
+        [[nodiscard]] Type getType() const override { return Type::Continue; }
 
         void accept(ASTVisitor& visitor) override {
             visitor.visit(*this);

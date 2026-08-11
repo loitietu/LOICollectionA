@@ -1,6 +1,7 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <filesystem>
 
 #include <fmt/core.h>
 
@@ -32,6 +33,10 @@
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
+#include "LOICollectionA/frontend/AST.h"
+
+#include "LOICollectionA/include/form/GUIManager.h"
+
 #include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/Throttle.h"
@@ -56,13 +61,15 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
 
+        std::filesystem::path mGuiPath;
+
         ll::event::ListenerPtr PlayerJoinEventListener;
         ll::event::ListenerPtr PlayerHurtEventListener;
         
         Impl() : PvpCache(100, 100), mThrottle(std::chrono::seconds(1)) {}
     };
 
-    PvpPlugin::PvpPlugin() : mImpl(std::make_unique<Impl>()), mGui(std::make_unique<PvpGui>(*this)) {};
+    PvpPlugin::PvpPlugin() : mImpl(std::make_unique<Impl>()) {};
     PvpPlugin::~PvpPlugin() = default;
 
     std::shared_ptr<PvpPlugin> PvpPlugin::getShared() {
@@ -82,13 +89,14 @@ namespace LOICollection::server::Plugins {
     void PvpPlugin::registeryCommand() {
         ll::command::CommandHandle& command = ll::command::CommandRegistrar::getInstance(false)
             .getOrCreateCommand("pvp", tr({}, "commands.pvp.description"), CommandPermissionLevel::Any, CommandFlagValue::NotCheat | CommandFlagValue::Async);
-        command.overload().text("gui").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+        command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isType(ActorType::Player))
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.target"));
             Player& player = *static_cast<Player*>(entity);
 
-            this->mGui->open(player).or_else(modules::defaultErrorHandler<PvpPlugin>);
+            form::GUIManager::getInstance().open("pvp", "pvp.open", form::GUIManagerType::CustomForm, player)
+                .or_else(modules::defaultErrorHandler<PvpPlugin>);
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
@@ -112,6 +120,28 @@ namespace LOICollection::server::Plugins {
 
             output.success(tr(origin.getLocaleCode(), "commands.pvp.success.enable"));
         });
+    }
+
+    ll::Expected<void> PvpPlugin::registeryUI() {
+        return form::GUIManager::getInstance().load("pvp", (this->mImpl->mGuiPath / "pvp.lcui").string())
+            .transform([this]() -> void {
+                form::GUIManager::getInstance().registerValue("pvp.isEnable", [this](Player& player) -> ll::Expected<frontend::ArrayRef> {
+                    return this->isEnable(player)
+                        .transform([](bool exists) -> frontend::ArrayRef {
+                            auto obj = std::make_shared<frontend::ArrayValue>();
+                            obj->elements.emplace_back(exists);
+                            
+                            return obj;
+                        });
+                });
+
+                form::GUIManager::getInstance().registerCallback("pvp.enable", [this](frontend::ArrayRef args, Player& player) -> ll::Expected<void> {
+                    if (args->elements.size() != 1 || !std::holds_alternative<bool>(args->elements[0]))
+                        return ll::makeStringError("pvp.enable: must take exactly one bool parameter");
+
+                    return this->enable(player, std::get<bool>(args->elements[0]));
+                });
+            });
     }
 
     void PvpPlugin::listenEvent() {
@@ -184,6 +214,8 @@ namespace LOICollection::server::Plugins {
         
         return this->mImpl->db->set("Pvp", player.getUuid().asString(), "enable", (value ? "true" : "false"))
             .transform([this, value, &player]() -> void {
+                this->mImpl->PvpCache.put(player.getUuid().asString(), value);
+
                 if (value) {
                     this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "pvp.log1"), player));
 
@@ -231,6 +263,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Pvp;
+        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
 
         return true;
     }
@@ -256,6 +289,8 @@ namespace LOICollection::server::Plugins {
         return this->mImpl->db->create("Pvp", [](SQLiteStorage::ColumnCallback ctor) -> void {
             ctor("name");
             ctor("enable");
+        }).and_then([this]() -> ll::Expected<void> {
+            return this->registeryUI();
         }).transform([this]() -> bool {
             this->registeryCommand();
             this->listenEvent();

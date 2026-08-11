@@ -1,0 +1,453 @@
+navigateBuy = new GlobalValue();
+navigateBuy.value = false;
+
+navigateTrade = new GlobalValue();
+navigateTrade.value = false;
+
+navigatePersonal = new GlobalValue();
+navigatePersonal.value = false;
+
+worldbuyOption = new ButtonOptions();
+worldbuyOption.tooltip = {tr("market.gui.worldbuy.tooltip")};
+
+tradeOption = new ButtonOptions();
+tradeOption.tooltip = {tr("market.gui.trade.tooltip")};
+
+personalOption = new ButtonOptions();
+personalOption.tooltip = {tr("market.gui.personal.tooltip")};
+
+buyItemOption = new ButtonOptions();
+buyItemOption.tooltip = {tr("market.gui.sell.item.button1.tooltip")};
+
+delistItemOption = new ButtonOptions();
+delistItemOption.tooltip = {tr("market.gui.sell.item.button2.tooltip")};
+
+marketOpen = new CustomForm("market.open", {tr("market.gui.title")});
+marketOpen.label({tr("market.gui.label")}, new TextOptions());
+marketOpen.spacer(new SpacingOptions());
+marketOpen.divider(new DividerOptions());
+marketOpen.button({tr("market.gui.worldbuy")}, func () -> void {
+    if (!navigateBuy.value) [
+        navigateBuy.value = true;
+
+        marketOpen.close();
+    ]
+}, worldbuyOption);
+marketOpen.button({tr("market.gui.trade")}, func () -> void {
+    if (!navigateTrade.value) [
+        navigateTrade.value = true;
+
+        marketOpen.close();
+    ]
+}, tradeOption);
+marketOpen.button({tr("market.gui.personal")}, func () -> void {
+    if (!navigatePersonal.value) [
+        navigatePersonal.value = true;
+
+        marketOpen.close();
+    ]
+}, personalOption);
+marketOpen.closeButton();
+marketOpen.show(func (result) -> void {
+    if (navigateBuy.value) [
+        GUIManager::switchTo("market.buy", 3);
+    :
+        if (navigateTrade.value) [
+            GUIManager::switchTo("market.trade", 3);
+        :
+            if (navigatePersonal.value) [
+                GUIManager::switchTo("market.personal", 1);
+            ]
+        ]
+    ]
+});
+marketOpen.show();
+
+buy = new PaginatedForm("market.buy", {tr("market.gui.title")}, GUIManager::value("market.buy.items"), 10);
+buy.label({tr("market.gui.label")}, new TextOptions());
+buy.previousButton({tr("generic.gui.page.previous")});
+buy.nextButton({tr("generic.gui.page.next")});
+buy.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+buy.closeButton();
+buy.show(func (result) -> void {
+    if (result.selection != "") [
+        idData = GUIManager::request("market.buy.id", [ result.selectionIndex ]);
+
+        buildItemInfo(idData[0]);
+    :
+        GUIManager::open("market", "market.open", 1);
+    ]
+});
+buy.show();
+
+trade = new PaginatedForm("market.trade", {tr("market.gui.title")}, GUIManager::value("market.players"), 10);
+trade.label({tr("market.gui.trade.label")}, new TextOptions());
+trade.previousButton({tr("generic.gui.page.previous")});
+trade.nextButton({tr("generic.gui.page.next")});
+trade.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+trade.closeButton();
+trade.show(func (result) -> void {
+    if (result.selection != "") [
+        uuidData = GUIManager::request("market.players.uuid", [ result.selectionIndex ]);
+
+        buildTradeType(uuidData[0]);
+    :
+        GUIManager::open("market", "market.open", 1);
+    ]
+});
+trade.show();
+
+navigateSellItem = new GlobalValue();
+navigateSellItem.value = false;
+
+navigateSellContent = new GlobalValue();
+navigateSellContent.value = false;
+
+navigateBlacklist = new GlobalValue();
+navigateBlacklist.value = false;
+
+sellItemOption = new ButtonOptions();
+sellItemOption.tooltip = {tr("market.gui.personal.sellItem.tooltip")};
+
+sellItemContentOption = new ButtonOptions();
+sellItemContentOption.tooltip = {tr("market.gui.personal.sellItemContent.tooltip")};
+
+blacklistOption = new ButtonOptions();
+blacklistOption.tooltip = {tr("market.gui.personal.blacklist.tooltip")};
+
+marketPersonal = new CustomForm("market.personal", {tr("market.gui.title")});
+marketPersonal.label({tr("market.gui.label")}, new TextOptions());
+marketPersonal.spacer(new SpacingOptions());
+marketPersonal.divider(new DividerOptions());
+marketPersonal.button({tr("market.gui.personal.sellItem")}, func () -> void {
+    if (!navigateSellItem.value) [
+        navigateSellItem.value = true;
+
+        marketPersonal.close();
+    ]
+}, sellItemOption);
+marketPersonal.button({tr("market.gui.personal.sellItemContent")}, func () -> void {
+    if (!navigateSellContent.value) [
+        navigateSellContent.value = true;
+
+        marketPersonal.close();
+    ]
+}, sellItemContentOption);
+marketPersonal.button({tr("market.gui.personal.blacklist")}, func () -> void {
+    if (!navigateBlacklist.value) [
+        navigateBlacklist.value = true;
+
+        marketPersonal.close();
+    ]
+}, blacklistOption);
+marketPersonal.closeButton();
+marketPersonal.show(func (result) -> void {
+    if (navigateSellItem.value) [
+        GUIManager::switchTo("market.sell.inventory", 3);
+    :
+        if (navigateSellContent.value) [
+            checkData = GUIManager::request("market.sell.content.check", []);
+
+            if (checkData[0]) [
+                GUIManager::switchTo("market.sell.content", 3);
+            ]
+        :
+            if (navigateBlacklist.value) [
+                GUIManager::switchTo("market.blacklist", 3);
+            ]
+        ]
+    ]
+});
+marketPersonal.show();
+
+sellInventory = new PaginatedForm("market.sell.inventory", {tr("market.gui.title")}, GUIManager::value("market.sell.inventory"), 10);
+sellInventory.label({tr("market.gui.sell.item.dropdown")}, new TextOptions());
+sellInventory.previousButton({tr("generic.gui.page.previous")});
+sellInventory.nextButton({tr("generic.gui.page.next")});
+sellInventory.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+sellInventory.closeButton();
+sellInventory.show(func (result) -> void {
+    if (result.selection != "") [
+        slotData = GUIManager::request("market.sell.slot", [ result.selectionIndex ]);
+
+        buildSellItem(slotData[0]);
+    :
+        GUIManager::open("market", "market.personal", 1);
+    ]
+});
+sellInventory.show();
+
+sellContent = new PaginatedForm("market.sell.content", {tr("market.gui.title")}, GUIManager::value("market.my.items"), 10);
+sellContent.label({tr("market.gui.label")}, new TextOptions());
+sellContent.previousButton({tr("generic.gui.page.previous")});
+sellContent.nextButton({tr("generic.gui.page.next")});
+sellContent.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+sellContent.closeButton();
+sellContent.show(func (result) -> void {
+    if (result.selection != "") [
+        idData = GUIManager::request("market.my.item.id", [ result.selectionIndex ]);
+
+        buildItemContent(idData[0]);
+    :
+        GUIManager::open("market", "market.personal", 1);
+    ]
+});
+sellContent.show();
+
+navigateBlacklistAdd = new GlobalValue();
+navigateBlacklistAdd.value = false;
+
+blacklistAddOption = new ButtonOptions();
+blacklistAddOption.tooltip = {tr("market.gui.sell.blacklist.add.tooltip")};
+
+blacklist = new PaginatedForm("market.blacklist", {tr("market.gui.title")}, GUIManager::value("market.blacklists"), 10);
+blacklist.label({tr("market.gui.label")}, new TextOptions());
+blacklist.previousButton({tr("generic.gui.page.previous")});
+blacklist.nextButton({tr("generic.gui.page.next")});
+blacklist.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+blacklist.closeButton();
+blacklist.divider(new DividerOptions());
+blacklist.button({tr("market.gui.sell.blacklist.add")}, func () -> void {
+    if (!navigateBlacklistAdd.value) [
+        navigateBlacklistAdd.value = true;
+
+        blacklist.close();
+    ]
+}, blacklistAddOption);
+blacklist.show(func (result) -> void {
+    if (navigateBlacklistAdd.value) [
+        checkData = GUIManager::request("market.blacklist.check", []);
+
+        if (checkData[0]) [
+            GUIManager::switchTo("market.blacklist.add", 3);
+        ]
+    :
+        if (result.selection != "") [
+            buildBlacklistSet(result.selection);
+        :
+            GUIManager::open("market", "market.personal", 1);
+        ]
+    ]
+});
+blacklist.show();
+
+blacklistAdd = new PaginatedForm("market.blacklist.add", {tr("market.gui.title")}, GUIManager::value("market.players"), 10);
+blacklistAdd.label({tr("market.gui.sell.blacklist.add.label")}, new TextOptions());
+blacklistAdd.previousButton({tr("generic.gui.page.previous")});
+blacklistAdd.nextButton({tr("generic.gui.page.next")});
+blacklistAdd.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+blacklistAdd.closeButton();
+blacklistAdd.show(func (result) -> void {
+    if (result.selection != "") [
+        uuidData = GUIManager::request("market.players.uuid", [ result.selectionIndex ]);
+        addResult = GUIManager::request("market.blacklist.add", [ uuidData[0] ]);
+
+        if (!addResult[0]) [
+            GUIManager::open("market", "market.blacklist", 3);
+        ]
+    :
+        GUIManager::open("market", "market.blacklist", 3);
+    ]
+});
+blacklistAdd.show();
+
+func buildItemInfo(id: string) -> void {
+    itemInfoData = GUIManager::request("market.item.info", [ id ]);
+
+    buyDone = new GlobalValue();
+    buyDone.value = false;
+
+    buyResult = new GlobalValue();
+    buyResult.value = true;
+
+    offshelfDone = new GlobalValue();
+    offshelfDone.value = false;
+
+    itemInfo = new CustomForm("market.item", {tr("market.gui.title")});
+    itemInfo.label(itemInfoData[0], new TextOptions());
+    itemInfo.spacer(new SpacingOptions());
+    itemInfo.divider(new DividerOptions());
+    itemInfo.button({tr("market.gui.sell.item.button1")}, func () -> void {
+        buyResultData = GUIManager::request("market.buy.submit", [ id ]);
+
+        buyResult.value = buyResultData[0];
+        buyDone.value = true;
+
+        itemInfo.close();
+    }, buyItemOption);
+
+    if (GUIManager::request("market.isAdmin", [])[0]) [
+        itemInfo.button({tr("market.gui.sell.item.button2")}, func () -> void {
+            GUIManager::request("market.item.offshelf", [ id ]);
+
+            offshelfDone.value = true;
+
+            itemInfo.close();
+        }, delistItemOption);
+    ]
+
+    itemInfo.closeButton();
+    itemInfo.show(func (result) -> void {
+        if (buyDone.value) [
+            if (!buyResult.value) [
+                GUIManager::open("market", "market.buy", 3);
+            ]
+        :
+            if (!offshelfDone.value) [
+                GUIManager::open("market", "market.buy", 3);
+            ]
+        ]
+    });
+
+    GUIManager::switchTo("market.item", 1);
+}
+
+func buildItemContent(id: string) -> void {
+    itemInfoData = GUIManager::request("market.item.info", [ id ]);
+
+    offshelfReturnDone = new GlobalValue();
+    offshelfReturnDone.value = false;
+
+    itemMine = new CustomForm("market.item.mine", {tr("market.gui.title")});
+    itemMine.label(itemInfoData[0], new TextOptions());
+    itemMine.spacer(new SpacingOptions());
+    itemMine.divider(new DividerOptions());
+    itemMine.button({tr("market.gui.sell.item.button2")}, func () -> void {
+        GUIManager::request("market.item.offshelf.return", [ id ]);
+
+        offshelfReturnDone.value = true;
+
+        itemMine.close();
+    }, delistItemOption);
+    itemMine.closeButton();
+    itemMine.show(func (result) -> void {
+        if (!offshelfReturnDone.value) [
+            GUIManager::open("market", "market.sell.content", 3);
+        ]
+    });
+
+    GUIManager::switchTo("market.item.mine", 1);
+}
+
+func buildSellItem(slot: int) -> void {
+    itemName = new ObservableString("", true);
+    itemIcon = new ObservableString("", true);
+    itemIntroduce = new ObservableString("", true);
+    itemScore = new ObservableString("", true);
+
+    itemNameOptions = new TextFieldOptions();
+    itemNameOptions.description = {tr("market.gui.sell.sellItem.input1.placeholder")};
+
+    itemIconOptions = new TextFieldOptions();
+    itemIconOptions.description = {tr("market.gui.sell.sellItem.input2.placeholder")};
+
+    itemIntroduceOptions = new TextFieldOptions();
+    itemIntroduceOptions.description = {tr("market.gui.sell.sellItem.input3.placeholder")};
+
+    itemScoreOptions = new TextFieldOptions();
+    itemScoreOptions.description = {tr("market.gui.sell.sellItem.input4.placeholder")};
+
+    sellDone = new GlobalValue();
+    sellDone.value = false;
+
+    sellResult = new GlobalValue();
+    sellResult.value = true;
+
+    sellItemForm = new CustomForm("market.sell.item", {tr("market.gui.title")});
+    sellItemForm.label({tr("market.gui.label")}, new TextOptions());
+    sellItemForm.spacer(new SpacingOptions());
+    sellItemForm.divider(new DividerOptions());
+    sellItemForm.textField({tr("market.gui.sell.sellItem.input1")}, itemName, itemNameOptions);
+    sellItemForm.textField({tr("market.gui.sell.sellItem.input2")}, itemIcon, itemIconOptions);
+    sellItemForm.textField({tr("market.gui.sell.sellItem.input3")}, itemIntroduce, itemIntroduceOptions);
+    sellItemForm.textField({tr("market.gui.sell.sellItem.input4")}, itemScore, itemScoreOptions);
+    sellItemForm.button({tr("generic.gui.save")}, func () -> void {
+        sellResultData = GUIManager::request("market.sell.submit", [ slot, itemName.getData(), itemIcon.getData(), itemIntroduce.getData(), itemScore.getData() ]);
+
+        sellResult.value = sellResultData[0];
+        sellDone.value = true;
+
+        sellItemForm.close();
+    }, new ButtonOptions());
+    sellItemForm.closeButton();
+    sellItemForm.show(func (result) -> void {
+        if (!sellDone.value) [
+            GUIManager::open("market", "market.sell.inventory", 3);
+        :
+            if (!sellResult.value) [
+                GUIManager::open("market", "market.sell.inventory", 3);
+            ]
+        ]
+    });
+
+    GUIManager::switchTo("market.sell.item", 1);
+}
+
+func buildTradeType(uuid: string) -> void {
+    typeIndex = new ObservableNumber(0.0, true);
+
+    typeSell = new DropdownItem();
+    typeSell.label = "sell";
+    typeSell.value = 0;
+
+    typeBuy = new DropdownItem();
+    typeBuy.label = "buy";
+    typeBuy.value = 1;
+
+    typeItems = [ typeSell, typeBuy ];
+
+    typeDone = new GlobalValue();
+    typeDone.value = false;
+
+    tradeType = new CustomForm("market.trade.type", {tr("market.gui.title")});
+    tradeType.label({tr("market.gui.label")}, new TextOptions());
+    tradeType.spacer(new SpacingOptions());
+    tradeType.divider(new DividerOptions());
+    tradeType.dropdown({tr("market.gui.trade.dropdown")}, typeIndex, typeItems, new DropdownOptions());
+    tradeType.button({tr("generic.gui.save")}, func () -> void {
+        typeDone.value = true;
+
+        tradeType.close();
+    }, new ButtonOptions());
+    tradeType.closeButton();
+    tradeType.show(func (result) -> void {
+        if (typeDone.value) [
+            if (typeIndex.getData() == 0) [
+                GUIManager::callback("market.trade.request", [ uuid, "sell" ]);
+            :
+                GUIManager::callback("market.trade.request", [ uuid, "buy" ]);
+            ]
+        :
+            GUIManager::open("market", "market.open", 1);
+        ]
+    });
+
+    GUIManager::switchTo("market.trade.type", 1);
+}
+
+func buildBlacklistSet(id: string) -> void {
+    infoData = GUIManager::request("market.blacklist.info", [ id ]);
+
+    removeDone = new GlobalValue();
+    removeDone.value = false;
+
+    blacklistInfo = new CustomForm("market.blacklist.info", {tr("market.gui.title")});
+    blacklistInfo.label(infoData[0], new TextOptions());
+    blacklistInfo.spacer(new SpacingOptions());
+    blacklistInfo.divider(new DividerOptions());
+    blacklistInfo.button({tr("market.gui.sell.blacklist.set.remove")}, func () -> void {
+        GUIManager::callback("market.blacklist.remove", [ id ]);
+
+        removeDone.value = true;
+
+        blacklistInfo.close();
+    }, new ButtonOptions());
+    blacklistInfo.closeButton();
+    blacklistInfo.show(func (result) -> void {
+        if (!removeDone.value) [
+            GUIManager::open("market", "market.blacklist", 3);
+        ]
+    });
+
+    GUIManager::switchTo("market.blacklist.info", 1);
+}

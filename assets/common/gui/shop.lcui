@@ -1,0 +1,554 @@
+navigateNew = new GlobalValue();
+navigateNew.value = false;
+
+navigateRemove = new GlobalValue();
+navigateRemove.value = false;
+
+navigateAward = new GlobalValue();
+navigateAward.value = false;
+
+newOption = new ButtonOptions();
+newOption.tooltip = {tr("shop.gui.button1.tooltip")};
+
+removeOption = new ButtonOptions();
+removeOption.tooltip = {tr("shop.gui.button2.tooltip")};
+
+awardOption = new ButtonOptions();
+awardOption.tooltip = {tr("shop.gui.button3.tooltip")};
+
+shopEdit = new CustomForm("shop.edit", {tr("shop.gui.title")});
+shopEdit.label({tr("shop.gui.label")}, new TextOptions());
+shopEdit.spacer(new SpacingOptions());
+shopEdit.divider(new DividerOptions());
+shopEdit.button({tr("shop.gui.button1")}, func () -> void {
+    if (!navigateNew.value) [
+        navigateNew.value = true;
+
+        shopEdit.close();
+    ]
+}, newOption);
+shopEdit.button({tr("shop.gui.button2")}, func () -> void {
+    if (!navigateRemove.value) [
+        navigateRemove.value = true;
+
+        shopEdit.close();
+    ]
+}, removeOption);
+shopEdit.button({tr("shop.gui.button3")}, func () -> void {
+    if (!navigateAward.value) [
+        navigateAward.value = true;
+
+        shopEdit.close();
+    ]
+}, awardOption);
+shopEdit.closeButton();
+shopEdit.show(func (result) -> void {
+    if (navigateNew.value) [
+        GUIManager::switchTo("shop.edit.new", 1);
+    :
+        if (navigateRemove.value) [
+            GUIManager::switchTo("shop.edit.remove", 3);
+        :
+            if (navigateAward.value) [
+                GUIManager::switchTo("shop.edit.award", 3);
+            ]
+        ]
+    ]
+});
+shopEdit.show();
+
+navigateBuy = new GlobalValue();
+navigateBuy.value = false;
+
+navigateSell = new GlobalValue();
+navigateSell.value = false;
+
+shopEditNew = new CustomForm("shop.edit.new", {tr("shop.gui.title")});
+shopEditNew.label({tr("shop.gui.label")}, new TextOptions());
+shopEditNew.spacer(new SpacingOptions());
+shopEditNew.divider(new DividerOptions());
+shopEditNew.button("Buy", func () -> void {
+    if (!navigateBuy.value) [
+        navigateBuy.value = true;
+
+        shopEditNew.close();
+    ]
+}, new ButtonOptions());
+shopEditNew.button("Sell", func () -> void {
+    if (!navigateSell.value) [
+        navigateSell.value = true;
+
+        shopEditNew.close();
+    ]
+}, new ButtonOptions());
+shopEditNew.closeButton();
+shopEditNew.show(func (result) -> void {
+    if (navigateBuy.value) [
+        buildNewInfo("buy");
+    :
+        if (navigateSell.value) [
+            buildNewInfo("sell");
+        ]
+    ]
+});
+shopEditNew.show();
+
+shopEditRemove = new PaginatedForm("shop.edit.remove", {tr("shop.gui.title")}, GUIManager::value("shop.edit.keys"), 10);
+shopEditRemove.label({tr("shop.gui.label")}, new TextOptions());
+shopEditRemove.previousButton({tr("generic.gui.page.previous")});
+shopEditRemove.nextButton({tr("generic.gui.page.next")});
+shopEditRemove.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+shopEditRemove.closeButton();
+shopEditRemove.show(func (result) -> void {
+    if (result.selection != "") [
+        buildRemoveInfo(result.selection);
+    :
+        GUIManager::open("shop", "shop.edit", 1);
+    ]
+});
+shopEditRemove.show();
+
+shopEditAward = new PaginatedForm("shop.edit.award", {tr("shop.gui.title")}, GUIManager::value("shop.edit.keys"), 10);
+shopEditAward.label({tr("shop.gui.label")}, new TextOptions());
+shopEditAward.previousButton({tr("generic.gui.page.previous")});
+shopEditAward.nextButton({tr("generic.gui.page.next")});
+shopEditAward.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+shopEditAward.closeButton();
+shopEditAward.show(func (result) -> void {
+    if (result.selection != "") [
+        typeData = GUIManager::request("shop.edit.type", [ result.selection ]);
+
+        buildAwardContent(result.selection, typeData[0]);
+    :
+        GUIManager::open("shop", "shop.edit", 1);
+    ]
+});
+shopEditAward.show();
+
+func buildNewInfo(type: string) -> void {
+    mId = new ObservableString("", true);
+    mTitle = new ObservableString("", true);
+    mContent = new ObservableString("", true);
+    mExit = new ObservableString("", true);
+    mScore = new ObservableString("", true);
+    mTitleCmd = new ObservableString("", true);
+    mItemCmd = new ObservableString("", true);
+
+    mIdOptions = new TextFieldOptions();
+    mIdOptions.description = {tr("shop.gui.button1.input1.placeholder")};
+
+    mTitleOptions = new TextFieldOptions();
+    mTitleOptions.description = {tr("shop.gui.button1.input2.placeholder")};
+
+    mContentOptions = new TextFieldOptions();
+    mContentOptions.description = {tr("shop.gui.button1.input3.placeholder")};
+
+    mExitOptions = new TextFieldOptions();
+    mExitOptions.description = {tr("shop.gui.button1.input4.placeholder")};
+
+    mScoreOptions = new TextFieldOptions();
+    mScoreOptions.description = {tr("shop.gui.button1.input5.placeholder")};
+
+    mTitleCmdOptions = new TextFieldOptions();
+    mTitleCmdOptions.description = {tr("shop.gui.button1.input6.placeholder")};
+
+    mItemCmdOptions = new TextFieldOptions();
+    mItemCmdOptions.description = {tr("shop.gui.button1.input7.placeholder")};
+
+    newInfoDone = new GlobalValue();
+    newInfoDone.value = false;
+
+    newInfoResult = new GlobalValue();
+    newInfoResult.value = true;
+
+    newInfo = new CustomForm("shop.edit.new.info", {tr("shop.gui.title")});
+    newInfo.label({tr("shop.gui.label")}, new TextOptions());
+    newInfo.spacer(new SpacingOptions());
+    newInfo.divider(new DividerOptions());
+    newInfo.textField({tr("shop.gui.button1.input1")}, mId, mIdOptions);
+    newInfo.textField({tr("shop.gui.button1.input2")}, mTitle, mTitleOptions);
+    newInfo.textField({tr("shop.gui.button1.input3")}, mContent, mContentOptions);
+    newInfo.textField({tr("shop.gui.button1.input4")}, mExit, mExitOptions);
+
+    if (type == "buy") [
+        newInfo.textField({tr("shop.gui.button1.input5")}, mScore, mScoreOptions);
+    ]
+
+    if (type == "sell") [
+        newInfo.textField({tr("shop.gui.button1.input6")}, mTitleCmd, mTitleCmdOptions);
+        newInfo.textField({tr("shop.gui.button1.input7")}, mItemCmd, mItemCmdOptions);
+    ]
+
+    newInfo.button({tr("generic.gui.save")}, func () -> void {
+        newInfoResultData = GUIManager::request("shop.edit.new.submit", [ type, mId.getData(), mTitle.getData(), mContent.getData(), mExit.getData(), mScore.getData(), mTitleCmd.getData(), mItemCmd.getData() ]);
+
+        newInfoResult.value = newInfoResultData[0];
+        newInfoDone.value = true;
+
+        newInfo.close();
+    }, new ButtonOptions());
+    newInfo.closeButton();
+    newInfo.show(func (result) -> void {
+        if (!newInfoDone.value) [
+            GUIManager::open("shop", "shop.edit.new", 1);
+        :
+            if (!newInfoResult.value) [
+                GUIManager::open("shop", "shop.edit.new", 1);
+            ]
+        ]
+    });
+
+    GUIManager::switchTo("shop.edit.new.info", 1);
+}
+
+func buildRemoveInfo(id: string) -> void {
+    removeDone = new GlobalValue();
+    removeDone.value = false;
+
+    removeInfo = new CustomForm("shop.edit.remove.info", {tr("shop.gui.title")});
+    removeInfo.label(std::format({tr("shop.gui.button2.content")}, [ id ]), new TextOptions());
+    removeInfo.spacer(new SpacingOptions());
+    removeInfo.divider(new DividerOptions());
+    removeInfo.button({tr("shop.gui.button2.yes")}, func () -> void {
+        GUIManager::callback("shop.edit.remove", [ id ]);
+
+        removeDone.value = true;
+
+        removeInfo.close();
+    }, new ButtonOptions());
+    removeInfo.button({tr("shop.gui.button2.no")}, func () -> void {
+        removeInfo.close();
+    }, new ButtonOptions());
+    removeInfo.closeButton();
+    removeInfo.show();
+
+    GUIManager::switchTo("shop.edit.remove.info", 1);
+}
+
+func buildAwardContent(id: string, type: string) -> void {
+    navigateSetting = new GlobalValue();
+    navigateSetting.value = false;
+
+    navigateNewAward = new GlobalValue();
+    navigateNewAward.value = false;
+
+    navigateRemoveAward = new GlobalValue();
+    navigateRemoveAward.value = false;
+
+    awardContent = new CustomForm("shop.edit.award.content", {tr("shop.gui.title")});
+    awardContent.label(std::format({tr("shop.gui.button3.label")}, [ id ]), new TextOptions());
+    awardContent.spacer(new SpacingOptions());
+    awardContent.divider(new DividerOptions());
+    awardContent.button({tr("shop.gui.button3.setting")}, func () -> void {
+        if (!navigateSetting.value) [
+            navigateSetting.value = true;
+
+            awardContent.close();
+        ]
+    }, new ButtonOptions());
+    awardContent.button({tr("shop.gui.button3.new")}, func () -> void {
+        if (!navigateNewAward.value) [
+            navigateNewAward.value = true;
+
+            awardContent.close();
+        ]
+    }, new ButtonOptions());
+    awardContent.button({tr("shop.gui.button3.remove")}, func () -> void {
+        if (!navigateRemoveAward.value) [
+            navigateRemoveAward.value = true;
+
+            awardContent.close();
+        ]
+    }, new ButtonOptions());
+    awardContent.closeButton();
+    awardContent.show(func (result) -> void {
+        if (navigateSetting.value) [
+            buildAwardSetting(id, type);
+        :
+            if (navigateNewAward.value) [
+                buildAwardNew(id, type);
+            :
+                if (navigateRemoveAward.value) [
+                    buildAwardRemove(id, type);
+                :
+                    GUIManager::open("shop", "shop.edit.award", 3);
+                ]
+            ]
+        ]
+    });
+
+    GUIManager::switchTo("shop.edit.award.content", 1);
+}
+
+func buildAwardSetting(id: string, type: string) -> void {
+    settingData = GUIManager::request("shop.edit.award.setting.data", [ id, type ]);
+
+    settingTitle = new ObservableString(settingData[0], true);
+    settingContent = new ObservableString(settingData[1], true);
+    settingExit = new ObservableString(settingData[2], true);
+    settingScore = new ObservableString(settingData[3], true);
+    settingTitleCmd = new ObservableString(settingData[4], true);
+    settingItemCmd = new ObservableString(settingData[5], true);
+
+    settingTitleOptions = new TextFieldOptions();
+    settingTitleOptions.description = {tr("shop.gui.button3.input2.placeholder")};
+
+    settingContentOptions = new TextFieldOptions();
+    settingContentOptions.description = {tr("shop.gui.button3.input3.placeholder")};
+
+    settingExitOptions = new TextFieldOptions();
+    settingExitOptions.description = {tr("shop.gui.button3.input4.placeholder")};
+
+    settingScoreOptions = new TextFieldOptions();
+    settingScoreOptions.description = {tr("shop.gui.button3.input5.placeholder")};
+
+    settingTitleCmdOptions = new TextFieldOptions();
+    settingTitleCmdOptions.description = {tr("shop.gui.button3.input6.placeholder")};
+
+    settingItemCmdOptions = new TextFieldOptions();
+    settingItemCmdOptions.description = {tr("shop.gui.button3.input7.placeholder")};
+
+    settingDone = new GlobalValue();
+    settingDone.value = false;
+
+    settingResult = new GlobalValue();
+    settingResult.value = true;
+
+    awardSetting = new CustomForm("shop.edit.award.setting", {tr("shop.gui.title")});
+    awardSetting.label({tr("shop.gui.label")}, new TextOptions());
+    awardSetting.spacer(new SpacingOptions());
+    awardSetting.divider(new DividerOptions());
+    awardSetting.textField({tr("shop.gui.button3.input2")}, settingTitle, settingTitleOptions);
+    awardSetting.textField({tr("shop.gui.button3.input3")}, settingContent, settingContentOptions);
+    awardSetting.textField({tr("shop.gui.button3.input4")}, settingExit, settingExitOptions);
+
+    if (type == "buy") [
+        awardSetting.textField({tr("shop.gui.button3.input5")}, settingScore, settingScoreOptions);
+    ]
+
+    if (type == "sell") [
+        awardSetting.textField({tr("shop.gui.button3.input6")}, settingTitleCmd, settingTitleCmdOptions);
+        awardSetting.textField({tr("shop.gui.button3.input7")}, settingItemCmd, settingItemCmdOptions);
+    ]
+
+    awardSetting.button({tr("generic.gui.save")}, func () -> void {
+        settingResultData = GUIManager::request("shop.edit.award.setting.submit", [ id, type, settingTitle.getData(), settingContent.getData(), settingExit.getData(), settingScore.getData(), settingTitleCmd.getData(), settingItemCmd.getData() ]);
+
+        settingResult.value = settingResultData[0];
+        settingDone.value = true;
+
+        awardSetting.close();
+    }, new ButtonOptions());
+    awardSetting.closeButton();
+    awardSetting.show(func (result) -> void {
+        if (!settingDone.value) [
+            buildAwardContent(id, type);
+        :
+            if (!settingResult.value) [
+                buildAwardContent(id, type);
+            ]
+        ]
+    });
+
+    GUIManager::switchTo("shop.edit.award.setting", 1);
+}
+
+func buildAwardNew(id: string, type: string) -> void {
+    navigateCommodity = new GlobalValue();
+    navigateCommodity.value = false;
+
+    navigateTitle = new GlobalValue();
+    navigateTitle.value = false;
+
+    navigateFrom = new GlobalValue();
+    navigateFrom.value = false;
+
+    awardNew = new CustomForm("shop.edit.award.new", {tr("shop.gui.title")});
+    awardNew.label({tr("shop.gui.label")}, new TextOptions());
+    awardNew.spacer(new SpacingOptions());
+    awardNew.divider(new DividerOptions());
+    awardNew.button("Commodity", func () -> void {
+        if (!navigateCommodity.value) [
+            navigateCommodity.value = true;
+
+            awardNew.close();
+        ]
+    }, new ButtonOptions());
+    awardNew.button("Title", func () -> void {
+        if (!navigateTitle.value) [
+            navigateTitle.value = true;
+
+            awardNew.close();
+        ]
+    }, new ButtonOptions());
+    awardNew.button("From", func () -> void {
+        if (!navigateFrom.value) [
+            navigateFrom.value = true;
+
+            awardNew.close();
+        ]
+    }, new ButtonOptions());
+    awardNew.closeButton();
+    awardNew.show(func (result) -> void {
+        if (navigateCommodity.value) [
+            buildAwardNewInfo(id, type, "commodity");
+        :
+            if (navigateTitle.value) [
+                buildAwardNewInfo(id, type, "title");
+            :
+                if (navigateFrom.value) [
+                    buildAwardNewInfo(id, type, "from");
+                :
+                    buildAwardContent(id, type);
+                ]
+            ]
+        ]
+    });
+
+    GUIManager::switchTo("shop.edit.award.new", 1);
+}
+
+func buildAwardNewInfo(id: string, type: string, awardType: string) -> void {
+    mInput1 = new ObservableString("", true);
+    mInput2 = new ObservableString("", true);
+    mInput3 = new ObservableString("", true);
+    mInput4 = new ObservableString("", true);
+    mInput5 = new ObservableString("", true);
+    mInput6 = new ObservableString("", true);
+    mInput7 = new ObservableString("", true);
+    mInput8 = new ObservableString("", true);
+    mInput9 = new ObservableString("", true);
+
+    mInput1Options = new TextFieldOptions();
+    mInput1Options.description = {tr("shop.gui.button3.new.input1.placeholder")};
+
+    mInput2Options = new TextFieldOptions();
+    mInput2Options.description = {tr("shop.gui.button3.new.input2.placeholder")};
+
+    mInput3Options = new TextFieldOptions();
+    mInput3Options.description = {tr("shop.gui.button3.new.input3.placeholder")};
+
+    mInput4Options = new TextFieldOptions();
+    mInput4Options.description = {tr("shop.gui.button3.new.input4.placeholder")};
+
+    mInput5Options = new TextFieldOptions();
+    mInput5Options.description = {tr("shop.gui.button3.new.input5.placeholder")};
+
+    mInput6Options = new TextFieldOptions();
+    mInput6Options.description = {tr("shop.gui.button3.new.input6.placeholder")};
+
+    mInput7Options = new TextFieldOptions();
+    mInput7Options.description = {tr("shop.gui.button3.new.input7.placeholder")};
+
+    mInput8Options = new TextFieldOptions();
+    mInput8Options.description = {tr("shop.gui.button3.new.input8.placeholder")};
+
+    mInput9Options = new TextFieldOptions();
+    mInput9Options.description = {tr("shop.gui.button3.new.input9.placeholder")};
+
+    awardNewInfoDone = new GlobalValue();
+    awardNewInfoDone.value = false;
+
+    awardNewInfoResult = new GlobalValue();
+    awardNewInfoResult.value = true;
+
+    awardNewInfo = new CustomForm("shop.edit.award.new.info", {tr("shop.gui.title")});
+    awardNewInfo.label({tr("shop.gui.label")}, new TextOptions());
+    awardNewInfo.spacer(new SpacingOptions());
+    awardNewInfo.divider(new DividerOptions());
+    awardNewInfo.textField({tr("shop.gui.button3.new.input1")}, mInput1, mInput1Options);
+    awardNewInfo.textField({tr("shop.gui.button3.new.input2")}, mInput2, mInput2Options);
+
+    if (awardType == "commodity") [
+        awardNewInfo.textField({tr("shop.gui.button3.new.input3")}, mInput3, mInput3Options);
+        awardNewInfo.textField({tr("shop.gui.button3.new.input6")}, mInput6, mInput6Options);
+        awardNewInfo.textField({tr("shop.gui.button3.new.input4")}, mInput4, mInput4Options);
+        awardNewInfo.textField({tr("shop.gui.button3.new.input5")}, mInput5, mInput5Options);
+        awardNewInfo.textField({tr("shop.gui.button3.new.input7")}, mInput7, mInput7Options);
+    ]
+
+    if (awardType == "title") [
+        awardNewInfo.textField({tr("shop.gui.button3.new.input3")}, mInput3, mInput3Options);
+        awardNewInfo.textField({tr("shop.gui.button3.new.input6")}, mInput6, mInput6Options);
+
+        if (type == "buy") [
+            awardNewInfo.textField({tr("shop.gui.button3.new.input9")}, mInput9, mInput9Options);
+        ]
+
+        awardNewInfo.textField({tr("shop.gui.button3.new.input4")}, mInput4, mInput4Options);
+        awardNewInfo.textField({tr("shop.gui.button3.new.input5")}, mInput5, mInput5Options);
+        awardNewInfo.textField({tr("shop.gui.button3.new.input7")}, mInput7, mInput7Options);
+        awardNewInfo.textField({tr("shop.gui.button3.new.input8")}, mInput8, mInput8Options);
+    ]
+
+    if (awardType == "from") [
+        awardNewInfo.textField({tr("shop.gui.button3.new.input6")}, mInput6, mInput6Options);
+    ]
+
+    awardNewInfo.button({tr("generic.gui.save")}, func () -> void {
+        awardNewInfoResultData = GUIManager::request("shop.edit.award.new.submit", [ id, type, awardType, mInput1.getData(), mInput2.getData(), mInput3.getData(), mInput4.getData(), mInput5.getData(), mInput6.getData(), mInput7.getData(), mInput8.getData(), mInput9.getData() ]);
+
+        awardNewInfoResult.value = awardNewInfoResultData[0];
+        awardNewInfoDone.value = true;
+
+        awardNewInfo.close();
+    }, new ButtonOptions());
+    awardNewInfo.closeButton();
+    awardNewInfo.show(func (result) -> void {
+        if (!awardNewInfoDone.value) [
+            buildAwardContent(id, type);
+        :
+            if (!awardNewInfoResult.value) [
+                buildAwardContent(id, type);
+            ]
+        ]
+    });
+
+    GUIManager::switchTo("shop.edit.award.new.info", 1);
+}
+
+func buildAwardRemove(id: string, type: string) -> void {
+    awardRemove = new PaginatedForm("shop.edit.award.remove", {tr("shop.gui.title")}, GUIManager::request("shop.edit.award.packages", [ id ]), 10);
+    awardRemove.label({tr("shop.gui.label")}, new TextOptions());
+    awardRemove.previousButton({tr("generic.gui.page.previous")});
+    awardRemove.nextButton({tr("generic.gui.page.next")});
+    awardRemove.chooseButton({tr("generic.gui.page.choose")}, {tr("generic.gui.page.choose.input")});
+    awardRemove.closeButton();
+    awardRemove.show(func (result) -> void {
+        if (result.selection != "") [
+            buildAwardRemoveInfo(id, result.selection);
+        :
+            buildAwardContent(id, type);
+        ]
+    });
+
+    GUIManager::switchTo("shop.edit.award.remove", 3);
+}
+
+func buildAwardRemoveInfo(id: string, packageid: string) -> void {
+    removeAwardDone = new GlobalValue();
+    removeAwardDone.value = false;
+
+    awardRemoveInfo = new CustomForm("shop.edit.award.remove.info", {tr("shop.gui.title")});
+    awardRemoveInfo.label(std::format({tr("shop.gui.button3.remove.content")}, [ packageid ]), new TextOptions());
+    awardRemoveInfo.spacer(new SpacingOptions());
+    awardRemoveInfo.divider(new DividerOptions());
+    awardRemoveInfo.button({tr("shop.gui.button3.remove.yes")}, func () -> void {
+        GUIManager::callback("shop.edit.award.remove", [ id, packageid ]);
+
+        removeAwardDone.value = true;
+
+        awardRemoveInfo.close();
+    }, new ButtonOptions());
+    awardRemoveInfo.button({tr("shop.gui.button3.remove.no")}, func () -> void {
+        awardRemoveInfo.close();
+    }, new ButtonOptions());
+    awardRemoveInfo.closeButton();
+    awardRemoveInfo.show(func (result) -> void {
+        if (!removeAwardDone.value) [
+            GUIManager::open("shop", "shop.edit", 1);
+        ]
+    });
+
+    GUIManager::switchTo("shop.edit.award.remove.info", 1);
+}

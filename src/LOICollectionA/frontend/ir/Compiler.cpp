@@ -51,6 +51,21 @@ namespace LOICollection::frontend::ir {
             countBody(node.falseBranch);
         }
 
+        void visit(WhileNode& node) override {
+            countBody(node.condition);
+            countBody(node.body);
+        }
+
+        void visit(ForNode& node) override {
+            countBody(node.init);
+            countBody(node.condition);
+            countBody(node.step);
+            countBody(node.body);
+        }
+
+        void visit(BreakNode&) override {}
+        void visit(ContinueNode&) override {}
+
         void visit(CompareNode& node) override {
             countNode(*node.left);
             countNode(*node.right);
@@ -319,6 +334,103 @@ namespace LOICollection::frontend::ir {
 
         int endPos = static_cast<int>(this->current.get().currentIP());
         this->current.get().patchJump(jmpEndIdx, endPos - static_cast<int>(jmpEndIdx) - 1);
+    }
+
+    void Compiler::visit(WhileNode& node) {
+        size_t loopStart = this->current.get().currentIP();
+
+        this->compileValue(*node.condition);
+
+        size_t jmpFalseIdx = this->current.get().emit(OpCode::JMP_IF_FALSE, 0);
+
+        this->loopStack.push_back(LoopContext{});
+        this->loopStack.back().continueTarget = loopStart;
+
+        node.body->accept(*this);
+
+        this->current.get().emit(OpCode::POP);
+
+        size_t jmpBackIdx = this->current.get().emit(OpCode::JMP, 0);
+        this->current.get().patchJump(jmpBackIdx, static_cast<int>(loopStart) - static_cast<int>(jmpBackIdx) - 1);
+
+        size_t exitPos = this->current.get().currentIP();
+        this->current.get().patchJump(jmpFalseIdx, static_cast<int>(exitPos) - static_cast<int>(jmpFalseIdx) - 1);
+
+        for (size_t idx : this->loopStack.back().breakJumps)
+            this->current.get().patchJump(idx, static_cast<int>(exitPos) - static_cast<int>(idx) - 1);
+        for (size_t idx : this->loopStack.back().continueJumps)
+            this->current.get().patchJump(idx, static_cast<int>(loopStart) - static_cast<int>(idx) - 1);
+
+        this->loopStack.pop_back();
+
+        int emptyIdx = this->addConstant(std::string(""));
+        this->current.get().emit(OpCode::PUSH_STR, emptyIdx);
+    }
+
+    void Compiler::visit(ForNode& node) {
+        if (node.init) {
+            this->compileValue(*node.init);
+            this->current.get().emit(OpCode::POP);
+        }
+
+        size_t loopStart = this->current.get().currentIP();
+
+        size_t jmpFalseIdx = static_cast<size_t>(-1);
+        if (node.condition) {
+            this->compileValue(*node.condition);
+            jmpFalseIdx = this->current.get().emit(OpCode::JMP_IF_FALSE, 0);
+        }
+
+        this->loopStack.push_back(LoopContext{});
+
+        node.body->accept(*this);
+
+        this->current.get().emit(OpCode::POP);
+
+        size_t continuePos = this->current.get().currentIP();
+        this->loopStack.back().continueTarget = continuePos;
+
+        if (node.step) {
+            this->compileValue(*node.step);
+            this->current.get().emit(OpCode::POP);
+        }
+
+        size_t jmpBackIdx = this->current.get().emit(OpCode::JMP, 0);
+        this->current.get().patchJump(jmpBackIdx, static_cast<int>(loopStart) - static_cast<int>(jmpBackIdx) - 1);
+
+        size_t exitPos = this->current.get().currentIP();
+        if (jmpFalseIdx != static_cast<size_t>(-1))
+            this->current.get().patchJump(jmpFalseIdx, static_cast<int>(exitPos) - static_cast<int>(jmpFalseIdx) - 1);
+
+        for (size_t idx : this->loopStack.back().breakJumps)
+            this->current.get().patchJump(idx, static_cast<int>(exitPos) - static_cast<int>(idx) - 1);
+        for (size_t idx : this->loopStack.back().continueJumps)
+            this->current.get().patchJump(idx, static_cast<int>(continuePos) - static_cast<int>(idx) - 1);
+
+        this->loopStack.pop_back();
+
+        int emptyIdx = this->addConstant(std::string(""));
+        this->current.get().emit(OpCode::PUSH_STR, emptyIdx);
+    }
+
+    void Compiler::visit(BreakNode& node) {
+        if (this->loopStack.empty()) {
+            this->diagnostics.addError(node.loc, "'break' can only be used inside a loop");
+            return;
+        }
+
+        size_t idx = this->current.get().emit(OpCode::JMP, 0);
+        this->loopStack.back().breakJumps.push_back(idx);
+    }
+
+    void Compiler::visit(ContinueNode& node) {
+        if (this->loopStack.empty()) {
+            this->diagnostics.addError(node.loc, "'continue' can only be used inside a loop");
+            return;
+        }
+
+        size_t idx = this->current.get().emit(OpCode::JMP, 0);
+        this->loopStack.back().continueJumps.push_back(idx);
     }
 
     void Compiler::visit(CompareNode& node) {

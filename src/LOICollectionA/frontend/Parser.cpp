@@ -88,6 +88,126 @@ namespace LOICollection::frontend {
         );
     }
 
+    std::unique_ptr<WhileNode> Parser::parseWhileStatement() {
+        SourceLocation loc = currentToken.loc;
+
+        if (!eat(TokenType::TOKEN_WHILE)) return nullptr;
+        if (!eat(TokenType::TOKEN_LPAREN)) {
+            synchronize({ TokenType::TOKEN_RBRCKET, TokenType::TOKEN_RBRACE });
+            return nullptr;
+        }
+
+        auto cond = parseBoolExpression();
+        if (!cond || !eat(TokenType::TOKEN_RPAREN) || !eat(TokenType::TOKEN_LBRCKET)) {
+            synchronize({ TokenType::TOKEN_RBRCKET, TokenType::TOKEN_RBRACE });
+            return nullptr;
+        }
+
+        auto body = parseBlock(TokenType::TOKEN_RBRCKET, false);
+        if (!eat(TokenType::TOKEN_RBRCKET)) {
+            synchronize({ TokenType::TOKEN_RBRACE });
+            return nullptr;
+        }
+
+        return std::make_unique<WhileNode>(loc, std::move(cond), std::move(body));
+    }
+
+    std::unique_ptr<ForNode> Parser::parseForStatement() {
+        SourceLocation loc = currentToken.loc;
+
+        if (!eat(TokenType::TOKEN_FOR)) return nullptr;
+        if (!eat(TokenType::TOKEN_LPAREN)) {
+            synchronize({ TokenType::TOKEN_RBRCKET, TokenType::TOKEN_RBRACE });
+            return nullptr;
+        }
+
+        std::unique_ptr<ExprNode> init;
+        if (currentToken.type != TokenType::TOKEN_SEMICOLON) {
+            init = parseForClause();
+            if (!init) {
+                synchronize({ TokenType::TOKEN_SEMICOLON, TokenType::TOKEN_RPAREN });
+                return nullptr;
+            }
+        }
+
+        if (!eat(TokenType::TOKEN_SEMICOLON)) {
+            synchronize({ TokenType::TOKEN_RPAREN, TokenType::TOKEN_RBRCKET });
+            return nullptr;
+        }
+
+        std::unique_ptr<ExprNode> cond;
+        if (currentToken.type != TokenType::TOKEN_SEMICOLON) {
+            cond = parseBoolExpression();
+            if (!cond) {
+                synchronize({ TokenType::TOKEN_SEMICOLON, TokenType::TOKEN_RPAREN });
+                return nullptr;
+            }
+        }
+
+        if (!eat(TokenType::TOKEN_SEMICOLON)) {
+            synchronize({ TokenType::TOKEN_RPAREN, TokenType::TOKEN_RBRCKET });
+            return nullptr;
+        }
+
+        std::unique_ptr<ExprNode> step;
+        if (currentToken.type != TokenType::TOKEN_RPAREN) {
+            step = parseForClause();
+            if (!step) {
+                synchronize({ TokenType::TOKEN_RPAREN, TokenType::TOKEN_RBRCKET });
+                return nullptr;
+            }
+        }
+
+        if (!eat(TokenType::TOKEN_RPAREN) || !eat(TokenType::TOKEN_LBRCKET)) {
+            synchronize({ TokenType::TOKEN_RBRCKET, TokenType::TOKEN_RBRACE });
+            return nullptr;
+        }
+
+        auto body = parseBlock(TokenType::TOKEN_RBRCKET, false);
+        if (!eat(TokenType::TOKEN_RBRCKET)) {
+            synchronize({ TokenType::TOKEN_RBRACE });
+            return nullptr;
+        }
+
+        return std::make_unique<ForNode>(loc, std::move(init), std::move(cond), std::move(step), std::move(body));
+    }
+
+    std::unique_ptr<BreakNode> Parser::parseBreakStatement() {
+        SourceLocation loc = currentToken.loc;
+
+        if (!eat(TokenType::TOKEN_BREAK)) return nullptr;
+
+        return std::make_unique<BreakNode>(loc);
+    }
+
+    std::unique_ptr<ContinueNode> Parser::parseContinueStatement() {
+        SourceLocation loc = currentToken.loc;
+
+        if (!eat(TokenType::TOKEN_CONTINUE)) return nullptr;
+
+        return std::make_unique<ContinueNode>(loc);
+    }
+
+    std::unique_ptr<ExprNode> Parser::parseForClause() {
+        SourceLocation loc = currentToken.loc;
+
+        auto expr = parseBaseExpression();
+        if (!expr)
+            return nullptr;
+
+        if (currentToken.type == TokenType::TOKEN_OP && currentToken.value == "=") {
+            if (!eat(TokenType::TOKEN_OP)) return nullptr;
+
+            auto right = parseBaseExpression();
+            if (!right)
+                return nullptr;
+
+            return std::make_unique<AssignmentNode>(loc, std::move(expr), std::move(right));
+        }
+
+        return expr;
+    }
+
     std::unique_ptr<UsingNode> Parser::parseUsing() {
         SourceLocation loc = currentToken.loc;
 
@@ -841,6 +961,18 @@ namespace LOICollection::frontend {
         if (currentToken.type == TokenType::TOKEN_CLASS)
             return parseClass();
 
+        if (currentToken.type == TokenType::TOKEN_WHILE)
+            return parseWhileStatement();
+
+        if (currentToken.type == TokenType::TOKEN_FOR)
+            return parseForStatement();
+
+        if (currentToken.type == TokenType::TOKEN_BREAK)
+            return parseBreakStatement();
+
+        if (currentToken.type == TokenType::TOKEN_CONTINUE)
+            return parseContinueStatement();
+
         if (currentToken.type == TokenType::TOKEN_RETURN)
             return parseReturn();
 
@@ -1344,6 +1476,10 @@ namespace LOICollection::frontend {
     std::string Parser::getTokenName(TokenType type) {
         switch (type) {
             case TokenType::TOKEN_IF: return "IF";
+            case TokenType::TOKEN_WHILE: return "WHILE";
+            case TokenType::TOKEN_FOR: return "FOR";
+            case TokenType::TOKEN_BREAK: return "BREAK";
+            case TokenType::TOKEN_CONTINUE: return "CONTINUE";
             case TokenType::TOKEN_LPAREN: return "(";
             case TokenType::TOKEN_RPAREN: return ")";
             case TokenType::TOKEN_LBRCKET: return "[";

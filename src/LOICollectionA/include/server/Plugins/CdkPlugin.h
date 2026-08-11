@@ -11,8 +11,6 @@
 #include "LOICollectionA/include/ModuleBase.h"
 #include "LOICollectionA/include/ModManager.h"
 
-#include "LOICollectionA/include/server/Plugins/gui/CdkGui.h"
-
 class Player;
 class JsonStorage;
 
@@ -87,12 +85,13 @@ namespace LOICollection::server::Plugins {
     private:
         CdkPlugin();
 
+        ll::Expected<void> registeryUI();
+
         void registeryCommand();
 
         struct operation;
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<CdkGui> mGui;
     };
 }
