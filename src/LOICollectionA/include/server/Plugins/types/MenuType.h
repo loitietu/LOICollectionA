@@ -6,4 +6,10 @@ namespace LOICollection::server::Plugins {
         Modal,
         Custom
     };
+
+    enum class MenuActionResult {
+        Success,
+        PermissionDenied,
+        InsufficientScore
+    };
 }

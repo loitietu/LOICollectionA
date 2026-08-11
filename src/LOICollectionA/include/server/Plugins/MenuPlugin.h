@@ -3,8 +3,6 @@
 #include <memory>
 #include <string>
 
-#include <nlohmann/json_fwd.hpp>
-
 #include <ll/api/Expected.h>
 
 #include "LOICollectionA/base/Macro.h"
@@ -12,10 +10,10 @@
 #include "LOICollectionA/include/ModuleBase.h"
 #include "LOICollectionA/include/ModManager.h"
 
-#include "LOICollectionA/include/server/Plugins/gui/MenuGui.h"
+#include "LOICollectionA/include/server/Plugins/form/MenuData.h"
+#include "LOICollectionA/include/server/Plugins/types/MenuType.h"
 
 class Player;
-class JsonStorage;
 
 namespace ll::io {
     class Logger;
@@ -63,15 +61,11 @@ namespace LOICollection::server::Plugins {
         LOICOLLECTION_A_NDAPI static std::shared_ptr<MenuPlugin> getShared();
         LOICOLLECTION_A_NDAPI static std::error_code makeErrorCode(MenuPluginErrorCode e);
 
-        LOICOLLECTION_A_NDAPI std::shared_ptr<JsonStorage> getDatabase();
         LOICOLLECTION_A_NDAPI std::shared_ptr<ll::io::Logger> getLogger();
 
-        LOICOLLECTION_A_NDAPI ll::Expected<void> create(const std::string& id, const nlohmann::ordered_json& data);
-        LOICOLLECTION_A_NDAPI ll::Expected<void> remove(const std::string& id);
+        LOICOLLECTION_A_NDAPI ll::Expected<MenuActionResult> handleAction(Player& player, const MenuItemData& action, const MenuData& original);
 
-        LOICOLLECTION_A_NDAPI ll::Expected<void> handleAction(Player& player, const nlohmann::ordered_json& action, const nlohmann::ordered_json& original);
-
-        LOICOLLECTION_A_NDAPI ll::Expected<bool> has(const std::string& id);
+        LOICOLLECTION_A_NDAPI ll::Expected<void> open(Player& player, const std::string& id);
 
         LOICOLLECTION_A_NDAPI bool isValid();
 
@@ -98,6 +92,5 @@ namespace LOICollection::server::Plugins {
         
         struct Impl;
         std::unique_ptr<Impl> mImpl;
-        std::unique_ptr<MenuGui> mGui;
     };
 }

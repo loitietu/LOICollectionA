@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <nlohmann/json.hpp>
-
 #include <string>
 
 #include <ll/api/service/Bedrock.h>
@@ -13,11 +11,10 @@
 #include <mc/server/SimulatedPlayer.h>
 #include <mc/server/commands/PlayerPermissionLevel.h>
 
-#include "LOICollectionA/data/JsonStorage.h"
-
 #include "LOICollectionA/utils/mc-server/ScoreboardUtils.h"
 
 #include "LOICollectionA/include/server/Plugins/MenuPlugin.h"
+#include "LOICollectionA/include/server/Plugins/form/MenuData.h"
 
 using namespace LOICollection::server::Plugins;
 
@@ -28,115 +25,62 @@ protected:
             GTEST_SKIP() << "MenuPlugin is not valid";
     }
 
-    void TearDown() override {
-        MenuPlugin::getShared()->getDatabase()->write({});
+    static MenuData MakeSimpleMenu() {
+        MenuData simple;
+        simple.id = "test_menu_simple";
+        simple.type = "Simple";
+        simple.title = "Menu Test";
+        simple.content = "This is a menu test";
 
-        auto saveResult = MenuPlugin::getShared()->getDatabase()->save();
-        if (!saveResult.has_value())
-            GTEST_FAIL() << "Unable to save data";
+        MenuItemData button1;
+        button1.type = "button";
+        button1.title = "Button 1";
+        button1.id = "Button1";
+        button1.scores = { ScoreRequirement{ "test_tietu_money", 100 } };
+        button1.run = {
+            "execute as ${player} run scoreboard players set @s test_tietu1 4",
+            "execute as ${player} run scoreboard players set @s test_tietu2 4"
+        };
+
+        MenuItemData button2;
+        button2.type = "button";
+        button2.title = "Button 2";
+        button2.id = "Button2";
+        button2.run = {
+            "execute as ${player} run scoreboard players set @s test_tietu1 5",
+            "execute as ${player} run scoreboard players set @s test_tietu2 5"
+        };
+        button2.permission = 1;
+
+        simple.items = { button1, button2 };
+        return simple;
     }
 
-    void CreateMenuEntry() {
-        nlohmann::ordered_json menuSimpleData = {
-            { "title", "Menu Test" },
-            { "content", "This is a menu test" },
-            { "info", {
-                { "exit", "execute as ${player} run scoreboard players set @s test_tietu1 0" },
-                { "permission", "execute as ${player} run scoreboard players set @s test_tietu1 1" },
-                { "score", "execute as ${player} run scoreboard players set @s test_tietu1 2" }
-            } },
-            { "type", "Simple" },
-            { "customize", {
-                {
-                    { "title", "Button 1" },
-                    { "image", "" },
-                    { "id", "Button1" },
-                    { "scores", {
-                        { "test_tietu_money", 100 }
-                    } },
-                    { "run", {
-                        "execute as ${player} run scoreboard players set @s test_tietu1 4",
-                        "execute as ${player} run scoreboard players set @s test_tietu2 4"
-                    } },
-                    { "type", "button" },
-                    { "permission", 0 }
-                },
-                {
-                    { "title", "Button 2" },
-                    { "image", "" },
-                    { "id", "Button2" },
-                    { "scores", {} },
-                    { "run", {
-                        "execute as ${player} run scoreboard players set @s test_tietu1 5",
-                        "execute as ${player} run scoreboard players set @s test_tietu2 5"
-                    } },
-                    { "type", "button" },
-                    { "permission", 1 }
-                }
-            } },
-            { "permission", 0 }
-        };
+    static MenuData MakeModalMenu() {
+        MenuData modal;
+        modal.id = "test_menu_modal";
+        modal.type = "Modal";
+        modal.title = "Menu Test Modal";
+        modal.content = "This is a menu test modal";
 
-        nlohmann::ordered_json menuModalData = {
-            { "title", "Menu Test Modal" },
-            { "content", "This is a menu test modal" },
-            { "info", {
-                { "permission", "execute as ${player} run scoreboard players set @s test_tietu1 1" },
-                { "score", "execute as ${player} run scoreboard players set @s test_tietu1 2" }
-            } },
-            { "type", "Modal" },
-            { "confirmButton", {
-                { "title", "Confirm" },
-                { "scores", {} },
-                { "run", "test_menu_simple" },
-                { "type", "from" },
-                { "permission", 0 }
-            } },
-            { "cancelButton", {
-                { "title", "Cancel" },
-                { "scores", {} },
-                { "run", {
-                    "execute as ${player} run scoreboard players set @s test_tietu1 7"
-                } },
-                { "type", "button" },
-                { "permission", 0 }
-            } },
-            { "permission", 0 }
-        };
+        MenuItemData confirm;
+        confirm.type = "from";
+        confirm.title = "Confirm";
+        confirm.run = { "test_menu_simple" };
 
-        ASSERT_TRUE(MenuPlugin::getShared()->create("test_menu_simple", menuSimpleData).has_value());
-        ASSERT_TRUE(MenuPlugin::getShared()->create("test_menu_modal", menuModalData).has_value());
+        MenuItemData cancel;
+        cancel.type = "button";
+        cancel.title = "Cancel";
+        cancel.run = { "execute as ${player} run scoreboard players set @s test_tietu1 7" };
+
+        modal.confirm = confirm;
+        modal.cancel = cancel;
+        return modal;
     }
 };
 
-TEST_F(MenuPluginTest, MenuCreate) {
-    CreateMenuEntry();
-
-    auto has1 = MenuPlugin::getShared()->has("test_menu_simple");
-    EXPECT_TRUE(has1.has_value());
-    EXPECT_TRUE(has1.value());
-
-    auto has2 = MenuPlugin::getShared()->has("test_menu_modal");
-    EXPECT_TRUE(has2.has_value());
-    EXPECT_TRUE(has2.value());
-}
-
-TEST_F(MenuPluginTest, MenuRemove) {
-    CreateMenuEntry();
-
-    EXPECT_TRUE(MenuPlugin::getShared()->remove("test_menu_simple").has_value());
-
-    auto has1 = MenuPlugin::getShared()->has("test_menu_simple");
-    EXPECT_TRUE(has1.has_value());
-    EXPECT_FALSE(has1.value());
-
-    auto has2 = MenuPlugin::getShared()->has("test_menu_modal");
-    EXPECT_TRUE(has2.has_value());
-    EXPECT_TRUE(has2.value());
-}
-
 TEST_F(MenuPluginTest, MenuHandleActionSimple) {
-    CreateMenuEntry();
+    auto menu = MakeSimpleMenu();
 
     ScoreboardUtils::create("test_tietu1");
     ScoreboardUtils::create("test_tietu2");
@@ -147,11 +91,9 @@ TEST_F(MenuPluginTest, MenuHandleActionSimple) {
 
     ScoreboardUtils::setScore(*sp, "test_tietu_money", 100);
 
-    auto dataResult = MenuPlugin::getShared()->getDatabase()->get<nlohmann::ordered_json>("test_menu_simple");
-    ASSERT_TRUE(dataResult.has_value());
-    auto& data = dataResult.value();
-
-    EXPECT_TRUE(MenuPlugin::getShared()->handleAction(*sp, data["customize"].at(0), data).has_value());
+    auto action = MenuPlugin::getShared()->handleAction(*sp, menu.items.at(0), menu);
+    EXPECT_TRUE(action.has_value());
+    EXPECT_EQ(action.value(), MenuActionResult::Success);
 
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu1"), 4);
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu2"), 4);
@@ -159,16 +101,20 @@ TEST_F(MenuPluginTest, MenuHandleActionSimple) {
 
     ScoreboardUtils::reduceScore(*sp, "test_tietu2", 4);
 
-    EXPECT_FALSE(MenuPlugin::getShared()->handleAction(*sp, data["customize"].at(0), data).has_value());
+    auto noScore = MenuPlugin::getShared()->handleAction(*sp, menu.items.at(0), menu);
+    EXPECT_TRUE(noScore.has_value());
+    EXPECT_EQ(noScore.value(), MenuActionResult::InsufficientScore);
 
-    EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu1"), 2);
+    EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu1"), 4);
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu2"), 0);
 
     sp->getAbilities().setPlayerPermissions(PlayerPermissionLevel::Member);
 
-    EXPECT_FALSE(MenuPlugin::getShared()->handleAction(*sp, data["customize"].at(1), data).has_value());
+    auto noPermission = MenuPlugin::getShared()->handleAction(*sp, menu.items.at(1), menu);
+    EXPECT_TRUE(noPermission.has_value());
+    EXPECT_EQ(noPermission.value(), MenuActionResult::PermissionDenied);
 
-    EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu1"), 1);
+    EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu1"), 4);
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu2"), 0);
 
     ScoreboardUtils::remove("test_tietu1");
@@ -177,18 +123,16 @@ TEST_F(MenuPluginTest, MenuHandleActionSimple) {
 }
 
 TEST_F(MenuPluginTest, MenuHandleActionModal) {
-    CreateMenuEntry();
+    auto menu = MakeModalMenu();
 
     ScoreboardUtils::create("test_tietu1");
 
     auto sp = ll::service::getLevel()->getPlayer("test_player");
     EXPECT_TRUE(sp);
 
-    auto dataResult = MenuPlugin::getShared()->getDatabase()->get<nlohmann::ordered_json>("test_menu_modal");
-    ASSERT_TRUE(dataResult.has_value());
-    auto& data = dataResult.value();
-
-    EXPECT_TRUE(MenuPlugin::getShared()->handleAction(*sp, data["cancelButton"], data).has_value());
+    auto action = MenuPlugin::getShared()->handleAction(*sp, menu.cancel, menu);
+    EXPECT_TRUE(action.has_value());
+    EXPECT_EQ(action.value(), MenuActionResult::Success);
 
     EXPECT_EQ(ScoreboardUtils::getScore(*sp, "test_tietu1"), 7);
 

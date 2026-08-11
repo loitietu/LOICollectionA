@@ -15,6 +15,12 @@ namespace Config {
         bool ModuleEnabled = false;
         std::string MenuItemId = "minecraft:clock";
         std::string EntranceKey = "main";
+        std::string GuiPath = "menu.lcui";
+    };
+
+    struct C_Shop {
+        bool ModuleEnabled = false;
+        std::string GuiPath = "shop.lcui";
     };
 
     struct C_Tpa {
@@ -208,7 +214,7 @@ namespace Config {
         C_Menu Menu;
         C_Tpa Tpa;
         
-        bool Shop = false;
+        C_Shop Shop;
 
         C_Monitor Monitor;
         C_Pvp Pvp;

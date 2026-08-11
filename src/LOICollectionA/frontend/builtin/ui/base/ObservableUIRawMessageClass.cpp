@@ -107,7 +107,7 @@ namespace ObservableUIRawMessageClass {
         ClassCall& classes = ClassCall::getInstance();
 
         classes.registerClass("ObservableUIRawMessage", {});
-        classes.registerConstructor("ObservableUIRawMessage", makeObservableUIRawMessage, { ParamType::BOOL, ParamType::BOOL });
+        classes.registerConstructor("ObservableUIRawMessage", makeObservableUIRawMessage, { ParamType::OBJECT, ParamType::BOOL });
         classes.registerMethod("ObservableUIRawMessage", "isClientWritable", isClientWritable, {});
         classes.registerMethod("ObservableUIRawMessage", "getData", getData, {});
         classes.registerMethod("ObservableUIRawMessage", "setData", setData, { ParamType::BOOL });

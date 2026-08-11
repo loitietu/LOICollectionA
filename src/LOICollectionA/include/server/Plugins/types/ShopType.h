@@ -11,4 +11,12 @@ namespace LOICollection::server::Plugins {
         title,
         from
     };
+
+    enum class ShopActionResult {
+        Success,
+        InsufficientScore,
+        MissingItem,
+        MissingTitle,
+        InvalidNumber
+    };
 }

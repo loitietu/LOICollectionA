@@ -226,323 +226,96 @@
 数据文件是指存储在数据库中的数据文件。数据文件是数据库的核心，它存储了数据库中的所有数据。数据文件可以是文本文件、二进制文件或者其他类型的文件。数据文件的格式和内容取决于数据库的类型和应用场景。  
 目前 `LOICollectionA` 支持 `Json` 和 `SQLite` 两种数据文件格式。其中只有 `Json` 格式的数据文件可以被直接修改。而对于 `SQLite` 格式的数据文件，我们是不建议您直接修改的。
 
-?> 通常情况下，您不需要手动修改数据文件，因为在使用 `LOICollectionA` 的过程中，对于指定数据文件是存在内部编辑器的，您可以通过它们进行更加快捷的编辑。
+?> 通常情况下，您不需要手动修改数据文件，因为在使用 `LOICollectionA` 的过程中，大部分数据文件都存在内部编辑器。从 1.15.0 起，Menu 与 Shop 改为直接编辑 lcui 数据文件，不再提供游戏内编辑器。
 
-### menu.json
+### menu.lcui（config 目录）
 
-> [!NOTE]
-> 以下内容取自 LOICollectionA 1.10.0 的 `menu.json` 结构，对于后续版本的 `menu.json` 结构可能会有所不同。  
+> 从 LOICollectionA 1.15.0 起，Menu 不再读取 `menu.json`。请在 `plugins/LOICollectionA/config` 目录下自行创建 `menu.lcui`，在文件内直接定义 `MenuData` 并使用 `MenuForm` 打开。表单 ID 对应 `/menu gui <Id>` 中传入的 Id。
 
-?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `menu.json` 文件。  
-对于内部编辑器，您可以通过以下 [命令](./md/command.md#menu) 进行编辑
+```lcui
+mbutton1 = new MenuItemData();
+button1.type = "button";
+button1.title = "Button 1";
+button1.id = "Button1";
+button1.run = [ "say Button1" ];
+button1.permission = 0;
 
-```json
-{
-    "main": { // 表单 ID（同时 main 也为表单入口，不可不存在）
-        "title": "'Menu Example'", // 表单标题
-        "content": "'This is a menu example'", // 表单内容
-        "info": { // 部分功能提供（可选）
-            "exit": "execute as ${player} run say Exit Menu", // 玩家退出表单时执行命令（其中 ${player} 代表玩家名称）
-            "permission": "execute as ${player} run say You do not have permission to use this button", // 使用部分按钮时，玩家没有权限时所执行命令
-            "score": "execute as ${player} run say You do not have enough score to use this button" // 使用部分按钮时，玩家没有足够 Score 时所执行命令
-        },
-        "type": "Simple", // 表单类型 （Simple 类似于按钮列表）
-        "customize": [ // 按钮列表
-            {
-                "title": "'Header'", // 控件标题
-                "id": "Header", // 控件 ID（不可重复）
-                "type": "header" // 控件类型（header 为标题）
-            },
-            {
-                "title": "'Label'", // 控件标题
-                "id": "Label", // 控件 ID（不可重复）
-                "type": "label" // 控件类型（label 为标签）
-            },
-            {
-                "id": "Divider", // 控件 ID（不可重复）
-                "type": "divider" // 控件类型（divider 为分割线）
-            },
-            {
-                "title": "'Button 1'", // 按钮标题
-                "image": "",  // 按钮图标（可选，只支持 path 类型）
-                "id": "Button1", // 按钮 ID（不可重复）
-                "scores": { // 按钮所需的 Score（可选）
-                    "money": 100 // 按钮所需的 Score 分数
-                },
-                "run": [ // 使用该按钮时，当所有条件都满足时，所执行的命令（其中 ${player} 代表玩家名称）
-                    "execute as ${player} run say Button1",
-                    "execute as ${player} run say Button1 - 1"
-                ],
-                "type": "button", // 按钮类型（button 为按钮）
-                "permission": 0 // 按钮所需的权限等级（0 为无需权限）
-            },
-            {
-                "title": "'From 1'",
-                "image": "",
-                "id": "Form1",
-                "scores": {},
-                "run": "Menu1", // 使用该按钮时，当所有条件都满足时，所打开的表单 ID
-                "type": "from", // 按钮类型（from 为表单）
-                "permission": 0
-            },
-            {
-                "title": "'From 2'",
-                "image": "",
-                "id": "Form2",
-                "scores": {},
-                "run": "Menu2",
-                "type": "from",
-                "permission": 0
-            },
-            {
-                "title": "'OP Button 1'",
-                "image": "",
-                "id": "Button2",
-                "run": [ 
-                    "execute as ${player} run say OPButton1"
-                ],
-                "type": "button",
-                "permission": 2 // 按钮所需的权限等级（2 为 OP 权限）
-            },
-            {
-                "title": "'OP From 1'",
-                "image": "",
-                "id": "Button3",
-                "run": "Menu1",
-                "type": "from",
-                "permission": 2
-            }
-        ],
-        "permission": 0 // 表单所需的权限等级
-    },
-    "Menu1": {
-        "title": "'Menu 1'",
-        "content": "'This is a menu 1'",
-        "info": {
-            "permission": "execute as ${player} run say You do not have permission to use this button",
-            "score": "execute as ${player} run say You do not have enough score to use this button"
-        },
-        "type": "Modal", // 表单类型 （Modal 类似于对话框）
-        "confirmButton": { // 确认按钮
-            "title": "'Confirm'",
-            "scores": {},
-            "run": [ 
-                "execute as ${player} run say Confirm"
-            ],
-            "type": "button",
-            "permission": 0
-        },
-        "cancelButton": { // 取消按钮
-            "title": "'Cancel'",
-            "scores": {},
-            "run": [ 
-                "execute as ${player} run say Cancel" 
-            ],
-            "type": "button",
-            "permission": 0
-        },
-        "permission": 0
-    },
-    "Menu2": {
-        "title": "'Menu2'",
-        "info": {
-            "exit": "execute as ${player} run say Exit Menu"
-        },
-        "type": "Custom", // 表单类型 （Custom 类似于自定义表单）
-        "customize": [ // 自定义表单组件列表
-            {
-                "title": "'Test is a Header'", // 组件标题
-                "id": "Header", // 组件 ID（不可重复）
-                "type": "header" // 组件类型（header 为标题）
-            },
-            {
-                "title": "'This is a Menu 2'", // 组件标题
-                "id": "Label", // 组件 ID（不可重复）
-                "type": "Label" // 组件类型（Label 为标签）
-            },
-            {
-                "id": "Divider", // 组件 ID（不可重复）
-                "type": "divider" // 组件类型（divider 为分割线）
-            },
-            {
-                "title": "'This is a Input'",
-                "id": "Input",
-                "placeholder": "This is a content", // 输入框占位符
-                "defaultValue": "default", // 输入框默认值
-                "tooltip": "This is a tooltip", // 文本提示
-                "type": "Input" // 组件类型（Input 为输入框）
-            },
-            {
-                "title": "'Dropdown'",
-                "id": "Dropdown",
-                "options": [ "default" ], // 下拉框选项（必须存在 1 个元素，否则不予解析）
-                "defaultValue": 0, // 下拉框默认值索引（从 0 开始）
-                "type": "Dropdown" // 组件类型（Dropdown 为下拉框）
-            },
-            {
-                "title": "'This is a Toggle'",
-                "id": "Toggle",
-                "defaultValue": false, // 切换框默认值（true 为开，false 为关）
-                "type": "Toggle" // 组件类型（Toggle 为切换框）
-            },
-            {
-                "title": "'This is a Slider'",
-                "id": "Slider",
-                "min": 0, // 滑块最小值
-                "max": 100, // 滑块最大值
-                "step": 1, // 滑块步长
-                "defaultValue": 50, // 滑块默认值
-                "type": "Slider" // 组件类型（Slider 为滑块）
-            },
-            {
-                "title": "'This is a StepSlider'",
-                "id": "StepSlider",
-                "options": [ "default1", "default2" ], // 步骤滑块选项（必须存在 2 个元素，否则不予解析）
-                "defaultValue": 0, // 步骤滑块默认值索引（从 0 开始）
-                "type": "StepSlider" // 组件类型（StepSlider 为步骤滑块）
-            }
-        ],
-        "submit": "Submit", // 提交按钮标题
-        "run": [ // 使用该表单时，所执行的命令（对于获取组件内容可通过 {组件ID} 进行获取）
-            "execute as ${player} run say Input: {Input}",
-            "execute as ${player} run say Dropdown: {Dropdown}",
-            "execute as ${player} run say Toggle: {Toggle}",
-            "execute as ${player} run say Slider: {Slider}",
-            "execute as ${player} run say StepSlider: {StepSlider}"
-        ],
-        "permission": 0
-    }
-}
+form = new MenuForm("main", "Menu Example");
+form.label("This is a menu example", new TextOptions());
+form.button("Button 1", button1, func () -> void {
+}, new ButtonOptions());
+form.closeButton();
+form.show(func (result) -> void {
+    if (result.closeReason == 2) [
+        mc::runCmd("say No permission");
+    :
+        if (result.closeReason == 3) [
+            mc::runCmd("say No score");
+        ]
+    ]
+});
+
+confirmAction = new MenuItemData();
+confirmAction.type = "button";
+confirmAction.title = "Confirm";
+confirmAction.run = [ "say Confirm" ];
+confirmAction.permission = 0;
+
+cancelAction = new MenuItemData();
+cancelAction.type = "button";
+cancelAction.title = "Cancel";
+cancelAction.run = [ "say Cancel" ];
+cancelAction.permission = 0;
+
+box = new MenuMessageBox("Menu1", "Menu 1");
+box.body("This is a menu 1");
+box.button1("Confirm", confirmAction);
+box.button2("Cancel", cancelAction);
+box.show(func (result) -> void {
+});
+
 ```
 
-### shop.json
+?> 旧的 `menu.json` 仅作历史参考，不再提供自动迁移。
 
-> [!NOTE]
-> 以下内容取自 LOICollectionA 1.10.0 的 `shop.json` 结构，对于后续版本的 `shop.json` 结构可能会有所不同。
+### shop.lcui（config 目录）
 
-?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `shop.json` 文件。  
-对于内部编辑器，您可以通过以下 [命令](./md/command.md#shop) 进行编辑
+> 从 LOICollectionA 1.15.0 起，Shop 不再读取 `shop.json`。请在 `plugins/LOICollectionA/config` 目录下自行创建 `shop.lcui`，在文件内直接定义 `ShopData` 并使用 `ShopForm` 打开。表单 ID 对应 `/shop gui <Id>` 中传入的 Id。
 
-```json
-{
-    "MainBuy": { // 商店 ID（不可重复）
-        "title": "'Buy Shop Example'", // 商店标题
-        "content": "'This is a shop example'", // 商店内容
-        "info": { // 部分功能提供（可选）
-            "exit": "execute as ${player} run say Exit Shop", // 玩家退出商店时执行命令（其中 ${player} 代表玩家名称）
-            "score": "execute as ${player} run say You do not have enough score to buy this item" // 购买部分商品时，玩家没有足够 Score 时所执行命令
-        },
-        "classiflcation": [ // 分类列表
-            {
-                "title": "'Apple'", // 组件标题
-                "image": "textures/items/apple", // 组件图标（可选，只支持 path 类型）
-                "introduce": "'A red apple\nscores: 100'", // 组件介绍
-                "number": "'Buy number'", // 购买组件时输入框标题
-                "id": "minecraft:apple", // 物品 ID
-                "scores": { // 组件所需的 Score
-                    "money": 100 // 组件所需的 Score 分数
-                },
-                "type": "commodity" // 组件类型（commodity 为物品组件）
-            },
-            {
-                "title": "'Nbt Apple'",
-                "image": "textures/items/apple",
-                "introduce": "'A red apple\nscores: 100'",
-                "number": "'Buy number'",
-                "nbt": "{Count:2b,Damage:0s,Name:'minecraft:apple',WasPickedUp:0b}", // 对于使用自定义物品，可用 nbt 代替 id 配置
-                "scores": {
-                    "money": 100
-                },
-                "type": "commodity"
-            },
-            {
-                "title": "'Buy Title Shop'",
-                "image": "",
-                "id": "titleBuy", // 使用该组件时，所打开的表单 ID
-                "type": "from" // 组件类型（from 为表单）
-            }
-        ],
-        "type": "buy" // 商店类型（buy 为购买商店）
-    },
-    "titleBuy": {
-        "title": "'Buy Title Shop'",
-        "content": "'This is a title shop'",
-        "info": {
-            "exit": "execute as ${player} run say Exit Title Shop",
-            "score": "execute as ${player} run say You do not have enough score to buy this item"
-        },
-        "classiflcation": [
-            {
-                "title": "'Test Title'",
-                "image": "",
-                "introduce": "'This is a test title\nscores: 100'",
-                "confirmButton": "'Confirm'", // 确认按钮标题
-                "cancelButton": "'Cancel'", // 取消按钮标题
-                "id": "Test Title", // 称号 ID
-                "time": 24, // 称号持续时间（单位：小时）
-                "scores": {
-                    "money": 100
-                },
-                "type": "title" // 组件类型（title 为称号组件）
-            }
-        ],
-        "type": "buy"
-    },
-    "MainSell": {
-        "title": "'Sell Shop Example'",
-        "content": "'This is a shop example'",
-        "info": {
-            "exit": "execute as ${player} run say Exit Shop",
-            "title": "execute as ${player} run say You do not have enough title to sell", // 使用部分组件时，玩家没有指定称号时所执行命令
-            "item": "execute as ${player} run say You do not have enough item to sell" // 使用部分组件时，玩家没有指定物品时所执行命令
-        },
-        "classiflcation": [
-            {
-                "title": "'Apple'",
-                "image": "textures/items/apple",
-                "introduce": "'A red apple\nscores: 100'",
-                "number": "'Sell number'",
-                "id": "minecraft:apple",
-                "scores": {
-                    "money": 100
-                },
-                "type": "commodity"
-            },
-            {
-                "title": "'Sell Title Shop'",
-                "image": "",
-                "id": "titleSell",
-                "type": "from"
-            }
-        ],
-        "type": "sell" // 商店类型（sell 为出售商店）
-    },
-    "titleSell": {
-        "title": "'Sell Title Shop'",
-        "content": "'This is a title shop'",
-        "info": {
-            "exit": "execute as ${player} run say Exit Title Shop",
-            "title": "execute as ${player} run say You do not have enough title to sell",
-            "item": "execute as ${player} run say You do not have enough item to sell"
-        },
-        "classiflcation": [
-            {
-                "title": "'Test Title'",
-                "image": "",
-                "introduce": "'This is a test title\nscores: 100'",
-                "confirmButton": "'Confirm'",
-                "cancelButton": "'Cancel'",
-                "id": "Test Title",
-                "scores": {
-                    "money": 100
-                },
-                "type": "title"
-            }
-        ],
-        "type": "sell"
-    }
-}
+```lcui
+mainBuy = new ShopData();
+mainBuy.id = "MainBuy";
+mainBuy.type = "buy";
+mainBuy.title = "Buy Shop Example";
+mainBuy.content = "This is a shop example";
+mainBuy.exitCommand = "say Exit Shop";
+mainBuy.scoreCommand = "say No score";
+
+apple = new ShopItemData();
+apple.type = "commodity";
+apple.title = "Apple";
+apple.introduce = "A red apple";
+apple.number = "Buy number";
+apple.id = "minecraft:apple";
+appleScore = new ScoreRequirement();
+appleScore.objective = "money";
+appleScore.value = 100;
+apple.scores = [ appleScore ];
+
+mainBuy.items = [ apple ];
+
+form = new ShopForm("MainBuy", mainBuy);
+form.show(func (result) -> void {
+    if (result.closeReason == 1) [
+        if (result.resultCode == 1) [
+            mc::runCmd(result.shop.scoreCommand);
+        ]
+    ]
+});
+
 ```
+
+?> 旧的 `shop.json` 仅作历史参考，不再提供自动迁移。
 
 ### notice.json
 

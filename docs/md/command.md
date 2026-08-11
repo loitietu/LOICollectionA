@@ -115,7 +115,6 @@
 [Server] LOICollection -> 服务器菜单
 [Server] Usage:
 [Server] - /menu clock
-[Server] - /menu edit
 [Server] - /menu gui [Id: string]
 ```
 
@@ -123,9 +122,6 @@
 
 - `/menu clock`
   - 获取便携打开菜单物品。
-
-- `/menu edit`
-  - 打开菜单编辑界面（权限等级: GameDirectors）。
 
 - `/menu gui [Id: string]`
   - 打开菜单 GUI。
@@ -176,14 +172,10 @@
 [Server] shop:
 [Server] LOICollection -> 服务器商店
 [Server] Usage:
-[Server] - /shop edit
 [Server] - /shop gui &ltId: string&gt
 ```
 
 ?> 其中 `shop` 为 Shop 的顶层命令（权限等级: Any）。
-
-- `/shop edit`
-  - 打开商店编辑界面（权限等级: GameDirectors）。
 
 - `/shop gui <Id: string>`
   - 打开商店 GUI。

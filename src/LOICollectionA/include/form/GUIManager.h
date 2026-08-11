@@ -22,6 +22,10 @@ namespace PaginatedFormClass {
     struct PaginatedFormHandle;
 }
 
+namespace ScriptFormClass {
+    struct ScriptFormHandle;
+}
+
 namespace LOICollection::frontend {
     struct ArrayValue;
     using ArrayRef = std::shared_ptr<ArrayValue>;
@@ -31,7 +35,8 @@ namespace LOICollection::form {
     enum class GUIManagerType : int {
         CustomForm = 1,
         MessageBox = 2,
-        PaginatedForm = 3
+        PaginatedForm = 3,
+        ScriptForm = 4
     };
 
     class GUIManager {
@@ -51,6 +56,7 @@ namespace LOICollection::form {
         LOICOLLECTION_A_NDAPI static GUIManager& getInstance();
 
         LOICOLLECTION_A_API   ll::Expected<void> load(const std::string& id, const std::string& path);
+        LOICOLLECTION_A_API   ll::Expected<void> execute(const std::string& id);
         LOICOLLECTION_A_API   ll::Expected<void> open(
             const std::string& id, const std::string& formId, GUIManagerType type, Player& player,
             const frontend::ArrayRef& ctx = {}
@@ -58,18 +64,22 @@ namespace LOICollection::form {
         LOICOLLECTION_A_API   ll::Expected<void> switchToCustomForm(const std::string& id, Player& player);
         LOICOLLECTION_A_API   ll::Expected<void> switchToMessageBox(const std::string& id, Player& player);
         LOICOLLECTION_A_API   ll::Expected<void> switchToPaginatedForm(const std::string& id, Player& player);
+        LOICOLLECTION_A_API   ll::Expected<void> switchToScriptForm(const std::string& id, Player& player);
 
         LOICOLLECTION_A_API   void registerCustomFormUI(const std::string& id, std::shared_ptr<CustomFormClass::CustomFormHandle> form, Player& player);
         LOICOLLECTION_A_API   void registerMessageBoxUI(const std::string& id, std::shared_ptr<MessageBoxClass::MessageBoxHandle> box, Player& player);
         LOICOLLECTION_A_API   void registerPaginatedFormUI(const std::string& id, std::shared_ptr<PaginatedFormClass::PaginatedFormHandle> form, Player& player);
+        LOICOLLECTION_A_API   void registerScriptFormUI(const std::string& id, std::shared_ptr<ScriptFormClass::ScriptFormHandle> form, Player& player);
 
         LOICOLLECTION_A_API   bool unregisterCustomFormUI(const std::string& id, Player& player);
         LOICOLLECTION_A_API   bool unregisterMessageBoxUI(const std::string& id, Player& player);
         LOICOLLECTION_A_API   bool unregisterPaginatedFormUI(const std::string& id, Player& player);
+        LOICOLLECTION_A_API   bool unregisterScriptFormUI(const std::string& id, Player& player);
 
         LOICOLLECTION_A_NDAPI ll::Expected<std::shared_ptr<CustomFormClass::CustomFormHandle>> getCustomFormUI(const std::string& id, Player& player);
         LOICOLLECTION_A_NDAPI ll::Expected<std::shared_ptr<MessageBoxClass::MessageBoxHandle>> getMessageBoxUI(const std::string& id, Player& player);
         LOICOLLECTION_A_NDAPI ll::Expected<std::shared_ptr<PaginatedFormClass::PaginatedFormHandle>> getPaginatedFormUI(const std::string& id, Player& player);
+        LOICOLLECTION_A_NDAPI ll::Expected<std::shared_ptr<ScriptFormClass::ScriptFormHandle>> getScriptFormUI(const std::string& id, Player& player);
 
         LOICOLLECTION_A_API   void registerValue(const std::string& id, ValueCallback callback);
         LOICOLLECTION_A_API   void registerRequest(const std::string& id, RequestCallback callback);

@@ -30,6 +30,20 @@ namespace ObservableNumberClass {
         return obj;
     }
 
+    ll::Expected<ObjectRef> makeObservableNumberFromInt(const CallbackTypeValues& args) {
+        auto handle = std::make_shared<ObservableNumberHandle>();
+        handle->base = std::make_unique<ll::ui::ObservableNumber>(
+            static_cast<float>(std::get<int>(args[0])), ll::ui::ObservableOptions{ std::get<bool>(args[1]) }
+        );
+
+        auto obj = std::make_shared<Object>();
+        obj->className = "ObservableNumber";
+        obj->classIndex = -1;
+        obj->native = handle;
+
+        return obj;
+    }
+
     bool isClientWritable(const ObjectRef& self, const CallbackTypeValues&) {
         return static_cast<ObservableNumberHandle*>(self->native.get())->base->isClientWritable();
     }
@@ -70,6 +84,7 @@ namespace ObservableNumberClass {
 
         classes.registerClass("ObservableNumber", {});
         classes.registerConstructor("ObservableNumber", makeObservableNumber, { ParamType::FLOAT, ParamType::BOOL });
+        classes.registerConstructor("ObservableNumber", makeObservableNumberFromInt, { ParamType::INT, ParamType::BOOL });
         classes.registerMethod("ObservableNumber", "isClientWritable", isClientWritable, {});
         classes.registerMethod("ObservableNumber", "getData", getData, {});
         classes.registerMethod("ObservableNumber", "setData", setData, { ParamType::BOOL });
