@@ -18,6 +18,72 @@ It inherits the functional diversity of LOICollection while introducing numerous
 
 Future developments will provide more API interfaces to empower plugin developers with richer functionality.
 
+## Built-in .lcui Examples
+
+`.lcui` is a collection of classes that directly wraps LeviLamina's native form and UI capabilities, including built-in classes such as `CustomForm`, `MessageBox`, and `PaginatedForm`. It serves as the plugin's native UI.
+
+### CustomForm Example
+
+```lcui
+input = new ObservableString("", true);
+count = new ObservableNumber(1, false);
+enabled = new ObservableBoolean(true, true);
+
+form = new CustomForm("example", "Native UI Example");
+form.header("Hello", new TextOptions());
+form.label("This is a native custom form", new TextOptions());
+form.divider(new DividerOptions());
+form.textField("Input", input, new TextFieldOptions());
+form.slider("Count", count, 1, 10, new SliderOptions());
+form.toggle("Enabled", enabled, new ToggleOptions());
+form.button("Submit", func () -> void {
+    mc::runCmd("say " + input.getData());
+}, new ButtonOptions());
+form.closeButton();
+
+form.show(func (closeReason) -> void {
+    if (closeReason == 2) [
+        mc::runCmd("say closed");
+    ]
+});
+```
+
+### MessageBox Example
+
+```lcui
+box = new MessageBox("confirm", "Confirm");
+box.body("Are you sure?");
+box.button1("Yes");
+box.button2("No");
+box.show(func (result) -> void {
+    if (result.selection) [
+        mc::runCmd("say Button 2 selected");
+    : 
+        mc::runCmd("say Button 1 selected or no selection");
+    ]
+});
+```
+
+### PaginatedForm Example
+
+```lcui
+pages = [ "Apple", "Banana", "Cherry", "Dragon Fruit", "Elderberry" ];
+
+form = new PaginatedForm("fruits", "Fruit List", pages, 2);
+form.previousButton("Previous");
+form.nextButton("Next");
+form.chooseButton("Go", "Page number");
+form.closeButton();
+
+form.show(func (result) -> void {
+    if (result.closeReason == 2) [
+        if (result.selection != "") [
+            mc::runCmd("say Selected: " + result.selection);
+        ]
+    ]
+});
+```
+
 ## Implemented Modules
 
 > All modules below can be enabled/disabled in the configuration file.

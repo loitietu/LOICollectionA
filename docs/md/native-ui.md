@@ -178,7 +178,7 @@ box.show(func (result) -> void {
 
 分页表单用于展示大量条目，按页显示，并提供上一页、下一页与页码跳转能力。
 
-### 构造
+### PaginatedForm 构造
 
 ```lcui
 form = new PaginatedForm(guiId, title, elements[, pageSize]);
@@ -186,7 +186,7 @@ form = new PaginatedForm(guiId, title, elements[, pageSize]);
 
 其中 `elements` 为字符串数组（每个字符串为一项），`pageSize` 为每页条数，默认 `10`，最小为 `1`。
 
-### 方法
+### PaginatedForm 方法
 
 | 方法 | 说明 |
 | --- | --- |
@@ -222,7 +222,7 @@ form = new PaginatedForm(guiId, title, elements[, pageSize]);
 | `selectionIndex` | 点击条目在所有条目中的索引（从 0 开始） |
 | `page` | 点击条目所在页码 |
 
-### 示例
+### PaginatedForm 示例
 
 ```lcui
 pages = [ "Apple", "Banana", "Cherry", "Dragon Fruit", "Elderberry" ];

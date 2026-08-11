@@ -18,6 +18,72 @@ LOICollectionA 是源于插件 LOICollection 所演化而来的内容，其在�
 
 同时未来也将会提供更多 API 接口，以便于插件开发者进行添加更加丰富的功能。
 
+## 内置 .lcui 简略示例
+
+`.lcui` 是直接封装 LeviLamina 原生表单与界面能力的类集合，包括 `CustomForm`， `MessageBox`， `PaginatedForm` 等一系列内置类，是插件的原生 UI。
+
+### CustomForm 示例
+
+```lcui
+input = new ObservableString("", true);
+count = new ObservableNumber(1, false);
+enabled = new ObservableBoolean(true, true);
+
+form = new CustomForm("example", "Native UI Example");
+form.header("Hello", new TextOptions());
+form.label("This is a native custom form", new TextOptions());
+form.divider(new DividerOptions());
+form.textField("Input", input, new TextFieldOptions());
+form.slider("Count", count, 1, 10, new SliderOptions());
+form.toggle("Enabled", enabled, new ToggleOptions());
+form.button("Submit", func () -> void {
+    mc::runCmd("say " + input.getData());
+}, new ButtonOptions());
+form.closeButton();
+
+form.show(func (closeReason) -> void {
+    if (closeReason == 2) [
+        mc::runCmd("say closed");
+    ]
+});
+```
+
+### MessageBox 示例
+
+```lcui
+box = new MessageBox("confirm", "Confirm");
+box.body("Are you sure?");
+box.button1("Yes");
+box.button2("No");
+box.show(func (result) -> void {
+    if (result.selection) [
+        mc::runCmd("say Button 2 selected");
+    : 
+        mc::runCmd("say Button 1 selected or no selection");
+    ]
+});
+```
+
+### PaginatedForm 示例
+
+```lcui
+pages = [ "Apple", "Banana", "Cherry", "Dragon Fruit", "Elderberry" ];
+
+form = new PaginatedForm("fruits", "Fruit List", pages, 2);
+form.previousButton("Previous");
+form.nextButton("Next");
+form.chooseButton("Go", "Page number");
+form.closeButton();
+
+form.show(func (result) -> void {
+    if (result.closeReason == 2) [
+        if (result.selection != "") [
+            mc::runCmd("say Selected: " + result.selection);
+        ]
+    ]
+});
+```
+
 ## 实现功能模块
 
 > 以下功能模块均可在配置文件中进行配置开启或关闭。

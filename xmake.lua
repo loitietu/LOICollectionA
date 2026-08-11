@@ -96,7 +96,7 @@ target("LOICollectionA")
     end
 
     if is_server then
-        add_files("src/LOICollectionA/**.cpp|modules/client/**.cpp")
+        add_files("src/LOICollectionA/**.cpp|modules/client/**.cpp|frontend/builtin/mc/client/**.cpp")
         remove_headerfiles("src/LOICollectionA/include/(client/**.h)")
         remove_headerfiles("src/LOICollectionA/frontend/builtin/mc/(client/**.h)")
         add_defines("LL_PLAT_S")
@@ -105,7 +105,7 @@ target("LOICollectionA")
             remove_files("tests/client/**.cpp")
         end
     else
-        add_files("src/LOICollectionA/**.cpp|modules/server/**.cpp|utils/*-server/**.cpp")
+        add_files("src/LOICollectionA/**.cpp|modules/server/**.cpp|utils/*-server/**.cpp|frontend/builtin/mc/server/**.cpp")
         remove_headerfiles("src/LOICollectionA/include/(server/**.h)")
         remove_headerfiles("src/LOICollectionA/frontend/builtin/mc/(server/**.h)")
         add_defines("LL_PLAT_C")
