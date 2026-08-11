@@ -12,7 +12,7 @@
 
 ```json
 {
-    "version": 31578616, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
+    "version": 93469876, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
     "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
     "ServerConfig": { // 服务端配置
         "Plugins": { // 内置插件配置
@@ -25,7 +25,8 @@
             "Menu": { // 菜单配置
                 "ModuleEnabled": false, // 是否启用菜单
                 "MenuItemId": "minecraft:clock",  // 打开菜单物品 ID
-                "EntranceKey": "main" // 菜单入口
+                "EntranceKey": "main", // 菜单入口
+                "GuiPath": "menu.lcui" // Gui 入口文件
             },
             "Tpa": { // TPA 配置
                 "ModuleEnabled": false, // 是否启用 TPA
@@ -35,7 +36,10 @@
                 "RequestTimeout": 60, // TPA 请求超时时间（单位为秒）
                 "RequestUpload": 5 // 玩家传送请求最大上传数量
             },
-            "Shop": false, // 是否启用商店
+            "Shop": {
+                "ModuleEnabled": false, // 是否启用商店
+                "GuiPath": "shop.lcui"
+            },
             "Monitor": { // 消息强化配置
                 "ModuleEnabled": false, // 是否启用消息强化
                 "BelowName": {
@@ -94,11 +98,12 @@
             "Wallet": { // 钱包配置
                 "ModuleEnabled": false, // 是否启用钱包
                 "TargetScoreboard": "money", // 钱包指定使用 Score 对象
-                "ExchangeRate": 0.1  // 钱包汇率
+                "ExchangeRate": 0.1, // 钱包汇率
+                "RedEnvelopeTimeout": 60 // 红包超时时间（单位为秒）
             },
             "Chat": { // 聊天强化配置
                 "ModuleEnabled": false, // 是否启用聊天强化
-                "FormatText": "<{player}> ${chat}", // 聊天消息格式，支持 LOICollectionA API 变量
+                "FormatText": "<{player}> ${0}", // 聊天消息格式，其中 ${0} 为玩家聊天内容，支持 LOICollectionA API 变量
                 "BlacklistUpload": 10 // 黑名单目标最大上传数量
             },
             "Notice": false, // 是否启用公告栏
@@ -193,7 +198,7 @@
             },
             "Statistics": {
                 "ModuleEnabled": false, // 是否启用统计
-                "RefreshIntervalInMinutes": 1, // 统计刷新间隔（单位为分钟）
+                "RefreshIntervalInMinutes": 5, // 统计刷新间隔（单位为分钟）
                 "RankingPlayerCount": 100, // 排行榜显示数量
                 "DatabaseInfo": { // 统计数据库信息（每次退出后记录）
                     "OnlineTime": true, // 是否启用在线时间统计
@@ -219,7 +224,7 @@
 ```
 
 > [!NOTE]
-> 以上内容取自 LOICollectionA 1.14.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
+> 以上内容取自 LOICollectionA 1.15.0 的配置文件结构，对于后续版本的配置文件结构可能会有所不同。
 
 ## 模块数据文件
 
@@ -233,7 +238,7 @@
 > 从 LOICollectionA 1.15.0 起，Menu 不再读取 `menu.json`。请在 `plugins/LOICollectionA/config` 目录下自行创建 `menu.lcui`，在文件内直接定义 `MenuData` 并使用 `MenuForm` 打开。表单 ID 对应 `/menu gui <Id>` 中传入的 Id。
 
 ```lcui
-mbutton1 = new MenuItemData();
+button1 = new MenuItemData();
 button1.type = "button";
 button1.title = "Button 1";
 button1.id = "Button1";
@@ -316,6 +321,8 @@ form.show(func (result) -> void {
 ```
 
 ?> 旧的 `shop.json` 仅作历史参考，不再提供自动迁移。
+
+?> 除 Menu 与 Shop 外，其余模块（Blacklist、Mute、Cdk、Chat、Market、Notice、Pvp、Statistics、Tpa、Wallet、Language 等）的界面文件随插件内置在 `plugins/LOICollectionA/gui` 目录下（如 `blacklist.lcui`、`mute.lcui`）。它们随插件更新，不属于可编辑的配置文件，请勿直接修改。（如果需要修改，请深入学习 lcui 具体语法）
 
 ### notice.json
 

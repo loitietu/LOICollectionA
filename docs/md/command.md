@@ -1,6 +1,6 @@
 # 命令列表
 
-在 LOIColletionA 中，对于不同的 `内置插件` 均提供了不同的命令列表。  
+在 LOICollectionA 中，对于不同的 `内置插件` 均提供了不同的命令列表。  
 而插件则提供以下命令以进行简单的交互：
 
 > [!TIP]
@@ -12,11 +12,11 @@
 [Server] blacklist:
 [Server] LOICollection -> 服务器黑名单
 [Server] Usage:
-[Server] - /blacklist add &ltTarget: target&gt [Cause: string] [Time: int]
+[Server] - /blacklist add <Target: target> [Cause: string] [Time: int]
 [Server] - /blacklist gui
-[Server] - /blacklist info &ltId: string&gt
+[Server] - /blacklist info <Id: string>
 [Server] - /blacklist list [Limit: int]
-[Server] - /blacklist remove &ltId: string&gt
+[Server] - /blacklist remove <Id: string>
 ```
 
 > [!TIP|style:callout]
@@ -49,12 +49,12 @@
 [Server] mute:
 [Server] LOICollection -> 服务器禁言
 [Server] 使用：
-[Server] - /mute add &ltTarget: target&gt [Cause: string] [Time: int]
+[Server] - /mute add <Target: target> [Cause: string] [Time: int]
 [Server] - /mute gui
-[Server] - /mute info &ltId: string&gt
+[Server] - /mute info <Id: string>
 [Server] - /mute list [Limit: int]
-[Server] - /mute remove id &ltId: string&gt
-[Server] - /mute remove target &ltTarget: target&gt
+[Server] - /mute remove id <Id: string>
+[Server] - /mute remove target <Target: target>
 ```
 
 ?> 其中 `mute` 为 Mute 的顶层命令（权限等级: GameDirectors）。
@@ -90,7 +90,7 @@
 [Server] cdk:
 [Server] LOICollection -> 总换码
 [Server] Usage:
-[Server] - /cdk convert &ltId: string&gt
+[Server] - /cdk convert <Id: string>
 [Server] - /cdk edit
 [Server] - /cdk gui
 ```
@@ -110,7 +110,6 @@
 ## Menu
 
 ```log
-? menu
 [Server] menu:
 [Server] LOICollection -> 服务器菜单
 [Server] Usage:
@@ -133,11 +132,11 @@
 [Server] tpa:
 [Server] LOICollection -> 玩家互传
 [Server] Usage:
-[Server] - /tpa accept &ltId: string&gt
-[Server] - /tpa cancel &ltId: string&gt
+[Server] - /tpa accept <Id: string>
+[Server] - /tpa cancel <Id: string>
 [Server] - /tpa gui
-[Server] - /tpa invite &lttpa|tphere&gt &ltTarget: target&gt
-[Server] - /tpa reject &ltId: string&gt
+[Server] - /tpa invite <tpa|tphere> <Target: target>
+[Server] - /tpa reject <Id: string>
 [Server] - /tpa setting
 ```
 
@@ -172,7 +171,7 @@
 [Server] shop:
 [Server] LOICollection -> 服务器商店
 [Server] Usage:
-[Server] - /shop gui &ltId: string&gt
+[Server] - /shop gui <Id: string>
 ```
 
 ?> 其中 `shop` 为 Shop 的顶层命令（权限等级: Any）。
@@ -211,7 +210,7 @@
 [Server] LOICollection -> 个人钱包
 [Server] Usage:
 [Server] - /wallet gui
-[Server] - /wallet transfer &ltTarget: target&gt &ltScore: int&gt
+[Server] - /wallet transfer <Target: target> <Score: int>
 [Server] - /wallet wealth
 ```
 
@@ -234,11 +233,11 @@
 [Server] chat:
 [Server] LOICollection -> 个人称号
 [Server] Usage:
-[Server] - /chat add &ltTarget: target&gt &ltTitle: string&gt [Time: int]
+[Server] - /chat add <Target: target> <Title: string> [Time: int]
 [Server] - /chat gui
-[Server] - /chat list &ltTarget: target&gt
-[Server] - /chat remove &ltTarget: target&gt &ltTitle: string&gt
-[Server] - /chat set &ltTarget: target&gt &ltTitle: string&gt
+[Server] - /chat list <Target: target>
+[Server] - /chat remove <Target: target> <Title: string>
+[Server] - /chat set <Target: target> <Title: string>
 [Server] - /chat setting
 ```
 
@@ -270,6 +269,20 @@
 
 - `/chat setting`
   - 打开个人称号设置。
+
+## Language
+
+```log
+[Server] language:
+[Server] LOICollection -> 语言设置
+[Server] Usage:
+[Server] - /language setting
+```
+
+?> 其中 `language` 为 Language 的顶层命令（权限等级: Any）。
+
+- `/language setting`
+  - 打开个人语言设置界面。
 
 ## Notice
 
@@ -314,19 +327,19 @@
 [Server] behaviorevent:
 [Server] LOICollection -> 行为事件
 [Server] Usage:
-[Server] - /behaviorevent back position &ltPositionOrigin: x y z&gt &ltPositionTarget: x y z&gt &ltTime: int&gt
-[Server] - /behaviorevent back range &ltPositionOrigin: x y z&gt &ltRadius: int&gt &ltTime: int&gt
+[Server] - /behaviorevent back position <PositionOrigin: x y z> <PositionTarget: x y z> <Time: int>
+[Server] - /behaviorevent back range <PositionOrigin: x y z> <Radius: int> <Time: int>
 [Server] - /behaviorevent clean
-[Server] - /behaviorevent query action position &ltPositionOrigin: x y z&gt &ltPositionTarget: x y z&gt [Limit: int]
-[Server] - /behaviorevent query action range &ltPositionOrigin: x y z&gt &ltRadius: int&gt [Limit: int]
-[Server] - /behaviorevent query event custom &ltTarget: string&gt &ltValue: string&gt [Limit: int]
-[Server] - /behaviorevent query event dimension &ltDimension: Dimension&gt [Limit: int]
-[Server] - /behaviorevent query event foundation &ltEventName: string&gt &ltTime: int&gt [Limit: int]
-[Server] - /behaviorevent query event info &ltEventId: string&gt
-[Server] - /behaviorevent query event name &ltEventName: string&gtW [Limit: int]
-[Server] - /behaviorevent query event position &ltPositionOrigin: x y z&gt [Limit: int]
-[Server] - /behaviorevent query event site &ltPositionOrigin: x y z&gt &ltDimension: Dimension&gt [Limit: int]
-[Server] - /behaviorevent query event time &ltTime: int&gt [Limit: int]
+[Server] - /behaviorevent query action position <PositionOrigin: x y z> <PositionTarget: x y z> [Limit: int]
+[Server] - /behaviorevent query action range <PositionOrigin: x y z> <Radius: int> [Limit: int]
+[Server] - /behaviorevent query event custom <Target: string> <Value: string> [Limit: int]
+[Server] - /behaviorevent query event dimension <Dimension: Dimension> [Limit: int]
+[Server] - /behaviorevent query event foundation <EventName: string> <Time: int> [Limit: int]
+[Server] - /behaviorevent query event info <EventId: string>
+[Server] - /behaviorevent query event name <EventName: string> [Limit: int]
+[Server] - /behaviorevent query event position <PositionOrigin: x y z> [Limit: int]
+[Server] - /behaviorevent query event site <PositionOrigin: x y z> <Dimension: Dimension> [Limit: int]
+[Server] - /behaviorevent query event time <Time: int> [Limit: int]
 ```
 
 ?> 其中 `behaviorevent` 为 BehaviourEvent 的顶层命令（权限等级: GameDirectors）。
@@ -407,7 +420,7 @@
 [Server] LOICollection -> 玩家数据统计
 [Server] Usage：
 [Server] - /statistics gui
-[Server] - /statistics gui &ltType: LOICollection::Plugins::StatisticType&gt
+[Server] - /statistics gui <Type: LOICollection::Plugins::StatisticType>
 ```
 
 ?> 其中 `statistics` 为 Statistics 的顶层命令（权限等级: Any）。
@@ -420,4 +433,4 @@
   - 其中 `<Type: LOICollection::Plugins::StatisticType>` 为数据统计类型。
 
 > [!NOTE]
-> 以上内容均属于 LOICollectionA 1.11.0 版本的命令列表，对于后续版本的命令列表可能会有所不同。
+> 以上内容均属于 LOICollectionA 1.15.0 版本的命令列表，对于后续版本的命令列表可能会有所不同。

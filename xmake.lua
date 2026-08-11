@@ -98,6 +98,7 @@ target("LOICollectionA")
     if is_server then
         add_files("src/LOICollectionA/**.cpp|modules/client/**.cpp")
         remove_headerfiles("src/LOICollectionA/include/(client/**.h)")
+        remove_headerfiles("src/LOICollectionA/frontend/builtin/mc/(client/**.h)")
         add_defines("LL_PLAT_S")
 
         if is_mode("debug") then
@@ -106,6 +107,7 @@ target("LOICollectionA")
     else
         add_files("src/LOICollectionA/**.cpp|modules/server/**.cpp|utils/*-server/**.cpp")
         remove_headerfiles("src/LOICollectionA/include/(server/**.h)")
+        remove_headerfiles("src/LOICollectionA/frontend/builtin/mc/(server/**.h)")
         add_defines("LL_PLAT_C")
 
         if is_mode("debug") then

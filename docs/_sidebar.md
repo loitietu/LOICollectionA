@@ -9,6 +9,8 @@
 - [数据文件](./md/data.md)
 - [命令列表](./md/command.md)
 - [LOICollectionAPI](./md/api.md)
+- [原生 UI（Native UI）](./md/native-ui.md)
+- [常见错误含义](./md/errors.md)
 
 - **开发者文档**
 

@@ -45,9 +45,7 @@
             markdown: {
                 renderer:{
                     code: function(code, lang) {
-                        if(lang =='html') {
-                            code = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-                        }
+                        code = code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
                         return ('<pre data-lang="'+lang+'"><code class="line-numbers language-'+lang+'">'+code+'</code></pre>')
                     }
                 }	  

@@ -29,3 +29,13 @@
 1. 请下载 `migrate1100.py` 文件并将其放入 `插件` 根目录下
 2. 完成后在命令行中执行 `python migrate1100.py` 即可完成迁移
 3. 迁移完成后，所有模块数据都将进行迁移
+
+## 对于 1.14.0 版本升至 1.15.0 版本
+
+> [!WARNING]
+> 1.15.0 不再提供自动迁移脚本。Menu 与 Shop 的界面数据需要手动迁移。
+
+1. 升级前请先备份 `plugins/LOICollectionA/config` 目录下的 `config.json`、`menu.json` 与 `shop.json`。
+2. 完成升级后，Menu 与 Shop 不再读取 `menu.json` / `shop.json`，请参考 [数据文件](../md/data.md) 中的示例，手动将旧数据改写为 `menu.lcui` 与 `shop.lcui`，并放置在 `plugins/LOICollectionA/config` 目录下。
+3. 如自定义过 `GuiPath`，请确认 `config.json` 中的 `ServerConfig.Plugins.Menu.GuiPath` 与 `ServerConfig.Plugins.Shop.GuiPath` 指向新创建的 lcui 文件（默认分别为 `menu.lcui` 与 `shop.lcui`）。
+4. 其余模块的数据文件（如 `notice.json`、`cdk.json`）与数据库文件不受影响；其余模块的界面已改由插件内置的 `gui` 目录加载，无需迁移。

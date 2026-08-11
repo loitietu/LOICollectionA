@@ -7,7 +7,7 @@
 
 #include "LOICollectionA/frontend/Callback.h"
 
-#include "LOICollectionA/frontend/builtin/mc/CommandBuiltin.h"
+#include "LOICollectionA/frontend/builtin/mc/server/CommandBuiltin.h"
 
 #include "LOICollectionA/utils/mc-server/CommandUtils.h"
 
