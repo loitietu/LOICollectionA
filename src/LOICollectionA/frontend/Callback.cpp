@@ -9,10 +9,10 @@
 #include "LOICollectionA/frontend/Callback.h"
 
 namespace LOICollection::frontend {
-    std::vector<ParamType> valuesToTypes(const CallbackTypeValues& values, DiagnosticEngine& diagnostics) {
+    std::vector<ParamType> valuesToTypes(const CallbackTypeValues& values, DiagnosticEngine& diagnostics, const SourceLocation& loc) {
         std::vector<ParamType> argTypes;
         for (const auto& arg : values) {
-            std::visit([&argTypes, &diagnostics](auto&& arg) {
+            std::visit([&argTypes, &diagnostics, &loc](auto&& arg) {
                 using T = std::decay_t<decltype(arg)>;
 
                 if constexpr (std::is_same_v<T, int>)
@@ -30,9 +30,9 @@ namespace LOICollection::frontend {
                 else if constexpr (std::is_same_v<T, ArrayRef>)
                     argTypes.push_back(ParamType::ARRAY);
                 else if constexpr (std::is_same_v<T, std::monostate>)
-                    diagnostics.addError({0, 0, 0}, "Empty optional value cannot be passed to a native callback");
+                    diagnostics.addError(loc, "Empty optional value cannot be passed to a native callback");
                 else
-                    diagnostics.addError({0, 0, 0}, "Unsupported argument type");
+                    diagnostics.addError(loc, "Unsupported argument type");
             }, arg);
         }
 
@@ -84,11 +84,11 @@ namespace LOICollection::frontend {
         return result || this->mImpl->mFunctionCombinations[namespaces].find(sig) != this->mImpl->mFunctionCombinations[namespaces].end();
     }
 
-   ll::Expected<TypedValue> FunctionCall::callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics) {
-        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics);
+   ll::Expected<TypedValue> FunctionCall::callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics, const SourceLocation& loc) {
+        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics, loc);
 
         if (!this->isRegistered(namespaces, function, argTypes)) {
-            diagnostics.addError({ 0, 0, 0 }, "Function not registered: " + namespaces + "::" + function);
+            diagnostics.addError(loc, "Function not registered: " + namespaces + "::" + function);
             return TypedValue{};
         }
 
@@ -158,11 +158,11 @@ namespace LOICollection::frontend {
         return result || this->mImpl->mMacroCombinations.find(sig) != this->mImpl->mMacroCombinations.end();
     }
 
-    ll::Expected<TypedValue> MacroCall::callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics) {
-        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics);
+    ll::Expected<TypedValue> MacroCall::callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics, const SourceLocation& loc) {
+        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics, loc);
 
         if (!this->isRegistered(name, argTypes)) {
-            diagnostics.addError({ 0, 0, 0 }, "Macro not registered: " + name);
+            diagnostics.addError(loc, "Macro not registered: " + name);
             return TypedValue{};
         }
         
@@ -383,14 +383,15 @@ namespace LOICollection::frontend {
     }
 
     ll::Expected<ObjectRef> ClassCall::create(
-        const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics
+        const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders,
+        DiagnosticEngine& diagnostics, const SourceLocation& loc
     ) {
         auto it = this->mImpl->classes.find(name);
         if (it == this->mImpl->classes.end())
             return ll::makeErrorCodeError(std::make_error_code(std::errc::invalid_argument));
 
         auto& info = it->second;
-        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics);
+        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics, loc);
 
         Signature sig{ name, argTypes.size(), argTypes, false };
 
@@ -428,14 +429,15 @@ namespace LOICollection::frontend {
 
     ll::Expected<TypedValue> ClassCall::callMethod(
         const std::string& className, const std::string& method, const CallbackTypeValues& args,
-        const ObjectRef& object, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics
+        const ObjectRef& object, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics,
+        const SourceLocation& loc
     ) {
         auto it = this->mImpl->classes.find(className);
         if (it == this->mImpl->classes.end())
             return ll::makeErrorCodeError(std::make_error_code(std::errc::invalid_argument));
 
         auto& info = it->second;
-        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics);
+        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics, loc);
 
         Signature sig{ method, argTypes.size(), argTypes, false };
 
@@ -461,14 +463,14 @@ namespace LOICollection::frontend {
 
     ll::Expected<TypedValue> ClassCall::callStaticMethod(
         const std::string& className, const std::string& method, const CallbackTypeValues& args,
-        const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics
+        const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics, const SourceLocation& loc
     ) {
         auto it = this->mImpl->classes.find(className);
         if (it == this->mImpl->classes.end())
             return ll::makeErrorCodeError(std::make_error_code(std::errc::invalid_argument));
 
         auto& info = it->second;
-        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics);
+        std::vector<ParamType> argTypes = valuesToTypes(args, diagnostics, loc);
 
         Signature sig{ method, argTypes.size(), argTypes, false };
 

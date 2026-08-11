@@ -11,7 +11,7 @@ namespace LOICollection::frontend {
         size_t column;
         size_t offset;
 
-        SourceLocation() : line(1), column(1), offset(0) {}
+        SourceLocation() : line(0), column(0), offset(0) {}
         SourceLocation(size_t l, size_t c, size_t o) : line(l), column(c), offset(o) {}
     };
 
@@ -61,7 +61,7 @@ namespace LOICollection::frontend {
             for (const auto& d : diagnostics) {
                 if (d.level == DiagnosticLevel::Error) {
                     oss << d.message;
-                    if (d.loc.line > 1 || d.loc.column > 1)
+                    if (d.loc.line > 0 || d.loc.column > 0)
                         oss << " (at line " << d.loc.line << ", col " << d.loc.column << ")";
                     oss << "; ";
                 }
@@ -79,7 +79,7 @@ namespace LOICollection::frontend {
             for (const auto& d : diagnostics) {
                 if (d.level == DiagnosticLevel::Warning) {
                     oss << "Warning: " << d.message;
-                    if (d.loc.line > 1 || d.loc.column > 1)
+                    if (d.loc.line > 0 || d.loc.column > 0)
                         oss << " (at line " << d.loc.line << ", col " << d.loc.column << ")";
                     oss << "; ";
                 }

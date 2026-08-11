@@ -246,13 +246,13 @@ namespace LOICollection::frontend::ir {
 
         int idx = this->addConstant(val);
         switch (val.index()) {
-            case 0: current.get().emit(OpCode::PUSH_INT, idx); break;
-            case 1: current.get().emit(OpCode::PUSH_FLOAT, idx); break;
-            case 2: current.get().emit(OpCode::PUSH_STR, idx); break;
-            case 3: current.get().emit(OpCode::PUSH_BOOL, idx); break;
-            case 7: current.get().emit(OpCode::PUSH_NONE, idx); break;
+            case 0: current.get().emit(OpCode::PUSH_INT, idx, node.loc); break;
+            case 1: current.get().emit(OpCode::PUSH_FLOAT, idx, node.loc); break;
+            case 2: current.get().emit(OpCode::PUSH_STR, idx, node.loc); break;
+            case 3: current.get().emit(OpCode::PUSH_BOOL, idx, node.loc); break;
+            case 7: current.get().emit(OpCode::PUSH_NONE, idx, node.loc); break;
             default:
-                this->diagnostics.addError({0, 0, 0}, "Unsupported constant value type");
+                this->diagnostics.addError(node.loc, "Unsupported constant value type");
                 break;
         }
     }
@@ -261,21 +261,21 @@ namespace LOICollection::frontend::ir {
         int idx = node.isStaticField
             ? this->addConstant(node.staticClassName + "::" + node.name)
             : this->addConstant(node.name);
-        this->current.get().emit(OpCode::LOAD_VAR, idx);
+        this->current.get().emit(OpCode::LOAD_VAR, idx, node.loc);
 
         if (node.type.kind == TypeKind::Optional && !node.preserveOptional)
-            this->current.get().emit(OpCode::UNWRAP);
+            this->current.get().emit(OpCode::UNWRAP, 0, node.loc);
     }
 
     void Compiler::visit(AssignmentNode& node) {
         if (node.value) {
-            this->compileValue(*node.value);
+            this->compileValue(*node.value, node.loc);
         } else {
             int emptyIdx = this->addConstant(std::string(""));
-            this->current.get().emit(OpCode::PUSH_STR, emptyIdx);
+            this->current.get().emit(OpCode::PUSH_STR, emptyIdx, node.loc);
         }
 
-        this->current.get().emit(OpCode::DUP);
+        this->current.get().emit(OpCode::DUP, 0, node.loc);
 
         switch (node.target->getType()) {
             case ASTNode::Type::Variable: {
@@ -283,28 +283,28 @@ namespace LOICollection::frontend::ir {
                 int idx = var.isStaticField
                     ? this->addConstant(var.staticClassName + "::" + var.name)
                     : this->addConstant(var.name);
-                this->current.get().emit(OpCode::STORE_VAR, idx);
+                this->current.get().emit(OpCode::STORE_VAR, idx, node.loc);
                 break;
             }
             case ASTNode::Type::MemberAccess: {
                 auto& member = static_cast<MemberAccessNode&>(*node.target);
                 if (member.isStaticAccess) {
                     int idx = this->addConstant(member.staticClassName + "::" + member.memberName);
-                    this->current.get().emit(OpCode::STORE_VAR, idx);
+                    this->current.get().emit(OpCode::STORE_VAR, idx, node.loc);
                     break;
                 }
 
-                this->compileValue(*member.target);
+                this->compileValue(*member.target, node.loc);
 
                 int idx = this->addConstant(member.memberName);
-                this->current.get().emit(OpCode::STORE_FIELD, idx);
+                this->current.get().emit(OpCode::STORE_FIELD, idx, node.loc);
                 break;
             }
             case ASTNode::Type::Index: {
                 auto& indexNode = static_cast<IndexAccessNode&>(*node.target);
                 indexNode.target->accept(*this);
                 indexNode.index->accept(*this);
-                this->current.get().emit(OpCode::STORE_INDEX);
+                this->current.get().emit(OpCode::STORE_INDEX, 0, node.loc);
                 break;
             }
             default:
@@ -314,13 +314,13 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(IfNode& node) {
-        this->compileValue(*node.condition);
+        this->compileValue(*node.condition, node.loc);
 
-        size_t jmpFalseIdx = this->current.get().emit(OpCode::JMP_IF_FALSE, 0);
+        size_t jmpFalseIdx = this->current.get().emit(OpCode::JMP_IF_FALSE, 0, node.loc);
 
         node.trueBranch->accept(*this);
 
-        size_t jmpEndIdx = this->current.get().emit(OpCode::JMP, 0);
+        size_t jmpEndIdx = this->current.get().emit(OpCode::JMP, 0, node.loc);
 
         int falseStart = static_cast<int>(this->current.get().currentIP());
         this->current.get().patchJump(jmpFalseIdx, falseStart - static_cast<int>(jmpFalseIdx) - 1);
@@ -329,7 +329,7 @@ namespace LOICollection::frontend::ir {
             node.falseBranch->accept(*this);
         } else {
             int emptyIdx = this->addConstant(std::string(""));
-            this->current.get().emit(OpCode::PUSH_STR, emptyIdx);
+            this->current.get().emit(OpCode::PUSH_STR, emptyIdx, node.loc);
         }
 
         int endPos = static_cast<int>(this->current.get().currentIP());
@@ -339,18 +339,18 @@ namespace LOICollection::frontend::ir {
     void Compiler::visit(WhileNode& node) {
         size_t loopStart = this->current.get().currentIP();
 
-        this->compileValue(*node.condition);
+        this->compileValue(*node.condition, node.loc);
 
-        size_t jmpFalseIdx = this->current.get().emit(OpCode::JMP_IF_FALSE, 0);
+        size_t jmpFalseIdx = this->current.get().emit(OpCode::JMP_IF_FALSE, 0, node.loc);
 
         this->loopStack.push_back(LoopContext{});
         this->loopStack.back().continueTarget = loopStart;
 
         node.body->accept(*this);
 
-        this->current.get().emit(OpCode::POP);
+        this->current.get().emit(OpCode::POP, 0, node.loc);
 
-        size_t jmpBackIdx = this->current.get().emit(OpCode::JMP, 0);
+        size_t jmpBackIdx = this->current.get().emit(OpCode::JMP, 0, node.loc);
         this->current.get().patchJump(jmpBackIdx, static_cast<int>(loopStart) - static_cast<int>(jmpBackIdx) - 1);
 
         size_t exitPos = this->current.get().currentIP();
@@ -364,38 +364,38 @@ namespace LOICollection::frontend::ir {
         this->loopStack.pop_back();
 
         int emptyIdx = this->addConstant(std::string(""));
-        this->current.get().emit(OpCode::PUSH_STR, emptyIdx);
+        this->current.get().emit(OpCode::PUSH_STR, emptyIdx, node.loc);
     }
 
     void Compiler::visit(ForNode& node) {
         if (node.init) {
-            this->compileValue(*node.init);
-            this->current.get().emit(OpCode::POP);
+            this->compileValue(*node.init, node.loc);
+            this->current.get().emit(OpCode::POP, 0, node.loc);
         }
 
         size_t loopStart = this->current.get().currentIP();
 
         size_t jmpFalseIdx = static_cast<size_t>(-1);
         if (node.condition) {
-            this->compileValue(*node.condition);
-            jmpFalseIdx = this->current.get().emit(OpCode::JMP_IF_FALSE, 0);
+            this->compileValue(*node.condition, node.loc);
+            jmpFalseIdx = this->current.get().emit(OpCode::JMP_IF_FALSE, 0, node.loc);
         }
 
         this->loopStack.push_back(LoopContext{});
 
         node.body->accept(*this);
 
-        this->current.get().emit(OpCode::POP);
+        this->current.get().emit(OpCode::POP, 0, node.loc);
 
         size_t continuePos = this->current.get().currentIP();
         this->loopStack.back().continueTarget = continuePos;
 
         if (node.step) {
-            this->compileValue(*node.step);
-            this->current.get().emit(OpCode::POP);
+            this->compileValue(*node.step, node.loc);
+            this->current.get().emit(OpCode::POP, 0, node.loc);
         }
 
-        size_t jmpBackIdx = this->current.get().emit(OpCode::JMP, 0);
+        size_t jmpBackIdx = this->current.get().emit(OpCode::JMP, 0, node.loc);
         this->current.get().patchJump(jmpBackIdx, static_cast<int>(loopStart) - static_cast<int>(jmpBackIdx) - 1);
 
         size_t exitPos = this->current.get().currentIP();
@@ -410,7 +410,7 @@ namespace LOICollection::frontend::ir {
         this->loopStack.pop_back();
 
         int emptyIdx = this->addConstant(std::string(""));
-        this->current.get().emit(OpCode::PUSH_STR, emptyIdx);
+        this->current.get().emit(OpCode::PUSH_STR, emptyIdx, node.loc);
     }
 
     void Compiler::visit(BreakNode& node) {
@@ -419,7 +419,7 @@ namespace LOICollection::frontend::ir {
             return;
         }
 
-        size_t idx = this->current.get().emit(OpCode::JMP, 0);
+        size_t idx = this->current.get().emit(OpCode::JMP, 0, node.loc);
         this->loopStack.back().breakJumps.push_back(idx);
     }
 
@@ -429,22 +429,22 @@ namespace LOICollection::frontend::ir {
             return;
         }
 
-        size_t idx = this->current.get().emit(OpCode::JMP, 0);
+        size_t idx = this->current.get().emit(OpCode::JMP, 0, node.loc);
         this->loopStack.back().continueJumps.push_back(idx);
     }
 
     void Compiler::visit(CompareNode& node) {
-        this->compileValue(*node.left);
-        this->compileValue(*node.right);
+        this->compileValue(*node.left, node.loc);
+        this->compileValue(*node.right, node.loc);
 
-        if (node.op == "==") this->current.get().emit(OpCode::CMP_EQ);
-        else if (node.op == "!=") this->current.get().emit(OpCode::CMP_NE);
-        else if (node.op == ">") this->current.get().emit(OpCode::CMP_GT);
-        else if (node.op == "<") this->current.get().emit(OpCode::CMP_LT);
-        else if (node.op == ">=") this->current.get().emit(OpCode::CMP_GE);
-        else if (node.op == "<=") this->current.get().emit(OpCode::CMP_LE);
+        if (node.op == "==") this->current.get().emit(OpCode::CMP_EQ, 0, node.loc);
+        else if (node.op == "!=") this->current.get().emit(OpCode::CMP_NE, 0, node.loc);
+        else if (node.op == ">") this->current.get().emit(OpCode::CMP_GT, 0, node.loc);
+        else if (node.op == "<") this->current.get().emit(OpCode::CMP_LT, 0, node.loc);
+        else if (node.op == ">=") this->current.get().emit(OpCode::CMP_GE, 0, node.loc);
+        else if (node.op == "<=") this->current.get().emit(OpCode::CMP_LE, 0, node.loc);
         else
-            this->diagnostics.addError({0, 0, 0}, "Unknown compare op: " + node.op);
+            this->diagnostics.addError(node.loc, "Unknown compare op: " + node.op);
     }
 
     void Compiler::visit(LogicalNode& node) {
@@ -457,47 +457,47 @@ namespace LOICollection::frontend::ir {
                 if (isAnd) {
                     if (leftBool) {
                         int idxTrue = this->addConstant(true);
-                        this->current.get().emit(OpCode::PUSH_BOOL, idxTrue);
+                        this->current.get().emit(OpCode::PUSH_BOOL, idxTrue, node.loc);
 
-                        this->compileValue(*node.right);
+                        this->compileValue(*node.right, node.loc);
 
-                        this->current.get().emit(OpCode::LOGIC_AND);
+                        this->current.get().emit(OpCode::LOGIC_AND, 0, node.loc);
                     } else {
                         int idxFalse = this->addConstant(false);
-                        this->current.get().emit(OpCode::PUSH_BOOL, idxFalse);
+                        this->current.get().emit(OpCode::PUSH_BOOL, idxFalse, node.loc);
                     }
                 } else {
                     if (leftBool) {
                         int idxTrue = this->addConstant(true);
-                        this->current.get().emit(OpCode::PUSH_BOOL, idxTrue);
+                        this->current.get().emit(OpCode::PUSH_BOOL, idxTrue, node.loc);
                     } else {
                         int idxFalse = this->addConstant(false);
-                        this->current.get().emit(OpCode::PUSH_BOOL, idxFalse);
+                        this->current.get().emit(OpCode::PUSH_BOOL, idxFalse, node.loc);
 
-                        this->compileValue(*node.right);
+                        this->compileValue(*node.right, node.loc);
                         
-                        this->current.get().emit(OpCode::LOGIC_OR);
+                        this->current.get().emit(OpCode::LOGIC_OR, 0, node.loc);
                     }
                 }
                 return;
             }
         }
 
-        this->compileValue(*node.left);
-        this->current.get().emit(OpCode::DUP);
+        this->compileValue(*node.left, node.loc);
+        this->current.get().emit(OpCode::DUP, 0, node.loc);
 
-        size_t jumpToShort = this->current.get().emit(isAnd ? OpCode::JMP_IF_FALSE : OpCode::JMP_IF_TRUE, 0);
+        size_t jumpToShort = this->current.get().emit(isAnd ? OpCode::JMP_IF_FALSE : OpCode::JMP_IF_TRUE, 0, node.loc);
 
-        this->compileValue(*node.right);
-        this->current.get().emit(isAnd ? OpCode::LOGIC_AND : OpCode::LOGIC_OR);
+        this->compileValue(*node.right, node.loc);
+        this->current.get().emit(isAnd ? OpCode::LOGIC_AND : OpCode::LOGIC_OR, 0, node.loc);
 
-        size_t jumpToEnd = this->current.get().emit(OpCode::JMP, 0);
+        size_t jumpToEnd = this->current.get().emit(OpCode::JMP, 0, node.loc);
 
         int shortStart = static_cast<int>(this->current.get().currentIP());
 
         int shortIdx = this->addConstant(isAnd ? false : true);
-        this->current.get().emit(OpCode::POP); 
-        this->current.get().emit(OpCode::PUSH_BOOL, shortIdx);
+        this->current.get().emit(OpCode::POP, 0, node.loc);
+        this->current.get().emit(OpCode::PUSH_BOOL, shortIdx, node.loc);
 
         this->current.get().patchJump(jumpToShort, shortStart - static_cast<int>(jumpToShort) - 1);
 
@@ -507,44 +507,44 @@ namespace LOICollection::frontend::ir {
 
     void Compiler::visit(FunctionNode& node) {
         for (auto& arg : node.args)
-            this->compileValue(*arg);
+            this->compileValue(*arg, node.loc);
 
         int argCount = static_cast<int>(node.args.size());
         int metaIdx = this->addFunction(node.namespaces + "::" + node.name, argCount);
-        this->current.get().emit(OpCode::CALL, metaIdx);
+        this->current.get().emit(OpCode::CALL, metaIdx, node.loc);
     }
 
     void Compiler::visit(MacroNode& node) {
         for (auto& arg : node.args)
-            this->compileValue(*arg);
+            this->compileValue(*arg, node.loc);
 
         int argCount = static_cast<int>(node.args.size());
         int metaIdx = addMacro(node.name, argCount);
-        this->current.get().emit(OpCode::CALL_MACRO, metaIdx);
+        this->current.get().emit(OpCode::CALL_MACRO, metaIdx, node.loc);
     }
 
     void Compiler::visit(ArithmeticNode& node) {
-        this->compileValue(*node.left);
-        this->compileValue(*node.right);
+        this->compileValue(*node.left, node.loc);
+        this->compileValue(*node.right, node.loc);
 
-        if (node.op == "+") this->current.get().emit(OpCode::ADD);
-        else if (node.op == "-") this->current.get().emit(OpCode::SUB);
-        else if (node.op == "*") this->current.get().emit(OpCode::MUL);
-        else if (node.op == "/") this->current.get().emit(OpCode::DIV);
-        else if (node.op == "%") this->current.get().emit(OpCode::MOD);
-        else if (node.op == "^") this->current.get().emit(OpCode::POW);
+        if (node.op == "+") this->current.get().emit(OpCode::ADD, 0, node.loc);
+        else if (node.op == "-") this->current.get().emit(OpCode::SUB, 0, node.loc);
+        else if (node.op == "*") this->current.get().emit(OpCode::MUL, 0, node.loc);
+        else if (node.op == "/") this->current.get().emit(OpCode::DIV, 0, node.loc);
+        else if (node.op == "%") this->current.get().emit(OpCode::MOD, 0, node.loc);
+        else if (node.op == "^") this->current.get().emit(OpCode::POW, 0, node.loc);
         else
-            this->diagnostics.addError({0, 0, 0}, "Unknown arithmetic op: " + node.op);
+            this->diagnostics.addError(node.loc, "Unknown arithmetic op: " + node.op);
     }
 
     void Compiler::visit(UnaryNode& node) {
-        this->compileValue(*node.operand);
+        this->compileValue(*node.operand, node.loc);
 
-        if (node.op == "-") this->current.get().emit(OpCode::NEG);
-        else if (node.op == "!") this->current.get().emit(OpCode::NOT);
+        if (node.op == "-") this->current.get().emit(OpCode::NEG, 0, node.loc);
+        else if (node.op == "!") this->current.get().emit(OpCode::NOT, 0, node.loc);
         else if (node.op == "+") {}
         else
-            this->diagnostics.addError({0, 0, 0}, "Unknown unary op: " + node.op);
+            this->diagnostics.addError(node.loc, "Unknown unary op: " + node.op);
     }
 
     void Compiler::compileSequence(SequenceNode& node) {
@@ -739,9 +739,9 @@ namespace LOICollection::frontend::ir {
 
                 int argCount = ctorIdx >= 0 ? this->chunk.methods[ctorIdx].argCount : 0;
                 int superIdx = this->addSuperCall(ctorIdx, argCount);
-                this->current.get().emit(OpCode::LOAD_THIS);
-                this->current.get().emit(OpCode::CALL_SUPER_CTOR, superIdx);
-                this->current.get().emit(OpCode::POP);
+                this->current.get().emit(OpCode::LOAD_THIS, 0, node.loc);
+                this->current.get().emit(OpCode::CALL_SUPER_CTOR, superIdx, node.loc);
+                this->current.get().emit(OpCode::POP, 0, node.loc);
             }
 
             if (method.body)
@@ -773,7 +773,7 @@ namespace LOICollection::frontend::ir {
 
     void Compiler::visit(NewNode& node) {
         for (auto& arg : node.args)
-            this->compileValue(*arg);
+            this->compileValue(*arg, node.loc);
 
         auto it = this->classIndices.find(node.className);
         if (it == this->classIndices.end()) {
@@ -781,7 +781,7 @@ namespace LOICollection::frontend::ir {
                 int argCount = static_cast<int>(node.args.size());
                 int metaIdx = this->addNativeCall(node.className, "", argCount);
 
-                this->current.get().emit(OpCode::NEW_NATIVE, metaIdx);
+                this->current.get().emit(OpCode::NEW_NATIVE, metaIdx, node.loc);
                 return;
             }
 
@@ -789,83 +789,83 @@ namespace LOICollection::frontend::ir {
             return;
         }
 
-        this->current.get().emit(OpCode::NEW, it->second);
+        this->current.get().emit(OpCode::NEW, it->second, node.loc);
     }
 
     void Compiler::visit(MemberAccessNode& node) {
         if (node.isStaticAccess) {
             int idx = this->addConstant(node.staticClassName + "::" + node.memberName);
-            this->current.get().emit(OpCode::LOAD_VAR, idx);
+            this->current.get().emit(OpCode::LOAD_VAR, idx, node.loc);
 
             if (node.type.kind == TypeKind::Optional && !node.preserveOptional)
-                this->current.get().emit(OpCode::UNWRAP);
+                this->current.get().emit(OpCode::UNWRAP, 0, node.loc);
             return;
         }
 
         switch (node.memberKind) {
             case MemberAccessNode::MemberKind::TypeOf:
                 node.target->accept(*this);
-                this->current.get().emit(OpCode::TYPE_OF);
+                this->current.get().emit(OpCode::TYPE_OF, 0, node.loc);
                 return;
             case MemberAccessNode::MemberKind::Value:
                 node.target->accept(*this);
                 if (node.target->type.kind == TypeKind::Optional)
-                    this->current.get().emit(OpCode::UNWRAP);
+                    this->current.get().emit(OpCode::UNWRAP, 0, node.loc);
                 return;
             case MemberAccessNode::MemberKind::HasValue:
                 node.target->accept(*this);
-                this->current.get().emit(OpCode::HAS_VALUE);
+                this->current.get().emit(OpCode::HAS_VALUE, 0, node.loc);
                 return;
             case MemberAccessNode::MemberKind::Normal:
                 break;
         }
 
-        this->compileValue(*node.target);
+        this->compileValue(*node.target, node.loc);
 
         int idx = this->addConstant(node.memberName);
-        this->current.get().emit(OpCode::LOAD_FIELD, idx);
+        this->current.get().emit(OpCode::LOAD_FIELD, idx, node.loc);
 
         if (node.type.kind == TypeKind::Optional && !node.preserveOptional)
-            this->current.get().emit(OpCode::UNWRAP);
+            this->current.get().emit(OpCode::UNWRAP, 0, node.loc);
     }
 
     void Compiler::visit(ArrayNode& node) {
         for (auto& element : node.elements)
-            this->compileValue(*element);
+            this->compileValue(*element, node.loc);
 
-        this->current.get().emit(OpCode::MAKE_ARRAY, static_cast<int>(node.elements.size()));
+        this->current.get().emit(OpCode::MAKE_ARRAY, static_cast<int>(node.elements.size()), node.loc);
     }
 
     void Compiler::visit(IndexAccessNode& node) {
-        this->compileValue(*node.target);
-        this->compileValue(*node.index);
-        this->current.get().emit(OpCode::LOAD_INDEX);
+        this->compileValue(*node.target, node.loc);
+        this->compileValue(*node.index, node.loc);
+        this->current.get().emit(OpCode::LOAD_INDEX, 0, node.loc);
     }
 
     void Compiler::visit(MethodCallNode& node) {
         for (auto& arg : node.args)
-            this->compileValue(*arg);
+            this->compileValue(*arg, node.loc);
 
         if (node.isStaticCall) {
             if (ClassCall::getInstance().isRegistered(node.staticClassName)) {
                 int argCount = static_cast<int>(node.args.size());
                 int metaIdx = this->addNativeCall(node.staticClassName, node.methodName, argCount, true);
 
-                this->current.get().emit(OpCode::CALL_NATIVE_METHOD, metaIdx);
+                this->current.get().emit(OpCode::CALL_NATIVE_METHOD, metaIdx, node.loc);
                 return;
             }
 
             auto it = this->classStaticMethodIndices.find(node.staticClassName);
             if (it != this->classStaticMethodIndices.end() && node.methodOrdinal >= 0 &&
                 static_cast<size_t>(node.methodOrdinal) < it->second.size()) {
-                this->current.get().emit(OpCode::CALL_FUNC, it->second[node.methodOrdinal]);
+                this->current.get().emit(OpCode::CALL_FUNC, it->second[node.methodOrdinal], node.loc);
             } else {
                 this->diagnostics.addError(node.loc, "Unresolved static method call: " + node.methodName);
             }
             return;
         }
 
-        this->compileValue(*node.target);
+        this->compileValue(*node.target, node.loc);
 
         auto it = classMethodIndices.find(node.className);
         if (it != classMethodIndices.end() && node.methodOrdinal >= 0 &&
@@ -873,11 +873,11 @@ namespace LOICollection::frontend::ir {
             int argCount = static_cast<int>(node.args.size());
 
             if (node.target->getType() == ASTNode::Type::Super) {
-                this->current.get().emit(OpCode::CALL_METHOD, it->second[node.methodOrdinal]);
+                this->current.get().emit(OpCode::CALL_METHOD, it->second[node.methodOrdinal], node.loc);
             } else {
                 int classIdx = this->classIndices[node.className];
                 int metaIdx = this->addVirtualCall(classIdx, node.methodOrdinal, argCount);
-                this->current.get().emit(OpCode::CALL_METHOD_VIRTUAL, metaIdx);
+                this->current.get().emit(OpCode::CALL_METHOD_VIRTUAL, metaIdx, node.loc);
             }
             return;
         }
@@ -886,26 +886,26 @@ namespace LOICollection::frontend::ir {
             int argCount = static_cast<int>(node.args.size());
             int metaIdx = this->addNativeCall(node.className, node.methodName, argCount);
 
-            this->current.get().emit(OpCode::CALL_NATIVE_METHOD, metaIdx);
+            this->current.get().emit(OpCode::CALL_NATIVE_METHOD, metaIdx, node.loc);
             return;
         }
 
         this->diagnostics.addError(node.loc, "Unresolved method call: " + node.methodName);
     }
 
-    void Compiler::visit(ThisNode&) {
-        this->current.get().emit(OpCode::LOAD_THIS);
+    void Compiler::visit(ThisNode& node) {
+        this->current.get().emit(OpCode::LOAD_THIS, 0, node.loc);
     }
 
-    void Compiler::visit(SuperNode&) {
-        this->current.get().emit(OpCode::LOAD_THIS);
+    void Compiler::visit(SuperNode& node) {
+        this->current.get().emit(OpCode::LOAD_THIS, 0, node.loc);
     }
 
     void Compiler::visit(SuperCallNode& node) {
         for (auto& arg : node.args)
-            this->compileValue(*arg);
+            this->compileValue(*arg, node.loc);
 
-        this->current.get().emit(OpCode::LOAD_THIS);
+        this->current.get().emit(OpCode::LOAD_THIS, 0, node.loc);
 
         int constructorIndex = -1;
         if (node.constructorIndex >= 0) {
@@ -916,14 +916,14 @@ namespace LOICollection::frontend::ir {
 
         int argCount = static_cast<int>(node.args.size());
         int metaIdx = this->addSuperCall(constructorIndex, argCount);
-        this->current.get().emit(OpCode::CALL_SUPER_CTOR, metaIdx);
+        this->current.get().emit(OpCode::CALL_SUPER_CTOR, metaIdx, node.loc);
     }
 
     void Compiler::visit(InstanceOfNode& node) {
-        this->compileValue(*node.target);
+        this->compileValue(*node.target, node.loc);
 
         int nameIdx = this->addConstant(node.className);
-        this->current.get().emit(OpCode::INSTANCEOF, nameIdx);
+        this->current.get().emit(OpCode::INSTANCEOF, nameIdx, node.loc);
     }
 
     void Compiler::visit(FunctionDefNode& node) {
@@ -968,21 +968,21 @@ namespace LOICollection::frontend::ir {
 
     void Compiler::visit(FuncCallNode& node) {
         for (auto& arg : node.args)
-            this->compileValue(*arg);
+            this->compileValue(*arg, node.loc);
 
         if (node.isStaticCall) {
             if (ClassCall::getInstance().isRegistered(node.staticClassName)) {
                 int argCount = static_cast<int>(node.args.size());
                 int metaIdx = this->addNativeCall(node.staticClassName, node.name, argCount, true);
 
-                this->current.get().emit(OpCode::CALL_NATIVE_METHOD, metaIdx);
+                this->current.get().emit(OpCode::CALL_NATIVE_METHOD, metaIdx, node.loc);
                 return;
             }
 
             auto it = this->classStaticMethodIndices.find(node.staticClassName);
             if (it != this->classStaticMethodIndices.end() && node.methodOrdinal >= 0 &&
                 static_cast<size_t>(node.methodOrdinal) < it->second.size()) {
-                this->current.get().emit(OpCode::CALL_FUNC, it->second[node.methodOrdinal]);
+                this->current.get().emit(OpCode::CALL_FUNC, it->second[node.methodOrdinal], node.loc);
             } else {
                 this->diagnostics.addError(node.loc, "Unresolved static method call: " + node.name);
             }
@@ -991,10 +991,10 @@ namespace LOICollection::frontend::ir {
 
         if (node.isCallable) {
             int idx = this->addConstant(node.resolvedName);
-            this->current.get().emit(OpCode::LOAD_VAR, idx);
+            this->current.get().emit(OpCode::LOAD_VAR, idx, node.loc);
 
             int argCount = static_cast<int>(node.args.size());
-            this->current.get().emit(OpCode::CALL_LAMBDA, argCount);
+            this->current.get().emit(OpCode::CALL_LAMBDA, argCount, node.loc);
             return;
         }
 
@@ -1005,7 +1005,7 @@ namespace LOICollection::frontend::ir {
             return;
         }
 
-        this->current.get().emit(OpCode::CALL_FUNC, it->second[node.functionOrdinal]);
+        this->current.get().emit(OpCode::CALL_FUNC, it->second[node.functionOrdinal], node.loc);
     }
 
     void Compiler::visit(LambdaNode& node) {
@@ -1032,7 +1032,7 @@ namespace LOICollection::frontend::ir {
             paramNames.push_back(param.name);
 
         int lambdaIdx = this->addLambda(bodyIdx, static_cast<int>(node.decl.params.size()), paramNames);
-        this->current.get().emit(OpCode::MAKE_LAMBDA, lambdaIdx);
+        this->current.get().emit(OpCode::MAKE_LAMBDA, lambdaIdx, node.loc);
     }
 
     int Compiler::addNativeCall(const std::string& className, const std::string& name, int argCount, bool isStatic) {
@@ -1088,11 +1088,11 @@ namespace LOICollection::frontend::ir {
         return signature;
     }
 
-    void Compiler::compileValue(ExprNode& node) {
+    void Compiler::compileValue(ExprNode& node, const SourceLocation& loc) {
         node.accept(*this);
 
         if (node.type.kind == TypeKind::Optional && !node.preserveOptional)
-            this->current.get().emit(OpCode::UNWRAP);
+            this->current.get().emit(OpCode::UNWRAP, 0, loc);
     }
 
     std::optional<ValueNode::ValueType> Compiler::constantValue(ExprNode& node) const {

@@ -64,7 +64,7 @@ namespace LOICollection::frontend {
         }
     };
 
-    std::vector<ParamType> valuesToTypes(const CallbackTypeValues& values, DiagnosticEngine& diagnostics);
+    std::vector<ParamType> valuesToTypes(const CallbackTypeValues& values, DiagnosticEngine& diagnostics, const SourceLocation& loc = {});
 
     class FunctionCall {
     public:
@@ -76,7 +76,7 @@ namespace LOICollection::frontend {
 
         LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& namespaces, const std::string& function, const CallbackTypeArgs& args) const;
 
-        LOICOLLECTION_A_NDAPI ll::Expected<TypedValue> callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics);
+        LOICOLLECTION_A_NDAPI ll::Expected<TypedValue> callFunction(const std::string& namespaces, const std::string& function, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics, const SourceLocation& loc = {});
 
     private:
         FunctionCall();
@@ -96,7 +96,7 @@ namespace LOICollection::frontend {
 
         LOICOLLECTION_A_NDAPI bool isRegistered(const std::string& name, const CallbackTypeArgs& args) const;
 
-        LOICOLLECTION_A_NDAPI ll::Expected<TypedValue> callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics);
+        LOICOLLECTION_A_NDAPI ll::Expected<TypedValue> callMacro(const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics, const SourceLocation& loc = {});
 
     private:
         MacroCall();
@@ -137,15 +137,15 @@ namespace LOICollection::frontend {
         LOICOLLECTION_A_API   void setStaticField(const std::string& className, const std::string& field, const TypedValue& value);
 
         LOICOLLECTION_A_NDAPI ll::Expected<ObjectRef> create(
-            const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics
+            const std::string& name, const CallbackTypeValues& args, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics, const SourceLocation& loc = {}
         );
         LOICOLLECTION_A_NDAPI ll::Expected<TypedValue> callMethod(
             const std::string& className, const std::string& method, const CallbackTypeValues& args,
-            const ObjectRef& object, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics
+            const ObjectRef& object, const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics, const SourceLocation& loc = {}
         );
         LOICOLLECTION_A_NDAPI ll::Expected<TypedValue> callStaticMethod(
             const std::string& className, const std::string& method, const CallbackTypeValues& args,
-            const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics
+            const CallbackTypePlaces& placeholders, DiagnosticEngine& diagnostics, const SourceLocation& loc = {}
         );
 
     private:

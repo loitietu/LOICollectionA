@@ -48,6 +48,8 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<IfNode> Parser::parseIfStatement() {
+        SourceLocation loc = currentToken.loc;
+
         if (!eat(TokenType::TOKEN_IF)) return nullptr;
         if (!eat(TokenType::TOKEN_LPAREN)) {
             synchronize({ TokenType::TOKEN_RBRCKET, TokenType::TOKEN_COLON, TokenType::TOKEN_RBRACE });
@@ -64,6 +66,7 @@ namespace LOICollection::frontend {
         if (currentToken.type == TokenType::TOKEN_RBRCKET) {
             if (!eat(TokenType::TOKEN_RBRCKET)) return nullptr;
             return std::make_unique<IfNode>(
+                loc,
                 std::move(cond),
                 std::move(truePart),
                 nullptr
@@ -82,6 +85,7 @@ namespace LOICollection::frontend {
         }
         
         return std::make_unique<IfNode>(
+            loc,
             std::move(cond),
             std::move(truePart),
             std::move(falsePart)
@@ -288,6 +292,8 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<FunctionNode> Parser::parseFunction() {
+        SourceLocation loc = currentToken.loc;
+
         std::string namespaces = currentToken.value;
 
         if (!eat(TokenType::TOKEN_IDENT)) return nullptr;
@@ -303,6 +309,7 @@ namespace LOICollection::frontend {
         if (!eat(TokenType::TOKEN_RPAREN)) return nullptr;
 
         return std::make_unique<FunctionNode>(
+            loc,
             std::move(args),
             std::move(namespaces),
             std::move(name)
@@ -310,6 +317,8 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<MacroNode> Parser::parseMacro() {
+        SourceLocation loc = currentToken.loc;
+
         if (!eat(TokenType::TOKEN_LBRACE)) return nullptr;
 
         std::string name = currentToken.value;
@@ -328,6 +337,7 @@ namespace LOICollection::frontend {
         if (!eat(TokenType::TOKEN_RBRACE)) return nullptr;
 
         return std::make_unique<MacroNode>(
+            loc,
             std::move(args),
             std::move(name)
         );
@@ -893,6 +903,8 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<ValueNode> Parser::parseTranspile() {
+        SourceLocation loc = currentToken.loc;
+
         if (!eat(TokenType::TOKEN_TRANSPILE)) return nullptr;
 
         std::string buffer;
@@ -909,7 +921,7 @@ namespace LOICollection::frontend {
             eat(currentToken.type);
         }
 
-        return std::make_unique<ValueNode>(std::move(buffer));
+        return std::make_unique<ValueNode>(loc, std::move(buffer));
     }
 
     std::vector<std::unique_ptr<ExprNode>> Parser::parseArgs(TokenType delimiterToken, TokenType stopToken) {
@@ -1042,13 +1054,15 @@ namespace LOICollection::frontend {
             return nullptr;
 
         while (currentToken.type == TokenType::TOKEN_BOOL_OP && currentToken.value == "||") {
+            SourceLocation loc = currentToken.loc;
+
             if (!eat(TokenType::TOKEN_BOOL_OP)) return nullptr;
 
             auto right = parseAndExpression();
             if (!right)
                 return nullptr;
 
-            left = std::make_unique<LogicalNode>(std::move(left), std::move(right), "||");
+            left = std::make_unique<LogicalNode>(loc, std::move(left), std::move(right), "||");
         }
         
         return left;
@@ -1060,13 +1074,15 @@ namespace LOICollection::frontend {
             return nullptr;
         
         while (currentToken.type == TokenType::TOKEN_BOOL_OP && currentToken.value == "&&") {
+            SourceLocation loc = currentToken.loc;
+
             if (!eat(TokenType::TOKEN_BOOL_OP)) return nullptr;
 
             auto right = parseComparison();
             if (!right)
                 return nullptr;
 
-            left = std::make_unique<LogicalNode>(std::move(left), std::move(right), "&&");
+            left = std::make_unique<LogicalNode>(loc, std::move(left), std::move(right), "&&");
         }
 
         return left;
@@ -1097,6 +1113,7 @@ namespace LOICollection::frontend {
         };
         
         if (currentToken.type == TokenType::TOKEN_OP && comparisonOps.find(currentToken.value) != comparisonOps.end()) {
+            SourceLocation loc = currentToken.loc;
             std::string op = currentToken.value;
 
             if (!eat(TokenType::TOKEN_OP)) return nullptr;
@@ -1105,7 +1122,7 @@ namespace LOICollection::frontend {
             if (!right)
                 return nullptr;
 
-            return std::make_unique<CompareNode>(std::move(left), std::move(right), op);
+            return std::make_unique<CompareNode>(loc, std::move(left), std::move(right), op);
         }
 
         return left;
@@ -1117,6 +1134,7 @@ namespace LOICollection::frontend {
             return nullptr;
         
         while (currentToken.type == TokenType::TOKEN_PLUS || currentToken.type == TokenType::TOKEN_MINUS) {
+            SourceLocation loc = currentToken.loc;
             std::string op = currentToken.value;
             
             if (currentToken.type == TokenType::TOKEN_PLUS) {
@@ -1129,7 +1147,7 @@ namespace LOICollection::frontend {
             if (!right)
                 return nullptr;
 
-            left = std::make_unique<ArithmeticNode>(std::move(left), std::move(right), op);
+            left = std::make_unique<ArithmeticNode>(loc, std::move(left), std::move(right), op);
         }
         
         return left;
@@ -1141,6 +1159,7 @@ namespace LOICollection::frontend {
             return nullptr;
         
         while (currentToken.type == TokenType::TOKEN_MULTIPLY || currentToken.type == TokenType::TOKEN_DIVIDE || currentToken.type == TokenType::TOKEN_MOD) {
+            SourceLocation loc = currentToken.loc;
             std::string op = currentToken.value;
             
             if (currentToken.type == TokenType::TOKEN_MULTIPLY) {
@@ -1155,7 +1174,7 @@ namespace LOICollection::frontend {
             if (!right)
                 return nullptr;
 
-            left = std::make_unique<ArithmeticNode>(std::move(left), std::move(right), op);
+            left = std::make_unique<ArithmeticNode>(loc, std::move(left), std::move(right), op);
         }
         
         return left;
@@ -1167,6 +1186,7 @@ namespace LOICollection::frontend {
             return nullptr;
         
         if (currentToken.type == TokenType::TOKEN_POWER) {
+            SourceLocation loc = currentToken.loc;
             std::string op = currentToken.value;
 
             if (!eat(TokenType::TOKEN_POWER)) return nullptr;
@@ -1175,7 +1195,7 @@ namespace LOICollection::frontend {
             if (!right)
                 return nullptr;
 
-            return std::make_unique<ArithmeticNode>(std::move(left), std::move(right), op);
+            return std::make_unique<ArithmeticNode>(loc, std::move(left), std::move(right), op);
         }
         
         return left;
@@ -1184,6 +1204,7 @@ namespace LOICollection::frontend {
     std::unique_ptr<ExprNode> Parser::parseUnaryExpression() {
         if ((currentToken.type == TokenType::TOKEN_OP && currentToken.value == "!") ||
             currentToken.type == TokenType::TOKEN_PLUS || currentToken.type == TokenType::TOKEN_MINUS) {
+            SourceLocation loc = currentToken.loc;
             std::string op = currentToken.value;
             
             if (currentToken.type == TokenType::TOKEN_OP && currentToken.value == "!") {
@@ -1198,7 +1219,7 @@ namespace LOICollection::frontend {
             if (!operand)
                 return nullptr;
 
-            return std::make_unique<UnaryNode>(std::move(operand), op);
+            return std::make_unique<UnaryNode>(loc, std::move(operand), op);
         }
         
         return parsePostfix();
@@ -1370,6 +1391,8 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<ValueNode> Parser::parseValue() {
+        SourceLocation loc = currentToken.loc;
+
         switch (currentToken.type) {
             case TokenType::TOKEN_INT: {
                 int value;
@@ -1379,11 +1402,11 @@ namespace LOICollection::frontend {
                     diagnostics.addError(currentToken.loc, "Invalid integer literal: " + currentToken.value);
 
                     eat(TokenType::TOKEN_INT);
-                    return std::make_unique<ValueNode>(0);
+                    return std::make_unique<ValueNode>(loc, 0);
                 }
 
                 eat(TokenType::TOKEN_INT);
-                return std::make_unique<ValueNode>(value);
+                return std::make_unique<ValueNode>(loc, value);
             }
             case TokenType::TOKEN_FLOAT: {
                 float value;
@@ -1393,30 +1416,30 @@ namespace LOICollection::frontend {
                     diagnostics.addError(currentToken.loc, "Invalid float literal: " + currentToken.value);
                     
                     eat(TokenType::TOKEN_FLOAT);
-                    return std::make_unique<ValueNode>(0.0f);
+                    return std::make_unique<ValueNode>(loc, 0.0f);
                 }
 
                 eat(TokenType::TOKEN_FLOAT);
-                return std::make_unique<ValueNode>(value);
+                return std::make_unique<ValueNode>(loc, value);
             }
             case TokenType::TOKEN_STRING: {
                 std::string str = std::move(currentToken.value);
 
                 eat(TokenType::TOKEN_STRING);
-                return std::make_unique<ValueNode>(std::move(str));
+                return std::make_unique<ValueNode>(loc, std::move(str));
             }
             case TokenType::TOKEN_BOOL_LIT: {
                 bool val = (currentToken.value == "true");
                 
                 eat(TokenType::TOKEN_BOOL_LIT);
-                return std::make_unique<ValueNode>(val);
+                return std::make_unique<ValueNode>(loc, val);
             }
             case TokenType::TOKEN_NONE:
                 eat(TokenType::TOKEN_NONE);
-                return std::make_unique<ValueNode>(std::monostate{});
+                return std::make_unique<ValueNode>(loc, std::monostate{});
             default:
                 diagnostics.addError(currentToken.loc, "Unexpected value type: " + currentToken.value);
-                return std::make_unique<ValueNode>(0);
+                return std::make_unique<ValueNode>(loc, 0);
         }
     }
 

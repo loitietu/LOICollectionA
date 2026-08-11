@@ -33,6 +33,14 @@ TEST(DiagnosticTest, OriginLocationIsOmitted) {
     EXPECT_EQ(diag.getErrorMessage(), "no location");
 }
 
+TEST(DiagnosticTest, FirstLineLocationIsShown) {
+    DiagnosticEngine diag;
+
+    diag.addError({ 1, 1, 0 }, "boom");
+    EXPECT_NE(diag.getErrorMessage().find("line 1"), std::string::npos);
+    EXPECT_NE(diag.getErrorMessage().find("col 1"), std::string::npos);
+}
+
 TEST(DiagnosticTest, Clear) {
     DiagnosticEngine diag;
 

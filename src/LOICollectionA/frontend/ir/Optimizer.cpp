@@ -76,7 +76,10 @@ namespace LOICollection::frontend::ir {
         return static_cast<int>(chunk.constants.size() - 1);
     }
 
-    void emitPush(BytecodeChunk& chunk, std::vector<Instruction>& out, const ValueNode::ValueType& value) {
+    void emitPush(
+        BytecodeChunk& chunk, std::vector<Instruction>& out, const ValueNode::ValueType& value,
+        const SourceLocation& loc = {}
+    ) {
         OpCode op = OpCode::PUSH_INT;
 
         switch (value.index()) {
@@ -88,7 +91,7 @@ namespace LOICollection::frontend::ir {
             default: op = OpCode::PUSH_INT; break;
         }
 
-        out.push_back({ op, addConstant(chunk, value) });
+        out.push_back({ op, addConstant(chunk, value), loc });
     }
 
     Optimizer::Stats Optimizer::optimize(BytecodeChunk& chunk) {
@@ -161,7 +164,7 @@ namespace LOICollection::frontend::ir {
                         !std::holds_alternative<std::monostate>(knownValue(operand).value)) {
                         dropped[knownValue(operand).producer] = true;
 
-                        emitPush(chunk, foldedCode, knownValue(operand).value);
+                        emitPush(chunk, foldedCode, knownValue(operand).value, instr.loc);
                         emittedAt = static_cast<int>(foldedCode.size()) - 1;
                         stack.emplace_back(TrackedValue{
                             knownValue(operand).value, emittedAt, !targets.contains(oldIdx)
@@ -183,7 +186,7 @@ namespace LOICollection::frontend::ir {
                         dropped[knownValue(operand).producer] = true;
 
                         std::string name = VM::typeNameOf(knownValue(operand).value);
-                        emitPush(chunk, foldedCode, name);
+                        emitPush(chunk, foldedCode, name, instr.loc);
                         emittedAt = static_cast<int>(foldedCode.size()) - 1;
                         stack.emplace_back(TrackedValue{
                             name, emittedAt, !targets.contains(oldIdx)
@@ -206,7 +209,7 @@ namespace LOICollection::frontend::ir {
 
                         bool result = !std::holds_alternative<std::monostate>(
                             knownValue(operand).value);
-                        emitPush(chunk, foldedCode, result);
+                        emitPush(chunk, foldedCode, result, instr.loc);
                         emittedAt = static_cast<int>(foldedCode.size()) - 1;
                         stack.emplace_back(TrackedValue{
                             result, emittedAt, !targets.contains(oldIdx)
@@ -267,7 +270,7 @@ namespace LOICollection::frontend::ir {
                             knownValue(left).value, knownValue(right).value, arithmeticOpName(instr.op), foldDiag);
 
                         if (!foldDiag.hasErrors()) {
-                            emitPush(chunk, foldedCode, result);
+                            emitPush(chunk, foldedCode, result, instr.loc);
                             emittedAt = static_cast<int>(foldedCode.size()) - 1;
                             stack.emplace_back(TrackedValue{ result, emittedAt, !targets.contains(oldIdx) });
                             stats.folded++;
@@ -304,7 +307,7 @@ namespace LOICollection::frontend::ir {
                             knownValue(left).value, knownValue(right).value, comparisonOpName(instr.op), foldDiag);
 
                         if (!foldDiag.hasErrors()) {
-                            emitPush(chunk, foldedCode, result);
+                            emitPush(chunk, foldedCode, result, instr.loc);
                             emittedAt = static_cast<int>(foldedCode.size()) - 1;
                             stack.emplace_back(TrackedValue{ result, emittedAt, !targets.contains(oldIdx) });
                             stats.folded++;
@@ -335,7 +338,7 @@ namespace LOICollection::frontend::ir {
                         bool l = VM::valueToBool(knownValue(left).value);
                         bool r = VM::valueToBool(knownValue(right).value);
                         bool result = (instr.op == OpCode::LOGIC_AND) ? (l && r) : (l || r);
-                        emitPush(chunk, foldedCode, result);
+                        emitPush(chunk, foldedCode, result, instr.loc);
                         emittedAt = static_cast<int>(foldedCode.size()) - 1;
                         stack.emplace_back(TrackedValue{ result, emittedAt, !targets.contains(oldIdx) });
                         stats.folded++;
@@ -376,7 +379,7 @@ namespace LOICollection::frontend::ir {
                         auto arr = std::make_shared<ArrayValue>();
                         arr->elements = std::move(elements);
 
-                        emitPush(chunk, foldedCode, arr);
+                        emitPush(chunk, foldedCode, arr, instr.loc);
                         emittedAt = static_cast<int>(foldedCode.size()) - 1;
                         stack.emplace_back(TrackedValue{ arr, emittedAt, !targets.contains(oldIdx) });
                         stats.folded++;
@@ -412,7 +415,7 @@ namespace LOICollection::frontend::ir {
 
                         const auto& element =
                             std::get<ArrayRef>(knownValue(targetEntry).value)->elements[index];
-                        emitPush(chunk, foldedCode, element);
+                        emitPush(chunk, foldedCode, element, instr.loc);
                         emittedAt = static_cast<int>(foldedCode.size()) - 1;
                         stack.emplace_back(TrackedValue{ element, emittedAt, !targets.contains(oldIdx) });
                         stats.folded++;
@@ -447,7 +450,7 @@ namespace LOICollection::frontend::ir {
                             ValueNode::ValueType result = VM::applyUnary(knownValue(operand).value, "-", foldDiag);
 
                             if (!foldDiag.hasErrors()) {
-                                emitPush(chunk, foldedCode, result);
+                                emitPush(chunk, foldedCode, result, instr.loc);
                                 emittedAt = static_cast<int>(foldedCode.size()) - 1;
                                 stack.emplace_back(TrackedValue{ result, emittedAt, !targets.contains(oldIdx) });
                             } else {
@@ -457,7 +460,7 @@ namespace LOICollection::frontend::ir {
                             }
                         } else {
                             bool result = !VM::valueToBool(knownValue(operand).value);
-                            emitPush(chunk, foldedCode, result);
+                            emitPush(chunk, foldedCode, result, instr.loc);
                             emittedAt = static_cast<int>(foldedCode.size()) - 1;
                             stack.emplace_back(TrackedValue{ result, emittedAt, !targets.contains(oldIdx) });
                         }
@@ -483,7 +486,7 @@ namespace LOICollection::frontend::ir {
 
                         if (alwaysJump) {
                             emittedAt = static_cast<int>(foldedCode.size());
-                            foldedCode.push_back({ OpCode::JMP, instr.operand });
+                            foldedCode.push_back({ OpCode::JMP, instr.operand, instr.loc });
                         } else {
                             stats.removed++;
                         }
@@ -517,7 +520,7 @@ namespace LOICollection::frontend::ir {
                             dropped[producer] = true;
 
                             emittedAt = static_cast<int>(foldedCode.size());
-                            foldedCode.push_back({ OpCode::JMP, instr.operand });
+                            foldedCode.push_back({ OpCode::JMP, instr.operand, instr.loc });
 
                             stats.folded++;
                             folded = true;

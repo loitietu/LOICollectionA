@@ -111,6 +111,7 @@ namespace LOICollection::frontend {
     struct ValueNode : ExprNode {
         using ValueType = std::variant<int, float, std::string, bool, ObjectRef, FunctionRefPtr, ArrayRef, std::monostate>;
 
+        SourceLocation loc;
         ValueType value;
         
         explicit ValueNode(int v) : value(v) {}
@@ -118,6 +119,11 @@ namespace LOICollection::frontend {
         explicit ValueNode(const std::string& v) : value(v) {}
         explicit ValueNode(bool v) : value(v) {}
         explicit ValueNode(std::monostate) : value(std::monostate{}) {}
+        ValueNode(SourceLocation location, int v) : loc(location), value(v) {}
+        ValueNode(SourceLocation location, float v) : loc(location), value(v) {}
+        ValueNode(SourceLocation location, const std::string& v) : loc(location), value(v) {}
+        ValueNode(SourceLocation location, bool v) : loc(location), value(v) {}
+        ValueNode(SourceLocation location, std::monostate) : loc(location), value(std::monostate{}) {}
 
         [[nodiscard]] Type getType() const override {
             return Type::Value;
@@ -163,6 +169,7 @@ namespace LOICollection::frontend {
     };
 
     struct IfNode : ExprNode {
+        SourceLocation loc;
         std::unique_ptr<ExprNode> condition;
         std::unique_ptr<ASTNode> trueBranch;
         std::unique_ptr<ASTNode> falseBranch;
@@ -170,6 +177,11 @@ namespace LOICollection::frontend {
         IfNode(auto&& c, auto&& t, auto&& f)
             : condition(std::forward<decltype(c)>(c)), 
               trueBranch(std::forward<decltype(t)>(t)), 
+              falseBranch(std::forward<decltype(f)>(f)) {}
+        IfNode(SourceLocation location, auto&& c, auto&& t, auto&& f)
+            : loc(location),
+              condition(std::forward<decltype(c)>(c)),
+              trueBranch(std::forward<decltype(t)>(t)),
               falseBranch(std::forward<decltype(f)>(f)) {}
         
         [[nodiscard]] Type getType() const override {
@@ -244,12 +256,18 @@ namespace LOICollection::frontend {
     };
 
     struct CompareNode : ExprNode {
+        SourceLocation loc;
         std::unique_ptr<ExprNode> left;
         std::unique_ptr<ExprNode> right;
         std::string op;
         
         CompareNode(auto&& l, auto&& r, std::string o)
             : left(std::forward<decltype(l)>(l)),
+              right(std::forward<decltype(r)>(r)),
+              op(std::move(o)) {}
+        CompareNode(SourceLocation location, auto&& l, auto&& r, std::string o)
+            : loc(location),
+              left(std::forward<decltype(l)>(l)),
               right(std::forward<decltype(r)>(r)),
               op(std::move(o)) {}
         
@@ -263,12 +281,18 @@ namespace LOICollection::frontend {
     };
 
     struct LogicalNode : ExprNode {
+        SourceLocation loc;
         std::unique_ptr<ExprNode> left;
         std::unique_ptr<ExprNode> right;
         std::string op;
         
         LogicalNode(auto&& l, auto&& r, std::string o) 
             : left(std::forward<decltype(l)>(l)),
+              right(std::forward<decltype(r)>(r)),
+              op(std::move(o)) {}
+        LogicalNode(SourceLocation location, auto&& l, auto&& r, std::string o)
+            : loc(location),
+              left(std::forward<decltype(l)>(l)),
               right(std::forward<decltype(r)>(r)),
               op(std::move(o)) {}
         
@@ -310,12 +334,18 @@ namespace LOICollection::frontend {
     };
 
     struct FunctionNode : ExprNode {
+        SourceLocation loc;
         std::vector<std::unique_ptr<ExprNode>> args;
         std::string namespaces;
         std::string name;
 
         FunctionNode(auto&& a, std::string ns, std::string n)
             : args(std::forward<decltype(a)>(a)),
+              namespaces(std::move(ns)),
+              name(std::move(n)) {}
+        FunctionNode(SourceLocation location, auto&& a, std::string ns, std::string n)
+            : loc(location),
+              args(std::forward<decltype(a)>(a)),
               namespaces(std::move(ns)),
               name(std::move(n)) {}
         
@@ -329,11 +359,16 @@ namespace LOICollection::frontend {
     };
 
     struct MacroNode : ExprNode {
+        SourceLocation loc;
         std::vector<std::unique_ptr<ExprNode>> args;
         std::string name;
 
         MacroNode(auto&& a, std::string n)
             : args(std::forward<decltype(a)>(a)),
+              name(std::move(n)) {}
+        MacroNode(SourceLocation location, auto&& a, std::string n)
+            : loc(location),
+              args(std::forward<decltype(a)>(a)),
               name(std::move(n)) {}
         
         [[nodiscard]] Type getType() const override {
@@ -346,12 +381,18 @@ namespace LOICollection::frontend {
     };
 
     struct ArithmeticNode : ExprNode {
+        SourceLocation loc;
         std::unique_ptr<ExprNode> left;
         std::unique_ptr<ExprNode> right;
         std::string op;
         
         ArithmeticNode(auto&& l, auto&& r, std::string o)
             : left(std::forward<decltype(l)>(l)),
+              right(std::forward<decltype(r)>(r)),
+              op(std::move(o)) {}
+        ArithmeticNode(SourceLocation location, auto&& l, auto&& r, std::string o)
+            : loc(location),
+              left(std::forward<decltype(l)>(l)),
               right(std::forward<decltype(r)>(r)),
               op(std::move(o)) {}
         
@@ -365,11 +406,16 @@ namespace LOICollection::frontend {
     };
 
     struct UnaryNode : ExprNode {
+        SourceLocation loc;
         std::unique_ptr<ExprNode> operand;
         std::string op;
         
         UnaryNode(auto&& expr, std::string o)
             : operand(std::forward<decltype(expr)>(expr)),
+              op(std::move(o)) {}
+        UnaryNode(SourceLocation location, auto&& expr, std::string o)
+            : loc(location),
+              operand(std::forward<decltype(expr)>(expr)),
               op(std::move(o)) {}
         
         [[nodiscard]] Type getType() const override {

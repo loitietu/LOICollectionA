@@ -321,6 +321,8 @@
 - `/market gui`
   - 打开玩家市场 GUI。
 
+?> 你看到我了吗？( •̀ ω •́ )✧
+
 ## BehaviourEvent
 
 ```log

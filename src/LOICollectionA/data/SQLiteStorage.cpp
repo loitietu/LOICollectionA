@@ -797,8 +797,6 @@ ll::Expected<SQLiteStorageTransaction> SQLiteStorageTransaction::create(SQLiteSt
         .and_then([&storage](std::shared_ptr<SQLiteStorage::ConnectionContext> conn) -> ll::Expected<SQLiteStorageTransaction> {
             return SQLiteStorageTransaction(storage, std::move(conn));
         });
-
-    return SQLiteStorageTransaction(storage, storage.writeConnectionPool->getConnection().value());
 }
 
 ll::Expected<bool> SQLiteStorageTransaction::commit() {

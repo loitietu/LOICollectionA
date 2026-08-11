@@ -107,6 +107,39 @@ TEST(OptimizerTest, ErroneousConstantsAreNotFolded) {
     VM vm(program.diagnostics);
     [[maybe_unused]] auto result = vm.run(program.chunk, {});
     EXPECT_TRUE(program.diagnostics.hasErrors());
+    EXPECT_NE(program.diagnostics.getErrorMessage().find("(at line 1, col "), std::string::npos);
+}
+
+TEST(OptimizerTest, RuntimeErrorCarriesSourceLocation) {
+    auto program = compileAndOptimize("a = 1; b = \"1\"; a == b");
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+
+    VM vm(program.diagnostics);
+    [[maybe_unused]] auto result = vm.run(program.chunk, {});
+    EXPECT_TRUE(program.diagnostics.hasErrors());
+    EXPECT_NE(program.diagnostics.getErrorMessage().find("(at line 1, col "), std::string::npos);
+}
+
+TEST(OptimizerTest, OptionalUnwrapErrorCarriesSourceLocation) {
+    auto program = compileAndOptimize("b: optional<string> = None; b");
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+
+    VM vm(program.diagnostics);
+    [[maybe_unused]] auto result = vm.run(program.chunk, {});
+    EXPECT_TRUE(program.diagnostics.hasErrors());
+    EXPECT_NE(program.diagnostics.getErrorMessage().find("Optional value is empty"), std::string::npos);
+    EXPECT_NE(program.diagnostics.getErrorMessage().find("(at line 1, col "), std::string::npos);
+}
+
+TEST(OptimizerTest, FunctionCallErrorCarriesSourceLocation) {
+    auto program = compileAndOptimize("nonexistent::foo()");
+    EXPECT_FALSE(program.diagnostics.hasErrors());
+
+    VM vm(program.diagnostics);
+    [[maybe_unused]] auto result = vm.run(program.chunk, {});
+    EXPECT_TRUE(program.diagnostics.hasErrors());
+    EXPECT_NE(program.diagnostics.getErrorMessage().find("Function not registered"), std::string::npos);
+    EXPECT_NE(program.diagnostics.getErrorMessage().find("(at line 1, col "), std::string::npos);
 }
 
 TEST(OptimizerTest, FoldsConstantArrayLiteral) {

@@ -10,7 +10,8 @@ namespace LOICollection::frontend::ir {
     struct Instruction {
         OpCode op;
 
-        int operand; 
+        int operand;
+        SourceLocation loc;
     };
 
     struct FuncMeta {
@@ -90,8 +91,8 @@ namespace LOICollection::frontend::ir {
         std::vector<LambdaMeta> lambdas;
         std::vector<BytecodeChunk> methodBodies;
 
-        size_t emit(OpCode op, int operand = 0) {
-            this->code.push_back({op, operand});
+        size_t emit(OpCode op, int operand = 0, const SourceLocation& loc = {}) {
+            this->code.push_back({op, operand, loc});
             return this->code.size() - 1;
         }
         

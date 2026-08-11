@@ -101,13 +101,13 @@ namespace LOICollection::frontend::ir {
         return copy;
     }
 
-    ValueNode::ValueType VM::applyArithmetic(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op, DiagnosticEngine& diagnostics) {
-        return std::visit([&op, &diagnostics](auto&& l, auto&& r) -> ValueNode::ValueType {
+    ValueNode::ValueType VM::applyArithmetic(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op, DiagnosticEngine& diagnostics, const SourceLocation& loc) {
+        return std::visit([&op, &diagnostics, &loc](auto&& l, auto&& r) -> ValueNode::ValueType {
             using T = std::decay_t<decltype(l)>;
             using U = std::decay_t<decltype(r)>;
 
             if constexpr (std::is_same_v<T, std::monostate> || std::is_same_v<U, std::monostate>) {
-                diagnostics.addError({ 0, 0, 0 },
+                diagnostics.addError(loc,
                     "Cannot perform arithmetic on an empty optional value");
                 return 0;
             } else if constexpr (std::is_arithmetic_v<T> && std::is_arithmetic_v<U>) {
@@ -118,7 +118,7 @@ namespace LOICollection::frontend::ir {
                     if constexpr (std::is_integral_v<T> && std::is_integral_v<U>) {
                         long long result = static_cast<long long>(l) + static_cast<long long>(r);
                         if (result < std::numeric_limits<int>::min() || result > std::numeric_limits<int>::max()) {
-                            diagnostics.addError({ 0, 0, 0 }, "Integer overflow in addition");
+                            diagnostics.addError(loc, "Integer overflow in addition");
                             return 0;
                         }
                         return static_cast<int>(result);
@@ -129,7 +129,7 @@ namespace LOICollection::frontend::ir {
                     if constexpr (std::is_integral_v<T> && std::is_integral_v<U>) {
                         long long result = static_cast<long long>(l) - static_cast<long long>(r);
                         if (result < std::numeric_limits<int>::min() || result > std::numeric_limits<int>::max()) {
-                            diagnostics.addError({ 0, 0, 0 }, "Integer overflow in subtraction");
+                            diagnostics.addError(loc, "Integer overflow in subtraction");
                             return 0;
                         }
                         return static_cast<int>(result);
@@ -140,7 +140,7 @@ namespace LOICollection::frontend::ir {
                     if constexpr (std::is_integral_v<T> && std::is_integral_v<U>) {
                         long long result = static_cast<long long>(l) * static_cast<long long>(r);
                         if (result < std::numeric_limits<int>::min() || result > std::numeric_limits<int>::max()) {
-                            diagnostics.addError({ 0, 0, 0 }, "Integer overflow in multiplication");
+                            diagnostics.addError(loc, "Integer overflow in multiplication");
                             return 0;
                         }
                         return static_cast<int>(result);
@@ -153,29 +153,29 @@ namespace LOICollection::frontend::ir {
                     if constexpr (std::is_integral_v<T> && std::is_integral_v<U>) {
                         auto divisor = static_cast<long long>(r);
                         if (divisor == 0) {
-                            diagnostics.addError({ 0, 0, 0 }, "Modulo by zero");
+                            diagnostics.addError(loc, "Modulo by zero");
                             return 0;
                         }
                         return static_cast<int>(static_cast<long long>(l) % divisor);
                     }
                         
-                    diagnostics.addError({ 0, 0, 0 }, "Modulo requires integral types");
+                    diagnostics.addError(loc, "Modulo requires integral types");
                     return 0;
                 }
 
-                diagnostics.addError({ 0, 0, 0 }, "Unknown arithmetic op: " + op);
+                diagnostics.addError(loc, "Unknown arithmetic op: " + op);
                 return 0;
             } else {
                 if (op == "+") return VM::valueToString(l) + VM::valueToString(r);
 
-                diagnostics.addError({ 0, 0, 0 }, "Type mismatch in arithmetic");
+                diagnostics.addError(loc, "Type mismatch in arithmetic");
                 return 0;
             }
         }, left, right);
     }
 
-    ValueNode::ValueType VM::applyUnary(const ValueNode::ValueType& operand, const std::string& op, DiagnosticEngine& diagnostics) {
-        return std::visit([&op, &diagnostics](auto&& arg) -> ValueNode::ValueType {
+    ValueNode::ValueType VM::applyUnary(const ValueNode::ValueType& operand, const std::string& op, DiagnosticEngine& diagnostics, const SourceLocation& loc) {
+        return std::visit([&op, &diagnostics, &loc](auto&& arg) -> ValueNode::ValueType {
             using T = std::decay_t<decltype(arg)>;
 
             if constexpr (std::is_arithmetic_v<T>) {
@@ -183,7 +183,7 @@ namespace LOICollection::frontend::ir {
                 if (op == "-") {
                     if constexpr (std::is_integral_v<T>) {
                         if (arg == std::numeric_limits<int>::min()) {
-                            diagnostics.addError({ 0, 0, 0 }, "Integer overflow in unary negation");
+                            diagnostics.addError(loc, "Integer overflow in unary negation");
                             return 0;
                         }
                     }
@@ -192,7 +192,7 @@ namespace LOICollection::frontend::ir {
             }
             if (op == "!") return !VM::valueToBool(arg);
 
-            diagnostics.addError({ 0, 0, 0 }, "Unknown unary op: " + op);
+            diagnostics.addError(loc, "Unknown unary op: " + op);
             return 0;
         }, operand);
     }
@@ -227,8 +227,8 @@ namespace LOICollection::frontend::ir {
         }, val);
     }
 
-    bool VM::applyComparison(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op, DiagnosticEngine& diagnostics) {
-        return std::visit([&op, &diagnostics](auto&& l, auto&& r) -> bool {
+    bool VM::applyComparison(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op, DiagnosticEngine& diagnostics, const SourceLocation& loc) {
+        return std::visit([&op, &diagnostics, &loc](auto&& l, auto&& r) -> bool {
             using T = std::decay_t<decltype(l)>;
             using U = std::decay_t<decltype(r)>;
 
@@ -238,7 +238,7 @@ namespace LOICollection::frontend::ir {
                     if (op == "!=") return false;
                 }
 
-                diagnostics.addError({ 0, 0, 0 }, "Cannot compare an empty optional value");
+                diagnostics.addError(loc, "Cannot compare an empty optional value");
                 return false;
             } else if constexpr (std::is_arithmetic_v<T> && std::is_arithmetic_v<U>) {
                 auto cmp = static_cast<double>(l) <=> static_cast<double>(r);
@@ -250,7 +250,7 @@ namespace LOICollection::frontend::ir {
                 if (op == ">=") return cmp >= 0;
                 if (op == "<=") return cmp <= 0;
 
-                diagnostics.addError({ 0, 0, 0 }, "Unknown comparison op: " + op);
+                diagnostics.addError(loc, "Unknown comparison op: " + op);
                 return false;
             } else if constexpr (
                 (std::is_same_v<T, ObjectRef> && std::is_same_v<U, ObjectRef>) ||
@@ -260,7 +260,7 @@ namespace LOICollection::frontend::ir {
                 if (op == "==") return l == r;
                 if (op == "!=") return l != r;
 
-                diagnostics.addError({ 0, 0, 0 }, "Unknown comparison op: " + op);
+                diagnostics.addError(loc, "Unknown comparison op: " + op);
                 return false;
             } else if constexpr (std::is_same_v<T, U>) {
                 auto cmp = l <=> r;
@@ -272,10 +272,10 @@ namespace LOICollection::frontend::ir {
                 if (op == ">=") return cmp >= 0;
                 if (op == "<=") return cmp <= 0;
 
-                diagnostics.addError({ 0, 0, 0 }, "Unknown comparison op: " + op);
+                diagnostics.addError(loc, "Unknown comparison op: " + op);
                 return false;
             } else {
-                diagnostics.addError({ 0, 0, 0 }, "Type mismatch in comparison");
+                diagnostics.addError(loc, "Type mismatch in comparison");
                 return false;
             }
         }, left, right);
@@ -287,7 +287,7 @@ namespace LOICollection::frontend::ir {
 
     ValueNode::ValueType VM::pop() {
         if (this->stack.empty()) {
-            this->diagnostics.addError({ 0, 0, 0 }, "Stack underflow");
+            this->diagnostics.addError(this->currentLoc, "Stack underflow");
             return ValueNode::ValueType{};
         }
 
@@ -299,7 +299,7 @@ namespace LOICollection::frontend::ir {
 
     bool VM::pushFrame(Frame&& frame) {
         if (this->frames.size() >= VM::MAX_FRAMES) {
-            this->diagnostics.addError({ 0, 0, 0 }, "Call stack depth limit exceeded");
+            this->diagnostics.addError(this->currentLoc, "Call stack depth limit exceeded");
             return false;
         }
 
@@ -362,7 +362,7 @@ namespace LOICollection::frontend::ir {
                 return std::string("");
 
             if (++executed > 1'000'000) {
-                this->diagnostics.addError({ 0, 0, 0 }, "Instruction limit exceeded (possible infinite loop)");
+                this->diagnostics.addError(this->currentLoc, "Instruction limit exceeded (possible infinite loop)");
                 return ValueNode::ValueType{};
             }
 
@@ -370,11 +370,12 @@ namespace LOICollection::frontend::ir {
             const BytecodeChunk& cur = frame.chunk.get();
 
             if (frame.ip >= cur.code.size()) {
-                this->diagnostics.addError({ 0, 0, 0 }, "Invalid instruction pointer");
+                this->diagnostics.addError(this->currentLoc, "Invalid instruction pointer");
                 return ValueNode::ValueType{};
             }
 
             const auto& instr = cur.code[frame.ip++];
+            this->currentLoc = instr.loc;
             switch (instr.op) {
                 case OpCode::PUSH_INT:
                 case OpCode::PUSH_FLOAT:
@@ -389,7 +390,7 @@ namespace LOICollection::frontend::ir {
 
                 case OpCode::DUP: {
                     if (this->stack.empty()) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Stack underflow during DUP");
+                        this->diagnostics.addError(this->currentLoc, "Stack underflow during DUP");
                         break;
                     }
 
@@ -400,7 +401,7 @@ namespace LOICollection::frontend::ir {
                 case OpCode::UNWRAP: {
                     auto value = this->pop();
                     if (std::holds_alternative<std::monostate>(value)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Optional value is empty");
+                        this->diagnostics.addError(this->currentLoc, "Optional value is empty");
                         break;
                     }
 
@@ -439,7 +440,7 @@ namespace LOICollection::frontend::ir {
                             if (isField) {
                                 auto fieldIt = obj->fields.find(name);
                                 if (fieldIt == obj->fields.end()) {
-                                    this->diagnostics.addError({ 0, 0, 0 }, "Object has no field: " + name);
+                                    this->diagnostics.addError(this->currentLoc, "Object has no field: " + name);
                                     break;
                                 }
 
@@ -465,7 +466,7 @@ namespace LOICollection::frontend::ir {
                         ClassCall::getInstance().hasStaticField(className, fieldName)) {
                         auto result = ClassCall::getInstance().getStaticField(className, fieldName);
                         if (!result.has_value()) {
-                            this->diagnostics.addError({ 0, 0, 0 },
+                            this->diagnostics.addError(this->currentLoc,
                                 "Failed to load native static field '" + name + "': " + result.error().message());
                             break;
                         }
@@ -476,7 +477,7 @@ namespace LOICollection::frontend::ir {
 
                     auto globalIt = this->variables.find(name);
                     if (globalIt == this->variables.end()) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Undefined variable: " + name);
+                        this->diagnostics.addError(this->currentLoc, "Undefined variable: " + name);
                         break;
                     }
 
@@ -541,19 +542,19 @@ namespace LOICollection::frontend::ir {
                             break;
                         }
 
-                        this->diagnostics.addError({ 0, 0, 0 }, "Array has no field: " + name);
+                        this->diagnostics.addError(this->currentLoc, "Array has no field: " + name);
                         break;
                     }
 
                     if (!std::holds_alternative<ObjectRef>(objValue)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Cannot load field '" + name + "' from a non-object value");
+                        this->diagnostics.addError(this->currentLoc, "Cannot load field '" + name + "' from a non-object value");
                         break;
                     }
 
                     auto obj = std::get<ObjectRef>(objValue);
                     auto it = obj->fields.find(name);
                     if (it == obj->fields.end()) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Object has no field: " + name);
+                        this->diagnostics.addError(this->currentLoc, "Object has no field: " + name);
                         break;
                     }
 
@@ -566,7 +567,7 @@ namespace LOICollection::frontend::ir {
                     auto val = this->pop();
 
                     if (!std::holds_alternative<ObjectRef>(objValue)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Cannot store field '" + name + "' on a non-object value");
+                        this->diagnostics.addError(this->currentLoc, "Cannot store field '" + name + "' on a non-object value");
                         break;
                     }
 
@@ -576,7 +577,7 @@ namespace LOICollection::frontend::ir {
                 case OpCode::MAKE_ARRAY: {
                     int count = instr.operand;
                     if (count < 0 || count > static_cast<int>(this->stack.size())) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Invalid array literal size");
+                        this->diagnostics.addError(this->currentLoc, "Invalid array literal size");
                         break;
                     }
 
@@ -593,18 +594,18 @@ namespace LOICollection::frontend::ir {
                     auto targetValue = this->pop();
 
                     if (!std::holds_alternative<ArrayRef>(targetValue)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Cannot index a non-array value");
+                        this->diagnostics.addError(this->currentLoc, "Cannot index a non-array value");
                         break;
                     }
                     if (!std::holds_alternative<int>(indexValue)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Array index must be an int");
+                        this->diagnostics.addError(this->currentLoc, "Array index must be an int");
                         break;
                     }
 
                     auto arr = std::get<ArrayRef>(targetValue);
                     int index = std::get<int>(indexValue);
                     if (index < 0 || index >= static_cast<int>(arr->elements.size())) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Array index out of range");
+                        this->diagnostics.addError(this->currentLoc, "Array index out of range");
                         break;
                     }
 
@@ -617,18 +618,18 @@ namespace LOICollection::frontend::ir {
                     auto value = this->pop();
 
                     if (!std::holds_alternative<ArrayRef>(targetValue)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Cannot index a non-array value");
+                        this->diagnostics.addError(this->currentLoc, "Cannot index a non-array value");
                         break;
                     }
                     if (!std::holds_alternative<int>(indexValue)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Array index must be an int");
+                        this->diagnostics.addError(this->currentLoc, "Array index must be an int");
                         break;
                     }
 
                     auto arr = std::get<ArrayRef>(targetValue);
                     int index = std::get<int>(indexValue);
                     if (index < 0 || index > static_cast<int>(arr->elements.size())) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Array index out of range");
+                        this->diagnostics.addError(this->currentLoc, "Array index out of range");
                         break;
                     }
 
@@ -641,7 +642,7 @@ namespace LOICollection::frontend::ir {
                 }
                 case OpCode::LOAD_THIS: {
                     if (!frame.hasThis) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "'this' is not available in the current context");
+                        this->diagnostics.addError(this->currentLoc, "'this' is not available in the current context");
                         break;
                     }
 
@@ -744,11 +745,11 @@ namespace LOICollection::frontend::ir {
                         args[meta.argCount - 1 - i] = this->pop();
 
                     auto result = ClassCall::getInstance().create(
-                        meta.className, args, placeholders, this->diagnostics
+                        meta.className, args, placeholders, this->diagnostics, this->currentLoc
                     );
 
                     if (!result.has_value()) {
-                        this->diagnostics.addError({ 0, 0, 0 },
+                        this->diagnostics.addError(this->currentLoc,
                             "Failed to create native class '" + meta.className + "': " + result.error().message());
                         break;
                     }
@@ -762,13 +763,13 @@ namespace LOICollection::frontend::ir {
 
                     auto receiver = this->pop();
                     if (!std::holds_alternative<ObjectRef>(receiver)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Method call target is not an object");
+                        this->diagnostics.addError(this->currentLoc, "Method call target is not an object");
                         break;
                     }
 
                     auto obj = std::get<ObjectRef>(receiver);
                     if (!this->isDerived(chunk, obj->classIndex, meta.classIndex)) {
-                        this->diagnostics.addError({ 0, 0, 0 },
+                        this->diagnostics.addError(this->currentLoc,
                             "Method '" + meta.name + "' does not belong to this object");
                         break;
                     }
@@ -794,30 +795,30 @@ namespace LOICollection::frontend::ir {
 
                     auto receiver = this->pop();
                     if (!std::holds_alternative<ObjectRef>(receiver)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Method call target is not an object");
+                        this->diagnostics.addError(this->currentLoc, "Method call target is not an object");
                         break;
                     }
 
                     auto obj = std::get<ObjectRef>(receiver);
                     if (obj->classIndex < 0 || obj->classIndex >= static_cast<int>(chunk.classes.size())) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Invalid object class index");
+                        this->diagnostics.addError(this->currentLoc, "Invalid object class index");
                         break;
                     }
 
                     if (!this->isDerived(chunk, obj->classIndex, meta.classIndex)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Method call target is not an instance of the expected class");
+                        this->diagnostics.addError(this->currentLoc, "Method call target is not an instance of the expected class");
                         break;
                     }
 
                     const auto& actualClass = chunk.classes[obj->classIndex];
                     if (meta.ordinal < 0 || meta.ordinal >= static_cast<int>(actualClass.methods.size())) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Invalid method ordinal");
+                        this->diagnostics.addError(this->currentLoc, "Invalid method ordinal");
                         break;
                     }
 
                     const auto& method = chunk.methods[actualClass.methods[meta.ordinal]];
                     if (method.argCount != meta.argCount) {
-                        this->diagnostics.addError({ 0, 0, 0 },
+                        this->diagnostics.addError(this->currentLoc,
                             "Method '" + method.name + "' expects " + std::to_string(method.argCount) +
                             " argument(s), got " + std::to_string(meta.argCount));
                         break;
@@ -844,13 +845,13 @@ namespace LOICollection::frontend::ir {
 
                     auto receiver = this->pop();
                     if (!std::holds_alternative<ObjectRef>(receiver)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Super constructor call target is not an object");
+                        this->diagnostics.addError(this->currentLoc, "Super constructor call target is not an object");
                         break;
                     }
 
                     if (meta.constructorIndex < 0) {
                         if (meta.argCount != 0) {
-                            this->diagnostics.addError({ 0, 0, 0 }, "Base class has no constructor");
+                            this->diagnostics.addError(this->currentLoc, "Base class has no constructor");
                         } else {
                             this->push(std::string(""));
                         }
@@ -859,7 +860,7 @@ namespace LOICollection::frontend::ir {
 
                     const auto& ctor = chunk.methods[meta.constructorIndex];
                     if (ctor.argCount != meta.argCount) {
-                        this->diagnostics.addError({ 0, 0, 0 },
+                        this->diagnostics.addError(this->currentLoc,
                             "Base constructor expects " + std::to_string(ctor.argCount) +
                             " argument(s), got " + std::to_string(meta.argCount));
                         break;
@@ -890,11 +891,11 @@ namespace LOICollection::frontend::ir {
                             args[meta.argCount - 1 - i] = this->pop();
 
                         auto result = ClassCall::getInstance().callStaticMethod(
-                            meta.className, meta.name, args, placeholders, this->diagnostics
+                            meta.className, meta.name, args, placeholders, this->diagnostics, this->currentLoc
                         );
 
                         if (!result.has_value()) {
-                            this->diagnostics.addError({ 0, 0, 0 },
+                            this->diagnostics.addError(this->currentLoc,
                                 "Native static method call failed '" + meta.className + "::" + meta.name +
                                 "': " + result.error().message());
                             break;
@@ -906,7 +907,7 @@ namespace LOICollection::frontend::ir {
 
                     auto receiver = this->pop();
                     if (!std::holds_alternative<ObjectRef>(receiver)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Native method call target is not an object");
+                        this->diagnostics.addError(this->currentLoc, "Native method call target is not an object");
                         break;
                     }
 
@@ -917,11 +918,11 @@ namespace LOICollection::frontend::ir {
                         args[meta.argCount - 1 - i] = this->pop();
 
                     auto result = ClassCall::getInstance().callMethod(
-                        obj->className, meta.name, args, obj, placeholders, diagnostics
+                        obj->className, meta.name, args, obj, placeholders, diagnostics, this->currentLoc
                     );
 
                     if (!result.has_value()) {
-                        this->diagnostics.addError({ 0, 0, 0 },
+                        this->diagnostics.addError(this->currentLoc,
                             "Native method call failed '" + meta.className + "::" + meta.name +
                             "': " + result.error().message());
                         break;
@@ -952,13 +953,13 @@ namespace LOICollection::frontend::ir {
                 case OpCode::CALL_LAMBDA: {
                     auto funcValue = this->pop();
                     if (!std::holds_alternative<FunctionRefPtr>(funcValue)) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Attempted to call a non-function value");
+                        this->diagnostics.addError(this->currentLoc, "Attempted to call a non-function value");
                         break;
                     }
 
                     auto func = std::get<FunctionRefPtr>(funcValue);
                     if (instr.operand != func->argCount) {
-                        this->diagnostics.addError({ 0, 0, 0 },
+                        this->diagnostics.addError(this->currentLoc,
                             "Function expects " + std::to_string(func->argCount) +
                             " argument(s), got " + std::to_string(instr.operand));
                         break;
@@ -967,7 +968,7 @@ namespace LOICollection::frontend::ir {
                     if (!func->owner ||
                         func->bodyIndex < 0 ||
                         func->bodyIndex >= static_cast<int>(func->owner->methodBodies.size())) {
-                        this->diagnostics.addError({ 0, 0, 0 }, "Invalid function body index");
+                        this->diagnostics.addError(this->currentLoc, "Invalid function body index");
                         break;
                     }
 
@@ -1010,42 +1011,42 @@ namespace LOICollection::frontend::ir {
                     auto r = this->pop();
                     auto l = this->pop();
 
-                    this->push(VM::applyArithmetic(l, r, "+", this->diagnostics));
+                    this->push(VM::applyArithmetic(l, r, "+", this->diagnostics, this->currentLoc));
                     break;
                 }
                 case OpCode::SUB: {
                     auto r = this->pop();
                     auto l = this->pop();
 
-                    this->push(VM::applyArithmetic(l, r, "-", this->diagnostics));
+                    this->push(VM::applyArithmetic(l, r, "-", this->diagnostics, this->currentLoc));
                     break;
                 }
                 case OpCode::MUL: {
                     auto r = this->pop();
                     auto l = this->pop();
 
-                    this->push(VM::applyArithmetic(l, r, "*", this->diagnostics));
+                    this->push(VM::applyArithmetic(l, r, "*", this->diagnostics, this->currentLoc));
                     break;
                 }
                 case OpCode::DIV: {
                     auto r = this->pop();
                     auto l = this->pop();
 
-                    this->push(VM::applyArithmetic(l, r, "/", this->diagnostics));
+                    this->push(VM::applyArithmetic(l, r, "/", this->diagnostics, this->currentLoc));
                     break;
                 }
                 case OpCode::MOD: {
                     auto r = this->pop();
                     auto l = this->pop();
 
-                    this->push(VM::applyArithmetic(l, r, "%", this->diagnostics));
+                    this->push(VM::applyArithmetic(l, r, "%", this->diagnostics, this->currentLoc));
                     break;
                 }
                 case OpCode::POW: {
                     auto r = this->pop();
                     auto l = this->pop();
 
-                    this->push(VM::applyArithmetic(l, r, "^", this->diagnostics));
+                    this->push(VM::applyArithmetic(l, r, "^", this->diagnostics, this->currentLoc));
                     break;
                 }
 
@@ -1053,42 +1054,42 @@ namespace LOICollection::frontend::ir {
                     auto r = this->pop();
                     auto l = this->pop();
 
-                    this->push(VM::applyComparison(l, r, "==", this->diagnostics));
+                    this->push(VM::applyComparison(l, r, "==", this->diagnostics, this->currentLoc));
                     break;
                 }
                 case OpCode::CMP_NE: {
                     auto r = this->pop();
                     auto l = this->pop();
 
-                    this->push(VM::applyComparison(l, r, "!=", this->diagnostics));
+                    this->push(VM::applyComparison(l, r, "!=", this->diagnostics, this->currentLoc));
                     break;
                 }
                 case OpCode::CMP_GT: {
                     auto r = this->pop();
                     auto l = this->pop();
 
-                    this->push(VM::applyComparison(l, r, ">", this->diagnostics));
+                    this->push(VM::applyComparison(l, r, ">", this->diagnostics, this->currentLoc));
                     break;
                 }
                 case OpCode::CMP_LT: {
                     auto r = this->pop();
                     auto l = this->pop();
 
-                    this->push(VM::applyComparison(l, r, "<", this->diagnostics));
+                    this->push(VM::applyComparison(l, r, "<", this->diagnostics, this->currentLoc));
                     break;
                 }
                 case OpCode::CMP_GE: {
                     auto r = this->pop();
                     auto l = this->pop();
 
-                    this->push(VM::applyComparison(l, r, ">=", this->diagnostics));
+                    this->push(VM::applyComparison(l, r, ">=", this->diagnostics, this->currentLoc));
                     break;
                 }
                 case OpCode::CMP_LE: {
                     auto r = this->pop();
                     auto l = this->pop();
 
-                    this->push(VM::applyComparison(l, r, "<=", this->diagnostics));
+                    this->push(VM::applyComparison(l, r, "<=", this->diagnostics, this->currentLoc));
                     break;
                 }
 
@@ -1110,7 +1111,7 @@ namespace LOICollection::frontend::ir {
                 case OpCode::NEG: {
                     auto v = this->pop();
 
-                    this->push(VM::applyUnary(v, "-", this->diagnostics));
+                    this->push(VM::applyUnary(v, "-", this->diagnostics, this->currentLoc));
                     break;
                 }
                 case OpCode::NOT: {
@@ -1133,11 +1134,11 @@ namespace LOICollection::frontend::ir {
                     auto ns = meta.name.substr(0, meta.name.find("::"));
                     auto func = meta.name.substr(meta.name.find("::") + 2);
                     auto result = FunctionCall::getInstance().callFunction(
-                        ns, func, args, placeholders, this->diagnostics
+                        ns, func, args, placeholders, this->diagnostics, this->currentLoc
                     );
                     
                     if (!result.has_value()) {
-                        this->diagnostics.addError({ 0, 0, 0 }, result.error().message());
+                        this->diagnostics.addError(this->currentLoc, result.error().message());
                         this->push(ValueNode::ValueType{});
                         break;
                     }
@@ -1156,11 +1157,11 @@ namespace LOICollection::frontend::ir {
                     std::ranges::reverse(args);
                     
                     auto result = MacroCall::getInstance().callMacro(
-                        meta.name, args, placeholders, this->diagnostics
+                        meta.name, args, placeholders, this->diagnostics, this->currentLoc
                     );
 
                     if (!result.has_value()) {
-                        this->diagnostics.addError({ 0, 0, 0 }, result.error().message());
+                        this->diagnostics.addError(this->currentLoc, result.error().message());
                         this->push(ValueNode::ValueType{});
                         break;
                     }

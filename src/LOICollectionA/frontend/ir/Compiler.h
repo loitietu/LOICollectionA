@@ -84,7 +84,7 @@ namespace LOICollection::frontend::ir {
         void registerFunctionMeta(FunctionDefNode& node);
         void compileFunctionBody(FunctionDefNode& node);
         void compileSequence(SequenceNode& node);
-        void compileValue(ExprNode& node);
+        void compileValue(ExprNode& node, const SourceLocation& loc);
 
         [[nodiscard]] std::optional<ValueNode::ValueType> constantValue(ExprNode& node) const;
 
