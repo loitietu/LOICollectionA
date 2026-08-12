@@ -91,7 +91,7 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<SQLiteStorage> db2;
         std::shared_ptr<ll::io::Logger> logger;
 
-        std::filesystem::path mGuiPath;
+        std::string mGuiPath;
         
         ll::event::ListenerPtr PlayerJoinEventListener;
         ll::event::ListenerPtr NoticeCreateEventListener;
@@ -183,10 +183,22 @@ namespace LOICollection::server::Plugins {
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+        command.overload().text("reload").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
+
+            output.success(tr(origin.getLocaleCode(), "commands.generic.reload"));
+            
+            form::GUIManager::getInstance().load("notice", this->mImpl->mGuiPath)
+                .transform([&origin, &output]() -> void {
+                    output.success(tr(origin.getLocaleCode(), "commands.generic.reload.success"));
+                })
+                .or_else(modules::defaultErrorHandler<NoticePlugin>);
+        });
     }
 
     ll::Expected<void> NoticePlugin::registeryUI() {
-        return form::GUIManager::getInstance().load("notice", (this->mImpl->mGuiPath / "notice.lcui").string())
+        return form::GUIManager::getInstance().load("notice", this->mImpl->mGuiPath)
             .transform([this]() -> void {
                 form::GUIManager::getInstance().registerValue("notice.keys", [this](Player&) -> frontend::ArrayRef {
                     auto values = std::make_shared<frontend::ArrayValue>();
@@ -621,7 +633,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
-        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
+        this->mImpl->mGuiPath = (std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data()) / "notice.lcui").string();
 
         return this->mImpl->db->load()
             .transform([]() -> bool {

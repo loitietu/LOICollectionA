@@ -61,7 +61,7 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
 
-        std::filesystem::path mGuiPath;
+        std::string mGuiPath;
 
         ll::event::ListenerPtr PlayerJoinEventListener;
         ll::event::ListenerPtr PlayerHurtEventListener;
@@ -120,10 +120,22 @@ namespace LOICollection::server::Plugins {
 
             output.success(tr(origin.getLocaleCode(), "commands.pvp.success.enable"));
         });
+        command.overload().text("reload").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
+
+            output.success(tr(origin.getLocaleCode(), "commands.generic.reload"));
+            
+            form::GUIManager::getInstance().load("pvp", this->mImpl->mGuiPath)
+                .transform([&origin, &output]() -> void {
+                    output.success(tr(origin.getLocaleCode(), "commands.generic.reload.success"));
+                })
+                .or_else(modules::defaultErrorHandler<PvpPlugin>);
+        });
     }
 
     ll::Expected<void> PvpPlugin::registeryUI() {
-        return form::GUIManager::getInstance().load("pvp", (this->mImpl->mGuiPath / "pvp.lcui").string())
+        return form::GUIManager::getInstance().load("pvp", this->mImpl->mGuiPath)
             .transform([this]() -> void {
                 form::GUIManager::getInstance().registerValue("pvp.isEnable", [this](Player& player) -> ll::Expected<frontend::ArrayRef> {
                     return this->isEnable(player)
@@ -263,7 +275,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Pvp;
-        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
+        this->mImpl->mGuiPath = (std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data()) / "pvp.lcui").string();
 
         return true;
     }

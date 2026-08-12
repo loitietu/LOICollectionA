@@ -92,7 +92,7 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
 
-        std::filesystem::path mGuiPath;
+        std::string mGuiPath;
 
         ll::event::ListenerPtr NetworkPacketEventListener;
         ll::event::ListenerPtr BlacklistAddEventListener;
@@ -196,6 +196,15 @@ namespace LOICollection::server::Plugins {
                     })
                     .or_else(modules::defaultErrorHandler<BlacklistPlugin>);
             });
+        command.overload().text("reload").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            output.success(tr(origin.getLocaleCode(), "commands.generic.reload"));
+            
+            form::GUIManager::getInstance().load("blacklist", this->mImpl->mGuiPath)
+                .transform([&origin, &output]() -> void {
+                    output.success(tr(origin.getLocaleCode(), "commands.generic.reload.success"));
+                })
+                .or_else(modules::defaultErrorHandler<BlacklistPlugin>);
+        });
         command.overload().text("gui").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             Actor* entity = origin.getEntity();
             if (entity == nullptr || !entity->isType(ActorType::Player))
@@ -210,7 +219,7 @@ namespace LOICollection::server::Plugins {
     }
 
     ll::Expected<void> BlacklistPlugin::registeryUI() {
-        return form::GUIManager::getInstance().load("blacklist", (this->mImpl->mGuiPath / "blacklist.lcui").string())
+        return form::GUIManager::getInstance().load("blacklist", this->mImpl->mGuiPath)
             .transform([this]() -> void {
                 form::GUIManager::getInstance().registerValue("blacklist.players", [](Player&) -> frontend::ArrayRef {
                     auto values = std::make_shared<frontend::ArrayValue>();
@@ -595,7 +604,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db = std::make_shared<SQLiteStorage>((mDataPath / "blacklist.db").string());
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Blacklist;
-        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
+        this->mImpl->mGuiPath = (std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data()) / "blacklist.lcui").string();
 
         return true;
     }

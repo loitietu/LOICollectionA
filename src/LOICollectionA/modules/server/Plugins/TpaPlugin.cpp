@@ -106,7 +106,7 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<SQLiteStorage> db2;
         std::shared_ptr<ll::io::Logger> logger;
 
-        std::filesystem::path mGuiPath;
+        std::string mGuiPath;
         
         ll::event::ListenerPtr PlayerJoinEventListener;
 
@@ -275,6 +275,18 @@ namespace LOICollection::server::Plugins {
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+        command.overload().text("reload").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
+
+            output.success(tr(origin.getLocaleCode(), "commands.generic.reload"));
+            
+            form::GUIManager::getInstance().load("tpa", this->mImpl->mGuiPath)
+                .transform([&origin, &output]() -> void {
+                    output.success(tr(origin.getLocaleCode(), "commands.generic.reload.success"));
+                })
+                .or_else(modules::defaultErrorHandler<TpaPlugin>);
+        });
     }
 
     ll::Expected<bool> TpaPlugin::requestInvite(Player& player, Player& target, TpaType type) {
@@ -376,7 +388,7 @@ namespace LOICollection::server::Plugins {
     }
 
     ll::Expected<void> TpaPlugin::registeryUI() {
-        return form::GUIManager::getInstance().load("tpa", (this->mImpl->mGuiPath / "tpa.lcui").string())
+        return form::GUIManager::getInstance().load("tpa", this->mImpl->mGuiPath)
             .transform([this]() -> void {
                 form::GUIManager::getInstance().registerValue("tpa.players", [this](Player& player) -> ll::Expected<frontend::ArrayRef> {
                     return this->getEligiblePlayers(player)
@@ -1065,7 +1077,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Tpa;
-        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
+        this->mImpl->mGuiPath = (std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data()) / "tpa.lcui").string();
 
         return true;
     }

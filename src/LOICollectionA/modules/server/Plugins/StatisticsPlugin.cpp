@@ -76,7 +76,7 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<SQLiteStorage> db2;
         std::shared_ptr<ll::io::Logger> logger;
 
-        std::filesystem::path mGuiPath;
+        std::string mGuiPath;
 
         std::unordered_map<std::string, ll::event::ListenerPtr> mListeners;
 
@@ -173,10 +173,22 @@ namespace LOICollection::server::Plugins {
                     })
                     .or_else(modules::defaultErrorHandler<StatisticsPlugin>);
             });
+        command.overload().text("reload").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
+
+            output.success(tr(origin.getLocaleCode(), "commands.generic.reload"));
+            
+            form::GUIManager::getInstance().load("statistics", this->mImpl->mGuiPath)
+                .transform([&origin, &output]() -> void {
+                    output.success(tr(origin.getLocaleCode(), "commands.generic.reload.success"));
+                })
+                .or_else(modules::defaultErrorHandler<StatisticsPlugin>);
+        });
     }
 
     ll::Expected<void> StatisticsPlugin::registeryUI() {
-        return form::GUIManager::getInstance().load("statistics", (this->mImpl->mGuiPath / "statistics.lcui").string())
+        return form::GUIManager::getInstance().load("statistics", this->mImpl->mGuiPath)
             .transform([this]() -> void {
                 form::GUIManager::getInstance().registerValue("statistics.names", [this](Player&) -> ll::Expected<frontend::ArrayRef> {
                     auto values = std::make_shared<frontend::ArrayValue>();
@@ -470,7 +482,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db2 = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->options = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Statistics;
-        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
+        this->mImpl->mGuiPath = (std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data()) / "statistics.lcui").string();
 
         return true;
     }

@@ -297,14 +297,14 @@ if (dog instanceof Animal) [
 | `string` | `length`、`upper`、`lower`、`substr`、`trim`、`replace` | 字符串函数 |
 | `std` | `format(formatStr, array)` | 使用数组中的值格式化字符串 |
 | `mc` | `runCmd(command)` | 以当前玩家身份执行命令 |
-| `gui` | `value(id)` | 获取 GUI 注册值 |
-| `gui` | `request(id, args)` | 请求 GUI 注册数据 |
-| `gui` | `callback(id, args)` | 调用 GUI 注册回调 |
-| `gui` | `open(id, formId, type[, ctx])` | 打开指定类型的 GUI |
-| `gui` | `switchTo(id, type)` | 将当前 GUI 切换为指定类型 |
+| `GUIManager` | `value(id)` | 获取 GUI 注册值 |
+| `GUIManager` | `request(id, args)` | 请求 GUI 注册数据 |
+| `GUIManager` | `callback(id, args)` | 调用 GUI 注册回调 |
+| `GUIManager` | `open(id, formId, type[, ctx])` | 打开指定类型的 GUI |
+| `GUIManager` | `switchTo(id, type)` | 将当前 GUI 切换为指定类型 |
 
 > [!TIP]
-> `gui::open` 与 `gui::switchTo` 中的 `type` 为整数：`1` 为 CustomForm，`2` 为 MessageBox，`3` 为 PaginatedForm，`4` 为 ScriptForm。
+> `GUIManager::open` 与 `GUIManager::switchTo` 中的 `type` 为整数：`1` 为 CustomForm，`2` 为 MessageBox，`3` 为 PaginatedForm，`4` 为 ScriptForm。
 
 ### 常用内置类
 

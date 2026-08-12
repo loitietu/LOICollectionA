@@ -10,6 +10,7 @@
 - [命令列表](./md/command.md)
 - [LOICollectionAPI](./md/api.md)
 - [原生 UI（Native UI）](./md/native-ui.md)
+- [LCUI 脚本语法](./md/lcui.md)
 - [常见错误含义](./md/errors.md)
 
 - **开发者文档**

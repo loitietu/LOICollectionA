@@ -5,6 +5,8 @@
     "commands.generic.target": "No targets match the selector",
     "commands.generic.ui": "UI opened for player {0}",
     "commands.generic.permission": "You do not have permission to execute this command",
+    "commands.generic.reload": ".lcui is being recompiled, please wait for the compilation to complete.",
+    "commands.generic.reload.success": ".lcui has been successfully recompiled.",
     "commands.language.description": "§e§lLOICollection -> §aLanguage Settings",
     "commands.blacklist.description": "§e§lLOICollection -> §bServer Blacklist",
     "commands.blacklist.error.add": "Player {0} cannot be added to the blacklist",

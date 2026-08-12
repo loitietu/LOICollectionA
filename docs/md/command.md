@@ -16,6 +16,7 @@
 [Server] - /blacklist gui
 [Server] - /blacklist info <Id: string>
 [Server] - /blacklist list [Limit: int]
+[Server] - /blacklist reload
 [Server] - /blacklist remove <Id: string>
 ```
 
@@ -39,6 +40,9 @@
   - 列出黑名单中的所有目标。
   - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
+- `/blacklist reload`
+  - 重新加载（重新编译）黑名单 GUI。
+
 - `/blacklist remove <Id: string>`
   - 从黑名单中移除一个目标。
   - 其中 `<Id: string>` 为目标的ID。
@@ -53,6 +57,7 @@
 [Server] - /mute gui
 [Server] - /mute info <Id: string>
 [Server] - /mute list [Limit: int]
+[Server] - /mute reload
 [Server] - /mute remove id <Id: string>
 [Server] - /mute remove target <Target: target>
 ```
@@ -76,6 +81,9 @@
   - 列出禁言列表中的所有目标。
   - 其中 `[Limit: int]` 为限制显示的数量。（默认为 100，当设置为负数时，显示所有）
 
+- `/mute reload`
+  - 重新加载（重新编译）禁言 GUI。
+
 - `/mute remove id <Id: string>`
   - 从禁言列表中移除一个目标。
   - 其中 `<Id: string>` 为目标的ID。
@@ -93,6 +101,7 @@
 [Server] - /cdk convert <Id: string>
 [Server] - /cdk edit
 [Server] - /cdk gui
+[Server] - /cdk reload
 ```
 
 ?> 其中 `cdk` 为 Cdk 的顶层命令（权限等级: Any）。
@@ -107,6 +116,9 @@
 - `/cdk gui`
   - 打开总换CDK GUI。
 
+- `/cdk reload`
+  - 重新加载（重新编译）总换CDK GUI（权限等级: GameDirectors）。
+
 ## Menu
 
 ```log
@@ -115,6 +127,7 @@
 [Server] Usage:
 [Server] - /menu clock
 [Server] - /menu gui [Id: string]
+[Server] - /menu reload
 ```
 
 ?> 其中 `menu` 为 Menu 的顶层命令（权限等级: Any）。
@@ -125,6 +138,9 @@
 - `/menu gui [Id: string]`
   - 打开菜单 GUI。
   - 其中 `<Id: string>` 为菜单ID。
+
+- `/menu reload`
+  - 重新加载（重新编译）菜单 GUI（权限等级: GameDirectors）。
 
 ## Tpa
 
@@ -137,6 +153,7 @@
 [Server] - /tpa gui
 [Server] - /tpa invite <tpa|tphere> <Target: target>
 [Server] - /tpa reject <Id: string>
+[Server] - /tpa reload
 [Server] - /tpa setting
 ```
 
@@ -162,6 +179,9 @@
   - 拒绝玩家的传送请求。
   - 其中 `<Id: string>` 为传送请求ID。
 
+- `/tpa reload`
+  - 重新加载（重新编译）Tpa GUI（权限等级: GameDirectors）。
+
 - `/tpa setting`
   - 打开 Tpa 个人设置。
 
@@ -172,6 +192,7 @@
 [Server] LOICollection -> 服务器商店
 [Server] Usage:
 [Server] - /shop gui <Id: string>
+[Server] - /shop reload
 ```
 
 ?> 其中 `shop` 为 Shop 的顶层命令（权限等级: Any）。
@@ -179,6 +200,9 @@
 - `/shop gui <Id: string>`
   - 打开商店 GUI。
   - 其中 `<Id: string>` 为商店ID。
+
+- `/shop reload`
+  - 重新加载（重新编译）商店 GUI（权限等级: GameDirectors）。
 
 ## Pvp
 
@@ -189,6 +213,7 @@
 [Server] - /pvp gui
 [Server] - /pvp off
 [Server] - /pvp on
+[Server] - /pvp reload
 ```
 
 ?> 其中 `pvp` 为 Pvp 的顶层命令（权限等级: Any）。
@@ -202,6 +227,9 @@
 - `/pvp on`
   - 开启 Pvp。
 
+- `/pvp reload`
+  - 重新加载（重新编译）Pvp GUI（权限等级: GameDirectors）。
+
 ## Wallet
 
 ```log
@@ -210,6 +238,7 @@
 [Server] LOICollection -> 个人钱包
 [Server] Usage:
 [Server] - /wallet gui
+[Server] - /wallet reload
 [Server] - /wallet transfer <Target: target> <Score: int>
 [Server] - /wallet wealth
 ```
@@ -218,6 +247,9 @@
 
 - `/wallet gui`
   - 打开个人钱包 GUI。
+
+- `/wallet reload`
+  - 重新加载（重新编译）个人钱包 GUI（权限等级: GameDirectors）。
 
 - `/wallet transfer <Target: target> <Score: int>`
   - 向目标转账。
@@ -236,6 +268,7 @@
 [Server] - /chat add <Target: target> <Title: string> [Time: int]
 [Server] - /chat gui
 [Server] - /chat list <Target: target>
+[Server] - /chat reload
 [Server] - /chat remove <Target: target> <Title: string>
 [Server] - /chat set <Target: target> <Title: string>
 [Server] - /chat setting
@@ -264,6 +297,9 @@
   - 查看目标的所有称号（权限等级: GameDirectors）。
   - 其中 `<Target: target>` 为目标选择器。
 
+- `/chat reload`
+  - 重新加载（重新编译）管理称号 GUI（权限等级: GameDirectors）。
+
 - `/chat gui`
   - 打开管理称号 GUI（权限等级: GameDirectors）。
 
@@ -276,10 +312,14 @@
 [Server] language:
 [Server] LOICollection -> 语言设置
 [Server] Usage:
+[Server] - /language reload
 [Server] - /language setting
 ```
 
 ?> 其中 `language` 为 Language 的顶层命令（权限等级: Any）。
+
+- `/language reload`
+  - 重新加载（重新编译）语言设置 GUI（权限等级: GameDirectors）。
 
 - `/language setting`
   - 打开个人语言设置界面。
@@ -292,6 +332,7 @@
 [Server] Usage:
 [Server] - /notice edit
 [Server] - /notice gui [Id: string]
+[Server] - /notice reload
 [Server] - /notice setting
 ```
 
@@ -304,6 +345,9 @@
   - 打开公告 GUI。
   - 其中 `[Id: string]` 为公告ID。
 
+- `/notice reload`
+  - 重新加载（重新编译）公告 GUI（权限等级: GameDirectors）。
+
 - `/notice setting`
   - 打开公告个人设置。
 
@@ -314,12 +358,16 @@
 [Server] LOICollection -> 玩家市场
 [Server] Usage:
 [Server] - /market gui
+[Server] - /market reload
 ```
 
 ?> 其中 `market` 为 Market 的顶层命令（权限等级: Any）。
 
 - `/market gui`
   - 打开玩家市场 GUI。
+
+- `/market reload`
+  - 重新加载（重新编译）玩家市场 GUI（权限等级: GameDirectors）。
 
 ?> 你看到我了吗？( •̀ ω •́ )✧
 
@@ -423,6 +471,7 @@
 [Server] Usage：
 [Server] - /statistics gui
 [Server] - /statistics gui <Type: LOICollection::Plugins::StatisticType>
+[Server] - /statistics reload
 ```
 
 ?> 其中 `statistics` 为 Statistics 的顶层命令（权限等级: Any）。
@@ -433,6 +482,9 @@
 - `/statistics gui <Type: LOICollection::Plugins::StatisticType>`
   - 打开指定类型的数据统计 GUI。
   - 其中 `<Type: LOICollection::Plugins::StatisticType>` 为数据统计类型。
+
+- `/statistics reload`
+  - 重新加载（重新编译）玩家数据统计 GUI（权限等级: GameDirectors）。
 
 > [!NOTE]
 > 以上内容均属于 LOICollectionA 1.15.0 版本的命令列表，对于后续版本的命令列表可能会有所不同。

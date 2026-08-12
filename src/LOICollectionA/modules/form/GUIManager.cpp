@@ -102,7 +102,7 @@ namespace LOICollection::form {
         frontend::ir::Optimizer optimizer;
         optimizer.optimize(*bytecode);
 
-        this->mImpl->cache.emplace(id, bytecode);
+        this->mImpl->cache.insert_or_assign(id, bytecode);
 
         return {};
     }

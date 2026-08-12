@@ -112,6 +112,18 @@ namespace LOICollection::server::Plugins {
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+        command.overload().text("reload").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
+
+            output.success(tr(origin.getLocaleCode(), "commands.generic.reload"));
+            
+            this->registeryUI()
+                .transform([&origin, &output]() -> void {
+                    output.success(tr(origin.getLocaleCode(), "commands.generic.reload.success"));
+                })
+                .or_else(modules::defaultErrorHandler<MenuPlugin>);
+        });
     }
 
     ll::Expected<void> MenuPlugin::registeryUI() {

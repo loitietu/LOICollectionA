@@ -67,7 +67,7 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<JsonStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
 
-        std::filesystem::path mGuiPath;
+        std::string mGuiPath;
     };
 
     CdkPlugin::CdkPlugin() : mImpl(std::make_unique<Impl>()) {};
@@ -126,6 +126,18 @@ namespace LOICollection::server::Plugins {
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+        command.overload().text("reload").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
+
+            output.success(tr(origin.getLocaleCode(), "commands.generic.reload"));
+            
+            form::GUIManager::getInstance().load("cdk", this->mImpl->mGuiPath)
+                .transform([&origin, &output]() -> void {
+                    output.success(tr(origin.getLocaleCode(), "commands.generic.reload.success"));
+                })
+                .or_else(modules::defaultErrorHandler<CdkPlugin>);
+        });
         command.overload().text("edit").execute([](CommandOrigin const& origin, CommandOutput& output) -> void {
             if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
                 return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
@@ -143,7 +155,7 @@ namespace LOICollection::server::Plugins {
     }
 
     ll::Expected<void> CdkPlugin::registeryUI() {
-        return form::GUIManager::getInstance().load("cdk", (this->mImpl->mGuiPath / "cdk.lcui").string())
+        return form::GUIManager::getInstance().load("cdk", this->mImpl->mGuiPath)
             .transform([this]() -> void {
                 form::GUIManager::getInstance().registerValue("cdk.cdks", [this](Player&) -> ll::Expected<frontend::ArrayRef> {
                     return this->getCdks()
@@ -656,7 +668,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db = std::make_shared<JsonStorage>(mDataPath / "cdk.json");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
-        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
+        this->mImpl->mGuiPath = (std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data()) / "cdk.lcui").string();
 
         return this->mImpl->db->load()
             .transform([]() -> bool {

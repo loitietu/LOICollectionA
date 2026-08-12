@@ -119,7 +119,7 @@ namespace LOICollection::frontend {
         std::unordered_set<std::string> visiting;
         std::unordered_set<std::string> visited;
 
-        std::function<void(ClassNode&)> visit = [&](ClassNode& cls) {
+        std::function<void(ClassNode&)> visit = [&](ClassNode& cls) -> void {
             if (visited.contains(cls.name))
                 return;
 
@@ -2038,5 +2038,4 @@ namespace LOICollection::frontend {
 
         return sigIt->second;
     }
-
 }

@@ -334,7 +334,7 @@ namespace LOICollection::server::Plugins {
             });
         }));
 
-        std::vector<std::string> mTextPacketType{"multiplayer.player.joined", "multiplayer.player.left"};
+        std::vector<std::string> mTextPacketType{"multiplayer.player.joined", "multiplayer.player.joined.renamed", "multiplayer.player.left"};
         this->mImpl->mListeners.emplace("NetworkBroadcastPacketEvent", eventBus.emplaceListener<LOICollection::server::Events::NetworkBroadcastPacketEvent>([this, mTextPacketType, option = this->mImpl->options.ServerToast](LOICollection::server::Events::NetworkBroadcastPacketEvent& event) -> void {
             if (!option.ModuleEnabled || event.getPacket().getId() != MinecraftPacketIds::Text)
                 return;

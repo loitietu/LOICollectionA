@@ -45,7 +45,7 @@ namespace LOICollection::server::Plugins {
 
         std::atomic<bool> mRegistered{ false };
 
-        std::filesystem::path mGuiPath;
+        std::string mGuiPath;
 
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
@@ -81,10 +81,22 @@ namespace LOICollection::server::Plugins {
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+        command.overload().text("reload").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            if (origin.getPermissionsLevel() < CommandPermissionLevel::GameDirectors)
+                return output.error(tr(origin.getLocaleCode(), "commands.generic.permission"));
+
+            output.success(tr(origin.getLocaleCode(), "commands.generic.reload"));
+            
+            form::GUIManager::getInstance().load("language", this->mImpl->mGuiPath)
+                .transform([&origin, &output]() -> void {
+                    output.success(tr(origin.getLocaleCode(), "commands.generic.reload.success"));
+                })
+                .or_else(modules::defaultErrorHandler<LanguagePlugin>);
+        });
     }
 
     ll::Expected<void> LanguagePlugin::registeryUI() {
-        return form::GUIManager::getInstance().load("language", (this->mImpl->mGuiPath / "language.lcui").string())
+        return form::GUIManager::getInstance().load("language", this->mImpl->mGuiPath)
             .transform([this]() -> void {
                 auto data = I18nUtils::getInstance()->data
                     | std::views::keys
@@ -183,7 +195,7 @@ namespace LOICollection::server::Plugins {
     }
 
     ll::Expected<bool> LanguagePlugin::load() {
-        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
+        this->mImpl->mGuiPath = (std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data()) / "language.lcui").string();
 
         this->mImpl->db = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB");
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");

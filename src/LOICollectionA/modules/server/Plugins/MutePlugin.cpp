@@ -79,7 +79,7 @@ namespace LOICollection::server::Plugins {
         std::shared_ptr<SQLiteStorage> db;
         std::shared_ptr<ll::io::Logger> logger;
 
-        std::filesystem::path mGuiPath;
+        std::string mGuiPath;
         
         ll::event::ListenerPtr PlayerChatEventListener;
         ll::event::ListenerPtr MuteAddEventListener;
@@ -242,10 +242,19 @@ namespace LOICollection::server::Plugins {
 
             output.success(fmt::runtime(tr(origin.getLocaleCode(), "commands.generic.ui")), player.getRealName());
         });
+        command.overload().text("reload").execute([this](CommandOrigin const& origin, CommandOutput& output) -> void {
+            output.success(tr(origin.getLocaleCode(), "commands.generic.reload"));
+            
+            form::GUIManager::getInstance().load("mute", this->mImpl->mGuiPath)
+                .transform([&origin, &output]() -> void {
+                    output.success(tr(origin.getLocaleCode(), "commands.generic.reload.success"));
+                })
+                .or_else(modules::defaultErrorHandler<MutePlugin>);
+        });
     }
 
     ll::Expected<void> MutePlugin::registeryUI() {
-        return form::GUIManager::getInstance().load("mute", (this->mImpl->mGuiPath / "mute.lcui").string())
+        return form::GUIManager::getInstance().load("mute", this->mImpl->mGuiPath)
             .transform([this]() -> void {
                 form::GUIManager::getInstance().registerValue("mute.players", [](Player&) -> frontend::ArrayRef {
                     auto values = std::make_shared<frontend::ArrayValue>();
@@ -591,7 +600,7 @@ namespace LOICollection::server::Plugins {
         this->mImpl->db = std::make_shared<SQLiteStorage>((mDataPath / "mute.db").string());
         this->mImpl->logger = ll::io::LoggerRegistry::getInstance().getOrCreate("LOICollectionA");
         this->mImpl->ModuleEnabled = true;
-        this->mImpl->mGuiPath = std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data());
+        this->mImpl->mGuiPath = (std::filesystem::path(ServiceProvider::getInstance().getService<std::string>("GuiPath")->data()) / "mute.lcui").string();
 
         return true;
     }
