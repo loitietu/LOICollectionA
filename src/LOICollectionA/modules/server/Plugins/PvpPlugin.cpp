@@ -24,7 +24,7 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "LOICollectionA/include/server/APIUtils.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 
 #include "LOICollectionA/include/server/Events/player/PlayerHurtEvent.h"
@@ -229,12 +229,12 @@ namespace LOICollection::server::Plugins {
                 this->mImpl->PvpCache.put(player.getUuid().asString(), value);
 
                 if (value) {
-                    this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "pvp.log1"), player));
+                    this->getLogger()->info(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "pvp.log1"), player));
 
                     return;
                 }
                 
-                this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "pvp.log2"), player));
+                this->getLogger()->info(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "pvp.log2"), player));
             });
     }
 

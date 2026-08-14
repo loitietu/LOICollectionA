@@ -122,9 +122,40 @@ namespace LOICollection::form {
         return {};
     }
 
+    ll::Expected<void> GUIManager::open(const std::string& id, const std::string& formId, Player& player, const frontend::ArrayRef& ctx) {
+        frontend::DiagnosticEngine diagnostics;
+
+        frontend::ir::VM mVM(diagnostics);
+
+        if (this->mImpl->cache.contains(id)) {
+            auto cached = this->mImpl->cache.at(id);
+
+            auto mCtx = ctx ? ctx : std::make_shared<frontend::ArrayValue>();
+            auto result = mVM.run(cached, { std::ref(player), mCtx });
+            if (diagnostics.hasErrors())
+                return ll::makeStringError(diagnostics.getErrorMessage());
+
+            std::string uuid = player.getUuid().asString();
+            if (this->mImpl->forms.contains(uuid) && this->mImpl->forms.at(uuid).contains(formId))
+                return this->switchToCustomForm(formId, player);
+
+            if (this->mImpl->boxs.contains(uuid) && this->mImpl->boxs.at(uuid).contains(formId))
+                return this->switchToMessageBox(formId, player); 
+
+            if (this->mImpl->paginatedForms.contains(uuid) && this->mImpl->paginatedForms.at(uuid).contains(formId))
+                return this->switchToPaginatedForm(formId, player);
+
+            if (this->mImpl->scriptForms.contains(uuid) && this->mImpl->scriptForms.at(uuid).contains(formId))
+                return this->switchToScriptForm(formId, player);
+
+            return ll::makeStringError("open: Fuzzy matching can't find the specific form type");
+        }
+
+        return ll::makeStringError("open: No corresponding bytecode cache was found");
+    }
+
     ll::Expected<void> GUIManager::open(
-        const std::string& id, const std::string& formId, GUIManagerType type, Player& player,
-        const frontend::ArrayRef& ctx
+        const std::string& id, const std::string& formId, GUIManagerType type, Player& player, const frontend::ArrayRef& ctx
     ) {
         frontend::DiagnosticEngine diagnostics;
 

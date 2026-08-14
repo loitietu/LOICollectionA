@@ -7,7 +7,7 @@
 #include <mc/world/level/Level.h>
 #include <mc/world/actor/player/Player.h>
 
-#include "LOICollectionA/include/server/APIUtils.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 
 using namespace LOICollection::frontend;
 using namespace LOICollection::server::LOICollectionAPI;

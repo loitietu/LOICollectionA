@@ -33,7 +33,7 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
 
-#include "LOICollectionA/include/server/APIUtils.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 #include "LOICollectionA/include/server/Plugins/MutePlugin.h"
 
@@ -359,7 +359,7 @@ namespace LOICollection::server::Plugins {
                     return LanguagePlugin::getShared()->getLanguage(player)
                         .and_then([&player](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
                             auto values = std::make_shared<frontend::ArrayValue>();
-                            values->elements.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(tr(language, "chat.gui.setTitle.label"), player));
+                            values->elements.emplace_back(LOICollectionAPI::CallbackUtils::getInstance().translate(tr(language, "chat.gui.setTitle.label"), player));
 
                             return values;
                         });
@@ -484,7 +484,7 @@ namespace LOICollection::server::Plugins {
 
                     return this->setTitle(player, std::get<std::string>(args->elements[0]))
                         .transform([this, &player]() -> void {
-                            this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log1"), player));
+                            this->getLogger()->info(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "chat.log1"), player));
                         });
                 });
 
@@ -538,7 +538,7 @@ namespace LOICollection::server::Plugins {
 
                     event.cancel();
 
-                    std::string mChat = LOICollectionAPI::APIUtils::getInstance().translate(this->mImpl->options.FormatText, event.self());
+                    std::string mChat = LOICollectionAPI::CallbackUtils::getInstance().translate(this->mImpl->options.FormatText, event.self());
                     
                     TextPacket packet = TextPacket::createChat({}, 
                         fmt::format(fmt::runtime(mChat), event.message()), 
@@ -592,7 +592,7 @@ namespace LOICollection::server::Plugins {
 
         return this->getDatabase()->set("Titles", mTismestamp, mData)
             .transform([this, text, &player]() -> void {
-                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log2"), player)), text);
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "chat.log2"), player)), text);
             });
     }
 
@@ -613,7 +613,7 @@ namespace LOICollection::server::Plugins {
 
         return this->getDatabase()->set("Blacklist", mTismestamp, mData)
             .transform([this, mObject, mTargetObject, mTismestamp, &player]() -> void {
-                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log5"), player)), mTargetObject);
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "chat.log5"), player)), mTargetObject);
 
                 if (this->mImpl->BlacklistCache.contains(mObject)) {
                     this->mImpl->BlacklistCache.update(mObject, [mTismestamp](std::shared_ptr<std::vector<std::string>> mList) -> void {
@@ -655,7 +655,7 @@ namespace LOICollection::server::Plugins {
                 return {};
             })
             .transform([this, text, &player]() -> void {
-                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log3"), player)), text);
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "chat.log3"), player)), text);
             });
     }
 
@@ -673,7 +673,7 @@ namespace LOICollection::server::Plugins {
 
                 return this->getDatabase()->del("Blacklist", id)
                     .transform([this, id, &player]() -> void { 
-                        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "chat.log6"), player)), id);
+                        this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "chat.log6"), player)), id);
 
                         this->mImpl->BlacklistCache.update(player.getUuid().asString(), [id](std::shared_ptr<std::vector<std::string>> mList) -> void {
                             mList->erase(std::remove(mList->begin(), mList->end(), id), mList->end());

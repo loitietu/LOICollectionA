@@ -25,7 +25,7 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "LOICollectionA/include/server/APIUtils.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 #include "LOICollectionA/include/server/Events/modules/NoticeEvent.h"
 
@@ -214,7 +214,7 @@ namespace LOICollection::server::Plugins {
 
                     for (const std::string& id : getSortedNoticeIds(*this->getDatabase())) {
                         auto title = this->getDatabase()->get_ptr<std::string>("/" + id + "/title").value_or("");
-                        values->elements.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(title, player));
+                        values->elements.emplace_back(LOICollectionAPI::CallbackUtils::getInstance().translate(title, player));
                     }
 
                     return values;
@@ -262,11 +262,11 @@ namespace LOICollection::server::Plugins {
                                 if (!body.empty())
                                     body += "\n";
 
-                                body += LOICollectionAPI::APIUtils::getInstance().translate(line.get<std::string>(), player);
+                                body += LOICollectionAPI::CallbackUtils::getInstance().translate(line.get<std::string>(), player);
                             }
 
                             auto values = std::make_shared<frontend::ArrayValue>();
-                            values->elements.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(title, player));
+                            values->elements.emplace_back(LOICollectionAPI::CallbackUtils::getInstance().translate(title, player));
                             values->elements.emplace_back(body);
 
                             return values;
@@ -361,9 +361,9 @@ namespace LOICollection::server::Plugins {
                                 if (!body.empty())
                                     body += "\n\n";
 
-                                body += LOICollectionAPI::APIUtils::getInstance().translate(title, player);
+                                body += LOICollectionAPI::CallbackUtils::getInstance().translate(title, player);
                                 for (const auto& line : content)
-                                    body += "\n" + LOICollectionAPI::APIUtils::getInstance().translate(line.get<std::string>(), player);
+                                    body += "\n" + LOICollectionAPI::CallbackUtils::getInstance().translate(line.get<std::string>(), player);
                             }
 
                             auto values = std::make_shared<frontend::ArrayValue>();
@@ -405,7 +405,7 @@ namespace LOICollection::server::Plugins {
 
                     return this->create(id, title, priority, show)
                         .transform([this, id, &player]() -> void {
-                            this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "notice.log2"), player)), id);
+                            this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "notice.log2"), player)), id);
                         });
                 });
 
@@ -423,7 +423,7 @@ namespace LOICollection::server::Plugins {
 
                     return this->getDatabase()->save()
                         .transform([this, &player]() -> void {
-                            this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "notice.log1"), player));
+                            this->getLogger()->info(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "notice.log1"), player));
                         });
                 });
 
@@ -483,7 +483,7 @@ namespace LOICollection::server::Plugins {
 
                     return this->remove(id)
                         .transform([this, id, &player]() -> void {
-                            this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "notice.log3"), player)), id);
+                            this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "notice.log3"), player)), id);
                         });
                 });
             });

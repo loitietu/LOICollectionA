@@ -18,6 +18,7 @@
 
 #include "LOICollectionA/include/ModuleBase.h"
 #include "LOICollectionA/include/ModManager.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 
 #include "LOICollectionA/base/Wrapper.h"
 #include "LOICollectionA/base/ServiceProvider.h"
@@ -134,6 +135,8 @@ namespace LOICollection {
 
         I18nUtils::getInstance()->defaultLocale = this->config.ConsoleLanguage == "system" ?
             getI18n().getCurrentLanguage()->mCode.get() : this->config.ConsoleLanguage;
+
+        LOICollectionAPI::CallbackUtils::getInstance().compile();
 
         std::vector<std::string> mMods = modules::ModManager::getInstance().mods();
         std::for_each(mMods.begin(), mMods.end(), [&logger](const std::string& mod) -> void {

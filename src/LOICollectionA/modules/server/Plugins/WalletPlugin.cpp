@@ -40,7 +40,7 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
 
-#include "LOICollectionA/include/server/APIUtils.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 
 #include "LOICollectionA/coro/TimerManager.h"
@@ -481,7 +481,7 @@ namespace LOICollection::server::Plugins {
             ll::service::getLevel()->forEachPlayer([mObject, mTargetMoney, &player](Player& target) -> bool {
                 LanguagePlugin::getShared()->getLanguage(target)
                     .transform([mObject, mTargetMoney, &player, &target](const std::string& language) -> void {
-                        std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(
+                        std::string mMessage = LOICollectionAPI::CallbackUtils::getInstance().translate(
                             tr(language, "wallet.tips.redenvelope.receive"), player
                         );
 
@@ -560,7 +560,7 @@ namespace LOICollection::server::Plugins {
         ll::service::getLevel()->forEachPlayer([score, &player](Player& target) -> bool {
             LanguagePlugin::getShared()->getLanguage(target)
                 .transform([score, &player, &target](const std::string& language) -> void {
-                    std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(
+                    std::string mMessage = LOICollectionAPI::CallbackUtils::getInstance().translate(
                         tr(language, "wallet.showOff"), player
                     );
 
@@ -625,7 +625,7 @@ namespace LOICollection::server::Plugins {
         ll::service::getLevel()->forEachPlayer([&](Player& target) -> bool {
             LanguagePlugin::getShared()->getLanguage(target)
                 .transform([&](const std::string& language) -> void {
-                    std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(
+                    std::string mMessage = LOICollectionAPI::CallbackUtils::getInstance().translate(
                         tr(language, "wallet.tips.redenvelope.content"), player
                     );
 

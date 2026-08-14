@@ -49,7 +49,7 @@
 
 #include <mc/common/SubClientId.h>
 
-#include "LOICollectionA/include/server/APIUtils.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 
 #include "LOICollectionA/include/server/Events/server/NetworkPacketEvent.h"
@@ -149,7 +149,7 @@ namespace LOICollection::server::Plugins {
                         if (mTarget.isSimulatedPlayer())
                             return true;
 
-                        std::string mNameTag = LOICollectionAPI::APIUtils::getInstance().translate(*mName, mTarget);
+                        std::string mNameTag = LOICollectionAPI::CallbackUtils::getInstance().translate(*mName, mTarget);
                         
                         SetActorDataPacket packet(mTarget.getRuntimeID(), mTarget.mEntityData, 
                             nullptr, mTarget.mLevel->getCurrentTick().tickID, false
@@ -175,7 +175,7 @@ namespace LOICollection::server::Plugins {
                     if (!this->mImpl->DynamicMotdTaskRunning.load(std::memory_order_acquire))
                         break;
 
-                    ll::setServerMotd(LOICollectionAPI::APIUtils::getInstance().translate(option.Pages[index]));
+                    ll::setServerMotd(LOICollectionAPI::CallbackUtils::getInstance().translate(option.Pages[index]));
 
                     index = index < maxIndex ? index + 1 : 0;
                 }
@@ -202,9 +202,9 @@ namespace LOICollection::server::Plugins {
                         std::vector<std::pair<std::string, int>> data;
 
                         for (const auto& [index, page] : std::views::enumerate(option.Pages[mPageIndex]))
-                            data.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(page, mTarget), static_cast<int>(index));
+                            data.emplace_back(LOICollectionAPI::CallbackUtils::getInstance().translate(page, mTarget), static_cast<int>(index));
 
-                        std::string mTitle = LOICollectionAPI::APIUtils::getInstance().translate(option.Titles[mTitleIndex], mTarget);
+                        std::string mTitle = LOICollectionAPI::CallbackUtils::getInstance().translate(option.Titles[mTitleIndex], mTarget);
 
                         this->removeSidebar(mTarget, "LOICollectionA").or_else(modules::defaultErrorHandler<MonitorPlugin>);
                         this->addSidebar(mTarget, "LOICollectionA", mTitle, SidebarType::Descending).or_else(modules::defaultErrorHandler<MonitorPlugin>);
@@ -229,7 +229,7 @@ namespace LOICollection::server::Plugins {
                     LanguagePlugin::getShared()->getLanguage(target)
                         .transform([&player, &target](const std::string& language) -> void {
                             TextPacket::createRawMessage(
-                                LOICollectionAPI::APIUtils::getInstance().translate(tr(language, "monitor.servertoast.join"), player)
+                                LOICollectionAPI::CallbackUtils::getInstance().translate(tr(language, "monitor.servertoast.join"), player)
                             ).sendTo(target);
                         })
                         .or_else(modules::defaultErrorHandler<MonitorPlugin>);
@@ -250,7 +250,7 @@ namespace LOICollection::server::Plugins {
                     LanguagePlugin::getShared()->getLanguage(target)
                         .transform([&player, &target](const std::string& language) -> void {
                             TextPacket::createRawMessage(
-                                LOICollectionAPI::APIUtils::getInstance().translate(tr(language, "monitor.servertoast.leave"), player)
+                                LOICollectionAPI::CallbackUtils::getInstance().translate(tr(language, "monitor.servertoast.leave"), player)
                             ).sendTo(target);
                         })
                         .or_else(modules::defaultErrorHandler<MonitorPlugin>);
@@ -278,7 +278,7 @@ namespace LOICollection::server::Plugins {
 
                 LanguagePlugin::getShared()->getLanguage(event.self())
                     .transform([&event, mScore, mId, mType, mOriScore](const std::string& language) -> void {
-                        std::string mMessage = LOICollectionAPI::APIUtils::getInstance().translate(
+                        std::string mMessage = LOICollectionAPI::CallbackUtils::getInstance().translate(
                             tr(language, "monitor.changescore.text"), event.self()
                         );
                         
@@ -314,7 +314,7 @@ namespace LOICollection::server::Plugins {
 
                 LanguagePlugin::getShared()->getLanguage(*player)
                     .transform([&player](const std::string& language) -> void {
-                        player->sendMessage(LOICollectionAPI::APIUtils::getInstance().translate(
+                        player->sendMessage(LOICollectionAPI::CallbackUtils::getInstance().translate(
                             tr(language, "monitor.disablecommand.text"), *player
                         ));
                     })

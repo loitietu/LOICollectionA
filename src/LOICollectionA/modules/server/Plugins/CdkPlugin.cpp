@@ -30,7 +30,7 @@
 
 #include <mc/safety/RedactableString.h>
 
-#include "LOICollectionA/include/server/APIUtils.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 #include "LOICollectionA/include/server/Plugins/ChatPlugin.h"
 
@@ -328,7 +328,7 @@ namespace LOICollection::server::Plugins {
                         SystemUtils::toInt(std::get<std::string>(args->elements[1]), 0),
                         std::get<bool>(args->elements[2])
                     ).transform([this, &player, mObjectCdk]() -> void {
-                        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "cdk.log1"), player)), mObjectCdk);
+                        this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "cdk.log1"), player)), mObjectCdk);
                     });
                 });
 
@@ -351,7 +351,7 @@ namespace LOICollection::server::Plugins {
 
                             return this->remove(id)
                                 .transform([this, id, &player]() -> void {
-                                    this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "cdk.log2"), player)), id);
+                                    this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "cdk.log2"), player)), id);
                                 });
                         });
                 });
@@ -627,7 +627,7 @@ namespace LOICollection::server::Plugins {
 
                         return this->getDatabase()->save()
                             .transform([this, id, &player]() -> void {
-                                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "cdk.log3"), player)), id);
+                                this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "cdk.log3"), player)), id);
                             });
                     });
             });

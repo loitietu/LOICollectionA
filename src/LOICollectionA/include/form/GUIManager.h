@@ -58,8 +58,10 @@ namespace LOICollection::form {
         LOICOLLECTION_A_API   ll::Expected<void> load(const std::string& id, const std::string& path);
         LOICOLLECTION_A_API   ll::Expected<void> execute(const std::string& id);
         LOICOLLECTION_A_API   ll::Expected<void> open(
-            const std::string& id, const std::string& formId, GUIManagerType type, Player& player,
-            const frontend::ArrayRef& ctx = {}
+            const std::string& id, const std::string& formId, Player& player, const frontend::ArrayRef& ctx = {}
+        );
+        LOICOLLECTION_A_API   ll::Expected<void> open(
+            const std::string& id, const std::string& formId, GUIManagerType type, Player& player, const frontend::ArrayRef& ctx = {}
         );
         LOICOLLECTION_A_API   ll::Expected<void> switchToCustomForm(const std::string& id, Player& player);
         LOICOLLECTION_A_API   ll::Expected<void> switchToMessageBox(const std::string& id, Player& player);

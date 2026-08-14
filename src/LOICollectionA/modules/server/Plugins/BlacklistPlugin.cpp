@@ -45,7 +45,7 @@
 
 #include <mc/common/SubClientId.h>
 
-#include "LOICollectionA/include/server/APIUtils.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 
 #include "LOICollectionA/include/server/Events/modules/BlacklistEvent.h"
@@ -500,7 +500,7 @@ namespace LOICollection::server::Plugins {
                         LanguagePlugin::getShared()->getLanguage(target)
                             .and_then([&player, &target](const std::string& language) -> ll::Expected<void> {
                                 TextPacket::createRawMessage(
-                                    LOICollectionAPI::APIUtils::getInstance().translate(tr(language, "blacklist.broadcast"), player)
+                                    LOICollectionAPI::CallbackUtils::getInstance().translate(tr(language, "blacklist.broadcast"), player)
                                 ).sendTo(target);
 
                                 return {};
@@ -511,7 +511,7 @@ namespace LOICollection::server::Plugins {
                     });
                 }
 
-                this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "blacklist.log1"), player));
+                this->getLogger()->info(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "blacklist.log1"), player));
 
                 return {};
             });

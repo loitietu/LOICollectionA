@@ -42,7 +42,7 @@
 #include <mc/server/commands/CommandOutput.h>
 #include <mc/server/commands/CommandPermissionLevel.h>
 
-#include "LOICollectionA/include/server/APIUtils.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 
 #include "LOICollectionA/coro/TimerManager.h"
@@ -638,7 +638,7 @@ namespace LOICollection::server::Plugins {
 
                     return LanguagePlugin::getShared()->getLanguage(player)
                         .transform([&requester, type, values](const std::string& language) -> frontend::ArrayRef {
-                            values->elements.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(
+                            values->elements.emplace_back(LOICollectionAPI::CallbackUtils::getInstance().translate(
                                 tr(language, type == "sell" ? "market.sell" : "market.buy"), *requester
                             ));
 
@@ -1071,7 +1071,7 @@ namespace LOICollection::server::Plugins {
 
                 return this->delItem(id)
                     .transform([this, &data, &player]() -> bool {
-                        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), player)), data.at("name"));
+                        this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "market.log2"), player)), data.at("name"));
     
                         return true;
                     });
@@ -1096,7 +1096,7 @@ namespace LOICollection::server::Plugins {
                         return this->delItem(id);
                     })
                     .transform([this, &data, &player]() -> bool {
-                        this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log3"), player)), data.at("name"));
+                        this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "market.log3"), player)), data.at("name"));
 
                         return true;
                     });
@@ -1137,7 +1137,7 @@ namespace LOICollection::server::Plugins {
 
         return this->getDatabase()->set("Blacklist", mTimestamp, mData)
             .transform([this, mObject, mTargetObject, mTimestamp, &player]() -> void {
-                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log4"), player)), mTargetObject);
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "market.log4"), player)), mTargetObject);
 
                 if (this->mImpl->BlacklistCache.contains(mObject))
                     this->mImpl->BlacklistCache.update(mObject, [mTimestamp](std::shared_ptr<std::vector<std::string>> mList) -> void {
@@ -1164,7 +1164,7 @@ namespace LOICollection::server::Plugins {
 
         return this->getDatabase()->set("Item", mTimestamp, mData)
             .transform([this, name, &player]() -> void {
-                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log2"), player)), name);
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "market.log2"), player)), name);
             });
     }
 
@@ -1183,7 +1183,7 @@ namespace LOICollection::server::Plugins {
                 return this->getDatabase()->del("Blacklist", id);
             })
             .transform([this, id, &player]() -> void {
-                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "market.log5"), player)), id);
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "market.log5"), player)), id);
 
                 this->mImpl->BlacklistCache.update(player.getUuid().asString(), [id](std::shared_ptr<std::vector<std::string>> mList) -> void {
                     mList->erase(std::remove(mList->begin(), mList->end(), id), mList->end());

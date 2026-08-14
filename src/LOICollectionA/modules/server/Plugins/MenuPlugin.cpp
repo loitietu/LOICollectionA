@@ -139,7 +139,7 @@ namespace LOICollection::server::Plugins {
         if (!this->isValid())
             return ll::makeErrorCodeError(makeErrorCode(MenuPluginErrorCode::Invalid));
 
-        return form::GUIManager::getInstance().open("menu", id, form::GUIManagerType::ScriptForm, player);
+        return form::GUIManager::getInstance().open("menu", id, player);
     }
 
     void MenuPlugin::listenEvent() {

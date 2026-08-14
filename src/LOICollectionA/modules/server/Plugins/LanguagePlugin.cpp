@@ -30,7 +30,7 @@
 
 #include "LOICollectionA/include/form/GUIManager.h"
 
-#include "LOICollectionA/include/server/APIUtils.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 
 #include "LOICollectionA/base/Cache.h"
 #include "LOICollectionA/base/ServiceProvider.h"
@@ -130,7 +130,7 @@ namespace LOICollection::server::Plugins {
 
                     return this->set(player, std::get<std::string>(data->fields.at("label")))
                         .transform([this, &player]() -> void {
-                            this->getLogger()->info(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "language.log"), player));
+                            this->getLogger()->info(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "language.log"), player));
                         });
                 });
             });

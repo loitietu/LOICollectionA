@@ -37,7 +37,7 @@
 
 #include "LOICollectionA/include/form/GUIManager.h"
 
-#include "LOICollectionA/include/server/APIUtils.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 
 #include "LOICollectionA/include/server/Events/modules/MuteEvent.h"
@@ -501,7 +501,7 @@ namespace LOICollection::server::Plugins {
 
         return this->getDatabase()->set("Mute", mTimestamp, mData)
             .transform([this, mCause, &player]() -> void {
-                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "mute.log1"), player)), mCause);
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "mute.log1"), player)), mCause);
             });
     }
 

@@ -38,7 +38,7 @@
 #include <mc/server/commands/CommandPermissionLevel.h>
 #include <mc/server/commands/CommandOutputMessageType.h>
 
-#include "LOICollectionA/include/server/APIUtils.h"
+#include "LOICollectionA/include/CallbackUtils.h"
 #include "LOICollectionA/include/server/Plugins/LanguagePlugin.h"
 
 #include "LOICollectionA/coro/TimerManager.h"
@@ -620,7 +620,7 @@ namespace LOICollection::server::Plugins {
                     return LanguagePlugin::getShared()->getLanguage(player)
                         .and_then([type, origin](const std::string& language) -> ll::Expected<frontend::ArrayRef> {
                             auto values = std::make_shared<frontend::ArrayValue>();
-                            values->elements.emplace_back(LOICollectionAPI::APIUtils::getInstance().translate(
+                            values->elements.emplace_back(LOICollectionAPI::CallbackUtils::getInstance().translate(
                                 tr(language, type == TpaType::tpa ? "tpa.there" : "tpa.here"),
                                 *origin
                             ));
@@ -722,7 +722,7 @@ namespace LOICollection::server::Plugins {
 
         return this->getDatabase()->set("Blacklist", mTismestamp, mData)
             .transform([this, mObject, mTargetObject, mTismestamp, &player]() -> void {
-                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "tpa.log2"), player)), mTargetObject);
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "tpa.log2"), player)), mTargetObject);
 
                 if (this->mImpl->BlacklistCache.contains(mObject))
                     this->mImpl->BlacklistCache.update(mObject, [mTismestamp](std::shared_ptr<std::vector<std::string>> mList) -> void {
@@ -746,7 +746,7 @@ namespace LOICollection::server::Plugins {
                 return this->getDatabase()->del("Blacklist", id);
             })
             .transform([this, id, &player]() -> void {
-                this->getLogger()->info(fmt::runtime(LOICollectionAPI::APIUtils::getInstance().translate(tr({}, "tpa.log3"), player)), id);
+                this->getLogger()->info(fmt::runtime(LOICollectionAPI::CallbackUtils::getInstance().translate(tr({}, "tpa.log3"), player)), id);
 
                 this->mImpl->BlacklistCache.update(player.getUuid().asString(), [id](std::shared_ptr<std::vector<std::string>> mList) -> void {
                     mList->erase(std::remove(mList->begin(), mList->end(), id), mList->end());

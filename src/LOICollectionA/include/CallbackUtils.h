@@ -12,10 +12,12 @@
 
 class Player;
 
-namespace LOICollection::server::LOICollectionAPI {
-    class APIUtils {
+namespace LOICollection::LOICollectionAPI {
+    class CallbackUtils {
     public:
-        LOICOLLECTION_A_NDAPI static APIUtils& getInstance();
+        LOICOLLECTION_A_NDAPI static CallbackUtils& getInstance();
+
+        LOICOLLECTION_A_API   void compile();
 
         LOICOLLECTION_A_API   void registerVariable(const std::string& name, std::function<ll::Expected<frontend::TypedValue>()> callback);
         LOICOLLECTION_A_API   void registerVariable(const std::string& name, std::function<ll::Expected<frontend::TypedValue>(Player&)> callback);
@@ -31,8 +33,8 @@ namespace LOICollection::server::LOICollectionAPI {
         LOICOLLECTION_A_API   std::string translate(const std::string& str);
 
     private:
-        APIUtils();
-        ~APIUtils();
+        CallbackUtils();
+        ~CallbackUtils();
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
