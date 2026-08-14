@@ -1,6 +1,9 @@
 navigateBuy = new GlobalValue();
 navigateBuy.value = false;
 
+navigateStore = new GlobalValue();
+navigateStore.value = false;
+
 navigateTrade = new GlobalValue();
 navigateTrade.value = false;
 
@@ -9,6 +12,13 @@ navigatePersonal.value = false;
 
 worldbuyOption = new ButtonOptions();
 worldbuyOption.tooltip = {tr("market.gui.worldbuy.tooltip")};
+
+storeEnabled = GUIManager::request("market.store.enabled", [])[0];
+storeVisible = new ObservableBoolean(storeEnabled, false);
+
+storeOption = new ButtonOptions();
+storeOption.tooltip = {tr("market.gui.store.tooltip")};
+storeOption.visible = storeVisible;
 
 tradeOption = new ButtonOptions();
 tradeOption.tooltip = {tr("market.gui.trade.tooltip")};
@@ -33,6 +43,13 @@ marketOpen.button({tr("market.gui.worldbuy")}, func () -> void {
         marketOpen.close();
     ]
 }, worldbuyOption);
+marketOpen.button({tr("market.gui.store")}, func () -> void {
+    if (!navigateStore.value) [
+        navigateStore.value = true;
+
+        marketOpen.close();
+    ]
+}, storeOption);
 marketOpen.button({tr("market.gui.trade")}, func () -> void {
     if (!navigateTrade.value) [
         navigateTrade.value = true;
@@ -49,14 +66,18 @@ marketOpen.button({tr("market.gui.personal")}, func () -> void {
 }, personalOption);
 marketOpen.closeButton();
 marketOpen.show(func (result) -> void {
-    if (navigateBuy.value) [
-        GUIManager::switchTo("market.buy", 3);
+    if (navigateStore.value) [
+        GUIManager::open("market.store", "market.store.list", 3);
     :
-        if (navigateTrade.value) [
-            GUIManager::switchTo("market.trade", 3);
+        if (navigateBuy.value) [
+            GUIManager::switchTo("market.buy", 3);
         :
-            if (navigatePersonal.value) [
-                GUIManager::switchTo("market.personal", 1);
+            if (navigateTrade.value) [
+                GUIManager::switchTo("market.trade", 3);
+            :
+                if (navigatePersonal.value) [
+                    GUIManager::switchTo("market.personal", 1);
+                ]
             ]
         ]
     ]
@@ -106,6 +127,9 @@ navigateSellContent.value = false;
 navigateBlacklist = new GlobalValue();
 navigateBlacklist.value = false;
 
+navigateStoreMine = new GlobalValue();
+navigateStoreMine.value = false;
+
 sellItemOption = new ButtonOptions();
 sellItemOption.tooltip = {tr("market.gui.personal.sellItem.tooltip")};
 
@@ -114,6 +138,9 @@ sellItemContentOption.tooltip = {tr("market.gui.personal.sellItemContent.tooltip
 
 blacklistOption = new ButtonOptions();
 blacklistOption.tooltip = {tr("market.gui.personal.blacklist.tooltip")};
+
+storeMineOption = new ButtonOptions();
+storeMineOption.tooltip = {tr("market.gui.store.mine.tooltip")};
 
 marketPersonal = new CustomForm("market.personal", {tr("market.gui.title")});
 marketPersonal.label({tr("market.gui.label")}, new TextOptions());
@@ -133,6 +160,13 @@ marketPersonal.button({tr("market.gui.personal.sellItemContent")}, func () -> vo
         marketPersonal.close();
     ]
 }, sellItemContentOption);
+marketPersonal.button({tr("market.gui.store.mine")}, func () -> void {
+    if (!navigateStoreMine.value) [
+        navigateStoreMine.value = true;
+
+        marketPersonal.close();
+    ]
+}, storeMineOption);
 marketPersonal.button({tr("market.gui.personal.blacklist")}, func () -> void {
     if (!navigateBlacklist.value) [
         navigateBlacklist.value = true;
@@ -142,18 +176,25 @@ marketPersonal.button({tr("market.gui.personal.blacklist")}, func () -> void {
 }, blacklistOption);
 marketPersonal.closeButton();
 marketPersonal.show(func (result) -> void {
-    if (navigateSellItem.value) [
-        GUIManager::switchTo("market.sell.inventory", 3);
-    :
-        if (navigateSellContent.value) [
-            checkData = GUIManager::request("market.sell.content.check", []);
+    if (navigateStoreMine.value) [
+        mineData = GUIManager::request("market.store.mine.has", []);
+        mineForm = if (mineData[0]) [ "market.store.mine" : "market.store.create" ];
 
-            if (checkData[0]) [
-                GUIManager::switchTo("market.sell.content", 3);
-            ]
+        GUIManager::open("market.store", mineForm, 1);
+    :
+        if (navigateSellItem.value) [
+            GUIManager::switchTo("market.sell.inventory", 3);
         :
-            if (navigateBlacklist.value) [
-                GUIManager::switchTo("market.blacklist", 3);
+            if (navigateSellContent.value) [
+                checkData = GUIManager::request("market.sell.content.check", []);
+
+                if (checkData[0]) [
+                    GUIManager::switchTo("market.sell.content", 3);
+                ]
+            :
+                if (navigateBlacklist.value) [
+                    GUIManager::switchTo("market.blacklist", 3);
+                ]
             ]
         ]
     ]

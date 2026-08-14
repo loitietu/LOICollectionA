@@ -1,6 +1,10 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <chrono>
+#include <format>
 #include <string>
+#include <algorithm>
 #include <unordered_map>
 
 #include <ll/api/service/Bedrock.h>
@@ -8,6 +12,8 @@
 
 #include <mc/world/level/Level.h>
 #include <mc/world/item/ItemStack.h>
+#include <mc/world/item/SaveContext.h>
+#include <mc/world/item/SaveContextFactory.h>
 
 #include <mc/world/actor/player/Player.h>
 #include <mc/world/actor/player/PlayerInventory.h>
@@ -15,8 +21,11 @@
 
 #include <mc/server/SimulatedPlayer.h>
 
+#include <mc/deps/nbt/CompoundTag.h>
+
 #include "LOICollectionA/utils/mc-server/InventoryUtils.h"
 #include "LOICollectionA/utils/mc-server/ScoreboardUtils.h"
+#include "LOICollectionA/utils/core/SystemUtils.h"
 
 #include "LOICollectionA/data/SQLiteStorage.h"
 
@@ -25,7 +34,7 @@
 
 #include "LOICollectionA/ConfigPlugin.h"
 
-#include "LOICollectionA/include/server/Plugins/MarketPlugin.h"
+#include "LOICollectionA/include/server/Plugins/market/MarketPlugin.h"
 
 #include "common/coro/MockExecutor.h"
 #include "server/TestSimulatedPlayer.h"
@@ -58,7 +67,89 @@ protected:
         if (!r3.has_value())
             GTEST_FAIL() << "Unable to clear data";
 
+        auto r4 = db->exec("DELETE FROM Store;");
+        if (!r4.has_value())
+            GTEST_FAIL() << "Unable to clear data";
+
+        auto r5 = db->exec("DELETE FROM StoreItem;");
+        if (!r5.has_value())
+            GTEST_FAIL() << "Unable to clear data";
+
+        auto r6 = db->exec("DELETE FROM StoreSale;");
+        if (!r6.has_value())
+            GTEST_FAIL() << "Unable to clear data";
+
+        auto r7 = db->exec("DELETE FROM StoreReview;");
+        if (!r7.has_value())
+            GTEST_FAIL() << "Unable to clear data";
+
+        MarketPlugin::getShared()->clearStoreRankCache();
+
         EXPECT_TRUE(MarketPlugin::getShared()->setExecutor(ll::thread::ServerThreadExecutor::getDefault()).has_value());
+
+        Config::C_Market config = ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Market;
+        if (config.StoreEnabled)
+            MarketPlugin::getShared()->startStoreRankRefresh();
+    }
+
+    Config::C_Market GetMarketConfig() {
+        return ServiceProvider::getInstance().getService<ReadOnlyWrapper<Config::C_Config>>("Config")->get().ServerConfig.Plugins.Market;
+    }
+
+    bool PrepareScoreboard(const Config::C_Market& config, bool& created) {
+        created = false;
+
+        if (!ScoreboardUtils::hasScoreboard(config.TargetScoreboard)) {
+            created = true;
+
+            ScoreboardUtils::create(config.TargetScoreboard);
+        }
+
+        return true;
+    }
+
+    bool CreateStore(Player& player) {
+        Config::C_Market config = GetMarketConfig();
+        bool created = false;
+
+        PrepareScoreboard(config, created);
+
+        if (config.StoreCreationCost > 0 && ScoreboardUtils::getScore(player, config.TargetScoreboard) < config.StoreCreationCost)
+            ScoreboardUtils::setScore(player, config.TargetScoreboard, config.StoreCreationCost + 1000);
+
+        auto result = MarketPlugin::getShared()->createStore(player, "Test Store", "minecraft:chest", "A test store.");
+
+        return result.has_value() && result.value();
+    }
+
+    bool GiveItem(Player& player, const std::string& type, int count) {
+        auto itemStack = std::make_unique<ItemStack>();
+        itemStack->reinit(type, count, 0);
+
+        InventoryUtils::giveItem(player, *itemStack, count);
+
+        return true;
+    }
+
+    int FindSlot(Player& player, const std::string& type) {
+        for (int i = 0; i < player.mInventory->mInventory->getContainerSize(); i++) {
+            ItemStack mItemStack = player.mInventory->mInventory->getItem(i);
+
+            if (mItemStack && !mItemStack.isNull() && mItemStack.getTypeName() == type)
+                return i;
+        }
+
+        return -1;
+    }
+
+    bool UploadStoreItem(Player& player, const std::string& name = "grass_block", int price = 100) {
+        int slot = FindSlot(player, "minecraft:grass_block");
+        if (slot < 0)
+            return false;
+
+        auto result = MarketPlugin::getShared()->uploadStoreItem(player, slot, name, "minecraft:grass_block", "A grass block.", price);
+
+        return result.has_value() && result.value();
     }
 
     bool CreateBlacklistEntry() {
@@ -510,4 +601,641 @@ TEST_F(MarketPluginTest, CancelTrade) {
     auto has = MarketPlugin::getShared()->hasTrade(*sp);
     EXPECT_TRUE(has.has_value());
     EXPECT_FALSE(has.value());
+}
+
+Config::C_Market MakeStoreScoreConfig() {
+    Config::C_Market config;
+
+    config.StoreSalesWeight = 0.5;
+    config.StoreVolumeWeight = 0.3;
+    config.StoreRatingWeight = 0.35;
+    config.StoreBadReviewPenalty = 3.0;
+    config.StoreColdStartWeight = 0.5;
+    config.StoreRatingSmoothing = 15.0;
+    config.StoreColdStartDays = 7;
+    config.StoreTransactionWindowDays = 30;
+    config.StoreRatingWindowDays = 180;
+    config.StoreRiskWindowDays = 30;
+
+    return config;
+}
+
+std::string FormatTimeDaysAgo(int days) {
+    auto now = std::chrono::system_clock::now();
+    auto past = std::chrono::floor<std::chrono::seconds>(now - std::chrono::hours(24LL * days));
+    auto local = std::chrono::zoned_time(std::chrono::current_zone(), past);
+
+    return std::format("{:%Y-%m-%d %H:%M:%S}", local);
+}
+
+TEST(MarketStoreScoreTest, Log1pCompression) {
+    Config::C_Market config = MakeStoreScoreConfig();
+
+    auto score = [&config](int transactions) -> double {
+        StoreScoreInput input;
+        input.ageDays = 30.0;
+        input.transactions30 = transactions;
+
+        return MarketPlugin::computeStoreScore(input, config);
+    };
+
+    double increment1 = score(1) - score(0);
+    double increment2 = score(2) - score(1);
+
+    EXPECT_GT(increment1, increment2);
+    EXPECT_GT(increment2, 0.0);
+}
+
+TEST(MarketStoreScoreTest, BayesianShrink) {
+    Config::C_Market config = MakeStoreScoreConfig();
+
+    StoreScoreInput small;
+    small.ageDays = 30.0;
+    small.approvedReviews = 1;
+    small.approvedAverage = 5.0;
+    small.approved180 = 1;
+    small.globalApprovedAverage = 3.0;
+
+    StoreScoreInput large = small;
+    large.approvedReviews = 100;
+
+    double smallScore = MarketPlugin::computeStoreScore(small, config);
+    double largeScore = MarketPlugin::computeStoreScore(large, config);
+
+    EXPECT_LT(smallScore, largeScore);
+    EXPECT_NEAR(smallScore, 0.35 * ((5.0 * 1 + 3.0 * 15.0) / 16.0 - 3.0) * std::log1p(1.0), 1e-9);
+}
+
+TEST(MarketStoreScoreTest, NoReviewsRatingZero) {
+    Config::C_Market config = MakeStoreScoreConfig();
+
+    StoreScoreInput input;
+    input.ageDays = 30.0;
+    input.transactions30 = 10;
+    input.volume30 = 100;
+    input.approvedReviews = 0;
+    input.approved180 = 0;
+
+    double expected = (0.5 * std::log1p(10.0) + 0.3 * std::log1p(100.0)) * 1.0;
+
+    EXPECT_NEAR(MarketPlugin::computeStoreScore(input, config), expected, 1e-9);
+}
+
+TEST(MarketStoreScoreTest, ColdStartLinear) {
+    Config::C_Market config = MakeStoreScoreConfig();
+
+    auto score = [&config](double ageDays) -> double {
+        StoreScoreInput input;
+        input.ageDays = ageDays;
+
+        return MarketPlugin::computeStoreScore(input, config);
+    };
+
+    EXPECT_NEAR(score(0.0), 0.5, 1e-9);
+    EXPECT_NEAR(score(3.5), 0.25, 1e-9);
+    EXPECT_NEAR(score(7.0), 0.0, 1e-9);
+    EXPECT_NEAR(score(14.0), 0.0, 1e-9);
+}
+
+TEST(MarketStoreScoreTest, BadReviewPenaltyAndNegative) {
+    Config::C_Market config = MakeStoreScoreConfig();
+
+    StoreScoreInput input;
+    input.ageDays = 30.0;
+    input.reviews30 = 2;
+    input.badReviews30 = 2;
+
+    double score = MarketPlugin::computeStoreScore(input, config);
+
+    EXPECT_NEAR(score, -3.0, 1e-9);
+    EXPECT_LT(score, 0.0);
+}
+
+TEST_F(MarketPluginTest, StoreCreateDuplicateAndCost) {
+    Config::C_Market config = GetMarketConfig();
+    if (!config.StoreEnabled)
+        GTEST_SKIP();
+
+    auto sp = ll::service::getLevel()->getPlayer("test_player");
+    ASSERT_TRUE(sp);
+
+    bool created = false;
+    PrepareScoreboard(config, created);
+
+    int base = 10000;
+    ScoreboardUtils::setScore(*sp, config.TargetScoreboard, base);
+
+    auto create = MarketPlugin::getShared()->createStore(*sp, "Test Store", "minecraft:chest", "A test store.");
+    ASSERT_TRUE(create.has_value());
+    EXPECT_TRUE(create.value());
+
+    EXPECT_EQ(ScoreboardUtils::getScore(*sp, config.TargetScoreboard), base - std::max(0, config.StoreCreationCost));
+
+    auto duplicate = MarketPlugin::getShared()->createStore(*sp, "Another Store", "minecraft:chest", "duplicate");
+    EXPECT_FALSE(duplicate.has_value());
+
+    auto db = MarketPlugin::getShared()->getDatabase();
+    ASSERT_TRUE(db->exec("DELETE FROM Store;").has_value());
+    MarketPlugin::getShared()->clearStoreRankCache();
+
+    if (config.StoreCreationCost > 0) {
+        ScoreboardUtils::setScore(*sp, config.TargetScoreboard, config.StoreCreationCost - 1);
+
+        auto poor = MarketPlugin::getShared()->createStore(*sp, "Poor Store", "minecraft:chest", "poor");
+        EXPECT_FALSE(poor.has_value());
+
+        if (!poor.has_value()) {
+            EXPECT_TRUE(poor.error().isA<ll::ErrorCodeError>());
+            EXPECT_EQ(poor.error().as<ll::ErrorCodeError>().ec, MarketPlugin::makeErrorCode(MarketPluginErrorCode::StoreCostInsufficient));
+        }
+    }
+
+    if (created)
+        ScoreboardUtils::remove(config.TargetScoreboard);
+}
+
+TEST_F(MarketPluginTest, StoreDissolveRequiresEmpty) {
+    Config::C_Market config = GetMarketConfig();
+    if (!config.StoreEnabled)
+        GTEST_SKIP();
+
+    auto sp = ll::service::getLevel()->getPlayer("test_player");
+    ASSERT_TRUE(sp);
+
+    ASSERT_TRUE(CreateStore(*sp));
+    ASSERT_TRUE(GiveItem(*sp, "minecraft:grass_block", 1));
+    ASSERT_TRUE(UploadStoreItem(*sp));
+
+    auto dissolve = MarketPlugin::getShared()->dissolveStore(*sp);
+    ASSERT_TRUE(dissolve.has_value());
+    EXPECT_FALSE(dissolve.value());
+
+    auto items = MarketPlugin::getShared()->getStoreItems(sp->getUuid().asString());
+    ASSERT_TRUE(items.has_value());
+    ASSERT_FALSE(items.value().empty());
+
+    auto off = MarketPlugin::getShared()->offshelfStoreItem(*sp, items.value().front(), true);
+    ASSERT_TRUE(off.has_value());
+    EXPECT_TRUE(off.value());
+
+    dissolve = MarketPlugin::getShared()->dissolveStore(*sp);
+    ASSERT_TRUE(dissolve.has_value());
+    EXPECT_TRUE(dissolve.value());
+
+    auto has = MarketPlugin::getShared()->getDatabase()->has("Store", sp->getUuid().asString());
+    ASSERT_TRUE(has.has_value());
+    EXPECT_FALSE(has.value());
+}
+
+TEST_F(MarketPluginTest, StoreUploadOffshelf) {
+    Config::C_Market config = GetMarketConfig();
+    if (!config.StoreEnabled)
+        GTEST_SKIP();
+
+    auto sp = ll::service::getLevel()->getPlayer("test_player");
+    ASSERT_TRUE(sp);
+
+    ASSERT_TRUE(CreateStore(*sp));
+    ASSERT_TRUE(GiveItem(*sp, "minecraft:grass_block", 1));
+    ASSERT_TRUE(UploadStoreItem(*sp));
+
+    auto items = MarketPlugin::getShared()->getStoreItems(sp->getUuid().asString());
+    ASSERT_TRUE(items.has_value());
+    ASSERT_FALSE(items.value().empty());
+
+    auto data = MarketPlugin::getShared()->getStoreItemData(items.value().front());
+    ASSERT_TRUE(data.has_value());
+    EXPECT_EQ(data.value().at("name"), "grass_block");
+
+    InventoryUtils::clearItem(*sp, "minecraft:grass_block", 2304);
+    EXPECT_FALSE(InventoryUtils::isItemInInventory(*sp, "minecraft:grass_block", 1));
+
+    auto off = MarketPlugin::getShared()->offshelfStoreItem(*sp, items.value().front(), true);
+    ASSERT_TRUE(off.has_value());
+    EXPECT_TRUE(off.value());
+
+    EXPECT_TRUE(InventoryUtils::isItemInInventory(*sp, "minecraft:grass_block", 1));
+}
+
+TEST_F(MarketPluginTest, StoreBuyOnlineOwner) {
+    Config::C_Market config = GetMarketConfig();
+    if (!config.StoreEnabled)
+        GTEST_SKIP();
+
+    auto sp = ll::service::getLevel()->getPlayer("test_player");
+    ASSERT_TRUE(sp);
+
+    TestSimulatedPlayer buyer("test_player6");
+    ASSERT_TRUE(buyer.create());
+
+    ASSERT_TRUE(CreateStore(*sp));
+    ASSERT_TRUE(GiveItem(*sp, "minecraft:grass_block", 1));
+    ASSERT_TRUE(UploadStoreItem(*sp, "grass_block", 100));
+
+    auto items = MarketPlugin::getShared()->getStoreItems(sp->getUuid().asString());
+    ASSERT_TRUE(items.has_value());
+    ASSERT_FALSE(items.value().empty());
+
+    bool created = false;
+    PrepareScoreboard(config, created);
+
+    ScoreboardUtils::setScore(*sp, config.TargetScoreboard, 0);
+    ScoreboardUtils::setScore(*buyer.getPlayer(), config.TargetScoreboard, 50);
+
+    auto poor = MarketPlugin::getShared()->buyStoreItem(*buyer.getPlayer(), items.value().front());
+    ASSERT_TRUE(poor.has_value());
+    EXPECT_FALSE(poor.value());
+    EXPECT_EQ(ScoreboardUtils::getScore(*buyer.getPlayer(), config.TargetScoreboard), 50);
+
+    ScoreboardUtils::setScore(*buyer.getPlayer(), config.TargetScoreboard, 1000);
+
+    auto buy = MarketPlugin::getShared()->buyStoreItem(*buyer.getPlayer(), items.value().front());
+    ASSERT_TRUE(buy.has_value());
+    EXPECT_TRUE(buy.value());
+
+    EXPECT_EQ(ScoreboardUtils::getScore(*buyer.getPlayer(), config.TargetScoreboard), 900);
+    EXPECT_EQ(ScoreboardUtils::getScore(*sp, config.TargetScoreboard), 100);
+    EXPECT_TRUE(InventoryUtils::isItemInInventory(*buyer.getPlayer(), "minecraft:grass_block", 1));
+
+    auto sales = MarketPlugin::getShared()->getDatabase()->find("StoreSale", {
+        { "store_id", sp->getUuid().asString() },
+        { "buyer_uuid", buyer.getPlayer()->getUuid().asString() }
+    }, SQLiteStorage::FindCondition::AND);
+    ASSERT_TRUE(sales.has_value());
+    EXPECT_FALSE(sales.value().empty());
+
+    auto has = MarketPlugin::getShared()->getDatabase()->has("StoreItem", items.value().front());
+    ASSERT_TRUE(has.has_value());
+    EXPECT_FALSE(has.value());
+
+    if (created)
+        ScoreboardUtils::remove(config.TargetScoreboard);
+}
+
+TEST_F(MarketPluginTest, StoreBuyOfflineOwner) {
+    Config::C_Market config = GetMarketConfig();
+    if (!config.StoreEnabled)
+        GTEST_SKIP();
+
+    auto sp = ll::service::getLevel()->getPlayer("test_player");
+    ASSERT_TRUE(sp);
+
+    std::string ownerUuid = "00000000-0000-0000-0000-00000000dead";
+    std::string nowTime = SystemUtils::getNowTime();
+    auto db = MarketPlugin::getShared()->getDatabase();
+
+    auto itemStack = std::make_unique<ItemStack>();
+    itemStack->reinit("minecraft:grass_block", 1, 0);
+    std::string snbt = itemStack->save(*SaveContextFactory::createCloneSaveContext())->toSnbt(SnbtFormat::Minimize, 0);
+
+    ASSERT_TRUE(db->exec("INSERT INTO Store (key, name, introduce, icon, owner_uuid, owner_name, store_created_at) VALUES ('" +
+        ownerUuid + "', 'Offline Store', 'A store.', 'minecraft:chest', '" + ownerUuid + "', 'Offline Owner', '" + nowTime + "');").has_value());
+
+    std::string itemId = SystemUtils::getCurrentTimestamp();
+    ASSERT_TRUE(db->exec("INSERT INTO StoreItem (key, store_id, name, icon, introduce, score, data) VALUES ('" +
+        itemId + "', '" + ownerUuid + "', 'grass_block', 'minecraft:grass_block', 'A grass block.', '100', '" + snbt + "');").has_value());
+
+    MarketPlugin::getShared()->clearStoreRankCache();
+
+    bool created = false;
+    PrepareScoreboard(config, created);
+    ScoreboardUtils::setScore(*sp, config.TargetScoreboard, 1000);
+
+    auto buy = MarketPlugin::getShared()->buyStoreItem(*sp, itemId);
+    ASSERT_TRUE(buy.has_value());
+    EXPECT_TRUE(buy.value());
+
+    EXPECT_EQ(ScoreboardUtils::getScore(*sp, config.TargetScoreboard), 900);
+    EXPECT_TRUE(InventoryUtils::isItemInInventory(*sp, "minecraft:grass_block", 1));
+
+    auto stored = ServiceProvider::getInstance().getService<SQLiteStorage>("SettingsDB")->get("Market", ownerUuid, "Score", "0");
+    ASSERT_TRUE(stored.has_value());
+    EXPECT_EQ(SystemUtils::toInt(stored.value(), -1), 100);
+
+    if (created)
+        ScoreboardUtils::remove(config.TargetScoreboard);
+}
+
+TEST_F(MarketPluginTest, StoreReviewValidation) {
+    Config::C_Market config = GetMarketConfig();
+    if (!config.StoreEnabled || !config.StoreReviewEnabled)
+        GTEST_SKIP();
+
+    auto sp = ll::service::getLevel()->getPlayer("test_player");
+    ASSERT_TRUE(sp);
+
+    TestSimulatedPlayer buyer("test_player6");
+    ASSERT_TRUE(buyer.create());
+
+    ASSERT_TRUE(CreateStore(*sp));
+    ASSERT_TRUE(GiveItem(*sp, "minecraft:grass_block", 1));
+    ASSERT_TRUE(UploadStoreItem(*sp, "grass_block", 100));
+
+    auto items = MarketPlugin::getShared()->getStoreItems(sp->getUuid().asString());
+    ASSERT_TRUE(items.has_value());
+    ASSERT_FALSE(items.value().empty());
+
+    bool created = false;
+    PrepareScoreboard(config, created);
+    ScoreboardUtils::setScore(*buyer.getPlayer(), config.TargetScoreboard, 1000);
+
+    auto buy = MarketPlugin::getShared()->buyStoreItem(*buyer.getPlayer(), items.value().front());
+    ASSERT_TRUE(buy.has_value());
+    EXPECT_TRUE(buy.value());
+
+    std::string storeId = sp->getUuid().asString();
+
+    auto noPurchase = MarketPlugin::getShared()->addReview(*sp, storeId, 5, "good");
+    ASSERT_TRUE(noPurchase.has_value());
+    EXPECT_FALSE(noPurchase.value());
+
+    auto badRating = MarketPlugin::getShared()->addReview(*buyer.getPlayer(), storeId, 0, "good");
+    ASSERT_TRUE(badRating.has_value());
+    EXPECT_FALSE(badRating.value());
+
+    auto badRating2 = MarketPlugin::getShared()->addReview(*buyer.getPlayer(), storeId, 6, "good");
+    ASSERT_TRUE(badRating2.has_value());
+    EXPECT_FALSE(badRating2.value());
+
+    auto emptyContent = MarketPlugin::getShared()->addReview(*buyer.getPlayer(), storeId, 5, "   ");
+    ASSERT_TRUE(emptyContent.has_value());
+    EXPECT_FALSE(emptyContent.value());
+
+    auto ok = MarketPlugin::getShared()->addReview(*buyer.getPlayer(), storeId, 5, "good");
+    ASSERT_TRUE(ok.has_value());
+    EXPECT_TRUE(ok.value());
+
+    auto duplicate = MarketPlugin::getShared()->addReview(*buyer.getPlayer(), storeId, 4, "again");
+    ASSERT_TRUE(duplicate.has_value());
+    EXPECT_FALSE(duplicate.value());
+
+    auto pending = MarketPlugin::getShared()->getReviews(storeId, MarketStoreReviewStatus::pending);
+    ASSERT_TRUE(pending.has_value());
+    EXPECT_EQ(pending.value().size(), 1);
+
+    auto approved = MarketPlugin::getShared()->getReviews(storeId, MarketStoreReviewStatus::approved);
+    ASSERT_TRUE(approved.has_value());
+    EXPECT_TRUE(approved.value().empty());
+
+    if (created)
+        ScoreboardUtils::remove(config.TargetScoreboard);
+}
+
+TEST_F(MarketPluginTest, StoreReviewStatusScoring) {
+    Config::C_Market config = GetMarketConfig();
+    if (!config.StoreEnabled || !config.StoreReviewEnabled)
+        GTEST_SKIP();
+
+    auto sp = ll::service::getLevel()->getPlayer("test_player");
+    ASSERT_TRUE(sp);
+
+    TestSimulatedPlayer buyer("test_player6");
+    ASSERT_TRUE(buyer.create());
+
+    ASSERT_TRUE(CreateStore(*sp));
+    ASSERT_TRUE(GiveItem(*sp, "minecraft:grass_block", 1));
+    ASSERT_TRUE(UploadStoreItem(*sp, "grass_block", 100));
+
+    auto items = MarketPlugin::getShared()->getStoreItems(sp->getUuid().asString());
+    ASSERT_TRUE(items.has_value());
+    ASSERT_FALSE(items.value().empty());
+
+    bool created = false;
+    PrepareScoreboard(config, created);
+    ScoreboardUtils::setScore(*buyer.getPlayer(), config.TargetScoreboard, 1000);
+
+    auto buy = MarketPlugin::getShared()->buyStoreItem(*buyer.getPlayer(), items.value().front());
+    ASSERT_TRUE(buy.has_value());
+    EXPECT_TRUE(buy.value());
+
+    std::string storeId = sp->getUuid().asString();
+
+    auto ok = MarketPlugin::getShared()->addReview(*buyer.getPlayer(), storeId, 5, "good");
+    ASSERT_TRUE(ok.has_value());
+    EXPECT_TRUE(ok.value());
+
+    auto pending = MarketPlugin::getShared()->getReviews(storeId, MarketStoreReviewStatus::pending);
+    ASSERT_TRUE(pending.has_value());
+    ASSERT_EQ(pending.value().size(), 1);
+    std::string reviewKey = pending.value().front();
+
+    auto audit = MarketPlugin::getShared()->auditReview(*sp, reviewKey, true);
+    ASSERT_TRUE(audit.has_value());
+    EXPECT_FALSE(audit.value());
+
+    auto db = MarketPlugin::getShared()->getDatabase();
+    ASSERT_TRUE(db->exec("UPDATE StoreReview SET status='approved' WHERE key='" + reviewKey + "';").has_value());
+    MarketPlugin::getShared()->clearStoreRankCache();
+
+    auto approved = MarketPlugin::getShared()->getReviews(storeId, MarketStoreReviewStatus::approved);
+    ASSERT_TRUE(approved.has_value());
+    EXPECT_EQ(approved.value().size(), 1);
+
+    TestSimulatedPlayer buyer2("test_player7");
+    ASSERT_TRUE(buyer2.create());
+    ScoreboardUtils::setScore(*buyer2.getPlayer(), config.TargetScoreboard, 1000);
+
+    ASSERT_TRUE(GiveItem(*sp, "minecraft:grass_block", 1));
+    ASSERT_TRUE(UploadStoreItem(*sp, "grass_block2", 50));
+
+    auto items2 = MarketPlugin::getShared()->getStoreItems(storeId);
+    ASSERT_TRUE(items2.has_value());
+    ASSERT_FALSE(items2.value().empty());
+
+    auto buy2 = MarketPlugin::getShared()->buyStoreItem(*buyer2.getPlayer(), items2.value().front());
+    ASSERT_TRUE(buy2.has_value());
+    EXPECT_TRUE(buy2.value());
+
+    auto ok2 = MarketPlugin::getShared()->addReview(*buyer2.getPlayer(), storeId, 1, "bad");
+    ASSERT_TRUE(ok2.has_value());
+    EXPECT_TRUE(ok2.value());
+
+    auto pending2 = MarketPlugin::getShared()->getReviews(storeId, MarketStoreReviewStatus::pending);
+    ASSERT_TRUE(pending2.has_value());
+    ASSERT_EQ(pending2.value().size(), 1);
+
+    ASSERT_TRUE(db->exec("UPDATE StoreReview SET status='rejected' WHERE key='" + pending2.value().front() + "';").has_value());
+    MarketPlugin::getShared()->clearStoreRankCache();
+
+    auto approvedFinal = MarketPlugin::getShared()->getReviews(storeId, MarketStoreReviewStatus::approved);
+    ASSERT_TRUE(approvedFinal.has_value());
+    EXPECT_EQ(approvedFinal.value().size(), 1);
+
+    auto rejected = MarketPlugin::getShared()->getReviews(storeId, MarketStoreReviewStatus::rejected);
+    ASSERT_TRUE(rejected.has_value());
+    EXPECT_EQ(rejected.value().size(), 1);
+
+    if (created)
+        ScoreboardUtils::remove(config.TargetScoreboard);
+}
+
+TEST_F(MarketPluginTest, StoreRankingCacheInvalidation) {
+    Config::C_Market config = GetMarketConfig();
+    if (!config.StoreEnabled)
+        GTEST_SKIP();
+
+    auto sp = ll::service::getLevel()->getPlayer("test_player");
+    ASSERT_TRUE(sp);
+    std::string uuidA = sp->getUuid().asString();
+
+    ASSERT_TRUE(CreateStore(*sp));
+    ASSERT_TRUE(GiveItem(*sp, "minecraft:grass_block", 1));
+    ASSERT_TRUE(UploadStoreItem(*sp, "grass_block", 1));
+
+    auto rank1 = MarketPlugin::getShared()->getStoreRanking();
+    ASSERT_TRUE(rank1.has_value());
+    ASSERT_EQ(rank1.value().size(), 1);
+    EXPECT_EQ(rank1.value().front(), uuidA);
+
+    TestSimulatedPlayer sp2("test_player6");
+    ASSERT_TRUE(sp2.create());
+    std::string uuidB = sp2.getPlayer()->getUuid().asString();
+
+    ASSERT_TRUE(CreateStore(*sp2.getPlayer()));
+    ASSERT_TRUE(GiveItem(*sp2.getPlayer(), "minecraft:grass_block", 1));
+    ASSERT_TRUE(UploadStoreItem(*sp2.getPlayer(), "grass_block", 1));
+
+    auto rank2 = MarketPlugin::getShared()->getStoreRanking();
+    ASSERT_TRUE(rank2.has_value());
+    ASSERT_EQ(rank2.value().size(), 2);
+
+    auto bItems = MarketPlugin::getShared()->getStoreItems(uuidB);
+    ASSERT_TRUE(bItems.has_value());
+    ASSERT_FALSE(bItems.value().empty());
+
+    auto off = MarketPlugin::getShared()->offshelfStoreItem(*sp2.getPlayer(), bItems.value().front(), true);
+    ASSERT_TRUE(off.has_value());
+    EXPECT_TRUE(off.value());
+
+    auto rank3 = MarketPlugin::getShared()->getStoreRanking();
+    ASSERT_TRUE(rank3.has_value());
+    ASSERT_EQ(rank3.value().size(), 1);
+    EXPECT_EQ(rank3.value().front(), uuidA);
+}
+
+TEST_F(MarketPluginTest, StoreRankingCacheHitAndWindow) {
+    Config::C_Market config = GetMarketConfig();
+    if (!config.StoreEnabled)
+        GTEST_SKIP();
+
+    auto sp = ll::service::getLevel()->getPlayer("test_player");
+    ASSERT_TRUE(sp);
+    std::string uuidA = sp->getUuid().asString();
+
+    ASSERT_TRUE(CreateStore(*sp));
+    ASSERT_TRUE(GiveItem(*sp, "minecraft:grass_block", 1));
+    ASSERT_TRUE(UploadStoreItem(*sp, "grass_block", 1));
+
+    TestSimulatedPlayer sp2("test_player6");
+    ASSERT_TRUE(sp2.create());
+    std::string uuidB = sp2.getPlayer()->getUuid().asString();
+
+    ASSERT_TRUE(CreateStore(*sp2.getPlayer()));
+    ASSERT_TRUE(GiveItem(*sp2.getPlayer(), "minecraft:grass_block", 1));
+    ASSERT_TRUE(UploadStoreItem(*sp2.getPlayer(), "grass_block", 1));
+
+    auto db = MarketPlugin::getShared()->getDatabase();
+    long long nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+
+    std::string nowTime = SystemUtils::getNowTime();
+    std::string past31 = FormatTimeDaysAgo(31);
+    std::string past30 = FormatTimeDaysAgo(30);
+    std::string past40 = FormatTimeDaysAgo(40);
+
+    ASSERT_TRUE(db->exec("UPDATE Store SET store_created_at='" + past31 + "' WHERE key='" + uuidA + "';").has_value());
+    ASSERT_TRUE(db->exec("UPDATE Store SET store_created_at='" + past30 + "' WHERE key='" + uuidB + "';").has_value());
+
+    MarketPlugin::getShared()->clearStoreRankCache();
+
+    auto rank1 = MarketPlugin::getShared()->getStoreRanking();
+    ASSERT_TRUE(rank1.has_value());
+    ASSERT_EQ(rank1.value().size(), 2);
+    EXPECT_EQ(rank1.value().front(), uuidA);
+
+    std::string saleKey = std::to_string(nowNs + 1);
+    ASSERT_TRUE(db->exec("INSERT INTO StoreSale (key, store_id, item_name, price, buyer_uuid, buyer_name, time) VALUES ('" +
+        saleKey + "', '" + uuidB + "', 'grass_block', '1000', 'buyer', 'buyer', '" + nowTime + "');").has_value());
+
+    auto rank2 = MarketPlugin::getShared()->getStoreRanking();
+    ASSERT_TRUE(rank2.has_value());
+    EXPECT_EQ(rank2.value().front(), uuidA);
+
+    MarketPlugin::getShared()->clearStoreRankCache();
+
+    auto rank3 = MarketPlugin::getShared()->getStoreRanking();
+    ASSERT_TRUE(rank3.has_value());
+    EXPECT_EQ(rank3.value().front(), uuidB);
+
+    ASSERT_TRUE(db->exec("INSERT INTO StoreSale (key, store_id, item_name, price, buyer_uuid, buyer_name, time) VALUES ('" +
+        std::to_string(nowNs + 2) + "', '" + uuidA + "', 'grass_block', '1000000000', 'buyer', 'buyer', '" + past40 + "');").has_value());
+    MarketPlugin::getShared()->clearStoreRankCache();
+
+    auto rank4 = MarketPlugin::getShared()->getStoreRanking();
+    ASSERT_TRUE(rank4.has_value());
+    EXPECT_EQ(rank4.value().front(), uuidB);
+
+    ASSERT_TRUE(db->exec("INSERT INTO StoreSale (key, store_id, item_name, price, buyer_uuid, buyer_name, time) VALUES ('" +
+        std::to_string(nowNs + 3) + "', '" + uuidA + "', 'grass_block', '100000', 'buyer', 'buyer', '" + nowTime + "');").has_value());
+    MarketPlugin::getShared()->clearStoreRankCache();
+
+    auto rank5 = MarketPlugin::getShared()->getStoreRanking();
+    ASSERT_TRUE(rank5.has_value());
+    EXPECT_EQ(rank5.value().front(), uuidA);
+}
+
+TEST_F(MarketPluginTest, StoreRankingTimedRefresh) {
+    Config::C_Market config = GetMarketConfig();
+    if (!config.StoreEnabled || config.StoreRankRefreshMinutes <= 0)
+        GTEST_SKIP();
+
+    auto sp = ll::service::getLevel()->getPlayer("test_player");
+    ASSERT_TRUE(sp);
+    std::string uuidA = sp->getUuid().asString();
+
+    ASSERT_TRUE(CreateStore(*sp));
+    ASSERT_TRUE(GiveItem(*sp, "minecraft:grass_block", 1));
+    ASSERT_TRUE(UploadStoreItem(*sp, "grass_block", 1));
+
+    TestSimulatedPlayer sp2("test_player6");
+    ASSERT_TRUE(sp2.create());
+    std::string uuidB = sp2.getPlayer()->getUuid().asString();
+
+    ASSERT_TRUE(CreateStore(*sp2.getPlayer()));
+    ASSERT_TRUE(GiveItem(*sp2.getPlayer(), "minecraft:grass_block", 1));
+    ASSERT_TRUE(UploadStoreItem(*sp2.getPlayer(), "grass_block", 1));
+
+    auto db = MarketPlugin::getShared()->getDatabase();
+    long long nowNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::system_clock::now().time_since_epoch()
+    ).count();
+
+    std::string nowTime = SystemUtils::getNowTime();
+
+    ASSERT_TRUE(db->exec("UPDATE Store SET store_created_at='" + FormatTimeDaysAgo(31) + "' WHERE key='" + uuidA + "';").has_value());
+    ASSERT_TRUE(db->exec("UPDATE Store SET store_created_at='" + FormatTimeDaysAgo(30) + "' WHERE key='" + uuidB + "';").has_value());
+
+    MarketPlugin::getShared()->clearStoreRankCache();
+
+    MockExecutor executor;
+    ASSERT_TRUE(MarketPlugin::getShared()->setExecutor(executor).has_value());
+    MarketPlugin::getShared()->startStoreRankRefresh();
+
+    auto rank1 = MarketPlugin::getShared()->getStoreRanking();
+    ASSERT_TRUE(rank1.has_value());
+    EXPECT_EQ(rank1.value().front(), uuidA);
+
+    ASSERT_TRUE(db->exec("INSERT INTO StoreSale (key, store_id, item_name, price, buyer_uuid, buyer_name, time) VALUES ('" +
+        std::to_string(nowNs + 1) + "', '" + uuidB + "', 'grass_block', '1000', 'buyer', 'buyer', '" + nowTime + "');").has_value());
+
+    auto rank2 = MarketPlugin::getShared()->getStoreRanking();
+    ASSERT_TRUE(rank2.has_value());
+    EXPECT_EQ(rank2.value().front(), uuidA);
+
+    executor.advanceTime(std::chrono::minutes(config.StoreRankRefreshMinutes + 1));
+
+    auto rank3 = MarketPlugin::getShared()->getStoreRanking();
+    ASSERT_TRUE(rank3.has_value());
+    EXPECT_EQ(rank3.value().front(), uuidB);
 }

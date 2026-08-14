@@ -105,6 +105,22 @@ namespace Config {
         int TradeRequestTimeout = 60;
         int TradeTimeout = 90;
         std::vector<std::string> ProhibitedItems{};
+
+        bool StoreEnabled = true;
+        bool StoreReviewEnabled = true;
+        int StoreMaximumItems = 20;
+        int StoreCreationCost = 0;
+        double StoreSalesWeight = 0.5;
+        double StoreVolumeWeight = 0.3;
+        double StoreRatingWeight = 0.35;
+        double StoreBadReviewPenalty = 3.0;
+        double StoreColdStartWeight = 0.5;
+        double StoreRatingSmoothing = 15.0;
+        int StoreColdStartDays = 7;
+        int StoreTransactionWindowDays = 30;
+        int StoreRatingWindowDays = 180;
+        int StoreRiskWindowDays = 30;
+        int StoreRankRefreshMinutes = 60;
     };
 
     struct C_BehaviorEvent {
