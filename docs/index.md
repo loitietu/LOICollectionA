@@ -25,4 +25,6 @@ features:
     details: 功能基于基岩版原生表单（.lcui）实现，玩家在游戏内即可获得直观的界面操作。
 ---
 
+<!-- markdownlint-disable MD041 -->
+
 LOICollectionA 是源于插件 LOICollection 所演化而来的内容，其在原有的基础上对于整体进行了一次完整的重构，并由此为契机进行了对 LeviLamina 的适配。

@@ -1,0 +1,138 @@
+# Architecture Overview
+
+> [!NOTE]
+> The following content is taken from the code structure of LOICollectionA 1.15.x and may differ in later versions.
+
+LOICollectionA is a C++ plugin (NativeMod) based on [LeviLamina](https://github.com/LiteLDev/LeviLamina), with an overall **microkernel architecture**: the core only handles configuration loading, service registration, and module scheduling, while all features are implemented independently as **modules**, which can be toggled on demand in the configuration file.
+
+## Plugin Entry and Lifecycle
+
+The plugin entry is located at `src/LOICollectionA/LOICollectionA.cpp`, registered via `LL_REGISTER_MOD`:
+
+```cpp
+LL_REGISTER_MOD(LOICollection::A, LOICollection::A::getInstance());
+```
+
+`A` inherits `ll::mod::NativeMod` from LeviLamina, and the four stages drive all modules in sequence:
+
+| Stage | Core action | Calls to modules |
+| --- | --- | --- |
+| `load` | Compute the config version → generate/merge/load `config.json` → register global services → initialize the database directory and language directory | Call module `load()` one by one |
+| `enable` | Set the default language based on `ConsoleLanguage` → compile LOICollectionAPI scripts → | Call module `registry()` one by one |
+| `disable` | — | Call module `unregistry()` one by one |
+| `unload` | — | Call module `unload()` one by one |
+
+> [!TIP]
+> The four stages of a module are not an "on/off" relationship: `load`/`unload` handle the **resource lifecycle** (database, logs, paths), while `registry`/`unregistry` handle **runtime registration** (commands, events, UI). See [Module Development Guide](./module.md) for details.
+
+## Module System
+
+The module framework is located at `src/LOICollectionA/include/` and contains three core classes:
+
+### ModuleBase (Module Base Class)
+
+All modules inherit from `LOICollection::modules::ModuleBase` and need to implement four pure virtual methods:
+
+```cpp
+class ModuleBase {
+public:
+    virtual std::string getName() = 0;                 // module name (registration name)
+    virtual ModulePriority getPriority() = 0;          // module priority
+    virtual ll::Expected<bool> load() = 0;             // resource loading
+    virtual ll::Expected<bool> unload() = 0;           // resource release
+    virtual ll::Expected<bool> registry() = 0;         // runtime registration
+    virtual ll::Expected<bool> unregistry() = 0;       // runtime unregistration
+};
+```
+
+### AutoRegister (Auto Registration)
+
+A module only needs to inherit from `modules::AutoRegister<Derived>`; its static initialization automatically calls `ModManager::registry(getShared(), name, priority)` at program startup, with no manual registration needed:
+
+```cpp
+class BlacklistPlugin : public std::enable_shared_from_this<BlacklistPlugin>,
+                        public modules::ModuleBase,
+                        public modules::AutoRegister<BlacklistPlugin> {
+    // ...
+};
+```
+
+### ModManager (Module Manager)
+
+| Method | Description |
+| --- | --- |
+| `registry(shared_ptr, name, priority)` | Register a module; `priority` defaults to `Normal` |
+| `unregistry(name)` | Unregister a module |
+| `getModule(name)` | Get a module instance by name |
+| `mods()` | Get the list of all module names (sorted by priority) |
+
+The `ModulePriority` enum: `Highest` (0), `High` (1), `Normal` (2), `Low` (3), `Lowest` (4). Priority affects the module load/registration order.
+
+## Service Container and Dependency Injection
+
+Modules do not depend on each other directly; instead, they register and retrieve services by **type + name** through `ServiceProvider` / `ServiceContainer`:
+
+```cpp
+// Register
+ServiceProvider::getInstance().registerInstance<TService>(instance, name);
+
+// Retrieve
+auto svc = ServiceProvider::getInstance().getService<TService>(name);
+```
+
+Global services registered at plugin startup:
+
+| Type | Name | Description |
+| --- | --- | --- |
+| `ReadOnlyWrapper<Config::C_Config>` | `"Config"` | Read-only configuration (see below) |
+| `std::string` | `"DataPath"` | Plugin data directory (`plugins/LOICollectionA/data`) |
+| `std::string` | `"GuiPath"` | GUI directory (`plugins/LOICollectionA/gui`) |
+| `std::string` | `"ConfigPath"` | Configuration directory (`plugins/LOICollectionA/config`) |
+| `SQLiteStorage` | `"SettingsDB"` | Global settings database (`data/settings.db`) |
+
+> [!NOTE]
+> The configuration is registered as `ReadOnlyWrapper<Config::C_Config>`, so modules can only **read** the configuration and cannot modify it. This is an intentional design: the configuration is only read once at startup, and modifying it at runtime requires restarting the server.
+
+## Configuration System
+
+- The configuration structure is defined in `src/LOICollectionA/ConfigPlugin.h`, with 105 configuration keys in total (nested structure `C_Config` → `C_ServerConfig` → `C_ServerPlugins` / `C_ServerProtableTool`)
+- The configuration version is generated by hashing the plugin version number (`SynchronousPluginConfigVersion`)
+- When upgrading the plugin, the default configuration in code is **recursively merged** into the existing `config.json` via `MergePatch`: new keys are filled in automatically, while existing keys keep the user's values
+- See [Data Files](../md/data.md) for detailed configuration item descriptions
+
+## Directory Structure
+
+```txt
+src/LOICollectionA/
+├─ LOICollectionA.cpp / .h   # plugin entry (A class)
+├─ ConfigPlugin.h / .cpp     # configuration structure definition and loading
+├─ base/                     # infrastructure: ServiceContainer, ServiceProvider,
+│                            #   ReadOnlyWrapper, LRUKCache, Throttle, ScopeGuard
+├─ data/                     # data layer: SQLiteStorage (SQLite connection pool), JsonStorage
+├─ frontend/                 # LCUI script engine: Lexer, Parser, SemanticAnalyzer,
+│   │                        #   AST, Callback (native binding registry), ir/ (compiler, VM)
+│   └─ builtin/              # built-in script implementations: Math/Format/String functions,
+│                            #   mc/server commands, ui/ (form and Observable native classes)
+├─ include/                  # public header files (distributed with the plugin after installation)
+│   ├─ ModuleBase.h / ModManager.h / ModulePriority.h
+│   ├─ CallbackUtils.h       # LOICollectionAPI variable registration entry
+│   ├─ form/GUIManager.h     # GUI manager
+│   ├─ server/Events/        # custom event types (network packets, player scoreboard changes, etc.)
+│   └─ server/Plugins/       # public interfaces of each module (BlacklistPlugin.h, etc.)
+├─ modules/                  # module implementations (client/ and server/ isolated by platform)
+├─ utils/                    # utilities: I18nUtils, MathUtils, mc-server toolkit
+tests/                       # gtest tests (common/ cross-platform, server/, client/)
+```
+
+## Dual-Platform Support
+
+The plugin supports both `server` and `client` targets at the same time, distinguished via the `target_type` option in xmake:
+
+- Compile macros: `LL_PLAT_S` (server) / `LL_PLAT_C` (client)
+- Source isolation: `modules/server/*` and `modules/client/*` are compiled mutually exclusively by target
+- Header isolation: `include/server/*` and `include/client/*` are removed from the distribution manifest by target
+- See [Build and Test](./build.md) for build methods
+
+## Data Layer
+
+All persistent data is accessed through `SQLiteStorage` (default, supports read/write connection pool and transactions) or `JsonStorage` (simple JSON files); both return `ll::Expected<T>` to support chained error handling. See the "Data Layer" section of the [Module Development Guide](./module.md) for usage.

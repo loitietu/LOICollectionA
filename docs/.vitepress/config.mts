@@ -43,53 +43,116 @@ export default defineConfig({
     fs.writeFileSync(path.join(siteConfig.outDir, '.nojekyll'), '')
   },
 
-  themeConfig: {
-    logo: '',
+  locales: {
+    root: {
+      label: '简体中文',
+      lang: 'zh-CN',
+      themeConfig: {
+        logo: '',
 
-    nav: [
-      { text: 'Home', link: '/' },
-      { text: 'Project', link: 'https://github.com/loitietu/LOICollectionA' },
-    ],
-
-    sidebar: [
-      {
-        text: '用户文档',
-        items: [
-          { text: '快速开始', link: '/md/start' },
-          { text: '适配版本', link: '/md/version' },
-          { text: '数据文件', link: '/md/data' },
-          { text: '命令列表', link: '/md/command' },
-          { text: 'LOICollectionAPI', link: '/md/api' },
-          { text: '原生 UI（Native UI）', link: '/md/native-ui' },
-          { text: 'LCUI 脚本语法', link: '/md/lcui' },
-          { text: '常见错误含义', link: '/md/errors' },
+        nav: [
+          { text: 'Home', link: '/' },
+          { text: 'Project', link: 'https://github.com/loitietu/LOICollectionA' },
         ],
-      },
-      {
-        text: '开发者文档',
-        items: [
-          { text: '架构概览', link: '/dev/architecture' },
-          { text: '模块开发指南', link: '/dev/module' },
-          { text: 'API 扩展指南', link: '/dev/api-extension' },
-          { text: '构建与测试', link: '/dev/build' },
-          { text: '环境配置', link: '/dev/config' },
+
+        sidebar: [
+          {
+            text: '用户文档',
+            items: [
+              { text: '快速开始', link: '/md/start' },
+              { text: '适配版本', link: '/md/version' },
+              { text: '数据文件', link: '/md/data' },
+              { text: '命令列表', link: '/md/command' },
+              { text: 'LOICollectionAPI', link: '/md/api' },
+              { text: '原生 UI（Native UI）', link: '/md/native-ui' },
+              { text: 'LCUI 脚本语法', link: '/md/lcui' },
+              { text: '常见错误含义', link: '/md/errors' },
+            ],
+          },
+          {
+            text: '开发者文档',
+            items: [
+              { text: '架构概览', link: '/dev/architecture' },
+              { text: '模块开发指南', link: '/dev/module' },
+              { text: 'API 扩展指南', link: '/dev/api-extension' },
+              { text: '构建与测试', link: '/dev/build' },
+              { text: '环境配置', link: '/dev/config' },
+            ],
+          },
+          {
+            text: '插件教程',
+            items: [{ text: '数据迁移', link: '/course/migrate' }],
+          },
         ],
+
+        outline: { level: [2, 3], label: '本页目录' },
+
+        docFooter: { prev: '上一卷', next: '下一卷' },
+
+        notFound: {
+          title: '404 Not Found',
+          quote: '指定页面不存在 😕\n请重新刷新或者访问其它页面 😋',
+          linkLabel: '返回主页',
+          link: '/',
+        },
       },
-      {
-        text: '插件教程',
-        items: [{ text: '数据迁移', link: '/course/migrate' }],
+    },
+
+    en: {
+      label: 'English',
+      lang: 'en-US',
+      link: '/en/',
+      description:
+        'LOICollectionA Docs - Minecraft Bedrock Server LeviLamina Plugin, a ready-to-use multifunctional plugin set',
+      themeConfig: {
+        logo: '',
+
+        nav: [
+          { text: 'Home', link: '/en/' },
+          { text: 'Project', link: 'https://github.com/loitietu/LOICollectionA' },
+        ],
+
+        sidebar: [
+          {
+            text: 'User Docs',
+            items: [
+              { text: 'Quick Start', link: '/en/md/start' },
+              { text: 'Version Compatibility', link: '/en/md/version' },
+              { text: 'Data Files', link: '/en/md/data' },
+              { text: 'Commands', link: '/en/md/command' },
+              { text: 'LOICollectionAPI', link: '/en/md/api' },
+              { text: 'Native UI', link: '/en/md/native-ui' },
+              { text: 'LCUI Script Syntax', link: '/en/md/lcui' },
+              { text: 'Common Error Meanings', link: '/en/md/errors' },
+            ],
+          },
+          {
+            text: 'Developer Docs',
+            items: [
+              { text: 'Architecture Overview', link: '/en/dev/architecture' },
+              { text: 'Module Development Guide', link: '/en/dev/module' },
+              { text: 'API Extension Guide', link: '/en/dev/api-extension' },
+              { text: 'Build and Test', link: '/en/dev/build' },
+              { text: 'Environment Configuration', link: '/en/dev/config' },
+            ],
+          },
+          {
+            text: 'Plugin Tutorials',
+            items: [{ text: 'Data Migration', link: '/en/course/migrate' }],
+          },
+        ],
+
+        outline: { level: [2, 3], label: 'On this page' },
+
+        docFooter: { prev: 'Previous', next: 'Next' },
+
+        notFound: {
+          title: '404 Not Found',
+          quote: 'The page you are looking for does not exist 😕\nPlease refresh or visit another page 😋',
+          linkLabel: 'Take me home',
+          link: '/en/',
+        },
       },
-    ],
-
-    outline: { level: [2, 3], label: '本页目录' },
-
-    docFooter: { prev: '上一卷', next: '下一卷' },
-
-    notFound: {
-      title: '404 Not Found',
-      quote: '指定页面不存在 😕\n请重新刷新或者访问其它页面 😋',
-      linkLabel: '返回主页',
-      link: '/',
     },
   },
 })
