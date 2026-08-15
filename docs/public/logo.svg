@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="LOICollectionA">
+  <defs>
+    <linearGradient id="loi-bg" x1="6" y1="4" x2="58" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#059669"/>
+      <stop offset="0.55" stop-color="#0d9488"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="17" fill="url(#loi-bg)"/>
+  <path d="M16 13h10v26h20v12H16z" fill="#ffffff"/>
+  <rect x="44" y="13" width="6" height="6" rx="2" fill="#ffffff" opacity="0.9"/>
+</svg>

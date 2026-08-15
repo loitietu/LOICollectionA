@@ -15,7 +15,11 @@ export default defineConfig({
   head: [
     ['meta', { name: 'keywords', content: 'LOICollectionA,levilamina,minecraft,基岩版,插件' }],
     ['meta', { name: 'author', content: 'tietu' }],
+    ['meta', { name: 'theme-color', content: '#0d9488' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/LOICollectionA/logo.svg' }],
   ],
+
+  lastUpdated: true,
 
   markdown: {
     // 禁用 markdown-it-attrs：避免 {version_mc} 等宏被解析为 HTML 属性而吞掉内容
@@ -48,12 +52,15 @@ export default defineConfig({
       label: '简体中文',
       lang: 'zh-CN',
       themeConfig: {
-        logo: '',
+        logo: '/logo.svg',
 
         nav: [
-          { text: 'Home', link: '/' },
-          { text: 'Project', link: 'https://github.com/loitietu/LOICollectionA' },
+          { text: '首页', link: '/' },
+          { text: '快速开始', link: '/md/start' },
+          { text: 'GitHub', link: 'https://github.com/loitietu/LOICollectionA' },
         ],
+
+        socialLinks: [{ icon: 'github', link: 'https://github.com/loitietu/LOICollectionA' }],
 
         sidebar: [
           {
@@ -81,7 +88,10 @@ export default defineConfig({
           },
           {
             text: '插件教程',
-            items: [{ text: '数据迁移', link: '/course/migrate' }],
+            items: [
+              { text: '数据迁移', link: '/course/migrate' },
+              { text: 'Native UI 设计剖析', link: '/course/lcui' },
+            ],
           },
         ],
 
@@ -95,6 +105,21 @@ export default defineConfig({
           linkLabel: '返回主页',
           link: '/',
         },
+
+        editLink: {
+          pattern: 'https://github.com/loitietu/LOICollectionA/edit/main/docs/:path',
+          text: '在 GitHub 上编辑此页',
+        },
+
+        lastUpdated: {
+          text: '最后更新于',
+          formatOptions: { dateStyle: 'medium', timeStyle: 'short' },
+        },
+
+        footer: {
+          message: 'LOICollectionA · 开箱即用的 LeviLamina 多功能插件集',
+          copyright: '基于 GPL-3.0 许可证发布',
+        },
       },
     },
 
@@ -105,12 +130,15 @@ export default defineConfig({
       description:
         'LOICollectionA Docs - Minecraft Bedrock Server LeviLamina Plugin, a ready-to-use multifunctional plugin set',
       themeConfig: {
-        logo: '',
+        logo: '/logo.svg',
 
         nav: [
           { text: 'Home', link: '/en/' },
-          { text: 'Project', link: 'https://github.com/loitietu/LOICollectionA' },
+          { text: 'Quick Start', link: '/en/md/start' },
+          { text: 'GitHub', link: 'https://github.com/loitietu/LOICollectionA' },
         ],
+
+        socialLinks: [{ icon: 'github', link: 'https://github.com/loitietu/LOICollectionA' }],
 
         sidebar: [
           {
@@ -151,6 +179,21 @@ export default defineConfig({
           quote: 'The page you are looking for does not exist 😕\nPlease refresh or visit another page 😋',
           linkLabel: 'Take me home',
           link: '/en/',
+        },
+
+        editLink: {
+          pattern: 'https://github.com/loitietu/LOICollectionA/edit/main/docs/:path',
+          text: 'Edit this page on GitHub',
+        },
+
+        lastUpdated: {
+          text: 'Last updated',
+          formatOptions: { dateStyle: 'medium', timeStyle: 'short' },
+        },
+
+        footer: {
+          message: 'LOICollectionA · A ready-to-use multifunctional plugin set for LeviLamina',
+          copyright: 'Released under the GPL-3.0 License',
         },
       },
     },
