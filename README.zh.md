@@ -76,7 +76,7 @@ LOICollectionA 是运行在 [LeviLamina](https://github.com/LiteLDev/LeviLamina)
 2. 启动服务器（`bedrock_server_mod.exe`）。
 3. 等待控制台输出加载成功提示。
 
-需要更多？请阅读[快速开始文档](docs/zh/md/start.md)（手动安装、更新、常见问题）、[适配版本](docs/zh/md/version.md)或[数据迁移指南](docs/zh/course/migrate.md)。
+需要更多？请阅读[快速开始文档](docs/md/start.md)（手动安装、更新、常见问题）、[适配版本](docs/md/version.md)或[数据迁移指南](docs/course/migrate.md)。
 
 ## 开发者
 
@@ -85,9 +85,9 @@ LOICollectionA 是运行在 [LeviLamina](https://github.com/LiteLDev/LeviLamina)
 
 `.lcui` 是插件的原生 UI 层。它封装了 LeviLamina 的表单与界面能力，包括 `CustomForm`、`MessageBox`、`PaginatedForm` 等，开发者无需重新编译即可用脚本构建游戏内界面。
 
-- [LCUI 脚本语法](docs/zh/md/lcui.md)
-- [LOICollectionAPI 参考](docs/zh/md/api.md)
-- [开发环境配置](docs/zh/dev/config.md)
+- [LCUI 脚本语法](docs/md/lcui.md)
+- [LOICollectionAPI 参考](docs/md/api.md)
+- [开发环境配置](docs/dev/config.md)
 
 未来将提供更多 API 接口，方便插件开发者扩展更丰富的功能。
 
@@ -106,7 +106,7 @@ xmake repo -u
 xmake
 ```
 
-详细说明请查看[开发环境配置](docs/zh/dev/config.md)。
+详细说明请查看[开发环境配置](docs/dev/config.md)。
 
 ## 社区与贡献
 

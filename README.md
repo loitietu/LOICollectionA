@@ -76,7 +76,7 @@ All modules below can be enabled or disabled in the configuration file.
 2. Start the server (`bedrock_server_mod.exe`).
 3. Wait for the loading confirmation message in the console.
 
-Need more? Read the [quick start guide](docs/zh/md/start.md) (manual installation, upgrades, common issues), the [version compatibility list](docs/zh/md/version.md), or the [data migration guide](docs/zh/course/migrate.md).
+Need more? Read the [quick start guide](docs/en/md/start.md) (manual installation, upgrades, common issues), the [version compatibility list](docs/en/md/version.md), or the [data migration guide](docs/en/course/migrate.md).
 
 ## Developers
 
@@ -85,9 +85,9 @@ Need more? Read the [quick start guide](docs/zh/md/start.md) (manual installatio
 
 `.lcui` is the plugin's native UI layer. It wraps LeviLamina's form and UI capabilities — including `CustomForm`, `MessageBox`, and `PaginatedForm` — so you can build in-game interfaces with scripts instead of recompiling the plugin.
 
-- [LCUI scripting guide](docs/zh/md/lcui.md)
-- [LOICollectionAPI reference](docs/zh/md/api.md)
-- [Development environment setup](docs/zh/dev/config.md)
+- [LCUI scripting guide](docs/en/md/lcui.md)
+- [LOICollectionAPI reference](docs/en/md/api.md)
+- [Development environment setup](docs/en/dev/config.md)
 
 More API interfaces for plugin developers are planned.
 
@@ -106,7 +106,7 @@ xmake repo -u
 xmake
 ```
 
-See the [development environment guide](docs/zh/dev/config.md) for details.
+See the [development environment guide](docs/en/dev/config.md) for details.
 
 ## Community & Contributing
 
