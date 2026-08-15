@@ -1,0 +1,25 @@
+/* 颜色辅助类（自 docsify 时代迁移） */
+.red {
+  color: red;
+}
+
+.green {
+  color: green;
+}
+
+.blue {
+  color: blue;
+}
+
+.orange {
+  color: orange;
+}
+
+/* 代码块横向滚动 */
+.vp-doc div[class*='language-'] {
+  overflow-x: auto;
+}
+
+.vp-doc div[class*='language-'] pre {
+  overflow: visible;
+}

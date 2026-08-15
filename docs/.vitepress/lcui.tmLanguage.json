@@ -1,0 +1,58 @@
+{
+  "name": "lcui",
+  "scopeName": "source.lcui",
+  "fileTypes": ["lcui"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#builtins" },
+    { "include": "#operators" },
+    { "include": "#classNames" },
+    { "include": "#identifiers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "match": "//.*$", "name": "comment.line.double-slash.lcui" },
+        { "begin": "/\\*", "end": "\\*/", "name": "comment.block.lcui" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        { "begin": "\"", "end": "\"", "name": "string.quoted.double.lcui" },
+        { "begin": "'", "end": "'", "name": "string.quoted.single.lcui" }
+      ]
+    },
+    "numbers": {
+      "match": "\\b(?:0x[0-9a-fA-F]+|\\d+\\.\\d*|\\.\\d+|\\d+)\\b",
+      "name": "constant.numeric.lcui"
+    },
+    "keywords": {
+      "match": "\\b(?:new|func|class|extends|super|this|return|if|else|for|while|break|continue|using|static|None|true|false|instanceof)\\b",
+      "name": "keyword.control.lcui"
+    },
+    "types": {
+      "match": "\\b(?:int|float|string|bool|void|optional|variant|any)\\b",
+      "name": "storage.type.lcui"
+    },
+    "builtins": {
+      "match": "\\b(?:tr|score|entity|print|println|error)\\s*(?=\\()",
+      "name": "support.function.builtin.lcui"
+    },
+    "operators": {
+      "match": "->|\\+\\+|--|==|!=|<=|>=|&&|\\|\\||[=+\\-*/%<>!?:;,.()\\[\\]{}|]",
+      "name": "keyword.operator.lcui"
+    },
+    "classNames": {
+      "match": "\\b[A-Z][A-Za-z0-9_]*\\b",
+      "name": "entity.name.type.class.lcui"
+    },
+    "identifiers": {
+      "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b",
+      "name": "variable.other.lcui"
+    }
+  }
+}

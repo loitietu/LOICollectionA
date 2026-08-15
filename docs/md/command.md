@@ -62,7 +62,8 @@
 [Server] - /mute remove target <Target: target>
 ```
 
-?> 其中 `mute` 为 Mute 的顶层命令（权限等级: GameDirectors）。
+> [!TIP]
+> 其中 `mute` 为 Mute 的顶层命令（权限等级: GameDirectors）。
 
 - `/mute add <Target: target> [Cause: string] [Time: int]`
   - 向禁言列表中添加一个目标。
@@ -104,7 +105,8 @@
 [Server] - /cdk reload
 ```
 
-?> 其中 `cdk` 为 Cdk 的顶层命令（权限等级: Any）。
+> [!TIP]
+> 其中 `cdk` 为 Cdk 的顶层命令（权限等级: Any）。
 
 - `/cdk convert <Id: string>`
   - 总换CDK。
@@ -130,7 +132,8 @@
 [Server] - /menu reload
 ```
 
-?> 其中 `menu` 为 Menu 的顶层命令（权限等级: Any）。
+> [!TIP]
+> 其中 `menu` 为 Menu 的顶层命令（权限等级: Any）。
 
 - `/menu clock`
   - 获取便携打开菜单物品。
@@ -157,7 +160,8 @@
 [Server] - /tpa setting
 ```
 
-?> 其中 `tpa` 为 Tpa 的顶层命令（权限等级: Any）。
+> [!TIP]
+> 其中 `tpa` 为 Tpa 的顶层命令（权限等级: Any）。
 
 - `/tpa accept <Id: string>`
   - 接受玩家的传送请求。
@@ -195,7 +199,8 @@
 [Server] - /shop reload
 ```
 
-?> 其中 `shop` 为 Shop 的顶层命令（权限等级: Any）。
+> [!TIP]
+> 其中 `shop` 为 Shop 的顶层命令（权限等级: Any）。
 
 - `/shop gui <Id: string>`
   - 打开商店 GUI。
@@ -216,7 +221,8 @@
 [Server] - /pvp reload
 ```
 
-?> 其中 `pvp` 为 Pvp 的顶层命令（权限等级: Any）。
+> [!TIP]
+> 其中 `pvp` 为 Pvp 的顶层命令（权限等级: Any）。
 
 - `/pvp gui`
   - 打开 Pvp GUI。
@@ -243,7 +249,8 @@
 [Server] - /wallet wealth
 ```
 
-?> 其中 `wallet` 为 Wallet 的顶层命令（权限等级: Any）。
+> [!TIP]
+> 其中 `wallet` 为 Wallet 的顶层命令（权限等级: Any）。
 
 - `/wallet gui`
   - 打开个人钱包 GUI。
@@ -274,7 +281,8 @@
 [Server] - /chat setting
 ```
 
-?> 其中 `chat` 为 Chat 的顶层命令（权限等级: Any）。
+> [!TIP]
+> 其中 `chat` 为 Chat 的顶层命令（权限等级: Any）。
 
 - `/chat add <Target: target> <Title: string> [Time: int]`
   - 为目标添加指定称号（权限等级: GameDirectors）。
@@ -316,7 +324,8 @@
 [Server] - /language setting
 ```
 
-?> 其中 `language` 为 Language 的顶层命令（权限等级: Any）。
+> [!TIP]
+> 其中 `language` 为 Language 的顶层命令（权限等级: Any）。
 
 - `/language reload`
   - 重新加载（重新编译）语言设置 GUI（权限等级: GameDirectors）。
@@ -336,7 +345,8 @@
 [Server] - /notice setting
 ```
 
-?> 其中 `notice` 为 notice 的顶层命令（权限等级: Any）。
+> [!TIP]
+> 其中 `notice` 为 notice 的顶层命令（权限等级: Any）。
 
 - `/notice edit`
   - 打开公告编辑界面（权限等级: GameDirectors）。
@@ -361,7 +371,8 @@
 [Server] - /market reload
 ```
 
-?> 其中 `market` 为 Market 的顶层命令（权限等级: Any）。
+> [!TIP]
+> 其中 `market` 为 Market 的顶层命令（权限等级: Any）。
 
 - `/market gui`
   - 打开玩家市场 GUI。
@@ -369,7 +380,8 @@
 - `/market reload`
   - 重新加载（重新编译）玩家市场 GUI（权限等级: GameDirectors）。
 
-?> 你看到我了吗？( •̀ ω •́ )✧
+> [!TIP]
+> 你看到我了吗？( •̀ ω •́ )✧
 
 ## BehaviourEvent
 
@@ -392,7 +404,8 @@
 [Server] - /behaviorevent query event time <Time: int> [Limit: int]
 ```
 
-?> 其中 `behaviorevent` 为 BehaviourEvent 的顶层命令（权限等级: GameDirectors）。
+> [!TIP]
+> 其中 `behaviorevent` 为 BehaviourEvent 的顶层命令（权限等级: GameDirectors）。
 
 - `/behaviorevent back position <PositionOrigin: x y z> <PositionTarget: x y z> <Time: int>`
   - 向指定区域内执行行为事件回溯。
@@ -474,7 +487,8 @@
 [Server] - /statistics reload
 ```
 
-?> 其中 `statistics` 为 Statistics 的顶层命令（权限等级: Any）。
+> [!TIP]
+> 其中 `statistics` 为 Statistics 的顶层命令（权限等级: Any）。
 
 - `/statistics gui`
   - 打开玩家数据统计 GUI。

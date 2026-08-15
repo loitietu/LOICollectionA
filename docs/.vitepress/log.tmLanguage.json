@@ -1,0 +1,6 @@
+{
+  "name": "log",
+  "scopeName": "text.log",
+  "fileTypes": ["log"],
+  "patterns": []
+}

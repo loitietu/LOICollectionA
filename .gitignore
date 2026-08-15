@@ -560,3 +560,12 @@ fabric.properties
 /bin/
 
 CMakeLists.txt
+# VitePress docs
+docs/node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
+# local package manager caches (build only)
+.npm-cache/
+.pnpm-store/
+.pnpm-cache/

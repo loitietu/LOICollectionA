@@ -1,135 +1,103 @@
+<!-- markdownlint-disable MD033 -->
+<!-- markdownlint-disable MD041 -->
+
+<div align="center">
+
 # LOICollectionA
 
-> **A Minecraft Server Plugin For LeviLamina**
+> **开箱即用的 LeviLamina 多功能插件集。**
 
 ![Release](https://img.shields.io/github/v/release/loitietu/LOICollectionA?style=flat-square)
 ![Stars](https://img.shields.io/github/stars/loitietu/LOICollectionA?style=social)
 ![Downloads](https://img.shields.io/github/downloads/loitietu/LOICollectionA/total?style=flat-square)
-[![License](https://img.shields.io/github/license/loitietu/LOICollectionA)](LICENSE)  
-
-[![656669024](https://img.shields.io/badge/1018233878-red?style=for-the-badge&logo=qq)](https://qm.qq.com/cgi-bin/qm/qr?k=l7XBaItHiNLnFKX7YiI7uqsEIZHaxjq3&jump_from=webapi&authKey=G3/2El1RPyAVYP4NYTJ2ytKRL6hSYfDNQXbrOlKBy/P0FEUjQSnXF8c7TWNkGbCC)
+[![License](https://img.shields.io/github/license/loitietu/LOICollectionA)](LICENSE)
 
 [![English](https://img.shields.io/badge/English-inactive?style=for-the-badge)](README.md)
-[![中文](https://img.shields.io/badge/简体中文-informational?style=for-the-badge)](README.zh.md)
+[![简体中文](https://img.shields.io/badge/简体中文-informational?style=for-the-badge)](README.zh.md)
+[![656669024](https://img.shields.io/badge/1018233878-red?style=for-the-badge&logo=qq)](https://qm.qq.com/cgi-bin/qm/qr?k=l7XBaItHiNLnFKX7YiI7uqsEIZHaxjq3&jump_from=webapi&authKey=G3/2El1RPyAVYP4NYTJ2ytKRL6hSYfDNQXbrOlKBy/P0FEUjQSnXF8c7TWNkGbCC)
 
-LOICollectionA 是源于插件 LOICollection 所演化而来的内容，其在原有的基础上对于整体进行了一次完整的重构，并由此为契机进行了对 LeviLamina 的适配。
+[快速开始](#快速开始) · [功能总览](#功能总览) · [开发者](#开发者) · [本地编译](#本地编译) · [社区与贡献](#社区与贡献)
 
-而其在整体上及继承了 LOICollection 的功能多样性，同时也对其进行了许多优化。并且在功能模块方面实现了以 `微内核` 为核心的插件架构，使得插件的功能更加灵活，更加容易扩展。
+</div>
 
-同时未来也将会提供更多 API 接口，以便于插件开发者进行添加更加丰富的功能。
+## 这是什么？
 
-## 内置 .lcui 简略示例
+LOICollectionA 是运行在 [LeviLamina](https://github.com/LiteLDev/LeviLamina) 上的 Minecraft 基岩版服务端多功能插件集。它由 LOICollection 完整重构而来，并针对 LeviLamina 重新适配；采用微内核架构组织功能模块，每个功能都可以在配置文件中独立开关。
 
-`.lcui` 是直接封装 LeviLamina 原生表单与界面能力的类集合，包括 `CustomForm`， `MessageBox`， `PaginatedForm` 等一系列内置类，是插件的原生 UI。
+为什么值得装？
 
-### CustomForm 示例
+- **一个插件，常用功能全都有。** 管理、经济、商店、传送、公告、统计等常用功能开箱即用，不用再维护一大堆插件。
+- **模块化，按需开关。** 不需要的功能可以直接在配置文件里关掉，模块之间互不干扰。
+- **原生 UI 体验。** 功能基于基岩版原生表单（`.lcui`）实现，玩家在游戏内就能获得直观的界面操作。
 
-```lcui
-input = new ObservableString("", true);
-count = new ObservableNumber(1, false);
-enabled = new ObservableBoolean(true, true);
+> 项目正在持续开发中，未来会提供更多 API 接口。
 
-form = new CustomForm("example", "Native UI Example");
-form.header("Hello", new TextOptions());
-form.label("This is a native custom form", new TextOptions());
-form.divider(new DividerOptions());
-form.textField("Input", input, new TextFieldOptions());
-form.slider("Count", count, 1, 10, new SliderOptions());
-form.toggle("Enabled", enabled, new ToggleOptions());
-form.button("Submit", func () -> void {
-    mc::runCmd("say " + input.getData());
-}, new ButtonOptions());
-form.closeButton();
+## 功能总览
 
-form.show(func (closeReason) -> void {
-    if (closeReason == 2) [
-        mc::runCmd("say closed");
-    ]
-});
-```
-
-### MessageBox 示例
-
-```lcui
-box = new MessageBox("confirm", "Confirm");
-box.body("Are you sure?");
-box.button1("Yes");
-box.button2("No");
-box.show(func (result) -> void {
-    if (result.selection) [
-        mc::runCmd("say Button 2 selected");
-    : 
-        mc::runCmd("say Button 1 selected or no selection");
-    ]
-});
-```
-
-### PaginatedForm 示例
-
-```lcui
-pages = [ "Apple", "Banana", "Cherry", "Dragon Fruit", "Elderberry" ];
-
-form = new PaginatedForm("fruits", "Fruit List", pages, 2);
-form.previousButton("Previous");
-form.nextButton("Next");
-form.chooseButton("Go", "Page number");
-form.closeButton();
-
-form.show(func (result) -> void {
-    if (result.closeReason == 2) [
-        if (result.selection != "") [
-            mc::runCmd("say Selected: " + result.selection);
-        ]
-    ]
-});
-```
-
-## 实现功能模块
-
-> 以下功能模块均可在配置文件中进行配置开启或关闭。
+以下功能模块均可在配置文件中开启或关闭。
 
 ### 基础模块
 
-- [x] Blacklist
-- [x] Mute
-- [x] Cdk
-- [x] Menu
-- [x] Tpa
-- [x] Shop
-- [x] Monitor
-- [x] Pvp
-- [x] Wallet
-- [x] Chat
-- [x] Notice
-- [x] Market
-- [x] BehaviorEvent
-- [x] Statistics
+| 模块 | 作用 | 可配置开关 |
+| --- | --- | --- |
+| Blacklist | 禁止指定玩家进入服务器 | ✅ |
+| Mute | 对玩家进行禁言 | ✅ |
+| Cdk | 创建、管理并兑换 CDK 兑换码 | ✅ |
+| Menu | 自定义游戏内菜单及操作 | ✅ |
+| Tpa | 传送请求系统，支持邀请控制与黑名单 | ✅ |
+| Shop | 服务器商店，支持购买与出售物品 | ✅ |
+| Monitor | 实时服务器信息与玩家侧边栏 | ✅ |
+| Pvp | 玩家自行开关 PVP | ✅ |
+| Wallet | 玩家经济，支持转账、红包与财富排行 | ✅ |
+| Chat | 聊天称号与玩家聊天黑名单 | ✅ |
+| Notice | 创建带优先级的公告与通知 | ✅ |
+| Market | 玩家之间的交易市场 | ✅ |
+| BehaviorEvent | 将玩家与世界的行为事件记录到数据库 | ✅ |
+| Statistics | 统计在线时长、击杀、死亡、破坏方块等数据 | ✅ |
 
-### 额外功能模块
+### 附加模块
 
-- [x] BasicHook
-  - [x] FakeSeed
-- [x] RedStone
-- [x] OrderedUI
+| 模块 | 作用 | 可配置开关 |
+| --- | --- | --- |
+| BasicHook | 底层事件 Hook，内置 FakeSeed（向客户端伪造世界种子） | ✅ |
+| RedStone | 红石相关事件 Hook | ✅ |
+| OrderedUI | 让多个 UI 表单按顺序弹出，避免界面冲突 | ✅ |
 
-## 安装插件
+## 快速开始
 
-1. 在服务器目录中执行命令
+> 前置要求：已安装 [lip](https://github.com/LiteLDev/lip) 的 LeviLamina 服务端（26.20.x）。
+
+1. 在服务端根目录执行以下命令：
 
     ```cmd
     lip install github.com/loitietu/LOICollectionA
     ```
 
-2. 启动服务器。
-3. 等待输出加载文本。
-4. 完成安装。
+2. 启动服务器（`bedrock_server_mod.exe`）。
+3. 等待控制台输出加载成功提示。
 
-> [!TIP]
-> 更多信息请访问 [Github Pages](https://loitietu.github.io/LOICollectionA/)
+需要更多？请阅读[快速开始文档](docs/md/start.md)（手动安装、更新、常见问题）、[适配版本](docs/md/version.md)或[数据迁移指南](docs/course/migrate.md)。
+
+## 开发者
+
+<details>
+<summary><strong>开发者文档</strong></summary>
+
+`.lcui` 是插件的原生 UI 层。它封装了 LeviLamina 的表单与界面能力，包括 `CustomForm`、`MessageBox`、`PaginatedForm` 等，开发者无需重新编译即可用脚本构建游戏内界面。
+
+- [LCUI 脚本语法](docs/md/lcui.md)
+- [LOICollectionAPI 参考](docs/md/api.md)
+- [开发环境配置](docs/dev/config.md)
+
+未来将提供更多 API 接口，方便插件开发者扩展更丰富的功能。
+
+</details>
 
 ## 本地编译
 
-打开本地命令提示符(`cmd`)并执行以下命令：
+前置要求：[xmake](https://github.com/xmake-io/xmake) 与 `clang-cl` 工具链。
+
+打开命令提示符（`cmd`）并执行：
 
 ```cmd
 git clone https://github.com/loitietu/LOICollectionA.git
@@ -138,10 +106,14 @@ xmake repo -u
 xmake
 ```
 
-## 贡献
+详细说明请查看[开发环境配置](docs/dev/config.md)。
 
-欢迎提交 `PR` 或者 `Issue` 帮助一起完善这个插件。
+## 社区与贡献
+
+- 加入 QQ 群：[1018233878](https://qm.qq.com/cgi-bin/qm/qr?k=l7XBaItHiNLnFKX7YiI7uqsEIZHaxjq3&jump_from=webapi&authKey=G3/2El1RPyAVYP4NYTJ2ytKRL6hSYfDNQXbrOlKBy/P0FEUjQSnXF8c7TWNkGbCC)
+- 完整文档：[GitHub Pages](https://loitietu.github.io/LOICollectionA/)
+- 遇到问题或有新想法？欢迎提交 [Issue](https://github.com/loitietu/LOICollectionA/issues) 或 [PR](https://github.com/loitietu/LOICollectionA/pulls)。
 
 ## LICENSE
 
-- 该插件根据 [GPL-3.0](LICENSE) 许可证进行许可。
+该插件根据 [GPL-3.0](LICENSE) 许可证进行许可。

@@ -3,8 +3,9 @@
 ## 配置文件
 
 配置文件属于 `.json` 格式的文件，一般情况下文件名为 `config.json`  
-对于 `config.json` 中的配置项，在 `启动服务器` 时，只会进行一次读取，之后的修改不会生效  
-而配置文件通常是在安装完成后 `第一次启动服务器` 时出现，位于 `plugins/LOICollectionA/config/` 目录下
+配置文件通常是在安装完成后 `第一次启动服务器` 时自动生成，位于 `plugins/LOICollectionA/config/` 目录下  
+对于 `config.json` 中的配置项，在 `启动服务器` 时只会进行一次读取，之后对配置文件的修改需要 `重启服务器` 才会生效  
+当您升级插件版本时，新增的配置项会自动合并进现有配置文件，已有配置项及其取值会被保留，无需手动补写
 
 > [!WARNING]
 > 配置文件中的配置项，必须为 `英文` 或 `数字` 或 `下划线`，请不要使用中文作为配置项的名称，否则会导致配置文件无法正常读取。  
@@ -12,8 +13,8 @@
 
 ```json
 {
-    "version": 93469876, // 配置文件版本号，通常为一个由程序生成的八位数字，不建议修改
-    "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文
+    "version": 90052239, // 配置文件版本号，由插件版本号自动生成，用于配置同步，不建议修改
+    "ConsoleLanguage": "system", // 控制台语言，其中 system 为跟随系统语言，zh_CN 为中文，en_US 为英文
     "ServerConfig": { // 服务端配置
         "Plugins": { // 内置插件配置
             "Blacklist": {
@@ -114,7 +115,22 @@
                 "BlacklistUpload": 10, // 玩家黑名单目标最大上传数量
                 "TradeRequestTimeout": 60, // 玩家交易请求超时时间（单位为秒）
                 "TradeTimeout": 90, // 玩家交易超时时间（单位为秒）
-                "ProhibitedItems": [] // 玩家市场禁止上传的物品
+                "ProhibitedItems": [], // 玩家市场禁止上传的物品
+                "StoreEnabled": true, // 是否启用玩家商店（店铺）功能
+                "StoreReviewEnabled": true, // 是否启用商店评价功能
+                "StoreMaximumItems": 20, // 单个商店最大上架物品数量
+                "StoreCreationCost": 0, // 创建商店所需 Score 费用（从 TargetScoreboard 扣除，为 0 时免费）
+                "StoreSalesWeight": 0.5, // 商店排名权重 - 近 30 天交易次数
+                "StoreVolumeWeight": 0.3, // 商店排名权重 - 近 30 天成交数量
+                "StoreRatingWeight": 0.35, // 商店排名权重 - 玩家评分
+                "StoreBadReviewPenalty": 3.0, // 商店排名惩罚 - 近 30 天差评比例
+                "StoreColdStartWeight": 0.5, // 商店排名加成 - 新店冷启动权重
+                "StoreRatingSmoothing": 15.0, // 商店评分贝叶斯平滑参数
+                "StoreColdStartDays": 7, // 新店冷启动加成天数（单位为天）
+                "StoreTransactionWindowDays": 30, // 商店交易数据统计窗口（单位为天）
+                "StoreRatingWindowDays": 180, // 商店评价数据统计窗口（单位为天）
+                "StoreRiskWindowDays": 30, // 商店风险数据统计窗口（单位为天）
+                "StoreRankRefreshMinutes": 60 // 商店排行榜刷新间隔（单位为分钟）
             },
             "BehaviorEvent": { // 行为事件配置
                 "ModuleEnabled": false, // 是否启用行为事件
@@ -231,7 +247,8 @@
 数据文件是指存储在数据库中的数据文件。数据文件是数据库的核心，它存储了数据库中的所有数据。数据文件可以是文本文件、二进制文件或者其他类型的文件。数据文件的格式和内容取决于数据库的类型和应用场景。  
 目前 `LOICollectionA` 支持 `Json` 和 `SQLite` 两种数据文件格式。其中只有 `Json` 格式的数据文件可以被直接修改。而对于 `SQLite` 格式的数据文件，我们是不建议您直接修改的。
 
-?> 通常情况下，您不需要手动修改数据文件，因为在使用 `LOICollectionA` 的过程中，大部分数据文件都存在内部编辑器。从 1.15.0 起，Menu 与 Shop 改为直接编辑 lcui 数据文件，不再提供游戏内编辑器。
+> [!TIP]
+> 通常情况下，您不需要手动修改数据文件，因为在使用 `LOICollectionA` 的过程中，大部分数据文件都存在内部编辑器。从 1.15.0 起，Menu 与 Shop 改为直接编辑 lcui 数据文件，不再提供游戏内编辑器。
 
 ### menu.lcui（config 目录）
 
@@ -281,8 +298,6 @@ box.show(func (result) -> void {
 
 ```
 
-?> 旧的 `menu.json` 仅作历史参考，不再提供自动迁移。
-
 ### shop.lcui（config 目录）
 
 > 从 LOICollectionA 1.15.0 起，Shop 不再读取 `shop.json`。请在 `plugins/LOICollectionA/config` 目录下自行创建 `shop.lcui`，在文件内直接定义 `ShopData` 并使用 `ShopForm` 打开。表单 ID 对应 `/shop gui <Id>` 中传入的 Id。
@@ -320,17 +335,16 @@ form.show(func (result) -> void {
 
 ```
 
-?> 旧的 `shop.json` 仅作历史参考，不再提供自动迁移。
-
-?> 除 Menu 与 Shop 外，其余模块（Blacklist、Mute、Cdk、Chat、Market、Notice、Pvp、Statistics、Tpa、Wallet、Language 等）的界面文件随插件内置在 `plugins/LOICollectionA/gui` 目录下（如 `blacklist.lcui`、`mute.lcui`）。它们随插件更新，不属于可编辑的配置文件，请勿直接修改。（如果需要修改，请深入学习 lcui 具体语法）
+> [!TIP]
+> 除 Menu 与 Shop 外，其余模块（Blacklist、Mute、Cdk、Chat、Market、Notice、Pvp、Statistics、Tpa、Wallet、Language 等）的界面文件随插件内置在 `plugins/LOICollectionA/gui` 目录下（如 `blacklist.lcui`、`mute.lcui`）。它们随插件更新，不属于可编辑的配置文件，请勿直接修改。（如果需要修改，请深入学习 lcui 具体语法）
 
 ### notice.json
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.10.0 的 `notice.json` 结构，对于后续版本的 `notice.json` 结构可能会有所不同。
+> 以下内容取自 LOICollectionA 1.10.0 的 `notice.json` 结构，对于后续版本的 `notice.json` 结构可能会有所不同。  
+> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `notice.json` 文件。  
 
-?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `notice.json` 文件。  
-对于内部编辑器，您可以通过以下 [命令](./md/command.md#notice) 进行编辑
+对于内部编辑器，您可以通过以下 [命令](./command.md#notice) 进行编辑
 
 ```json
 {
@@ -350,10 +364,10 @@ form.show(func (result) -> void {
 ### cdk.json
 
 > [!NOTE]
-> 以下内容取自 LOICollectionA 1.7.0 的 `cdk.json` 结构，对于后续版本的 `cdk.json` 结构可能会有所不同。
+> 以下内容取自 LOICollectionA 1.7.0 的 `cdk.json` 结构，对于后续版本的 `cdk.json` 结构可能会有所不同。  
+> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `cdk.json` 文件。  
 
-?> 您可以在 `plugins/LOICollectionA/config` 目录下找到 `cdk.json` 文件。  
-对于内部编辑器，您可以通过以下 [命令](./md/command.md#cdk) 进行编辑
+对于内部编辑器，您可以通过以下 [命令](./command.md#cdk) 进行编辑
 
 ```json
 {
@@ -384,9 +398,10 @@ form.show(func (result) -> void {
 }
 ```
 
----
-
 > [!DANGER]
 > 在服务器启动时，请不要直接修改数据文件，否则极有可能丢失数据内容。
 
-?> 有时候，朋友真的很好ヾ(•ω•`)o
+---
+
+> [!TIP]
+> 有时候，朋友真的很好ヾ(•ω•`)o

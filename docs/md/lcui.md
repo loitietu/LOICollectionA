@@ -16,7 +16,7 @@ Lexer（词法分析） -> Parser（语法分析） -> SemanticAnalyzer（语义
 - 插件启动时或执行 `/xxx reload` 命令后，`GUIManager::load` 会读取 `.lcui` 文件，完成上述编译流程并将字节码缓存。
 - 玩家打开 GUI 时，`GUIManager::open(id, formId, type[, ctx])` 会针对该玩家执行缓存的脚本；脚本中 `new CustomForm(...)`、`new PaginatedForm(...)` 等创建的表单会注册到 `GUIManager`，随后切换到 `formId` 对应的表单。
 
-> 原生表单类的方法与生命周期详见 [原生 UI（Native UI）](./md/native-ui.md)，Menu/Shop 专用表单与默认变量详见 [LOICollectionAPI](./md/api.md)。
+> 原生表单类的方法与生命周期详见 [原生 UI（Native UI）](./native-ui.md)，Menu/Shop 专用表单与默认变量详见 [LOICollectionAPI](./api.md)。
 
 ## 一个最小的脚本
 
@@ -459,7 +459,7 @@ text = std::format({tr("example.gui.info")}, [ 1, "two" ]);
 
 ### 宏 `{...}`
 
-使用 `{名称}` 或 `{名称(参数)}` 调用宏，例如 `{tr("language.gui.title")}`。`tr` 返回当前玩家语言的翻译文本；`{player}`、`{server_tps}`、`{score(名称)}` 等默认变量也以宏形式使用，完整列表见 [LOICollectionAPI](./md/api.md)。
+使用 `{名称}` 或 `{名称(参数)}` 调用宏，例如 `{tr("language.gui.title")}`。`tr` 返回当前玩家语言的翻译文本；`{player}`、`{server_tps}`、`{score(名称)}` 等默认变量也以宏形式使用，完整列表见 [LOICollectionAPI](./api.md)。
 
 ```lcui
 title = {tr("example.gui.title")};
@@ -482,15 +482,15 @@ raw = $custom content};
 
 | 类 | 用途 | 详细文档 |
 | --- | --- | --- |
-| `GlobalValue` | 全局值容器，字段 `value` | [api.md](./md/api.md) |
+| `GlobalValue` | 全局值容器，字段 `value` | [api.md](./api.md) |
 | `CtxValue` | 读取 `GUIManager::open` 传入的 `ctx` 数组，字段 `value` | 见下文 |
-| `ObservableString` / `ObservableNumber` / `ObservableBoolean` / `ObservableUIRawMessage` | 可观察数据，用于控件双向绑定 | [native-ui.md](./md/native-ui.md) |
-| `UIRawMessage` | 构造富文本 / 翻译文本 | [native-ui.md](./md/native-ui.md) |
-| `CustomForm` / `MessageBox` / `PaginatedForm` | 原生表单 | [native-ui.md](./md/native-ui.md) |
-| `TextOptions` / `ButtonOptions` / `TextFieldOptions` / `DropdownOptions` / `DropdownItem` / `SliderOptions` / `ToggleOptions` / `DividerOptions` / `SpacingOptions` | 控件选项 | [native-ui.md](./md/native-ui.md) |
-| `MenuData` / `MenuItemData` / `MenuControlData` / `MenuForm` / `MenuMessageBox` | 菜单数据与表单 | [api.md](./md/api.md) |
-| `ShopData` / `ShopItemData` / `ShopForm` | 商店数据与表单 | [api.md](./md/api.md) |
-| `ScoreRequirement` | Score 需求，字段 `objective`、`value` | [api.md](./md/api.md) |
+| `ObservableString` / `ObservableNumber` / `ObservableBoolean` / `ObservableUIRawMessage` | 可观察数据，用于控件双向绑定 | [native-ui.md](./native-ui.md) |
+| `UIRawMessage` | 构造富文本 / 翻译文本 | [native-ui.md](./native-ui.md) |
+| `CustomForm` / `MessageBox` / `PaginatedForm` | 原生表单 | [native-ui.md](./native-ui.md) |
+| `TextOptions` / `ButtonOptions` / `TextFieldOptions` / `DropdownOptions` / `DropdownItem` / `SliderOptions` / `ToggleOptions` / `DividerOptions` / `SpacingOptions` | 控件选项 | [native-ui.md](./native-ui.md) |
+| `MenuData` / `MenuItemData` / `MenuControlData` / `MenuForm` / `MenuMessageBox` | 菜单数据与表单 | [api.md](./api.md) |
+| `ShopData` / `ShopItemData` / `ShopForm` | 商店数据与表单 | [api.md](./api.md) |
+| `ScoreRequirement` | Score 需求，字段 `objective`、`value` | [api.md](./api.md) |
 
 ### CtxValue
 
@@ -557,4 +557,4 @@ form.show();
 - 函数调用的参数最多支持 100 个，超出会解析失败。
 - 不同模块注册的 `GUIManager::value` / `request` / `callback` ID 各有不同，具体以对应模块的 `.lcui` 文件为准。
 
-> 脚本语言的常见错误及解决方案，请参见 [常见错误含义](./md/errors.md)。
+> 脚本语言的常见错误及解决方案，请参见 [常见错误含义](./errors.md)。

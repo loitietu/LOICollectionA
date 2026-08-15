@@ -124,7 +124,8 @@ if (condition)[result_yes : result_no]
 
 以下将以不同的颜色展示玩家的平均网络延迟时间
 
-!> 需要注意的是语句的原 `result` 无法解析特殊字符，需要将其整合为字符串类型
+> [!WARNING]
+> 需要注意的是语句的原 `result` 无法解析特殊字符，需要将其整合为字符串类型
 
 ```text
 if({player_ms_avg} <= 50)["§a" : if( {player_ms_avg} > 50 && {player_ms_avg} <= 250)["§e" : "§c"]] + {player_ms_avg} + "§bms"
@@ -201,7 +202,8 @@ namespaces::function_name(parameter1, parameter2,...)
 
 以下将展示计算 `cos(sqrt(100))` 和 `sin(sqrt(100))` 的最大值，并取其绝对值。
 
-?> 需要注意的是，函数的调用需要使用 `::` 进行分隔，且函数的参数需要使用 `,` 进行分隔。
+> [!TIP]
+> 需要注意的是，函数的调用需要使用 `::` 进行分隔，且函数的参数需要使用 `,` 进行分隔。
 
 ```text
 math::abs(math::max(math::cos(math::sqrt(100)), math::sin(math::sqrt(100))))
@@ -243,7 +245,8 @@ form.button("Button", func () -> void {
 }, new ButtonOptions());
 ```
 
-?> 你知道吗：天是蓝的......虽然有时候不是蓝(￣y▽￣)╭  
+> [!TIP]
+> 你知道吗：天是蓝的......虽然有时候不是蓝(￣y▽￣)╭  
 
 ### 类与继承
 
