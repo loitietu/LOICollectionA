@@ -53,7 +53,13 @@ namespace ObservableNumberClass {
     }
 
     bool setData(const ObjectRef& self, const CallbackTypeValues& args) {
-        static_cast<ObservableNumberHandle*>(self->native.get())->base->setData(std::get<float>(args[0]));
+        if (const auto* current = std::get_if<float>(&args[0])) {
+            static_cast<ObservableNumberHandle*>(self->native.get())->base->setData(*current);
+            
+            return true;
+        }
+
+        static_cast<ObservableNumberHandle*>(self->native.get())->base->setData(std::get<int>(args[0]));
 
         return true;
     }
@@ -87,6 +93,7 @@ namespace ObservableNumberClass {
         classes.registerConstructor("ObservableNumber", makeObservableNumberFromInt, { ParamType::INT, ParamType::BOOL });
         classes.registerMethod("ObservableNumber", "isClientWritable", isClientWritable, {});
         classes.registerMethod("ObservableNumber", "getData", getData, {});
+        classes.registerMethod("ObservableNumber", "setData", setData, { ParamType::INT });
         classes.registerMethod("ObservableNumber", "setData", setData, { ParamType::FLOAT });
         classes.registerMethod("ObservableNumber", "subscribe", subscribe, { ParamType::FUNCTION });
         classes.registerMethod("ObservableNumber", "unsubscribe", unsubscribe, { ParamType::INT });
