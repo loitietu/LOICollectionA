@@ -87,7 +87,7 @@ namespace ObservableNumberClass {
         classes.registerConstructor("ObservableNumber", makeObservableNumberFromInt, { ParamType::INT, ParamType::BOOL });
         classes.registerMethod("ObservableNumber", "isClientWritable", isClientWritable, {});
         classes.registerMethod("ObservableNumber", "getData", getData, {});
-        classes.registerMethod("ObservableNumber", "setData", setData, { ParamType::BOOL });
+        classes.registerMethod("ObservableNumber", "setData", setData, { ParamType::FLOAT });
         classes.registerMethod("ObservableNumber", "subscribe", subscribe, { ParamType::FUNCTION });
         classes.registerMethod("ObservableNumber", "unsubscribe", unsubscribe, { ParamType::INT });
     }

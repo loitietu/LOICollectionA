@@ -110,7 +110,7 @@ namespace ObservableUIRawMessageClass {
         classes.registerConstructor("ObservableUIRawMessage", makeObservableUIRawMessage, { ParamType::OBJECT, ParamType::BOOL });
         classes.registerMethod("ObservableUIRawMessage", "isClientWritable", isClientWritable, {});
         classes.registerMethod("ObservableUIRawMessage", "getData", getData, {});
-        classes.registerMethod("ObservableUIRawMessage", "setData", setData, { ParamType::BOOL });
+        classes.registerMethod("ObservableUIRawMessage", "setData", setData, { ParamType::OBJECT });
         classes.registerMethod("ObservableUIRawMessage", "subscribe", subscribe, { ParamType::FUNCTION });
         classes.registerMethod("ObservableUIRawMessage", "unsubscribe", unsubscribe, { ParamType::INT });
     }
