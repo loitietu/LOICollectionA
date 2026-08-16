@@ -2,10 +2,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { defineConfig } from 'vitepress'
 import { chineseSearchOptimize, pagefindPlugin } from 'vitepress-plugin-pagefind'
+import { withMermaid } from 'vitepress-plugin-mermaid'
+import { withWordCountAndReadingTime } from 'vitepress-plugin-word-count'
 import lcuiGrammar from './lcui.tmLanguage.json'
 import logGrammar from './log.tmLanguage.json'
 
-export default defineConfig({
+export default withMermaid(
+  defineConfig({
   lang: 'zh-CN',
   title: 'LOICollectionA',
   description:
@@ -27,6 +30,14 @@ export default defineConfig({
     lineNumbers: false,
     theme: { light: 'github-light', dark: 'github-dark' },
     languages: [lcuiGrammar, logGrammar],
+    // 渲染 Markdown 时统计当前页字数与预计阅读时间，并注入到 frontmatter
+    config(md) {
+      md.render = withWordCountAndReadingTime(md.render, {
+        cjk: 330, // 中日韩字符阅读速度：字/分钟
+        noCjk: 200, // 其他语言阅读速度：词/分钟
+        other: 1000, // 全角标点等：字符/分钟
+      })
+    },
   },
 
   vite: {
@@ -198,4 +209,5 @@ export default defineConfig({
       },
     },
   },
-})
+  }),
+)

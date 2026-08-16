@@ -645,3 +645,29 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 页面字数与预计阅读时间 */
+.page-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--vp-c-text-2);
+}
+
+.page-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 999px;
+  background: var(--vp-c-bg-soft);
+}
+
+/* 保持 Mermaid 容器在小屏下可用 */
+.mermaid {
+  max-width: 100%;
+}
