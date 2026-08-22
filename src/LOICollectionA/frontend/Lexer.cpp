@@ -45,17 +45,51 @@ namespace LOICollection::frontend {
                 case '{': return makeToken(TokenType::TOKEN_LBRACE);
                 case '}': return makeToken(TokenType::TOKEN_RBRACE);
                 case ':': return parseColon();
-                case '+': return makeToken(TokenType::TOKEN_PLUS);
-                case '*': return makeToken(TokenType::TOKEN_MULTIPLY);
-                case '/': return makeToken(TokenType::TOKEN_DIVIDE);
-                case '%': return makeToken(TokenType::TOKEN_MOD);
+                case '+': {
+                    if (peekChar() == '=')
+                        return makeTwoCharToken(TokenType::TOKEN_PLUS_ASSIGN);
+                    if (peekChar() == '+')
+                        return makeTwoCharToken(TokenType::TOKEN_INCREMENT);
+
+                    return makeToken(TokenType::TOKEN_PLUS);
+                }
+                case '*': {
+                    if (peekChar() == '=')
+                        return makeTwoCharToken(TokenType::TOKEN_MULTIPLY_ASSIGN);
+
+                    return makeToken(TokenType::TOKEN_MULTIPLY);
+                }
+                case '/': {
+                    if (peekChar() == '=')
+                        return makeTwoCharToken(TokenType::TOKEN_DIVIDE_ASSIGN);
+
+                    return makeToken(TokenType::TOKEN_DIVIDE);
+                }
+                case '%': {
+                    if (peekChar() == '=')
+                        return makeTwoCharToken(TokenType::TOKEN_MOD_ASSIGN);
+
+                    return makeToken(TokenType::TOKEN_MOD);
+                }
                 case '^': return makeToken(TokenType::TOKEN_POWER);
                 case ',': return makeToken(TokenType::TOKEN_COMMA);
                 case '$': return makeToken(TokenType::TOKEN_TRANSPILE);
                 case ';': return makeToken(TokenType::TOKEN_SEMICOLON);
+                case '?': {
+                    if (peekChar() == '?')
+                        return makeTwoCharToken(TokenType::TOKEN_COALESCE);
+                    if (peekChar() == '.')
+                        return makeTwoCharToken(TokenType::TOKEN_QUESTION_DOT);
+
+                    diagnostics.addError({line, column, position}, "Unexpected character '?'");
+                    return makeToken(TokenType::TOKEN_OP);
+                }
                 case '.': {
                     if (std::isdigit(static_cast<unsigned char>(peekChar())))
                         return parseNumber();
+
+                    if (peekChar() == '.')
+                        return makeTwoCharToken(TokenType::TOKEN_RANGE);
 
                     return makeToken(TokenType::TOKEN_DOT);
                 }
@@ -88,12 +122,41 @@ namespace LOICollection::frontend {
 
     Token Lexer::parseString(char delimiter) {
         advance();
-        
-        size_t start = position;
 
-        SourceLocation startLoc(line, column, start);
-        while (currentChar != delimiter && currentChar != 0)
+        SourceLocation startLoc(line, column, position);
+        std::string value;
+
+        while (currentChar != delimiter && currentChar != 0) {
+            if (currentChar == '\\') {
+                SourceLocation escapeLoc(line, column, position);
+
+                advance();
+                if (currentChar == 0) {
+                    diagnostics.addError(startLoc, "Unclosed string");
+                    return { TokenType::TOKEN_EOF, "", startLoc };
+                }
+
+                switch (currentChar) {
+                    case 'n': value += '\n'; break;
+                    case 't': value += '\t'; break;
+                    case 'r': value += '\r'; break;
+                    case '\\': value += '\\'; break;
+                    case '"': value += '"'; break;
+                    case '\'': value += '\''; break;
+                    default:
+                        diagnostics.addWarning(escapeLoc, std::string("Unknown escape sequence '\\") + currentChar + "' is kept as literal");
+                        value += '\\';
+                        value += currentChar;
+                        break;
+                }
+
+                advance();
+                continue;
+            }
+
+            value += currentChar;
             advance();
+        }
 
         if (currentChar != delimiter) {
             diagnostics.addError(startLoc, "Unclosed string");
@@ -101,7 +164,7 @@ namespace LOICollection::frontend {
         }
 
         advance();
-        return { TokenType::TOKEN_STRING, input.substr(start, position - start - 1), startLoc };
+        return { TokenType::TOKEN_STRING, std::move(value), startLoc };
     }
 
     Token Lexer::parseIdentifier() {
@@ -110,7 +173,7 @@ namespace LOICollection::frontend {
         SourceLocation startLoc(line, column, start);
         while (currentChar != 0 &&
                !std::isspace(static_cast<unsigned char>(currentChar)) &&
-               !std::strchr("()[]{}=><!&|.:;,+-*/%^$\"'`", currentChar))
+               !std::strchr("()[]{}=><!&|.:;,+-*/%^$\"'`?", currentChar))
             advance();
 
         std::string id = input.substr(start, position - start);
@@ -147,7 +210,7 @@ namespace LOICollection::frontend {
         while (currentChar != 0) {
             if (std::isdigit(static_cast<unsigned char>(currentChar))) {
                 advance();
-            } else if (currentChar == '.' && !hasDot) {
+            } else if (currentChar == '.' && !hasDot && peekChar() != '.') {
                 hasDot = true;
                 advance();
             } else {
@@ -194,10 +257,22 @@ namespace LOICollection::frontend {
             return { TokenType::TOKEN_ARROW, "->", startLoc };
         }
 
+        if (first == '-' && currentChar == '-') {
+            advance();
+
+            return { TokenType::TOKEN_DECREMENT, "--", startLoc };
+        }
+
+        if (first == '-' && currentChar == '=') {
+            advance();
+
+            return { TokenType::TOKEN_MINUS_ASSIGN, "-=", startLoc };
+        }
+
         if ((first == '&' && currentChar == '&') || (first == '|' && currentChar == '|')) {
             std::string op(1, first);
             op += currentChar;
-            
+
             advance();
             return { TokenType::TOKEN_BOOL_OP, op, startLoc };
         }
@@ -254,7 +329,16 @@ namespace LOICollection::frontend {
         Token t{ type, std::string(1, currentChar), {line, column, position} };
 
         advance();
-        
+
+        return t;
+    }
+
+    Token Lexer::makeTwoCharToken(TokenType type) {
+        Token t{ type, std::string(1, currentChar) + peekChar(), {line, column, position} };
+
+        advance();
+        advance();
+
         return t;
     }
 }
