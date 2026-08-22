@@ -5,7 +5,7 @@
 namespace LOICollection::frontend::ir {
     enum class OpCode : uint8_t {
         PUSH_INT, PUSH_FLOAT, PUSH_STR, PUSH_BOOL, PUSH_NONE,
-        POP, DUP, UNWRAP, TYPE_OF, HAS_VALUE,
+        POP, DUP, DUP2, ROT3, SWAP2, UNWRAP, TYPE_OF, HAS_VALUE, IS_NONE,
 
         LOAD_VAR, STORE_VAR,
 
