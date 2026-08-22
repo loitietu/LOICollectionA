@@ -1335,6 +1335,24 @@ namespace LOICollection::frontend {
             return {};
         }
 
+        if (targetType.kind == TypeKind::Unknown) {
+            /* Dynamically typed target (e.g. a member read of an object or native
+             * instance): defer the value-method dispatch to the VM, which selects
+             * the value class by the runtime type of the receiver. */
+            for (const char* className : { "Array", "String" }) {
+                std::vector<CallbackTypeArgs> signatures =
+                    ClassCall::getInstance().getValueMethodSignatures(className, node.methodName);
+
+                for (const auto& signature : signatures) {
+                    if (matchesNativeSignature(signature, argTypes)) {
+                        node.className = className;
+                        node.methodOrdinal = -1;
+                        return {};
+                    }
+                }
+            }
+        }
+
         if (targetType.kind != TypeKind::Object) {
             diagnostics.addError(node.loc, "Method call target is not an object");
             return {};

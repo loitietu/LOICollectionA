@@ -167,8 +167,8 @@ items = [1, "a", true];
 items[0];       // 1
 items.length;   // 3
 
-items[3] = 2;   // 索引等于当前长度时追加元素
-items[1] = "b"; // 修改已有元素
+items.push(2);  // 追加元素，返回新长度
+items[1] = "b"; // 修改已有元素（索引等于当前长度时同样会追加）
 ```
 
 数组索引从 `0` 开始，越界读取、负数索引会报错。数组的 `==`/`!=` 比较的是引用（是否为同一个数组），而非内容。类的数组字段在每个实例中相互隔离（创建实例时会拷贝），修改一个实例的数组不会影响其他实例。
@@ -379,7 +379,7 @@ total = if (flag) [ 1 : 2 ] + 5;
 ```lcui
 i = 0;
 while (i < 5) [
-    i = i + 1;
+    i++;
 ]
 ```
 
@@ -387,9 +387,9 @@ while (i < 5) [
 
 ```lcui
 s = 0;
-for (i = 0; i < 10; i = i + 1) [
+for (i = 0; i < 10; i++) [
     if (i % 2 == 0) [ continue; ];
-    s = s + i;
+    s += i;
 ]
 ```
 
@@ -550,7 +550,7 @@ public:
     static total = 0;
 
     static func inc() -> int {
-        total = total + 1;
+        total += 1;
         return total;
     }
 }
