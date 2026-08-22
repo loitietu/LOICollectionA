@@ -13,6 +13,14 @@ TEST(StdlibArrayTest, PushReturnsNewLength) {
     EXPECT_EQ(eval("arr = []; arr.push(\"x\"); arr"), "[x]");
 }
 
+TEST(StdlibArrayTest, ValueMethodOnDynamicTarget) {
+    // Method call on a dynamically typed target (member read): the dispatch is
+    // deferred to the VM, which selects "Array"/"String" by the runtime value.
+    EXPECT_EQ(eval("class Holder { public: value = []; } h = new Holder(); h.value.push(1); h.value.push(2); h.value"), "[1, 2]");
+    EXPECT_EQ(eval("class Holder { public: value = []; } h = new Holder(); v = h.value; v.push(7); v.length"), "1");
+    EXPECT_EQ(eval("class Holder { public: value = \"a,b\"; } h = new Holder(); h.value.split(\",\")[1]"), "b");
+}
+
 TEST(StdlibArrayTest, PopRemovesLast) {
     EXPECT_EQ(eval("arr = [1, 2, 3]; arr.pop()"), "3");
     EXPECT_EQ(eval("arr = [1, 2, 3]; arr.pop(); arr"), "[1, 2]");
