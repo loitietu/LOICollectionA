@@ -95,6 +95,10 @@ namespace ObservableStringClass {
             if (!l)
                 return ll::makeStringError("ObservableString operators require string operands");
 
+            /* Unwrap an ObservableString right side to its data; other types
+             * still stringify so "obs + number" keeps concatenating. */
+            if (auto r = stringOperand(right))
+                return *l + *r;
             return *l + ir::VM::valueToString(right);
         });
         for (const std::string& op : { "==", "!=", ">", "<", ">=", "<=" })

@@ -51,24 +51,51 @@ namespace ArrayClass {
             DiagnosticEngine diagnostics;
             bool failed = false;
 
-            std::sort(arr->elements.begin(), arr->elements.end(),
-                [&](const TypedValue& left, const TypedValue& right) -> bool {
-                    if (failed)
-                        return false;
-
-                    auto result = ir::VM::callFunctionRef(comparator, { left, right }, {}, diagnostics);
-                    if (diagnostics.hasErrors())
-                        failed = true;
-
-                    if (auto ri = std::get_if<int>(&result))
-                        return *ri < 0;
-                    if (auto rf = std::get_if<float>(&result))
-                        return *rf < 0;
-
-                    failed = true;
+            /* Script comparators are not trusted to satisfy the strict weak
+             * ordering required by std::sort (violating it is UB). A bottom-up
+             * merge sort keeps every access in bounds even for inconsistent
+             * comparators; on failure the array is left in a valid state. */
+            auto less = [&](const TypedValue& left, const TypedValue& right) -> bool {
+                if (failed)
                     return false;
+
+                auto result = ir::VM::callFunctionRef(comparator, { left, right }, {}, diagnostics);
+                if (diagnostics.hasErrors())
+                    failed = true;
+
+                if (auto ri = std::get_if<int>(&result))
+                    return *ri < 0;
+                if (auto rf = std::get_if<float>(&result))
+                    return *rf < 0;
+
+                failed = true;
+                return false;
+            };
+
+            std::vector<TypedValue>& elements = arr->elements;
+            const size_t count = elements.size();
+            std::vector<TypedValue> buffer(count);
+
+            for (size_t width = 1; width < count && !failed; width *= 2) {
+                for (size_t lo = 0; lo < count; lo += 2 * width) {
+                    size_t mid = std::min(lo + width, count);
+                    size_t hi = std::min(lo + 2 * width, count);
+                    size_t i = lo, j = mid, k = lo;
+
+                    while (i < mid && j < hi) {
+                        if (less(elements[j], elements[i]))
+                            buffer[k++] = std::move(elements[j++]);
+                        else
+                            buffer[k++] = std::move(elements[i++]);
+                    }
+                    while (i < mid)
+                        buffer[k++] = std::move(elements[i++]);
+                    while (j < hi)
+                        buffer[k++] = std::move(elements[j++]);
                 }
-            );
+
+                std::swap_ranges(elements.begin(), elements.begin() + static_cast<std::ptrdiff_t>(count), buffer.begin());
+            }
 
             if (failed)
                 return ll::makeStringError("Comparator failed or returned a non-numeric value");

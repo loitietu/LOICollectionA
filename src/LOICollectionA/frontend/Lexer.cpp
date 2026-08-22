@@ -88,8 +88,17 @@ namespace LOICollection::frontend {
                     if (std::isdigit(static_cast<unsigned char>(peekChar())))
                         return parseNumber();
 
-                    if (peekChar() == '.')
+                    if (peekChar() == '.') {
+                        /* "1...10" would otherwise lex as "1", "..", ".10" and
+                         * fail later with a misleading message — reject it here. */
+                        if (position + 2 < input.size() && input[position + 2] == '.') {
+                            diagnostics.addError({line, column, position},
+                                "Unexpected '...' (a range uses exactly two dots: '..')");
+                            return makeToken(TokenType::TOKEN_OP);
+                        }
+
                         return makeTwoCharToken(TokenType::TOKEN_RANGE);
+                    }
 
                     return makeToken(TokenType::TOKEN_DOT);
                 }

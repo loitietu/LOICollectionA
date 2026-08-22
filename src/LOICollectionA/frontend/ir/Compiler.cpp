@@ -445,6 +445,16 @@ namespace LOICollection::frontend::ir {
         int seqIdx = this->addConstant("__forin_seq_" + std::to_string(uid));
         int idxIdx = this->addConstant("__forin_idx_" + std::to_string(uid));
 
+        /* Loop variables live in the frame's locals so each iteration rebinds
+         * them: a lambda created inside the body snapshots the current value
+         * instead of following a shared slot after the loop ends. */
+        int elemIdx = this->addConstant(node.elementVar);
+        this->current.get().emit(OpCode::DECLARE_LOCAL, elemIdx, node.loc);
+        if (node.hasIndexVar) {
+            int indexVarIdx = this->addConstant(node.indexVar);
+            this->current.get().emit(OpCode::DECLARE_LOCAL, indexVarIdx, node.loc);
+        }
+
         this->compileValue(*node.iterable, node.loc);
         this->current.get().emit(OpCode::STORE_VAR, seqIdx, node.loc);
 
@@ -465,7 +475,6 @@ namespace LOICollection::frontend::ir {
         this->loopStack.push_back(LoopContext{});
         this->loopStack.back().continueTarget = loopStart;
 
-        int elemIdx = this->addConstant(node.elementVar);
         this->current.get().emit(OpCode::LOAD_VAR, seqIdx, node.loc);
         this->current.get().emit(OpCode::LOAD_VAR, idxIdx, node.loc);
         this->current.get().emit(OpCode::LOAD_INDEX, 0, node.loc);
@@ -509,6 +518,14 @@ namespace LOICollection::frontend::ir {
         int idxIdx = this->addConstant("__forin_idx_" + std::to_string(uid));
         int endIdx = this->addConstant("__forin_end_" + std::to_string(uid));
         int dirIdx = this->addConstant("__forin_dir_" + std::to_string(uid));
+
+        /* Same per-iteration binding as the array form: see compileForInArray. */
+        int elemIdx = this->addConstant(node.elementVar);
+        this->current.get().emit(OpCode::DECLARE_LOCAL, elemIdx, node.loc);
+        if (node.hasIndexVar) {
+            int indexVarIdx = this->addConstant(node.indexVar);
+            this->current.get().emit(OpCode::DECLARE_LOCAL, indexVarIdx, node.loc);
+        }
 
         this->compileValue(*range.start, node.loc);
         this->current.get().emit(OpCode::STORE_VAR, idxIdx, node.loc);
@@ -554,7 +571,6 @@ namespace LOICollection::frontend::ir {
         this->loopStack.push_back(LoopContext{});
         this->loopStack.back().continueTarget = loopStart;
 
-        int elemIdx = this->addConstant(node.elementVar);
         this->current.get().emit(OpCode::LOAD_VAR, idxIdx, node.loc);
         this->current.get().emit(OpCode::STORE_VAR, elemIdx, node.loc);
 

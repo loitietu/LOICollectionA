@@ -270,16 +270,19 @@ raw = new ObservableUIRawMessage(UIRawMessage.text("hello"), true);
 
 ### Observable 运算符
 
-`ObservableNumber` / `ObservableString` / `ObservableBoolean` 重载了常用运算符，操作数可以是同类型 Observable 或对应的原生值，按当前值参与运算并返回普通值：
+`ObservableNumber` / `ObservableString` / `ObservableBoolean` 重载了常用运算符，操作数可以是同类型 Observable 或对应的原生值，且原生值在运算符**任意一侧**均可（`num + 3` 与 `3 + num` 等价），按当前值参与运算并返回普通值：
 
 ```lcui
 num = new ObservableNumber(2, false);
 num + 3;        // 5
+3 + num;        // 5
 num * 2 - 1;    // 3
 num > 2;        // true
+5 == num + 3;   // true
 
 text = new ObservableString("ab", false);
 text + "cd";    // "abcd"
+"x" + text;     // "xab"
 text == "ab";   // true
 
 flag = new ObservableBoolean(true, false);

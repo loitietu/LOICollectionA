@@ -80,3 +80,27 @@ TEST(ForInTest, NonArrayIterable) {
     EXPECT_THROW(eval("for (x in 5) [ x; ]"), std::runtime_error);
     EXPECT_THROW(eval("for (x in \"abc\") [ x; ]"), std::runtime_error);
 }
+
+TEST(ForInTest, LambdaCapturesCurrentIterationValue) {
+    // A lambda created inside the loop must capture the value of its own
+    // iteration, not a reference that later follows the loop variable.
+    EXPECT_EQ(eval(
+        "fns = []; "
+        "for (item in [10, 20, 30]) [ "
+        "    fns.push(func () -> int { return item; }); "
+        "]; "
+        "s = \"\"; for (f in fns) [ s += f(); ]; s"),
+        "102030");
+    EXPECT_EQ(eval(
+        "fns = []; "
+        "for (i in 1..3) [ fns.push(func () -> int { return i * 10; }); ]; "
+        "s = \"\"; for (f in fns) [ s += f(); ]; s"),
+        "1020");
+    EXPECT_EQ(eval(
+        "fns = []; "
+        "for (i, item in [\"a\", \"b\"]) [ "
+        "    fns.push(func () -> int { return i; }); "
+        "]; "
+        "last = fns[1]; last()"),
+        "1");
+}
