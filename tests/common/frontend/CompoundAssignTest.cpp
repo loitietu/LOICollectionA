@@ -39,6 +39,32 @@ TEST(CompoundAssignTest, IndexTargetPreservesOtherElements) {
     EXPECT_EQ(eval("arr = [1, 2, 3]; arr[1] += 10; arr"), "[1, 12, 3]");
 }
 
+TEST(CompoundAssignTest, IndexTargetEvaluatedExactlyOnce) {
+    // The index expression of "arr[n()] += 1" must be evaluated exactly once;
+    // a second evaluation would double the side effect inside n().
+    EXPECT_EQ(eval(
+        "calls = 0; "
+        "arr = [10, 20]; "
+        "func n() -> int { calls += 1; return 1; } "
+        "arr[n()] += 5; "
+        "calls"),
+        "1");
+    EXPECT_EQ(eval(
+        "calls = 0; "
+        "arr = [10, 20]; "
+        "func n() -> int { calls += 1; return 1; } "
+        "arr[n()] += 5; "
+        "arr[1]"),
+        "25");
+    EXPECT_EQ(eval(
+        "calls = 0; "
+        "arr = [10, 20]; "
+        "func n() -> int { calls += 1; return 0; } "
+        "arr[n()]++; "
+        "calls"),
+        "1");
+}
+
 TEST(CompoundAssignTest, FieldTarget) {
     EXPECT_EQ(eval(
         "class Counter { public: count = 0; } "

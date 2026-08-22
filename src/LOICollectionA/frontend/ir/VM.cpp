@@ -128,6 +128,25 @@ namespace LOICollection::frontend::ir {
             }
         }
 
+        /* Fall back to the right operand's operator so "literal + observable"
+         * works like "observable + literal" instead of silently stringifying. */
+        if (auto rightObj = std::get_if<ObjectRef>(&right)) {
+            if (ClassCall::getInstance().hasOperator((*rightObj)->className, op)) {
+                auto result = ClassCall::getInstance().callOperator(
+                    (*rightObj)->className, op, left, right, diagnostics, loc
+                );
+
+                if (!result.has_value()) {
+                    diagnostics.addError(loc,
+                        "Operator '" + op + "' failed for class '" + (*rightObj)->className +
+                        "': " + result.error().message());
+                    return 0;
+                }
+
+                return result.value();
+            }
+        }
+
         return std::visit([&op, &diagnostics, &loc](auto&& l, auto&& r) -> ValueNode::ValueType {
             using T = std::decay_t<decltype(l)>;
             using U = std::decay_t<decltype(r)>;
@@ -263,6 +282,25 @@ namespace LOICollection::frontend::ir {
                 if (!result.has_value()) {
                     diagnostics.addError(loc,
                         "Operator '" + op + "' failed for class '" + (*leftObj)->className +
+                        "': " + result.error().message());
+                    return false;
+                }
+
+                return VM::valueToBool(result.value());
+            }
+        }
+
+        /* Mirror the arithmetic fallback: "literal == observable" dispatches on
+         * the right operand's operator. */
+        if (auto rightObj = std::get_if<ObjectRef>(&right)) {
+            if (ClassCall::getInstance().hasOperator((*rightObj)->className, op)) {
+                auto result = ClassCall::getInstance().callOperator(
+                    (*rightObj)->className, op, left, right, diagnostics, loc
+                );
+
+                if (!result.has_value()) {
+                    diagnostics.addError(loc,
+                        "Operator '" + op + "' failed for class '" + (*rightObj)->className +
                         "': " + result.error().message());
                     return false;
                 }
@@ -568,6 +606,15 @@ namespace LOICollection::frontend::ir {
                     this->push(globalIt->second);
                     break;
                 }
+                case OpCode::DECLARE_LOCAL: {
+                    /* Pins a for-in loop variable to the current frame so each
+                     * iteration rebinds it; lambdas snapshot frame.locals when
+                     * created, capturing the value of their own iteration. */
+                    const auto& name = std::get<std::string>(cur.constants[instr.operand]);
+                    frame.locals.try_emplace(name, std::monostate{});
+                    break;
+                }
+
                 case OpCode::STORE_VAR: {
                     const auto& name = std::get<std::string>(cur.constants[instr.operand]);
 
