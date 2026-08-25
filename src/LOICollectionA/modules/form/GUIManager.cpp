@@ -3,7 +3,9 @@
 #include <fstream>
 #include <filesystem>
 #include <functional>
+#include <algorithm>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <ll/api/Expected.h>
 #include <ll/api/io/Logger.h>
@@ -22,6 +24,7 @@
 #include "LOICollectionA/frontend/ir/VM.h"
 #include "LOICollectionA/frontend/ir/Compiler.h"
 #include "LOICollectionA/frontend/ir/Optimizer.h"
+#include "LOICollectionA/frontend/ir/BytecodeCache.h"
 
 #include "LOICollectionA/frontend/builtin/ui/form/CustomFormClass.h"
 #include "LOICollectionA/frontend/builtin/ui/form/MessageBoxClass.h"
@@ -69,40 +72,258 @@ namespace LOICollection::form {
         return content;
     }
 
+    std::unique_ptr<frontend::ProgramNode> GUIManager::parseFile(
+        const std::string& path, frontend::DiagnosticEngine& diagnostics
+    ) {
+        auto content = this->readFile(path);
+        if (!content.has_value()) {
+            diagnostics.addError({}, "Failed to read file: " + path);
+            return nullptr;
+        }
+
+        frontend::Lexer lexer(content.value(), diagnostics);
+        frontend::Parser parser(lexer, diagnostics);
+
+        auto ast = parser.parse();
+        if (!ast)
+            return nullptr;
+
+        return std::unique_ptr<frontend::ProgramNode>(
+            static_cast<frontend::ProgramNode*>(ast.release())
+        );
+    }
+
+    bool GUIManager::collectImports(
+        const std::string& path,
+        const std::filesystem::path& baseDir,
+        std::vector<std::string>& stack,
+        std::unordered_set<std::string>& visited,
+        std::vector<std::string>& order,
+        std::unordered_map<std::string, std::unique_ptr<frontend::ProgramNode>>& parsed,
+        frontend::DiagnosticEngine& diagnostics
+    ) {
+        std::string resolved = std::filesystem::weakly_canonical(path).string();
+
+        if (visited.contains(resolved))
+            return true;
+
+        if (auto it = std::ranges::find(stack, resolved); it != stack.end()) {
+            std::string ring;
+            for (; it != stack.end(); ++it)
+                ring += (ring.empty() ? "" : " -> ") + *it;
+            ring += " -> " + resolved;
+
+            diagnostics.addError({}, "Circular import: " + ring);
+            return false;
+        }
+
+        stack.push_back(resolved);
+
+        if (!parsed.contains(resolved)) {
+            auto ast = this->parseFile(resolved, diagnostics);
+            if (!ast) {
+                stack.pop_back();
+                return false;
+            }
+            parsed.emplace(resolved, std::move(ast));
+        }
+
+        for (auto& part : parsed.at(resolved)->parts) {
+            if (part->getType() != frontend::ASTNode::Type::Import)
+                continue;
+
+            auto& import = static_cast<frontend::ImportNode&>(*part);
+            auto depPath = (baseDir / import.path).lexically_normal().string();
+
+            if (!this->collectImports(depPath, baseDir, stack, visited, order, parsed, diagnostics)) {
+                stack.pop_back();
+                return false;
+            }
+        }
+
+        stack.pop_back();
+        visited.insert(resolved);
+        order.push_back(resolved);
+        return true;
+    }
+
+    namespace {
+        bool isTopLevelDefinition(frontend::ASTNode::Type type) {
+            return type == frontend::ASTNode::Type::Class ||
+                   type == frontend::ASTNode::Type::FunctionDef ||
+                   type == frontend::ASTNode::Type::Using;
+        }
+
+        std::string definitionName(frontend::ASTNode& node) {
+            switch (node.getType()) {
+                case frontend::ASTNode::Type::Class:
+                    return static_cast<frontend::ClassNode&>(node).name;
+                case frontend::ASTNode::Type::Using:
+                    return static_cast<frontend::UsingNode&>(node).name;
+                default:
+                    return {};
+            }
+        }
+
+        struct DefinitionOrigin {
+            std::string file;
+            frontend::SourceLocation loc;
+        };
+    }
+
+    std::unique_ptr<frontend::ProgramNode> GUIManager::buildProgram(
+        const std::string& path, frontend::DiagnosticEngine& diagnostics,
+        std::vector<std::string>* importOrder
+    ) {
+        auto program = std::make_unique<frontend::ProgramNode>();
+
+        std::filesystem::path baseDir = std::filesystem::path(path).parent_path();
+        std::string rootPath = std::filesystem::weakly_canonical(path).string();
+
+        std::vector<std::string> stack;
+        std::unordered_set<std::string> visited;
+        std::vector<std::string> order;
+        std::unordered_map<std::string, std::unique_ptr<frontend::ProgramNode>> parsed;
+
+        if (!this->collectImports(path, baseDir, stack, visited, order, parsed, diagnostics))
+            return program;
+
+        if (importOrder) {
+            importOrder->clear();
+            for (const auto& dep : order)
+                if (dep != rootPath)
+                    importOrder->push_back(dep);
+        }
+
+        /* Definition origins across files, for conflict diagnostics that point
+         * at both the original and the colliding definition. */
+        std::unordered_map<std::string, DefinitionOrigin> origins;
+
+        auto merge = [&](const std::string& file, bool isRoot) -> bool {
+            auto it = parsed.find(file);
+            if (it == parsed.end())
+                return false;
+
+            for (auto& part : it->second->parts) {
+                if (part->getType() == frontend::ASTNode::Type::Import)
+                    continue;
+
+                if (!isRoot && !isTopLevelDefinition(part->getType())) {
+                    diagnostics.addError(part->loc,
+                        "Imported file '" + file + "' must only contain top-level definitions");
+                    continue;
+                }
+
+                std::string name = isTopLevelDefinition(part->getType()) ? definitionName(*part) : "";
+                if (!name.empty()) {
+                    if (auto it = origins.find(name); it != origins.end()) {
+                        if (it->second.file != file) {
+                            diagnostics.addError(part->loc,
+                                "Naming conflict for '" + name + "' between '" + it->second.file +
+                                "' (line " + std::to_string(it->second.loc.line) + ") and '" + file +
+                                "' (line " + std::to_string(part->loc.line) + ")");
+                            continue;
+                        }
+                    } else {
+                        origins.emplace(name, DefinitionOrigin{ file, part->loc });
+                    }
+                }
+
+                program->addPart(std::move(part));
+            }
+
+            return true;
+        };
+
+        /* Imported files come first (dependency order), then the root file. */
+        for (const auto& dep : order) {
+            if (dep == rootPath)
+                continue;
+
+            if (!merge(dep, false))
+                return program;
+        }
+
+        if (!merge(rootPath, true))
+            return program;
+
+        return program;
+    }
+
+    std::string GUIManager::cacheFilePath(const std::string& id, const std::string& path) {
+        return (std::filesystem::path(path).parent_path() / "cache" / (id + ".lcbc")).string();
+    }
+
+    std::shared_ptr<frontend::ir::BytecodeChunk> GUIManager::loadFromCache(
+        const std::string& cachePath, const std::string& sourceHash
+    ) {
+        auto importPaths = frontend::ir::bytecode_cache::readImportPaths(cachePath);
+        if (!importPaths.has_value())
+            return nullptr;
+
+        std::vector<frontend::ir::bytecode_cache::ImportHash> imports;
+        imports.reserve(importPaths->size());
+        for (const auto& importPath : *importPaths) {
+            auto content = this->readFile(importPath);
+            if (!content.has_value())
+                return nullptr;
+
+            imports.push_back({
+                importPath, frontend::ir::bytecode_cache::sha256(content.value())
+            });
+        }
+
+        return frontend::ir::bytecode_cache::read(cachePath, sourceHash, imports);
+    }
+
     ll::Expected<void> GUIManager::load(const std::string& id, const std::string& path) {
+        frontend::DiagnosticEngine diagnostics;
+
         auto content = this->readFile(path);
         if (!content.has_value())
             return ll::Unexpected(content.error());
 
-        frontend::DiagnosticEngine diagnostics;
+        const std::string sourceHash = frontend::ir::bytecode_cache::sha256(content.value());
+        const std::string cachePath = GUIManager::cacheFilePath(id, path);
 
-        frontend::ir::Compiler mCompiler(diagnostics);
+        auto bytecode = this->loadFromCache(cachePath, sourceHash);
+        if (!bytecode) {
+            std::vector<std::string> imports;
+            auto program = this->buildProgram(path, diagnostics, &imports);
+            if (diagnostics.hasErrors())
+                return ll::makeStringError(diagnostics.getErrorMessage());
+            if (diagnostics.hasWarnings())
+                return ll::makeStringError(diagnostics.getWarningMessage());
 
-        frontend::Lexer mLexer(content.value(), diagnostics);
-        frontend::Parser mParser(mLexer, diagnostics);
+            frontend::SemanticAnalyzer analyzer(diagnostics);
+            analyzer.analyze(*program);
+            if (diagnostics.hasErrors())
+                return ll::makeStringError(diagnostics.getErrorMessage());
 
-        auto mAst = mParser.parse();
-        if (diagnostics.hasErrors())
-            return ll::makeStringError(diagnostics.getErrorMessage());
+            frontend::ir::Compiler mCompiler(diagnostics);
+            bytecode = std::make_shared<frontend::ir::BytecodeChunk>(mCompiler.compile(*program));
+            if (diagnostics.hasErrors())
+                return ll::makeStringError(diagnostics.getErrorMessage());
 
-        frontend::SemanticAnalyzer analyzer(diagnostics);
-        if (mAst->getType() == frontend::ASTNode::Type::Program)
-            analyzer.analyze(static_cast<frontend::ProgramNode&>(*mAst));
+            frontend::ir::Optimizer optimizer;
+            optimizer.optimize(*bytecode);
 
-        if (diagnostics.hasErrors())
-            return ll::makeStringError(diagnostics.getErrorMessage());
+            std::vector<frontend::ir::bytecode_cache::ImportHash> importHashes;
+            importHashes.reserve(imports.size());
+            for (const auto& importPath : imports) {
+                auto importContent = this->readFile(importPath);
+                if (!importContent.has_value())
+                    return ll::Unexpected(importContent.error());
 
-        if (diagnostics.hasWarnings())
-            return ll::makeStringError(diagnostics.getWarningMessage());
+                importHashes.push_back({
+                    importPath, frontend::ir::bytecode_cache::sha256(importContent.value())
+                });
+            }
 
-        auto bytecode = std::make_shared<frontend::ir::BytecodeChunk>(mCompiler.compile(*mAst));
-        if (diagnostics.hasErrors())
-            return ll::makeStringError(diagnostics.getErrorMessage());
+            frontend::ir::bytecode_cache::write(cachePath, *bytecode, sourceHash, importHashes);
+        }
 
-        frontend::ir::Optimizer optimizer;
-        optimizer.optimize(*bytecode);
-
-        this->mImpl->cache.insert_or_assign(id, bytecode);
+        this->mImpl->cache.insert_or_assign(id, std::move(bytecode));
 
         return {};
     }

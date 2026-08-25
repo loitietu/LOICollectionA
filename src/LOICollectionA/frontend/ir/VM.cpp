@@ -442,8 +442,9 @@ namespace LOICollection::frontend::ir {
             if (this->diagnostics.hasErrors())
                 return std::string("");
 
-            if (++executed > 1'000'000) {
-                this->diagnostics.addError(this->currentLoc, "Instruction limit exceeded (possible infinite loop)");
+            if (++executed > VM::MAX_INSTRUCTIONS) {
+                this->diagnostics.addError(this->currentLoc,
+                    "Instruction budget exhausted (possible infinite loop)");
                 return ValueNode::ValueType{};
             }
 

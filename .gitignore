@@ -559,7 +559,11 @@ fabric.properties
 /.vscode/
 /bin/
 
+# Standalone frontend target (CMake + GoogleTest)
+/frontend/build/
+
 CMakeLists.txt
+!/frontend/CMakeLists.txt
 # VitePress docs
 docs/node_modules/
 docs/.vitepress/dist/

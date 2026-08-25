@@ -2,7 +2,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
+#include <filesystem>
 #include <functional>
+#include <unordered_map>
+#include <unordered_set>
 
 #include <ll/api/Expected.h>
 
@@ -29,6 +33,10 @@ namespace ScriptFormClass {
 namespace LOICollection::frontend {
     struct ArrayValue;
     using ArrayRef = std::shared_ptr<ArrayValue>;
+
+    namespace ir {
+        struct BytecodeChunk;
+    }
 }
 
 namespace LOICollection::form {
@@ -95,6 +103,41 @@ namespace LOICollection::form {
         GUIManager();
 
         ll::Expected<std::string> readFile(const std::string& path);
+
+        std::unique_ptr<frontend::ProgramNode> parseFile(
+            const std::string& path, frontend::DiagnosticEngine& diagnostics
+        );
+
+        /* Collect the transitive import graph of `path` in dependency-first
+         * (post-order) order; reports circular imports with the full ring.
+         * Parsed programs are cached so every file is parsed exactly once. */
+        bool collectImports(
+            const std::string& path,
+            const std::filesystem::path& baseDir,
+            std::vector<std::string>& stack,
+            std::unordered_set<std::string>& visited,
+            std::vector<std::string>& order,
+            std::unordered_map<std::string, std::unique_ptr<frontend::ProgramNode>>& parsed,
+            frontend::DiagnosticEngine& diagnostics
+        );
+
+        /* Resolve imports and merge every file's top-level definitions into a
+         * single program before semantic analysis and compilation. When
+         * `importOrder` is given, it receives the resolved dependency-first
+         * file list (excluding the root), used to compute cache hashes. */
+        std::unique_ptr<frontend::ProgramNode> buildProgram(
+            const std::string& path, frontend::DiagnosticEngine& diagnostics,
+            std::vector<std::string>* importOrder = nullptr
+        );
+
+        /* Disk cache path for a script: <script dir>/cache/<id>.lcbc */
+        static std::string cacheFilePath(const std::string& id, const std::string& path);
+
+        /* Returns a valid on-disk bytecode entry when the source and every
+         * recorded import file are unchanged, otherwise nullptr. */
+        std::shared_ptr<frontend::ir::BytecodeChunk> loadFromCache(
+            const std::string& cachePath, const std::string& sourceHash
+        );
 
         struct Impl;
         std::unique_ptr<Impl> mImpl;
