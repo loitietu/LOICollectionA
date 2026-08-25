@@ -28,6 +28,11 @@ namespace LOICollection::frontend {
              * UI block; implicit bare calls resolve to its methods. */
             std::optional<std::string> formClass;
 
+            /* LHS variable name of the form being constructed in a declarative
+             * UI block (`name = new Form() { ... }`); referencing `name` inside
+             * the block resolves to the form object itself. */
+            std::string formName;
+
             /* Nested block scope stack: names declared inside a declarative
              * UI block are block-scoped and removed when the block exits. */
             std::vector<std::unordered_set<std::string>> blockScopes;

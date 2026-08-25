@@ -279,6 +279,14 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(VariableNode& node) {
+        /* Inside a declarative UI block, the form's own LHS name resolves to the
+         * frame-local slot holding the form being constructed. */
+        if (!node.isStaticField && this->formClass && this->formVarIdx &&
+            node.name == this->formLhsName) {
+            this->current.get().emit(OpCode::LOAD_VAR, *this->formVarIdx, node.loc);
+            return;
+        }
+
         int idx = node.isStaticField
             ? this->addConstant(node.staticClassName + "::" + node.name)
             : this->addConstant(node.name);
@@ -289,6 +297,15 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(AssignmentNode& node) {
+        /* `name = new Form() { ... }`: let the block redirect references to the
+         * LHS name to the form's frame-local slot. */
+        if (node.target->getType() == ASTNode::Type::Variable &&
+            node.value && node.value->getType() == ASTNode::Type::New) {
+            auto& newValue = static_cast<NewNode&>(*node.value);
+            if (newValue.declarativeBlock)
+                newValue.lhsName = static_cast<VariableNode&>(*node.target).name;
+        }
+
         if (node.value) {
             this->compileValue(*node.value, node.loc);
         } else {
@@ -1099,10 +1116,11 @@ namespace LOICollection::frontend::ir {
         }
 
         if (node.declarativeBlock)
-            this->compileDeclarativeBlock(*node.declarativeBlock, node.className, node.loc);
+            this->compileDeclarativeBlock(*node.declarativeBlock, node.className, node.lhsName, node.loc);
     }
 
-    void Compiler::compileDeclarativeBlock(BlockNode& block, const std::string& formClass, const SourceLocation& loc) {
+    void Compiler::compileDeclarativeBlock(BlockNode& block, const std::string& formClass,
+                                           const std::string& lhsName, const SourceLocation& loc) {
         /* The constructed form is stashed in a frame-local so every implicit
          * call can reload it on top of its arguments (the native call order),
          * and the form itself stays alive for the remaining statements. */
@@ -1113,8 +1131,10 @@ namespace LOICollection::frontend::ir {
 
         std::optional<std::string> savedForm = this->formClass;
         std::optional<int> savedVar = this->formVarIdx;
+        std::string savedLhs = this->formLhsName;
         this->formClass = formClass;
         this->formVarIdx = formIdx;
+        this->formLhsName = lhsName;
 
         for (auto& part : block.parts) {
             part->accept(*this);
@@ -1129,6 +1149,7 @@ namespace LOICollection::frontend::ir {
 
         this->formClass = savedForm;
         this->formVarIdx = savedVar;
+        this->formLhsName = savedLhs;
 
         this->current.get().emit(OpCode::LOAD_VAR, formIdx, loc);
     }

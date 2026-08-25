@@ -574,6 +574,11 @@ namespace LOICollection::frontend {
         std::vector<std::unique_ptr<ExprNode>> args;
         std::unique_ptr<BlockNode> declarativeBlock;
 
+        /* When the new-expression is the RHS of `name = new Form() { ... }`,
+         * this holds `name` so the block body can reference the form under its
+         * own variable name. Set by Sema/Compiler while visiting the assignment. */
+        std::string lhsName;
+
         NewNode(SourceLocation location, std::string name, auto&& a)
             : loc(location), className(std::move(name)), args(std::forward<decltype(a)>(a)) {}
 

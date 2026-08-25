@@ -2,9 +2,11 @@
 
 #include <string>
 
+#include "LOICollectionA/frontend/Callback.h"
 #include "LOICollectionA/frontend/DiagnosticEngine.h"
 #include "LOICollectionA/frontend/Lexer.h"
 #include "LOICollectionA/frontend/Parser.h"
+#include "LOICollectionA/frontend/SemanticAnalyzer.h"
 #include "LOICollectionA/frontend/ir/Compiler.h"
 
 using namespace LOICollection::frontend;
@@ -40,6 +42,43 @@ TEST(ImportTest, CompilerToleratesImport) {
     Parser parser(lexer, diagnostics);
     auto ast = parser.parse();
     ASSERT_FALSE(diagnostics.hasErrors());
+
+    ir::Compiler compiler(diagnostics);
+    (void)compiler.compile(*ast);
+    EXPECT_FALSE(diagnostics.hasErrors());
+}
+
+TEST(ImportTest, ImportCoexistsWithDeclarativeBlock) {
+    // An import followed by a declarative UI block compiles together: the
+    // import is a loader-level concern, so Sema/Compiler tolerate it while the
+    // declarative block goes through the normal pipeline.
+    DiagnosticEngine diagnostics;
+    Lexer lexer(
+        "import \"generic.lcui\";\n"
+        "form = new CustomForm(\"id\", [\"t\"]) { label(\"hi\"); };\n",
+        diagnostics);
+    Parser parser(lexer, diagnostics);
+    auto ast = parser.parse();
+    ASSERT_FALSE(diagnostics.hasErrors());
+
+    ClassCall& cc = ClassCall::getInstance();
+    if (!cc.isRegistered("CustomForm")) {
+        cc.registerClass("CustomForm", {});
+        cc.registerConstructor("CustomForm",
+            [](const CallbackTypeValues&) -> Expected<ObjectRef> {
+                return std::make_shared<Object>();
+            },
+            { ParamType::STRING, ParamType::ARRAY });
+        auto noop = [](const ObjectRef&, const CallbackTypeValues&) -> Expected<TypedValue> {
+            return static_cast<int>(0);
+        };
+        cc.registerMethod("CustomForm", "label", noop, { ParamType::STRING });
+    }
+
+    SemanticAnalyzer analyzer(diagnostics);
+    analyzer.analyze(static_cast<ProgramNode&>(*ast));
+    if (diagnostics.hasErrors())
+        FAIL() << diagnostics.getErrorMessage();
 
     ir::Compiler compiler(diagnostics);
     (void)compiler.compile(*ast);

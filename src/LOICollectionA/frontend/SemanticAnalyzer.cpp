@@ -636,6 +636,12 @@ namespace LOICollection::frontend {
 
             case ASTNode::Type::Variable: {
                 auto& var = static_cast<VariableNode&>(node);
+
+                /* Inside a declarative UI block, the form's own LHS name refers
+                 * to the form object being constructed. */
+                if (var.name == scope.formName && scope.formClass)
+                    return { TypeKind::Object, *scope.formClass };
+
                 TypeInfo type = lookupName(var.name, scope);
 
                 if (scope.hasClass()) {
@@ -833,6 +839,15 @@ namespace LOICollection::frontend {
     }
 
     TypeInfo SemanticAnalyzer::checkAssignment(AssignmentNode& node, MethodScope& scope) {
+        /* `name = new Form() { ... }`: make `name` resolvable inside the block
+         * so the body can reference the form under its own variable name. */
+        if (node.target->getType() == ASTNode::Type::Variable &&
+            node.value && node.value->getType() == ASTNode::Type::New) {
+            auto& newValue = static_cast<NewNode&>(*node.value);
+            if (newValue.declarativeBlock)
+                newValue.lhsName = static_cast<VariableNode&>(*node.target).name;
+        }
+
         TypeInfo rhs;
         if (node.value)
             rhs = checkExpr(*node.value, scope);
@@ -1510,23 +1525,22 @@ namespace LOICollection::frontend {
             std::vector<CallbackTypeArgs> signatures =
                 ClassCall::getInstance().getMethodSignatures(*scope.formClass, node.name);
 
-            if (signatures.empty()) {
+            if (!signatures.empty()) {
+                for (const auto& signature : signatures) {
+                    if (matchesNativeSignature(signature, argTypes))
+                        return {};
+                }
+
                 this->diagnostics.addError(node.loc,
-                    "Declarative block class '" + *scope.formClass + "' has no method '" +
-                    node.name + "'");
+                    "No matching method '" + node.name + "' with " +
+                    std::to_string(argCount) + " argument(s) in declarative block class '" +
+                    *scope.formClass + "'");
                 return {};
             }
 
-            for (const auto& signature : signatures) {
-                if (matchesNativeSignature(signature, argTypes))
-                    return {};
-            }
-
-            this->diagnostics.addError(node.loc,
-                "No matching method '" + node.name + "' with " +
-                std::to_string(argCount) + " argument(s) in declarative block class '" +
-                *scope.formClass + "'");
-            return {};
+            /* The form class has no such method: fall back to a plain function
+             * call (helper functions inside declarative blocks). */
+            node.implicitReceiver = false;
         }
 
         size_t argCount = node.args.size();
@@ -1730,7 +1744,9 @@ namespace LOICollection::frontend {
         }
 
         std::optional<std::string> savedForm = scope.formClass;
+        std::string savedName = scope.formName;
         scope.formClass = node.className;
+        scope.formName = node.lhsName;
 
         scope.enterBlockScope(this->globalTypes, this->declaredGlobals);
         checkStatement(*node.declarativeBlock, scope);
@@ -1740,6 +1756,7 @@ namespace LOICollection::frontend {
         }
 
         scope.formClass = savedForm;
+        scope.formName = savedName;
     }
 
     bool SemanticAnalyzer::isDeclarativeFormClass(const std::string& name) {
@@ -1898,6 +1915,11 @@ namespace LOICollection::frontend {
         if (scope.hasClass())
             lambdaScope.cls = scope.cls;
         lambdaScope.method = std::ref(decl);
+
+        /* A lambda created inside a declarative UI block may reference the form
+         * under its own name and use implicit bare calls on it. */
+        lambdaScope.formClass = scope.formClass;
+        lambdaScope.formName = scope.formName;
 
         if (decl.body)
             checkStatement(*decl.body, lambdaScope);

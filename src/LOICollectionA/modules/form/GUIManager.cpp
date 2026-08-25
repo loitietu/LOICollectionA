@@ -165,6 +165,47 @@ namespace LOICollection::form {
             }
         }
 
+        /* Source location of any top-level part. The base ASTNode exposes no
+         * `loc` member, so it is recovered per concrete node type. */
+        frontend::SourceLocation nodeLoc(const frontend::ASTNode& node) {
+            switch (node.getType()) {
+                case frontend::ASTNode::Type::Class:
+                    return static_cast<const frontend::ClassNode&>(node).loc;
+                case frontend::ASTNode::Type::FunctionDef:
+                    return static_cast<const frontend::FunctionDefNode&>(node).loc;
+                case frontend::ASTNode::Type::Using:
+                    return static_cast<const frontend::UsingNode&>(node).loc;
+                case frontend::ASTNode::Type::Import:
+                    return static_cast<const frontend::ImportNode&>(node).loc;
+                case frontend::ASTNode::Type::Assignment:
+                    return static_cast<const frontend::AssignmentNode&>(node).loc;
+                case frontend::ASTNode::Type::CompoundAssign:
+                    return static_cast<const frontend::CompoundAssignNode&>(node).loc;
+                case frontend::ASTNode::Type::If:
+                    return static_cast<const frontend::IfNode&>(node).loc;
+                case frontend::ASTNode::Type::While:
+                    return static_cast<const frontend::WhileNode&>(node).loc;
+                case frontend::ASTNode::Type::For:
+                    return static_cast<const frontend::ForNode&>(node).loc;
+                case frontend::ASTNode::Type::ForIn:
+                    return static_cast<const frontend::ForInNode&>(node).loc;
+                case frontend::ASTNode::Type::Return:
+                    return static_cast<const frontend::ReturnNode&>(node).loc;
+                case frontend::ASTNode::Type::Break:
+                    return static_cast<const frontend::BreakNode&>(node).loc;
+                case frontend::ASTNode::Type::Continue:
+                    return static_cast<const frontend::ContinueNode&>(node).loc;
+                case frontend::ASTNode::Type::FuncCall:
+                    return static_cast<const frontend::FuncCallNode&>(node).loc;
+                case frontend::ASTNode::Type::Function:
+                    return static_cast<const frontend::FunctionNode&>(node).loc;
+                case frontend::ASTNode::Type::Macro:
+                    return static_cast<const frontend::MacroNode&>(node).loc;
+                default:
+                    return {};
+            }
+        }
+
         struct DefinitionOrigin {
             std::string file;
             frontend::SourceLocation loc;
@@ -208,8 +249,10 @@ namespace LOICollection::form {
                 if (part->getType() == frontend::ASTNode::Type::Import)
                     continue;
 
+                const auto loc = nodeLoc(*part);
+
                 if (!isRoot && !isTopLevelDefinition(part->getType())) {
-                    diagnostics.addError(part->loc,
+                    diagnostics.addError(loc,
                         "Imported file '" + file + "' must only contain top-level definitions");
                     continue;
                 }
@@ -218,14 +261,14 @@ namespace LOICollection::form {
                 if (!name.empty()) {
                     if (auto it = origins.find(name); it != origins.end()) {
                         if (it->second.file != file) {
-                            diagnostics.addError(part->loc,
+                            diagnostics.addError(loc,
                                 "Naming conflict for '" + name + "' between '" + it->second.file +
                                 "' (line " + std::to_string(it->second.loc.line) + ") and '" + file +
-                                "' (line " + std::to_string(part->loc.line) + ")");
+                                "' (line " + std::to_string(loc.line) + ")");
                             continue;
                         }
                     } else {
-                        origins.emplace(name, DefinitionOrigin{ file, part->loc });
+                        origins.emplace(name, DefinitionOrigin{ file, loc });
                     }
                 }
 

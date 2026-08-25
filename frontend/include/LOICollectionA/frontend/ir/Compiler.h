@@ -50,6 +50,11 @@ namespace LOICollection::frontend::ir {
          * is stashed in a frame-local so calls can reload it above their args. */
         std::optional<std::string> formClass;
         std::optional<int> formVarIdx;
+
+        /* LHS variable name of the form being constructed; references to it
+         * inside the block are redirected to the frame-local form slot. */
+        std::string formLhsName;
+
         size_t declBlockCounter = 0;
 
         size_t methodCount = 0;
@@ -98,7 +103,8 @@ namespace LOICollection::frontend::ir {
         void compileFunctionBody(FunctionDefNode& node);
         void compileSequence(SequenceNode& node);
         void compileValue(ExprNode& node, const SourceLocation& loc);
-        void compileDeclarativeBlock(BlockNode& block, const std::string& formClass, const SourceLocation& loc);
+        void compileDeclarativeBlock(BlockNode& block, const std::string& formClass,
+                                     const std::string& lhsName, const SourceLocation& loc);
 
         void compileForInArray(ForInNode& node, size_t uid);
         void compileForInRange(ForInNode& node, size_t uid);
