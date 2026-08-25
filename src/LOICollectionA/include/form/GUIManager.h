@@ -34,6 +34,9 @@ namespace LOICollection::frontend {
     struct ArrayValue;
     using ArrayRef = std::shared_ptr<ArrayValue>;
 
+    struct ProgramNode;
+    class DiagnosticEngine;
+
     namespace ir {
         struct BytecodeChunk;
     }
