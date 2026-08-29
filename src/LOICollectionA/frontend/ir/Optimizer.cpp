@@ -99,6 +99,15 @@ namespace LOICollection::frontend::ir {
         return op == OpCode::STORE_VAR || op == OpCode::STORE_SLOT;
     }
 
+    // A by-reference capture aliases one of our slots into another frame, which can
+    // rebind it without any call appearing here, so tracked slot values die with it.
+    bool lambdaCapturesByRef(const BytecodeChunk& chunk, int index) {
+        if (index < 0 || static_cast<size_t>(index) >= chunk.lambdas.size())
+            return true;
+
+        return std::ranges::any_of(chunk.lambdas[index].captures, &CaptureMeta::byRef);
+    }
+
     // `kept op identity == kept`, applicable when the kept operand is a known number of a
     // compatible kind. Divided by type-promotion rules: `x / 1` and `x ^ 1` always produce
     // floats, and float `x + 0.0` flips -0.0, so those combinations stay untouched.
@@ -337,6 +346,8 @@ namespace LOICollection::frontend::ir {
                 clearTracked();
             } else if (canWriteVariables(instr.op)) {
                 clearTracked();
+            } else if (instr.op == OpCode::MAKE_LAMBDA && lambdaCapturesByRef(chunk, instr.operand)) {
+                slotValues.clear();
             }
 
             switch (instr.op) {

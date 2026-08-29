@@ -18,7 +18,8 @@
 namespace LOICollection::frontend::ir {
     class VM {
     public:
-        LOICOLLECTION_A_NDAPI VM(DiagnosticEngine& diag) : diagnostics(diag) {}
+        LOICOLLECTION_A_NDAPI VM(DiagnosticEngine& diag)
+            : diagnostics(diag), variables(std::make_shared<GlobalScope>()) {}
 
         LOICOLLECTION_A_NDAPI ValueNode::ValueType run(
             const std::shared_ptr<const BytecodeChunk>& chunk,
@@ -37,6 +38,7 @@ namespace LOICollection::frontend::ir {
         );
 
         LOICOLLECTION_A_NDAPI static std::string valueToString(const ValueNode::ValueType& val);
+        LOICOLLECTION_A_NDAPI static std::string joinValues(const std::vector<ValueNode::ValueType>& values, const std::string& separator);
         LOICOLLECTION_A_NDAPI static std::string typeNameOf(const ValueNode::ValueType& val);
         LOICOLLECTION_A_NDAPI static ValueNode::ValueType applyArithmetic(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op, DiagnosticEngine& diagnostics, const SourceLocation& loc = {});
         LOICOLLECTION_A_NDAPI static ValueNode::ValueType applyUnary(const ValueNode::ValueType& operand, const std::string& op, DiagnosticEngine& diagnostics, const SourceLocation& loc = {});
@@ -49,6 +51,10 @@ namespace LOICollection::frontend::ir {
 
             size_t ip = 0;
             std::vector<ValueNode::ValueType> locals;
+            /* Sparse and index-aligned with locals: a non-null entry redirects the
+             * slot to a cell shared with another frame. Only by-reference captures
+             * populate it, so a frame that never escapes pays nothing. */
+            std::vector<std::shared_ptr<ValueNode::ValueType>> cells;
 
             ValueNode::ValueType thisObj;
             bool hasThis = false;
@@ -58,6 +64,13 @@ namespace LOICollection::frontend::ir {
 
             explicit Frame(const BytecodeChunk& chunkRef)
                 : chunk(chunkRef), locals(chunkRef.slotCount) {}
+
+            std::shared_ptr<ValueNode::ValueType>& cellAt(size_t slot) {
+                if (this->cells.size() <= slot)
+                    this->cells.resize(slot + 1);
+
+                return this->cells[slot];
+            }
         };
 
         DiagnosticEngine& diagnostics;
@@ -68,7 +81,7 @@ namespace LOICollection::frontend::ir {
 
         std::vector<Frame> frames;
         std::vector<ValueNode::ValueType> stack;
-        std::unordered_map<std::string, ValueNode::ValueType> variables;
+        std::shared_ptr<GlobalScope> variables;
 
         std::unordered_map<int, FunctionCallCacheSlot> mFunctionCallSlots;
         std::unordered_map<int, NativeMethodCacheSlot> mNativeMethodSlots;
@@ -92,6 +105,10 @@ namespace LOICollection::frontend::ir {
         );
 
         bool pushFrame(Frame&& frame);
+
+        [[nodiscard]] static const ValueNode::ValueType& loadSlot(const Frame& frame, size_t slot);
+        static void storeSlot(Frame& frame, size_t slot, ValueNode::ValueType value);
+        [[nodiscard]] static bool bindCaptures(Frame& callee, const FunctionRef& func);
 
         [[nodiscard]] bool isDerived(const BytecodeChunk& chunk, int derivedClassIndex, int baseClassIndex) const;
 

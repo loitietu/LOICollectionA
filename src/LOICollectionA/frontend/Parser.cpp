@@ -739,10 +739,86 @@ namespace LOICollection::frontend {
         return fn;
     }
 
+    bool Parser::parseCaptureSpec(CaptureSpec& spec) {
+        if (!eat(TokenType::TOKEN_LBRCKET)) return false;
+
+        spec.present = true;
+
+        const auto isSymbol = [this](const char* symbol) {
+            return currentToken.type == TokenType::TOKEN_OP && currentToken.value == symbol;
+        };
+
+        while (currentToken.type != TokenType::TOKEN_RBRCKET) {
+            /* '&' opens a by-reference capture when a name follows and declares the
+             * by-reference default otherwise; '=' is always the by-value default. */
+            const bool amp = isSymbol("&");
+            const bool namesFollow = peek() == TokenType::TOKEN_IDENT || peek() == TokenType::TOKEN_THIS;
+
+            if (isSymbol("=") || (amp && !namesFollow)) {
+                if (spec.hasDefault) {
+                    diagnostics.addError(currentToken.loc, "Lambda capture list may only declare one capture default");
+                    return false;
+                }
+
+                if (!spec.items.empty() || spec.capturesThis) {
+                    diagnostics.addError(currentToken.loc, "Lambda capture default must precede explicit captures");
+                    return false;
+                }
+
+                spec.hasDefault = true;
+                spec.defaultByRef = amp;
+                advance();
+            } else {
+                bool byRef = false;
+                if (amp) {
+                    byRef = true;
+                    advance();
+                }
+
+                if (currentToken.type == TokenType::TOKEN_THIS) {
+                    if (byRef) {
+                        diagnostics.addError(currentToken.loc, "'this' cannot be captured by reference");
+                        return false;
+                    }
+
+                    spec.capturesThis = true;
+                    advance();
+                } else if (currentToken.type == TokenType::TOKEN_IDENT) {
+                    auto duplicate = std::ranges::find(spec.items, currentToken.value, &CaptureItem::name);
+                    if (duplicate != spec.items.end()) {
+                        diagnostics.addError(currentToken.loc, "Duplicate capture: " + currentToken.value);
+                        return false;
+                    }
+
+                    spec.items.push_back({ currentToken.value, byRef });
+                    advance();
+                } else {
+                    diagnostics.addError(currentToken.loc, "Expected capture name, 'this', '&' or '=' in lambda capture list");
+                    return false;
+                }
+            }
+
+            if (currentToken.type != TokenType::TOKEN_COMMA)
+                break;
+
+            advance();
+        }
+
+        return eat(TokenType::TOKEN_RBRCKET);
+    }
+
     std::unique_ptr<LambdaNode> Parser::parseLambda() {
         SourceLocation loc = currentToken.loc;
 
         if (!eat(TokenType::TOKEN_FUNC)) return nullptr;
+
+        CaptureSpec capture;
+        if (currentToken.type == TokenType::TOKEN_LBRCKET && !this->parseCaptureSpec(capture)) {
+            synchronize({ TokenType::TOKEN_LPAREN, TokenType::TOKEN_LBRACE, TokenType::TOKEN_RBRACE });
+            skipBalancedBraces();
+            return nullptr;
+        }
+
         if (!eat(TokenType::TOKEN_LPAREN)) {
             synchronize({ TokenType::TOKEN_LBRACE, TokenType::TOKEN_RBRACE });
             skipBalancedBraces();
@@ -750,6 +826,7 @@ namespace LOICollection::frontend {
         }
 
         auto lambda = std::make_unique<LambdaNode>(loc);
+        lambda->capture = std::move(capture);
         lambda->decl.loc = loc;
         lambda->decl.name = "lambda";
         lambda->decl.params = parseParams();
@@ -1006,8 +1083,7 @@ namespace LOICollection::frontend {
                     break;
             }
 
-            if (currentToken.type == TokenType::TOKEN_CLASS ||
-                (currentToken.type == TokenType::TOKEN_FUNC && peek() != TokenType::TOKEN_LPAREN)) {
+            if (currentToken.type == TokenType::TOKEN_CLASS || this->isFunctionDefinition()) {
                 diagnostics.addError(currentToken.loc,
                     "Class and function definitions are only allowed at top level");
 
@@ -1167,6 +1243,15 @@ namespace LOICollection::frontend {
             newExpr.receiverName = static_cast<VariableNode&>(*node.target).name;
     }
 
+    bool Parser::isFunctionDefinition() {
+        if (currentToken.type != TokenType::TOKEN_FUNC)
+            return false;
+
+        /* `func (` and `func [` both open a lambda; anything else names a function. */
+        const TokenType next = this->peek();
+        return next != TokenType::TOKEN_LPAREN && next != TokenType::TOKEN_LBRCKET;
+    }
+
     std::unique_ptr<ValueNode> Parser::parseTranspile() {
         SourceLocation loc = currentToken.loc;
 
@@ -1239,7 +1324,7 @@ namespace LOICollection::frontend {
     }
 
     std::unique_ptr<ASTNode> Parser::parseStatement() {
-        if (currentToken.type == TokenType::TOKEN_FUNC && peek() != TokenType::TOKEN_LPAREN)
+        if (this->isFunctionDefinition())
             return parseFunctionDefinition();
 
         if (currentToken.type == TokenType::TOKEN_CLASS)

@@ -1299,6 +1299,8 @@ namespace LOICollection::frontend::ir {
     }
 
     void Compiler::visit(LambdaNode& node) {
+        const std::vector<CaptureBinding> bindings = this->resolveCaptures(node.capture, node.loc);
+
         int bodyIdx = static_cast<int>(this->chunk.methodBodies.size());
         auto body = std::make_unique<BytecodeChunk>();
         BytecodeChunk& bodyChunk = *body;
@@ -1307,7 +1309,14 @@ namespace LOICollection::frontend::ir {
         std::reference_wrapper<BytecodeChunk> saved = this->current;
         this->current = std::ref(bodyChunk);
 
-        this->pushScope(false, this->scopes.back().next, true);
+        /* A lambda scope never inherits: the enclosing slots live in another frame,
+         * so every outer name it may see has to be bound here to its capture index.
+         * Names left out fall through to fields and globals. */
+        this->pushScope(false, static_cast<int>(bindings.size()), false);
+        Scope& scope = this->scopes.back();
+        for (size_t i = 0; i < bindings.size(); ++i)
+            scope.slots[bindings[i].name] = static_cast<int>(i);
+
         for (const auto& param : node.decl.params)
             this->declareSlot(param.name);
 
@@ -1322,10 +1331,21 @@ namespace LOICollection::frontend::ir {
 
         this->current = saved;
 
-        const int captureCount = this->scopes.back().base;
         bodyChunk.slotCount = this->closeScope();
 
-        int lambdaIdx = this->addLambda(bodyIdx, static_cast<int>(node.decl.params.size()), captureCount);
+        std::vector<CaptureMeta> captures(bindings.size());
+        for (size_t i = 0; i < bindings.size(); ++i)
+            captures[i] = { bindings[i].sourceSlot, bindings[i].byRef };
+
+        const bool capturesThis =
+            !node.capture.present || node.capture.hasDefault || node.capture.capturesThis;
+
+        int lambdaIdx = this->addLambda(
+            bodyIdx,
+            static_cast<int>(node.decl.params.size()),
+            capturesThis,
+            std::move(captures)
+        );
         this->current.get().emit(OpCode::MAKE_LAMBDA, lambdaIdx, node.loc);
     }
 
@@ -1355,8 +1375,8 @@ namespace LOICollection::frontend::ir {
         return static_cast<int>(this->current.get().macros.size() - 1);
     }
 
-    int Compiler::addLambda(int bodyIndex, int argCount, int captureCount) {
-        this->current.get().lambdas.push_back({bodyIndex, argCount, captureCount});
+    int Compiler::addLambda(int bodyIndex, int argCount, bool capturesThis, std::vector<CaptureMeta> captures) {
+        this->current.get().lambdas.push_back({bodyIndex, argCount, capturesThis, std::move(captures)});
         return static_cast<int>(this->current.get().lambdas.size() - 1);
     }
 
@@ -1422,6 +1442,65 @@ namespace LOICollection::frontend::ir {
         }
 
         this->current.get().emit(OpCode::STORE_VAR, this->addConstant(name), loc);
+    }
+
+    void Compiler::collectVisibleSlots(std::vector<std::pair<std::string, int>>& out) const {
+        std::unordered_set<std::string> seen;
+
+        for (auto scope = this->scopes.rbegin(); scope != this->scopes.rend(); ++scope) {
+            for (const auto& [name, slot] : scope->slots)
+                if (seen.insert(name).second)
+                    out.emplace_back(name, slot);
+
+            if (!scope->inherits)
+                break;
+        }
+    }
+
+    std::vector<Compiler::CaptureBinding> Compiler::resolveCaptures(
+        const CaptureSpec& spec,
+        const SourceLocation& loc
+    ) {
+        const bool implicit = !spec.present || spec.hasDefault;
+
+        std::vector<CaptureBinding> bindings;
+
+        if (implicit) {
+            std::vector<std::pair<std::string, int>> visible;
+            this->collectVisibleSlots(visible);
+
+            /* Slot order keeps the implicit list an identity map, so a lambda with
+             * no capture clause compiles to exactly the layout it had before. */
+            std::ranges::sort(visible, {}, &std::pair<std::string, int>::second);
+
+            bindings.reserve(visible.size() + spec.items.size());
+            for (const auto& [name, slot] : visible)
+                bindings.push_back({ name, slot, spec.defaultByRef });
+        } else {
+            bindings.reserve(spec.items.size());
+        }
+
+        std::unordered_map<std::string, size_t> indexOf;
+        for (size_t i = 0; i < bindings.size(); ++i)
+            indexOf.emplace(bindings[i].name, i);
+
+        for (const auto& item : spec.items) {
+            if (auto known = indexOf.find(item.name); known != indexOf.end()) {
+                bindings[known->second].byRef = item.byRef;
+                continue;
+            }
+
+            const auto slot = this->resolveSlot(item.name);
+            if (!slot) {
+                this->diagnostics.addError(loc, "Cannot capture '" + item.name + "': not an enclosing local");
+                continue;
+            }
+
+            indexOf.emplace(item.name, bindings.size());
+            bindings.push_back({ item.name, *slot, item.byRef });
+        }
+
+        return bindings;
     }
 
     std::string Compiler::methodSignature(const MethodDecl& method) const {
