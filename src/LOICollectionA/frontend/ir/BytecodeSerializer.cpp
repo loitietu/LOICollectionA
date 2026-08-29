@@ -438,11 +438,37 @@ namespace LOICollection::frontend::ir {
         void writeLambdaMeta(Writer& writer, const LambdaMeta& meta) {
             writer.i32(meta.bodyIndex);
             writer.i32(meta.argCount);
-            writer.i32(meta.captureCount);
+            writer.u8(meta.capturesThis ? 1 : 0);
+            writer.u32(static_cast<uint32_t>(meta.captures.size()));
+
+            for (const auto& capture : meta.captures) {
+                writer.i32(capture.sourceSlot);
+                writer.u8(capture.byRef ? 1 : 0);
+            }
         }
 
         bool readLambdaMeta(Reader& reader, LambdaMeta& meta) {
-            return reader.i32(meta.bodyIndex) && reader.i32(meta.argCount) && reader.i32(meta.captureCount);
+            uint8_t capturesThis = 0;
+            uint32_t count = 0;
+
+            if (!reader.i32(meta.bodyIndex) ||
+                !reader.i32(meta.argCount) ||
+                !reader.u8(capturesThis) ||
+                !reader.u32(count))
+                return false;
+
+            meta.capturesThis = capturesThis != 0;
+            meta.captures.resize(count);
+
+            for (auto& capture : meta.captures) {
+                uint8_t byRef = 0;
+                if (!reader.i32(capture.sourceSlot) || !reader.u8(byRef))
+                    return false;
+
+                capture.byRef = byRef != 0;
+            }
+
+            return true;
         }
 
         bool writeChunk(Writer& writer, const BytecodeChunk& chunk) {

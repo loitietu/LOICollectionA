@@ -324,6 +324,7 @@ namespace LOICollection::frontend {
                 case ASTNode::Type::Lambda: {
                     auto& lambda = static_cast<const LambdaNode&>(node);
                     auto copy = std::make_unique<LambdaNode>(lambda.loc);
+                    copy->capture = lambda.capture;
                     copy->decl.loc = lambda.decl.loc;
                     copy->decl.name = lambda.decl.name;
                     copy->decl.params = lambda.decl.params;

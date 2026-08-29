@@ -209,3 +209,17 @@ TEST(VMInlineCacheTest, MixedShapeNativeCallsStayCorrect) {
         "]; "
         "s"), "00.510.5");
 }
+
+TEST(VMValueTest, ValueToStringCutsArrayCycles) {
+    EXPECT_EQ(eval("items = [1]; items[0] = items; s = \"\" + items; s"), "[[...]]");
+    EXPECT_EQ(eval("a = [1]; b = [2]; a[0] = b; b[0] = a; s = \"\" + a; s"), "[[[...]]]");
+    EXPECT_EQ(eval("items = [[1, 2], [3, 4]]; s = \"\" + items; s"), "[[1, 2], [3, 4]]");
+}
+
+TEST(VMValueTest, ValueToStringKeepsSharedSubgraphs) {
+    EXPECT_EQ(eval("x = [1, 2]; s = \"\" + [x, x]; s"), "[[1, 2], [1, 2]]");
+}
+
+TEST(VMValueTest, JoinSurvivesSelfReferentialArray) {
+    EXPECT_EQ(eval("items = [1]; items[0] = items; items.join(\",\")"), "[[...]]");
+}

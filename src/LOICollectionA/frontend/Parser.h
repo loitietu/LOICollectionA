@@ -39,6 +39,7 @@ namespace LOICollection::frontend {
         std::unique_ptr<MacroNode> parseMacro();
         std::unique_ptr<ClassNode> parseClass();
         std::unique_ptr<FunctionDefNode> parseFunctionDefinition();
+        bool parseCaptureSpec(CaptureSpec& spec);
         std::unique_ptr<LambdaNode> parseLambda();
         std::unique_ptr<MethodDecl> parseMethod(bool isPrivate);
         std::unique_ptr<MethodDecl> parseConstructor(const std::string& className, bool isPrivate);
@@ -53,6 +54,8 @@ namespace LOICollection::frontend {
         std::unique_ptr<BlockNode> parseControlBody();
 
         void bindDeclarativeReceiver(AssignmentNode& node);
+
+        [[nodiscard]] bool isFunctionDefinition();
 
         std::unique_ptr<ValueNode> parseTranspile();
         std::vector<std::unique_ptr<ExprNode>> parseArgs(TokenType delimiterToken = TokenType::TOKEN_COMMA, TokenType stopToken = TokenType::TOKEN_RPAREN);

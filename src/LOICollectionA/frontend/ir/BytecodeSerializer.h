@@ -38,6 +38,6 @@ namespace LOICollection::frontend::ir {
 
         static constexpr char MAGIC[4] = { 'L', 'C', 'U', 'I' };
         static constexpr char DEBUG_MAGIC[4] = { 'L', 'C', 'U', 'D' };
-        static constexpr uint32_t FORMAT_VERSION = 4;
+        static constexpr uint32_t FORMAT_VERSION = 5;
     };
 }

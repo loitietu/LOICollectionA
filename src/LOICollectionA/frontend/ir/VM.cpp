@@ -2,10 +2,13 @@
 #include <cctype>
 #include <chrono>
 #include <limits>
+#include <memory>
 #include <ranges>
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <unordered_map>
+#include <unordered_set>
 
 #include <ll/api/Expected.h>
 
@@ -52,43 +55,99 @@ namespace LOICollection::frontend::ir {
 
             return {};
         }
+
+        /* Arrays are the only recursive value, and a script can close a cycle through
+         * `a[0] = a`. The set tracks the path being expanded rather than every array
+         * seen, so a cycle is cut while a subgraph shared by two branches still prints
+         * in full on both sides. */
+        using VisitingArrays = std::unordered_set<const ArrayValue*>;
+
+        std::string toStringImpl(const ValueNode::ValueType& val, VisitingArrays& visiting) {
+            return std::visit([&visiting](auto&& arg) -> std::string {
+                using T = std::decay_t<decltype(arg)>;
+                if constexpr (std::is_same_v<std::remove_cv_t<T>, int>)
+                    return std::to_string(arg);
+                else if constexpr (std::is_same_v<std::remove_cv_t<T>, float>) {
+                    std::string result = std::to_string(arg);
+
+                    result.erase(result.find_last_not_of('0') + 1, std::string::npos);
+                    if (result.back() == '.')
+                        result.pop_back();
+
+                    return result;
+                }
+                else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::string>)
+                    return arg;
+                else if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
+                    return arg ? "true" : "false";
+                else if constexpr (std::is_same_v<std::remove_cv_t<T>, ObjectRef>)
+                    return "instance of " + arg->className;
+                else if constexpr (std::is_same_v<std::remove_cv_t<T>, FunctionRefPtr>)
+                    return "function";
+                else if constexpr (std::is_same_v<std::remove_cv_t<T>, ArrayRef>) {
+                    if (!visiting.insert(arg.get()).second)
+                        return "[...]";
+
+                    std::string result = "[";
+                    for (size_t i = 0; i < arg->elements.size(); ++i) {
+                        if (i != 0)
+                            result += ", ";
+                        result += toStringImpl(arg->elements[i], visiting);
+                    }
+                    result += "]";
+
+                    visiting.erase(arg.get());
+                    return result;
+                }
+                else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::monostate>)
+                    return "None";
+            }, val);
+        }
+
+        /* Objects and closures stay shared: only arrays have value semantics here, and
+         * deep-copying a closure would give every copy its own identity. The map is
+         * keyed before the copy is filled so a cycle ties back to the same shell. */
+        using ClonedArrays = std::unordered_map<const ArrayValue*, std::shared_ptr<ArrayValue>>;
+
+        ValueNode::ValueType cloneImpl(const ValueNode::ValueType& val, ClonedArrays& cloned) {
+            if (!std::holds_alternative<ArrayRef>(val))
+                return val;
+
+            const ArrayRef& source = std::get<ArrayRef>(val);
+
+            if (auto known = cloned.find(source.get()); known != cloned.end())
+                return known->second;
+
+            auto copy = std::make_shared<ArrayValue>();
+            copy->elements.reserve(source->elements.size());
+            cloned.emplace(source.get(), copy);
+
+            for (const auto& element : source->elements)
+                copy->elements.push_back(cloneImpl(element, cloned));
+
+            return copy;
+        }
     }
 
     std::string VM::valueToString(const ValueNode::ValueType& val) {
-        return std::visit([](auto&& arg) -> std::string {
-            using T = std::decay_t<decltype(arg)>;
-            if constexpr (std::is_same_v<std::remove_cv_t<T>, int>)
-                return std::to_string(arg);
-            else if constexpr (std::is_same_v<std::remove_cv_t<T>, float>) {
-                std::string result = std::to_string(arg);
+        VisitingArrays visiting;
+        return toStringImpl(val, visiting);
+    }
 
-                result.erase(result.find_last_not_of('0') + 1, std::string::npos);
-                if (result.back() == '.')
-                    result.pop_back();
-                
-                return result;
-            }
-            else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::string>)
-                return arg;
-            else if constexpr (std::is_same_v<std::remove_cv_t<T>, bool>)
-                return arg ? "true" : "false";
-            else if constexpr (std::is_same_v<std::remove_cv_t<T>, ObjectRef>)
-                return "instance of " + arg->className;
-            else if constexpr (std::is_same_v<std::remove_cv_t<T>, FunctionRefPtr>)
-                return "function";
-            else if constexpr (std::is_same_v<std::remove_cv_t<T>, ArrayRef>) {
-                std::string result = "[";
-                for (size_t i = 0; i < arg->elements.size(); ++i) {
-                    if (i != 0)
-                        result += ", ";
-                    result += VM::valueToString(arg->elements[i]);
-                }
-                result += "]";
-                return result;
-            }
-            else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::monostate>)
-                return "None";
-        }, val);
+    /* One set spans every element of a join, which costs nothing now that the path is
+     * unwound, and keeps a repeated join from rebuilding it per element. */
+    std::string VM::joinValues(const std::vector<ValueNode::ValueType>& values, const std::string& separator) {
+        VisitingArrays visiting;
+
+        std::string result;
+        for (size_t i = 0; i < values.size(); ++i) {
+            if (i != 0)
+                result += separator;
+
+            result += toStringImpl(values[i], visiting);
+        }
+
+        return result;
     }
 
     std::string VM::typeNameOf(const ValueNode::ValueType& val) {
@@ -115,17 +174,8 @@ namespace LOICollection::frontend::ir {
     }
 
     ValueNode::ValueType VM::cloneValue(const ValueNode::ValueType& val) {
-        if (!std::holds_alternative<ArrayRef>(val))
-            return val;
-
-        auto& source = std::get<ArrayRef>(val);
-        auto copy = std::make_shared<ArrayValue>();
-        copy->elements.reserve(source->elements.size());
-
-        for (const auto& element : source->elements)
-            copy->elements.push_back(VM::cloneValue(element));
-
-        return copy;
+        ClonedArrays cloned;
+        return cloneImpl(val, cloned);
     }
 
     ValueNode::ValueType VM::applyArithmetic(const ValueNode::ValueType& left, const ValueNode::ValueType& right, const std::string& op, DiagnosticEngine& diagnostics, const SourceLocation& loc) {
@@ -433,7 +483,7 @@ namespace LOICollection::frontend::ir {
             return;
         }
 
-        this->variables[name] = val;
+        (*this->variables)[name] = val;
     }
 
     bool VM::pushFrame(Frame&& frame) {
@@ -443,6 +493,35 @@ namespace LOICollection::frontend::ir {
         }
 
         this->frames.push_back(std::move(frame));
+        return true;
+    }
+
+    const ValueNode::ValueType& VM::loadSlot(const Frame& frame, size_t slot) {
+        if (slot < frame.cells.size() && frame.cells[slot])
+            return *frame.cells[slot];
+
+        return frame.locals[slot];
+    }
+
+    void VM::storeSlot(Frame& frame, size_t slot, ValueNode::ValueType value) {
+        if (slot < frame.cells.size() && frame.cells[slot]) {
+            *frame.cells[slot] = std::move(value);
+            return;
+        }
+
+        frame.locals[slot] = std::move(value);
+    }
+
+    bool VM::bindCaptures(Frame& callee, const FunctionRef& func) {
+        const size_t paramBase = func.captures.size();
+        if (paramBase + static_cast<size_t>(func.argCount) > callee.locals.size())
+            return false;
+
+        std::copy_n(func.captures.begin(), paramBase, callee.locals.begin());
+
+        if (!func.cells.empty())
+            callee.cells.assign(func.cells.begin(), func.cells.end());
+
         return true;
     }
 
@@ -468,12 +547,12 @@ namespace LOICollection::frontend::ir {
 
         this->stack.clear();
         this->frames.clear();
-        this->variables.clear();
+        this->variables = std::make_shared<GlobalScope>();
         this->mReport = sandbox::SandboxReport{};
 
         for (const auto& cls : chunk->classes) {
             for (size_t i = 0; i < cls.staticFieldNames.size(); ++i) {
-                this->variables[cls.name + "::" + cls.staticFieldNames[i]] =
+                (*this->variables)[cls.name + "::" + cls.staticFieldNames[i]] =
                     cls.staticHasDefault[i]
                         ? VM::cloneValue(cls.staticDefaults[i])
                         : ValueNode::ValueType{};
@@ -645,7 +724,7 @@ namespace LOICollection::frontend::ir {
                         break;
                     }
 
-                    this->push(frame.locals[instr.operand]);
+                    this->push(this->loadSlot(frame, static_cast<size_t>(instr.operand)));
                     break;
                 }
 
@@ -655,7 +734,7 @@ namespace LOICollection::frontend::ir {
                         break;
                     }
 
-                    frame.locals[instr.operand] = this->pop();
+                    this->storeSlot(frame, static_cast<size_t>(instr.operand), this->pop());
                     break;
                 }
 
@@ -707,8 +786,8 @@ namespace LOICollection::frontend::ir {
                         break;
                     }
 
-                    auto globalIt = this->variables.find(name);
-                    if (globalIt == this->variables.end()) {
+                    auto globalIt = this->variables->find(name);
+                    if (globalIt == this->variables->end()) {
                         this->diagnostics.addError(this->currentLoc, "Undefined variable: " + name);
                         break;
                     }
@@ -736,7 +815,7 @@ namespace LOICollection::frontend::ir {
                         break;
                     }
 
-                    frame.locals[instr.operand] = this->stack.back();
+                    this->storeSlot(frame, static_cast<size_t>(instr.operand), this->stack.back());
                     break;
                 }
 
@@ -915,13 +994,43 @@ namespace LOICollection::frontend::ir {
                     func->owner = owner;
                     func->bodyIndex = meta.bodyIndex;
                     func->argCount = meta.argCount;
-                    func->hasThis = frame.hasThis;
-                    if (frame.hasThis)
+                    func->hasThis = frame.hasThis && meta.capturesThis;
+                    if (func->hasThis)
                         func->thisObj = std::get<ObjectRef>(frame.thisObj);
-                    func->captures.assign(
-                        frame.locals.begin(),
-                        frame.locals.begin() + std::min(static_cast<size_t>(meta.captureCount), frame.locals.size())
-                    );
+
+                    const size_t count = meta.captures.size();
+                    func->captures.resize(count);
+
+                    if (std::ranges::any_of(meta.captures, &CaptureMeta::byRef))
+                        func->cells.resize(count);
+
+                    for (size_t i = 0; i < count; ++i) {
+                        const CaptureMeta& capture = meta.captures[i];
+
+                        if (capture.sourceSlot < 0 ||
+                            static_cast<size_t>(capture.sourceSlot) >= frame.locals.size()) {
+                            this->diagnostics.addError(this->currentLoc, "Capture slot index out of range");
+                            continue;
+                        }
+
+                        const size_t slot = static_cast<size_t>(capture.sourceSlot);
+
+                        if (!capture.byRef) {
+                            func->captures[i] = frame.locals[slot];
+                            continue;
+                        }
+
+                        /* The enclosing slot turns into a shared cell here, so both
+                         * frames observe each other and the capture outlives the
+                         * frame that created the lambda. */
+                        std::shared_ptr<ValueNode::ValueType>& cell = frame.cellAt(slot);
+                        if (!cell)
+                            cell = std::make_shared<ValueNode::ValueType>(frame.locals[slot]);
+
+                        func->cells[i] = cell;
+                        func->captures[i] = *cell;
+                    }
+
                     func->globals = this->variables;
 
                     this->push(func);
@@ -1286,12 +1395,10 @@ namespace LOICollection::frontend::ir {
                         callee.thisObj = func->thisObj;
 
                     const size_t paramBase = func->captures.size();
-                    if (paramBase + static_cast<size_t>(func->argCount) > callee.locals.size()) {
+                    if (!this->bindCaptures(callee, *func)) {
                         this->diagnostics.addError(this->currentLoc, "Lambda frame is too small for its parameters");
                         break;
                     }
-
-                    std::copy_n(func->captures.begin(), paramBase, callee.locals.begin());
 
                     for (int i = 0; i < func->argCount; ++i)
                         callee.locals[paramBase + i] = args[i];
@@ -1577,8 +1684,7 @@ namespace LOICollection::frontend::ir {
         VM vm(diagnostics);
         vm.stack.clear();
         vm.frames.clear();
-        vm.variables.clear();
-        vm.variables = func->globals;
+        vm.variables = func->globals ? func->globals : std::make_shared<GlobalScope>();
 
         Frame callee(*func->owner->methodBodies[func->bodyIndex]);
         callee.hasThis = func->hasThis;
@@ -1586,12 +1692,10 @@ namespace LOICollection::frontend::ir {
             callee.thisObj = func->thisObj;
 
         const size_t paramBase = func->captures.size();
-        if (paramBase + static_cast<size_t>(func->argCount) > callee.locals.size()) {
+        if (!bindCaptures(callee, *func)) {
             diagnostics.addError({}, "Lambda frame is too small for its parameters");
             return std::monostate{};
         }
-
-        std::copy_n(func->captures.begin(), paramBase, callee.locals.begin());
 
         for (int i = 0; i < func->argCount; ++i)
             callee.locals[paramBase + i] = args[i];

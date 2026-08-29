@@ -151,15 +151,7 @@ namespace ArrayClass {
         auto arr = std::get<ArrayRef>(self);
         const std::string& separator = std::get<std::string>(args[0]);
 
-        std::string result;
-        for (size_t i = 0; i < arr->elements.size(); ++i) {
-            if (i != 0)
-                result += separator;
-
-            result += ir::VM::valueToString(arr->elements[i]);
-        }
-
-        return result;
+        return ir::VM::joinValues(arr->elements, separator);
     }
 
     ll::Expected<TypedValue> slice(const TypedValue& self, const CallbackTypeValues& args) {

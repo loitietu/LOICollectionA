@@ -757,9 +757,23 @@ namespace LOICollection::frontend {
         }
     };
 
+    struct CaptureItem {
+        std::string name;
+        bool byRef = false;
+    };
+
+    struct CaptureSpec {
+        bool present = false;
+        bool hasDefault = false;
+        bool defaultByRef = false;
+        bool capturesThis = false;
+        std::vector<CaptureItem> items;
+    };
+
     struct LambdaNode : ExprNode {
         SourceLocation loc;
         MethodDecl decl;
+        CaptureSpec capture;
 
         explicit LambdaNode(SourceLocation location) : loc(location) {}
 
@@ -845,6 +859,8 @@ namespace LOICollection::frontend {
         struct BytecodeChunk;
     }
 
+    using GlobalScope = std::unordered_map<std::string, ValueNode::ValueType>;
+
     struct FunctionRef {
         std::shared_ptr<const ir::BytecodeChunk> owner;
 
@@ -855,6 +871,11 @@ namespace LOICollection::frontend {
         ObjectRef thisObj;
 
         std::vector<ValueNode::ValueType> captures;
-        std::unordered_map<std::string, ValueNode::ValueType> globals;
+        /* Parallel to captures: a non-null entry aliases a shared cell instead of the
+         * snapshot, which is how a by-reference capture stays live in both frames. */
+        std::vector<std::shared_ptr<ValueNode::ValueType>> cells;
+        /* Shared with the owning VM, so a lambda still writes to the globals it was
+         * born in instead of into a snapshot taken at creation time. */
+        std::shared_ptr<GlobalScope> globals;
     };
 }

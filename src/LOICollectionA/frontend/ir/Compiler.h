@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <vector>
 #include <functional>
 #include <optional>
@@ -118,11 +119,20 @@ namespace LOICollection::frontend::ir {
         int addConstant(const ValueNode::ValueType& val);
         int addFunction(const std::string& name, int argCount);
         int addMacro(const std::string& name, int argCount);
-        int addLambda(int bodyIndex, int argCount, int captureCount);
+        int addLambda(int bodyIndex, int argCount, bool capturesThis, std::vector<CaptureMeta> captures);
         int addVirtualCall(int classIndex, int ordinal, int argCount);
         int addSuperCall(int constructorIndex, int argCount);
 
         [[nodiscard]] std::string methodSignature(const MethodDecl& method) const;
+
+        struct CaptureBinding {
+            std::string name;
+            int sourceSlot = -1;
+            bool byRef = false;
+        };
+
+        [[nodiscard]] std::vector<CaptureBinding> resolveCaptures(const CaptureSpec& spec, const SourceLocation& loc);
+        void collectVisibleSlots(std::vector<std::pair<std::string, int>>& out) const;
 
         void pushScope(bool hasThis, int base, bool inherits = false);
         int closeScope();
